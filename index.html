@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Garden River · Hub</title>
 <link rel="apple-touch-icon" href="logo1.png">
 <link rel="icon" type="image/png" href="logo1.png">
@@ -125,7 +125,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .btn-primary:disabled { opacity: .45; pointer-events: none; }
 
 /* ══ HEADER (stile coerente con le altre app della suite) ════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: linear-gradient(155deg, var(--green-900), var(--green-700)); }
+.top-bar { position: sticky; top: 0; z-index: 100; background: linear-gradient(155deg, var(--green-900), var(--green-700)); padding-top: env(safe-area-inset-top); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 18px 16px; gap: 14px; }
 .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .header-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--green-900); letter-spacing: -.5px; flex-shrink: 0; }
