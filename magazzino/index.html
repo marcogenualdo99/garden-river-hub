@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Magazzino Bar · Garden River</title>
 <link rel="apple-touch-icon" href="logo1.png">
 <link rel="icon" type="image/png" href="logo1.png">
@@ -120,7 +120,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .btn-primary:disabled { opacity: .45; pointer-events: none; }
 
 /* ══ HEADER ═════════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); will-change: transform; }
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); will-change: transform; padding-top: env(safe-area-inset-top); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px 0; }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
@@ -400,11 +400,11 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <div class="form-row">
         <div class="form-group">
           <label>Minimo pezzi</label>
-          <input type="number" id="new-min" placeholder="24" min="0">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-min" placeholder="24">
         </div>
         <div class="form-group">
           <label>Pz per cartone</label>
-          <input type="number" id="new-pxc" placeholder="24" min="1">
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-pxc" placeholder="24">
         </div>
       </div>
       <div class="form-group">
@@ -413,7 +413,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       </div>
       <div class="form-group">
         <label>Giacenza iniziale</label>
-        <input type="number" id="new-pezzi" placeholder="0" min="0" value="0">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-pezzi" placeholder="0" value="0">
       </div>
       <button class="btn-primary" onclick="addProduct()">Aggiungi al magazzino</button>
     </div>
@@ -808,7 +808,7 @@ function renderGiacenze() {
         </div>
         <div class="qty-wrap">
           <button class="qty-btn" onclick="changeQty('${p.id}',-1)">−</button>
-          <input class="qty-val" type="number" min="0" value="${p.pz}"
+          <input class="qty-val" type="text" inputmode="numeric" pattern="[0-9]*" value="${p.pz}"
             onchange="setQty('${p.id}', this.value)">
           <span class="qty-unit">pz</span>
           <button class="qty-btn" onclick="changeQty('${p.id}',+1)">+</button>
@@ -980,11 +980,11 @@ function renderImpostazioni() {
           </div>
           <div class="imp-field">
             <label>Min pz</label>
-            <input type="number" min="0" value="${p.min}" data-id="${p.id}" data-field="min" onchange="saveImpField(this)">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" value="${p.min}" data-id="${p.id}" data-field="min" onchange="saveImpField(this)">
           </div>
           <div class="imp-field">
             <label>Pz/cart</label>
-            <input type="number" min="1" value="${p.pxc}" data-id="${p.id}" data-field="pxc" onchange="saveImpField(this)">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" value="${p.pxc}" data-id="${p.id}" data-field="pxc" onchange="saveImpField(this)">
           </div>
         </div>
       </div>`;
