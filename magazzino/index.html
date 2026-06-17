@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Magazzino Bar · Garden River</title>
+<link rel="apple-touch-icon" href="logo1.png">
+<link rel="icon" type="image/png" href="logo1.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Magazzino Bar">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
+    authDomain: "garden-river-magazzino.firebaseapp.com",
+    projectId: "garden-river-magazzino",
+    storageBucket: "garden-river-magazzino.firebasestorage.app",
+    messagingSenderId: "595247360399",
+    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+
+  // Login anonimo: nessun account reale, serve solo per autenticare le richieste a Firestore
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-300:  #D1D5DB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-lt: #F59E0B;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
+  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
+  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
+.login-screen {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--green-700);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+}
+.login-screen.hidden { display: none; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; display: block; }
+.login-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; margin-bottom: 14px; transition: border-color .15s; }
+.login-select:focus { border-color: var(--green-400); }
+.pin-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 16px; display: block; text-align: center; }
+.pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gray-300); background: var(--white); transition: all .15s; }
+.pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
+.pin-dot.error  { background: var(--red); border-color: var(--red); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
+.pin-key { height: 56px; border: 1.5px solid var(--gray-200,#E5E7EB); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
+.pin-key:active { background: var(--gray-100); }
+.pin-key.del    { font-size: 18px; color: var(--gray-500); }
+.pin-key.empty  { border: none; background: none; cursor: default; }
+.login-error { font-size: 12px; color: var(--red); font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
+.btn-primary:active   { opacity: .85; }
+.btn-primary:disabled { opacity: .45; pointer-events: none; }
+
+/* ══ HEADER ═════════════════════════════════════════════════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); will-change: transform; }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px 0; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 800; color: var(--white); line-height: 1.2; }
+.header-role  { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
+.hbtn.icon    { width: 32px; padding: 0; font-size: 15px; }
+.hbtn.orange  { background: var(--orange); color: var(--white); }
+.hbtn.outline { background: transparent; border: 1.5px solid rgba(255,255,255,0.4); color: var(--white); }
+.hbtn.ghost   { background: rgba(255,255,255,0.12); color: var(--white); border: none; }
+.hbtn:active  { opacity: .8; }
+
+/* ══ NAV TABS ═══════════════════════════════════════════════════════════════ */
+.nav-wrap { background: var(--green-700); }
+.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 10px 10px; gap: 5px; justify-content: center; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.nav-inner::-webkit-scrollbar { display: none; }
+.tab { padding: 8px 14px; border-radius: 24px; font-size: 13px; font-weight: 700; cursor: pointer; color: rgba(255,255,255,0.5); transition: all .15s; -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap; flex-shrink: 0; }
+.tab.active { background: var(--orange); color: var(--white); }
+.tab:not(.active):active { background: rgba(255,255,255,0.1); color: rgba(255,255,255,.8); }
+
+/* ══ MAIN ═══════════════════════════════════════════════════════════════════ */
+main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
+
+/* ══ ALERT GRID ══════════════════════════════════════════════════════════════ */
+.alert-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.alert-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 20px 10px 18px; text-align: center;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.alert-card:active { transform: scale(.97); box-shadow: var(--shadow); }
+.alert-card .icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
+.alert-card .num  { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; }
+.alert-card .lbl  { font-size: 10px; font-weight: 600; color: var(--gray-500); margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.alert-card.red   .num { color: var(--red);      }
+.alert-card.amber .num { color: var(--orange);   }
+.alert-card.green .num { color: var(--green-ok); }
+.alert-card.active-filter { box-shadow: 0 0 0 2.5px var(--orange); }
+
+/* ══ SEARCH ROW ══════════════════════════════════════════════════════════════ */
+.search-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+.search-wrap { position: relative; flex: 1; }
+.search-wrap input { width: 100%; height: 48px; padding: 0 14px 0 44px; border: none; border-radius: var(--radius-xl); font-size: 14px; background: var(--white); color: var(--gray-900); font-family: var(--font); outline: none; box-shadow: var(--shadow-sm); }
+.search-wrap input::placeholder { color: var(--gray-400,#9CA3AF); }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--gray-400,#9CA3AF); font-size: 16px; pointer-events: none; }
+.add-btn { height: 48px; padding: 0 20px; border: none; border-radius: var(--radius-xl); background: var(--green-100); color: var(--green-700); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; box-shadow: var(--shadow-sm); transition: background .15s; }
+.add-btn:active { background: var(--green-200); }
+
+/* ══ FILTER LABEL ════════════════════════════════════════════════════════════ */
+.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.filter-label { font-size: 13px; font-weight: 700; color: var(--gray-700); }
+.filter-clear { font-size: 12px; font-weight: 600; color: var(--orange); cursor: pointer; text-decoration: underline; }
+
+/* ══ CATEGORIA BLOCK ═════════════════════════════════════════════════════════ */
+.cat-block { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
+.cat-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cat-header-left { display: flex; align-items: center; gap: 10px; }
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-name { font-size: 14px; font-weight: 800; color: var(--gray-900); }
+.cat-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.cat-chevron { font-size: 12px; color: var(--gray-400,#9CA3AF); transition: transform .2s; flex-shrink: 0; }
+.cat-chevron.open { transform: rotate(180deg); }
+
+/* ══ PRODUCT ROW ═════════════════════════════════════════════════════════════ */
+.product-list { border-top: 1px solid var(--gray-100); }
+.product-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--gray-100); }
+.product-row:last-child { border-bottom: none; }
+.status-pill { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pill-red   { background: var(--red); }
+.pill-amber { background: var(--orange); }
+.pill-green { background: var(--green-ok); }
+.product-info { flex: 1; min-width: 0; }
+.product-name { font-size: 14px; font-weight: 700; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.product-meta.warn    { color: var(--red); font-weight: 600; }
+.product-meta.caution { color: var(--orange); font-weight: 600; }
+
+/* ══ QTY CONTROLS ════════════════════════════════════════════════════════════ */
+.qty-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.qty-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-300); background: var(--white); color: var(--gray-700); font-size: 17px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .1s; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.qty-btn:active { background: var(--gray-100); }
+.qty-val { width: 50px; height: 32px; text-align: center; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 14px; font-weight: 700; color: var(--gray-900); outline: none; font-family: var(--font); }
+.qty-unit { font-size: 10px; color: var(--gray-500); }
+.del-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.del-btn:active { background: var(--red-bd); }
+
+/* ══ CARD GENERICA ═══════════════════════════════════════════════════════════ */
+.card { background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 12px; }
+.card h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
+.card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; }
+
+/* ══ FORM ═════════════════════════════════════════════════════════════════════ */
+.form-group { margin-bottom: 13px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; transition: border-color .15s; }
+.form-group textarea { height: 76px; padding: 12px 14px; resize: none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green-400); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ══ ORDINE / FORNITORE BLOCK ═════════════════════════════════════════════════ */
+.ordine-block { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
+.ordine-block-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; background: var(--green-50); border-bottom: 1px solid var(--green-100); }
+.ordine-block-title  { font-size: 13px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .05em; }
+.ordine-block-count  { font-size: 12px; font-weight: 700; color: var(--gray-500); }
+.ordine-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--gray-100); }
+.ordine-row:last-child { border-bottom: none; }
+.ordine-info { flex: 1; min-width: 0; }
+.ordine-desc { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.ordine-meta { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
+.ordine-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; flex-shrink: 0; margin-left: 8px; }
+.ordine-badge.red   { background: var(--red-bg); color: var(--red); }
+.ordine-badge.amber { background: var(--orange-bg); color: var(--orange); }
+.wa-btn { width: calc(100% - 32px); margin: 12px 16px 14px; height: 46px; background: #25D366; color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font); transition: opacity .15s; }
+.wa-btn:active { opacity: .85; }
+
+/* ══ IMPOSTAZIONI / MINIMI ════════════════════════════════════════════════════ */
+.imp-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 14px 0 8px; margin-top: 4px; }
+.imp-row-expanded { padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
+.imp-row-expanded:last-child { border-bottom: none; }
+.imp-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.imp-name-input { flex: 1; height: 40px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; color: var(--gray-900); font-family: var(--font); outline: none; }
+.imp-name-input:focus { border-color: var(--green-400); }
+.imp-row-bottom { display: flex; gap: 8px; align-items: flex-end; }
+.imp-field { display: flex; flex-direction: column; gap: 4px; }
+.imp-field label { font-size: 10px; color: var(--gray-500); font-weight: 600; }
+.imp-field input { width: 64px; height: 38px; text-align: center; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 13px; font-weight: 700; color: var(--gray-900); outline: none; font-family: var(--font); }
+.imp-field input:focus { border-color: var(--green-400); }
+.imp-select { height: 38px; padding: 0 8px; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 12px; font-weight: 600; color: var(--gray-900); outline: none; font-family: var(--font); max-width: 150px; }
+.imp-select:focus { border-color: var(--green-400); }
+
+/* ══ BACK HEADER ══════════════════════════════════════════════════════════════ */
+.back-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--white); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+.back-title { font-size: 18px; font-weight: 800; }
+.back-sub   { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
+
+/* ══ DIVIDER / EMPTY ══════════════════════════════════════════════════════════ */
+.divider { height: 1px; background: var(--gray-100); margin: 14px 0; }
+.empty { text-align: center; padding: 48px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
+
+/* ══ TOAST ════════════════════════════════════════════════════════════════════ */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ MISC ═════════════════════════════════════════════════════════════════════ */
+.hidden  { display: none !important; }
+.section { display: none; }
+.section.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden River" src="logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Magazzino Bar</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO (utente loggato ma senza permessi su questo modulo) ══════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden River" src="logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Magazzino Bar</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">&#8592;</button>
+      <button class="hbtn ghost icon" id="btn-setup" onclick="switchTab('setup')" title="Impostazioni">&#9881;</button>
+      <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.7)">
+        <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;transition:background .3s"></span>
+        <span id="sync-label" style="display:none"></span>
+      </div>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+    </div>
+  </div>
+  <div class="nav-wrap">
+    <div class="nav-inner">
+      <div class="tab active" onclick="switchTab('giacenze')"      id="tab-giacenze">Giacenze</div>
+      <div class="tab"        onclick="switchTab('ordine')"        id="tab-ordine">Ordine</div>
+      <div class="tab"        onclick="switchTab('aggiungi')"      id="tab-aggiungi">Prodotto</div>
+      <div class="tab"        onclick="switchTab('impostazioni')"  id="tab-impostazioni">Minimi</div>
+      <div class="tab"        onclick="switchTab('categorie')"     id="tab-categorie">Categorie</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ══ GIACENZE ══════════════════════════════════════════════════════════════ -->
+  <div id="sec-giacenze" class="section active">
+    <div class="alert-grid">
+      <div class="alert-card red"   id="card-red"   onclick="filterByCard('red')">
+        <div class="num" id="cnt-red">–</div>
+        <div class="lbl">Esauriti</div>
+      </div>
+      <div class="alert-card amber" id="card-amber" onclick="filterByCard('amber')">
+        <div class="num" id="cnt-amber">–</div>
+        <div class="lbl">Da ordinare</div>
+      </div>
+      <div class="alert-card green" id="card-green" onclick="filterByCard('green')">
+        <div class="num" id="cnt-green">–</div>
+        <div class="lbl">OK</div>
+      </div>
+    </div>
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">&#9906;</span>
+        <input type="text" id="search-input" placeholder="Cerca prodotto…" oninput="renderGiacenze()">
+      </div>
+    </div>
+    <div id="filter-bar" class="filter-bar hidden">
+      <span class="filter-label" id="filter-label"></span>
+      <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
+    </div>
+    <div id="giacenze-list"></div>
+  </div>
+
+  <!-- ══ ORDINE ════════════════════════════════════════════════════════════════ -->
+  <div id="sec-ordine" class="section">
+    <div id="ordine-list"></div>
+  </div>
+
+  <!-- ══ AGGIUNGI PRODOTTO ════════════════════════════════════════════════════ -->
+  <div id="sec-aggiungi" class="section">
+    <div class="card">
+      <h3>Nuovo prodotto</h3>
+      <p class="subtitle">Compila i campi e aggiungi al magazzino</p>
+      <div class="form-group">
+        <label>Nome prodotto</label>
+        <input type="text" id="new-name" placeholder="es. Birra Corona 33cl">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="new-cat">
+          <option value="__new__">+ Nuova categoria…</option>
+        </select>
+        <div id="new-cat-wrap" style="display:none;margin-top:8px;flex-direction:column;gap:8px">
+          <input type="text" id="new-cat-input" placeholder="Nome nuova categoria…"
+            style="height:42px;padding:0 12px;border:1.5px solid var(--green-400);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none;width:100%">
+          <div style="display:flex;gap:6px">
+            <button type="button" onclick="confirmNewCatForm()"
+              style="flex:1;height:36px;background:var(--green-500);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✓ Aggiungi</button>
+            <button type="button" onclick="cancelNewCatForm()"
+              style="height:36px;padding:0 14px;background:var(--white);border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:var(--font)">Annulla</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Minimo pezzi</label>
+          <input type="number" id="new-min" placeholder="24" min="0">
+        </div>
+        <div class="form-group">
+          <label>Pz per cartone</label>
+          <input type="number" id="new-pxc" placeholder="24" min="1">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Fornitore</label>
+        <input type="text" id="new-fornitore" value="Cupra Bibite">
+      </div>
+      <div class="form-group">
+        <label>Giacenza iniziale</label>
+        <input type="number" id="new-pezzi" placeholder="0" min="0" value="0">
+      </div>
+      <button class="btn-primary" onclick="addProduct()">Aggiungi al magazzino</button>
+    </div>
+  </div>
+
+  <!-- ══ IMPOSTAZIONI / MINIMI ════════════════════════════════════════════════ -->
+  <div id="sec-impostazioni" class="section">
+    <div class="card">
+      <h3>Quantità minime</h3>
+      <p class="subtitle">Modifica nome, categoria, soglie e pezzi per cartone — si salva subito</p>
+      <div id="impostazioni-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ CATEGORIE ════════════════════════════════════════════════════════════ -->
+  <div id="sec-categorie" class="section">
+    <div class="card">
+      <h3>Gestione categorie</h3>
+      <p class="subtitle">Aggiungi o elimina categorie personalizzate</p>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="cat-new-input" placeholder="Nome nuova categoria…"
+          style="flex:1;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none">
+        <button onclick="addCatFromManager()"
+          style="height:48px;padding:0 18px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">+ Aggiungi</button>
+      </div>
+      <div id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ SETUP ════════════════════════════════════════════════════════════════ -->
+  <div id="sec-setup" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('giacenze')">&#8592;</button>
+      <div><div class="back-title">Impostazioni</div></div>
+    </div>
+    <div class="card">
+      <h3>Database</h3>
+      <p class="subtitle">I dati sono sincronizzati in tempo reale su Firebase. L'app si autentica in modo anonimo e automatico — nessuna configurazione richiesta su nessun dispositivo</p>
+      <div style="background:var(--green-50);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+        <span id="fb-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--gray-300);flex-shrink:0"></span>
+        <div>
+          <p id="fb-status-text" style="font-size:13px;font-weight:700;color:var(--gray-700)">Connessione in corso...</p>
+          <p style="font-size:11px;color:var(--gray-500);margin-top:2px">Sincronizzazione automatica e istantanea attiva</p>
+        </div>
+      </div>
+      <button onclick="testConnessione()" style="width:100%;height:44px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Testa connessione</button>
+      <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <h3>Utenti e permessi</h3>
+      <p class="subtitle">Operatori, ruoli e permessi di accesso sono gestiti centralmente dalla Hub Garden River — non più da qui.</p>
+      <button onclick="location.href=HUB_URL+'?go=permessi'" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Apri Hub → Utenti e permessi</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
+  <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
+    <div id="modal-title" style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:8px"></div>
+    <div id="modal-body"  style="font-size:14px;color:var(--gray-500);line-height:1.6;margin-bottom:20px;white-space:pre-line"></div>
+    <div style="display:flex;gap:10px">
+      <button id="modal-cancel" onclick="closeModal()" style="flex:1;height:48px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Annulla</button>
+      <button id="modal-confirm" style="flex:1;height:48px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── COSTANTI ─────────────────────────────────────────────────────────────────
+// 👉 Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
+//    Deve trovarsi sullo STESSO DOMINIO di questa app, altrimenti il login
+//    automatico (single sign-on) non può funzionare (sessionStorage è legato
+//    all'origine — protocollo+dominio+porta).
+const HUB_URL = '../';
+// Identifica questo modulo nella mappa permessi gestita dalla Hub.
+const MODULE_ID = 'magazzino';
+// Tutte le sezioni di questa app che possono essere abilitate/disabilitate
+// per singolo operatore dalla Hub.
+const SECTION_IDS = ['giacenze','ordine','aggiungi','impostazioni','categorie','setup'];
+
+let hubSession        = null;              // { nome, ruolo } — impostato dalla Hub al login
+let hubPermessi        = { sezioni: {} };  // permessi di questo operatore per questo modulo
+let allowedSections    = new Set(SECTION_IDS);
+
+// Colori categoria: header hex, sfondo righe pari, sfondo righe dispari
+const CAT_COLORS = {
+  "💧 Acque":                {h:"1565C0", e:"E3F2FD", o:"BBDEFB"},
+  "🥤 Bibite":                {h:"E53935", e:"FDE8E8", o:"FFCDD2"},
+  "🍺 Birre":                 {h:"6D4C41", e:"EFEBE9", o:"D7CCC8"},
+  "🍹 Alcolici & Aperitivi":  {h:"6A1B9A", e:"F3E5F5", o:"E1BEE7"},
+  "🧃 Succhi Amita":          {h:"2E7D32", e:"E8F5E9", o:"C8E6C9"},
+};
+const EXTRA_COLORS = [
+  {h:"00838F", e:"E0F7FA", o:"B2EBF2"},
+  {h:"EF6C00", e:"FFF3E0", o:"FFE0B2"},
+  {h:"AD1457", e:"FCE4EC", o:"F8BBD0"},
+  {h:"37474F", e:"ECEFF1", o:"CFD8DC"},
+  {h:"558B2F", e:"F1F8E9", o:"DCEDC8"},
+];
+const DEFAULT_CATS = Object.keys(CAT_COLORS);
+
+// ── STATO ─────────────────────────────────────────────────────────────────────
+let products         = [];
+let customCats        = [];
+let currentOperatore   = null;
+let activeFilter        = null; // 'red' | 'amber' | 'green' | null
+
+// ── DATI DI DEFAULT (primo avvio, prima che Firestore risponda) ─────────────
+const DEFAULT_PRODUCTS = [
+  {name:"Acqua pet 1L Naturale", cat:"💧 Acque", min:24, pxc:12, pz:44, forn:"Cupra Bibite"},
+  {name:"Acqua pet 0.5L Naturale", cat:"💧 Acque", min:72, pxc:24, pz:6, forn:"Cupra Bibite"},
+  {name:"Acqua pet 1L Frizzante", cat:"💧 Acque", min:24, pxc:12, pz:18, forn:"Cupra Bibite"},
+  {name:"Acqua pet 0.5L Frizzante", cat:"💧 Acque", min:72, pxc:24, pz:4, forn:"Cupra Bibite"},
+  {name:"Acqua Tonica", cat:"💧 Acque", min:24, pxc:24, pz:12, forn:"Cupra Bibite"},
+  {name:"Crodino", cat:"🥤 Bibite", min:20, pxc:48, pz:24, forn:"Cupra Bibite"},
+  {name:"Coca Cola 1.5L", cat:"🥤 Bibite", min:12, pxc:6, pz:5, forn:"Cupra Bibite"},
+  {name:"Coca Cola litro vetro", cat:"🥤 Bibite", min:24, pxc:12, pz:1, forn:"Cupra Bibite"},
+  {name:"Coca Cola 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:2, forn:"Cupra Bibite"},
+  {name:"Coca Cola Zero 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Coca Cola Zero Zero 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Fanta 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:2, forn:"Cupra Bibite"},
+  {name:"Sprite 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:12, forn:"Cupra Bibite"},
+  {name:"Lemon Soda", cat:"🥤 Bibite", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Esta Thé Brick Pesca", cat:"🥤 Bibite", min:24, pxc:72, pz:3, forn:"Cupra Bibite"},
+  {name:"Esta Thé Brick Limone", cat:"🥤 Bibite", min:24, pxc:72, pz:3, forn:"Cupra Bibite"},
+  {name:"Monster", cat:"🥤 Bibite", min:10, pxc:24, pz:36, forn:"Cupra Bibite"},
+  {name:"Powerade Rossa 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"Powerade Blu 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"Powerade Arancione 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"RedBull 25cl", cat:"🥤 Bibite", min:10, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"RedBull Zero 25cl", cat:"🥤 Bibite", min:10, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Campari", cat:"🥤 Bibite", min:1, pxc:1, pz:1, forn:"Cupra Bibite"},
+  {name:"Birra alla spina (fusto)", cat:"🍺 Birre", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Heineken 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Tennent's 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Ichnusa non filtrata 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Messina Cristalli Sale 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Corona 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Ceres 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Filtrata Freddo 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Moretti Filtrata Freddo 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Bionda 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Bionda 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Peroni 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Peroni 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Raffo 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Messina Vivace 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Leffe 33cl", cat:"🍺 Birre", min:10, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Hoegaarden Bianca 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Aperol", cat:"🍹 Alcolici & Aperitivi", min:2, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Amaro del Capo", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:1, forn:"Cupra Bibite"},
+  {name:"Jagermeister 100cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:3, forn:"Cupra Bibite"},
+  {name:"Grappa Lucano Barocca 70cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Molinari Sambuca 100cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Ace 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Ananas 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Arancia 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Pesca 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Pera 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Albicocca 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Mirtillo 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+];
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+
+function stato(p) {
+  if (p.pz === 0)   return 'red';
+  if (p.pz < p.min) return 'amber';
+  return 'green';
+}
+function cartoniFabbisogno(p) {
+  if (p.pz >= p.min) return 0;
+  return Math.ceil((p.min - p.pz) / p.pxc);
+}
+function getAllCategories() {
+  const fromProducts = products.map(p => p.cat).filter(Boolean);
+  return [...new Set([...DEFAULT_CATS, ...customCats, ...fromProducts])];
+}
+function getCatColor(cat) {
+  if (CAT_COLORS[cat]) return CAT_COLORS[cat];
+  const custom = getAllCategories().filter(c => !CAT_COLORS[c]);
+  const idx = Math.max(0, custom.indexOf(cat)) % EXTRA_COLORS.length;
+  return EXTRA_COLORS[idx];
+}
+
+// ── FIREBASE — REALTIME SYNC ─────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once: true });
+  });
+}
+
+let _unsubProducts = null;
+let _unsubMeta = null;
+
+function setSyncStatus(state) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  const fbDot = document.getElementById('fb-status-dot');
+  const fbTxt = document.getElementById('fb-status-text');
+  const map = {
+    connecting: { color:'#60A5FA', text:'Connessione...'   },
+    live:       { color:'#4ADE80', text:'In tempo reale'   },
+    saving:     { color:'#FCD34D', text:'Salvataggio...'   },
+    error:      { color:'#F87171', text:'Errore connessione' },
+    offline:    { color:'rgba(255,255,255,0.3)', text:'Offline' },
+  };
+  const s = map[state] || map.offline;
+  if (dot)   dot.style.background = s.color;
+  if (label) { label.textContent = s.text; label.style.display = state === 'live' ? 'none' : ''; }
+  if (fbDot) fbDot.style.background = s.color;
+  if (fbTxt) fbTxt.textContent = state === 'live' ? 'Connesso — sincronizzazione in tempo reale attiva'
+                                : state === 'connecting' ? 'Connessione in corso...'
+                                : state === 'error' ? 'Errore di connessione al database'
+                                : 'Database offline';
+}
+
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  setSyncStatus('connecting');
+
+  try {
+    _unsubProducts = onSnapshot(collection(db, 'prodotti'), (snap) => {
+      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSyncStatus('live');
+      render();
+      if (document.getElementById('sec-impostazioni').classList.contains('active')) renderImpostazioni();
+      if (document.getElementById('sec-categorie').classList.contains('active')) renderCatManager();
+    }, (err) => {
+      console.error('Errore listener prodotti:', err);
+      setSyncStatus('error');
+    });
+
+    _unsubMeta = onSnapshot(collection(db, 'categorie'), (snap) => {
+      customCats = snap.docs.map(d => d.data().nome).filter(Boolean);
+      populateCatSelect();
+      render();
+    }, (err) => { console.error('Errore listener categorie:', err); });
+
+  } catch(e) {
+    console.error('Errore avvio sync:', e);
+    setSyncStatus('error');
+  }
+}
+
+async function forceRefresh(silent) {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const [snapP, snapCat] = await Promise.all([
+      getDocs(collection(db, 'prodotti')),
+      getDocs(collection(db, 'categorie')),
+    ]);
+    products = snapP.docs.map(d => ({ id: d.id, ...d.data() }));
+    customCats = snapCat.docs.map(d => d.data().nome).filter(Boolean);
+    populateCatSelect();
+    render();
+    if (document.getElementById('sec-impostazioni').classList.contains('active')) renderImpostazioni();
+    if (document.getElementById('sec-categorie').classList.contains('active')) renderCatManager();
+    setSyncStatus('live');
+    if (!silent) showToast('Dati aggiornati');
+  } catch(e) {
+    console.error('Errore refresh manuale:', e);
+    if (!silent) showToast('Errore aggiornamento — controlla la connessione');
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh(true);
+});
+window.addEventListener('online', () => forceRefresh(true));
+window.addEventListener('focus',  () => forceRefresh(true));
+
+async function ensureDefaultData() {
+  await waitForFirebase();
+  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  try {
+    const snapP = await getDocs(collection(db, 'prodotti'));
+    if (snapP.empty) {
+      for (const p of DEFAULT_PRODUCTS) {
+        const id = uid();
+        await setDoc(doc(db, 'prodotti', id), p);
+      }
+    }
+  } catch(e) { console.error('Errore init dati default:', e); }
+}
+
+// ── SCRITTURE FIRESTORE — PRODOTTI ───────────────────────────────────────────
+async function fsSetProduct(p) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  const { id, ...data } = p;
+  await setDoc(doc(db, 'prodotti', id), data);
+}
+async function fsDeleteProduct(id) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'prodotti', id));
+}
+async function fsAddCategoria(nome) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  await setDoc(doc(db, 'categorie', nome), { nome });
+}
+async function fsDeleteCategoria(nome) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'categorie', nome));
+}
+
+// ── RENDER PRINCIPALE ─────────────────────────────────────────────────────────
+function render() {
+  renderAlerts();
+  renderGiacenze();
+  renderOrdine();
+}
+
+function renderAlerts() {
+  const r = products.filter(p => stato(p)==='red').length;
+  const a = products.filter(p => stato(p)==='amber').length;
+  const g = products.filter(p => stato(p)==='green').length;
+  document.getElementById('cnt-red').textContent   = r;
+  document.getElementById('cnt-amber').textContent = a;
+  document.getElementById('cnt-green').textContent = g;
+  ['red','amber','green'].forEach(k => {
+    document.getElementById('card-'+k).classList.toggle('active-filter', activeFilter === k);
+  });
+}
+
+function filterByCard(key) {
+  activeFilter = activeFilter === key ? null : key;
+  renderGiacenze();
+}
+function clearFilter() { activeFilter = null; renderGiacenze(); }
+
+function renderGiacenze() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filterBar = document.getElementById('filter-bar');
+  const labels = { red:'Solo esauriti', amber:'Solo da ordinare', green:'Solo OK' };
+  if (activeFilter) {
+    filterBar.classList.remove('hidden');
+    document.getElementById('filter-label').textContent = labels[activeFilter];
+  } else {
+    filterBar.classList.add('hidden');
+  }
+
+  const bycat = {};
+  products.forEach((p, idx) => {
+    if (q && !p.name.toLowerCase().includes(q)) return;
+    if (activeFilter && stato(p) !== activeFilter) return;
+    if (!bycat[p.cat]) bycat[p.cat] = [];
+    bycat[p.cat].push({...p, idx});
+  });
+
+  const order = getAllCategories();
+  let html = '';
+  order.forEach(cat => {
+    if (!bycat[cat] || bycat[cat].length === 0) return;
+    const cc = getCatColor(cat);
+    const critico = bycat[cat].filter(p => stato(p) !== 'green').length;
+    html += `<div class="cat-block">
+      <div class="cat-header" style="background:#${cc.h}18" onclick="toggleCat(this)">
+        <div class="cat-header-left">
+          <div class="cat-dot" style="background:#${cc.h}"></div>
+          <span class="cat-name" style="color:#${cc.h}">${cat.replace(/^\S+\s/,'')}</span>
+        </div>
+        ${critico > 0
+          ? `<span class="cat-badge" style="background:#${cc.h}22;color:#${cc.h}">⚠ ${critico}</span>`
+          : `<span class="cat-badge" style="background:var(--green-bg);color:var(--green-ok)">✓ ok</span>`}
+      </div>
+      <div class="product-list">`;
+    bycat[cat].forEach(p => {
+      const s = stato(p);
+      const cart = cartoniFabbisogno(p);
+      const metaClass = s==='red' ? 'warn' : s==='amber' ? 'caution' : '';
+      const meta = s !== 'green'
+        ? `Min ${p.min} pz · Ordina ${cart} carton${cart===1?'e':'i'}`
+        : `Min ${p.min} pz · ${p.pxc} pz/cartone`;
+      html += `<div class="product-row">
+        <div class="status-pill pill-${s}"></div>
+        <div class="product-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-meta ${metaClass}">${meta}</div>
+        </div>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="changeQty('${p.id}',-1)">−</button>
+          <input class="qty-val" type="number" min="0" value="${p.pz}"
+            onchange="setQty('${p.id}', this.value)">
+          <span class="qty-unit">pz</span>
+          <button class="qty-btn" onclick="changeQty('${p.id}',+1)">+</button>
+          <button class="del-btn" onclick="deleteProduct('${p.id}')" title="Elimina">🗑</button>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('giacenze-list').innerHTML = html ||
+    `<div class="empty">Nessun prodotto trovato</div>`;
+}
+
+function renderOrdine() {
+  const critici = products.filter(p => stato(p) !== 'green');
+  if (critici.length === 0) {
+    document.getElementById('ordine-list').innerHTML =
+      `<div class="empty">🟢 Tutto ok — nessun prodotto da ordinare!</div>`;
+    return;
+  }
+  const byForn = {};
+  critici.forEach(p => {
+    if (!byForn[p.forn]) byForn[p.forn] = [];
+    byForn[p.forn].push(p);
+  });
+  let html = '';
+  Object.entries(byForn).forEach(([forn, prods]) => {
+    const fornId = forn.replace(/\s+/g,'_');
+    html += `<div class="ordine-block">
+      <div class="ordine-block-header">
+        <span class="ordine-block-title">📦 ${forn}</span>
+        <span class="ordine-block-count">${prods.length} prodotti</span>
+      </div>`;
+    prods.forEach(p => {
+      const cart = cartoniFabbisogno(p);
+      const isRed = stato(p)==='red';
+      const label = isRed ? '🔴 ESAURITO' : `🟠 ${cart} carton${cart===1?'e':'i'}`;
+      html += `<div class="ordine-row">
+        <div class="ordine-info">
+          <div class="ordine-desc">${p.name}</div>
+          <div class="ordine-meta">${p.pz} pz presenti · min ${p.min} pz</div>
+        </div>
+        <div class="ordine-badge ${isRed?'red':'amber'}">${label}</div>
+      </div>`;
+    });
+    html += `<button class="wa-btn" onclick="sendWhatsApp('${fornId}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Invia ordine su WhatsApp
+      </button></div>`;
+  });
+  document.getElementById('ordine-list').innerHTML = html;
+  window._byForn = byForn;
+}
+
+// ── INTERAZIONI GIACENZE ──────────────────────────────────────────────────────
+function toggleCat(el) {
+  const list = el.nextElementSibling;
+  list.style.display = list.style.display === 'none' ? '' : 'none';
+}
+
+async function changeQty(id, delta) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  p.pz = Math.max(0, (p.pz||0) + delta);
+  renderGiacenze(); renderAlerts(); renderOrdine();
+  try { await fsSetProduct(p); } catch(e) { showToast('Errore salvataggio'); }
+}
+async function setQty(id, val) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  p.pz = Math.max(0, parseInt(val) || 0);
+  renderAlerts(); renderOrdine();
+  try { await fsSetProduct(p); } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function deleteProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  showModal('Elimina prodotto', `Eliminare "${p.name}" dal magazzino?`, 'Elimina', 'var(--red)',
+    async () => {
+      try { await fsDeleteProduct(id); showToast(`🗑 "${p.name}" eliminato`); }
+      catch(e) { showToast('Errore eliminazione'); }
+    });
+}
+
+// ── AGGIUNGI PRODOTTO ─────────────────────────────────────────────────────────
+async function addProduct() {
+  const name = document.getElementById('new-name').value.trim();
+  const cat  = document.getElementById('new-cat').value;
+  const min  = parseInt(document.getElementById('new-min').value) || 0;
+  const pxc  = parseInt(document.getElementById('new-pxc').value) || 1;
+  const forn = document.getElementById('new-fornitore').value.trim() || 'Altro';
+  const pz   = parseInt(document.getElementById('new-pezzi').value) || 0;
+  if (!name) { showToast('⚠️ Inserisci il nome del prodotto'); return; }
+  if (!cat || cat === '__new__') { showToast('⚠️ Seleziona una categoria'); return; }
+  const newP = { id: uid(), name, cat, min, pxc, pz, forn };
+  try {
+    await fsSetProduct(newP);
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-min').value  = '';
+    document.getElementById('new-pxc').value  = '';
+    document.getElementById('new-pezzi').value = '0';
+    showToast(`✅ "${name}" aggiunto!`);
+    switchTab('giacenze');
+  } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('new-cat');
+  if (!sel) return;
+  const current = sel.value;
+  const cats = getAllCategories();
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('') +
+    `<option value="__new__">+ Nuova categoria…</option>`;
+  if (cats.includes(current)) sel.value = current;
+}
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'new-cat' && e.target.value === '__new__') {
+    e.target.value = e.target.options[0].value;
+    const wrap = document.getElementById('new-cat-wrap');
+    wrap.style.display = 'flex';
+    document.getElementById('new-cat-input').focus();
+  }
+});
+
+async function confirmNewCatForm() {
+  const inp = document.getElementById('new-cat-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
+  try {
+    await fsAddCategoria(name);
+    inp.value = '';
+    document.getElementById('new-cat-wrap').style.display = 'none';
+    setTimeout(() => { document.getElementById('new-cat').value = name; }, 300);
+    showToast(`✅ Categoria "${name}" aggiunta!`);
+  } catch(e) { showToast('Errore salvataggio categoria'); }
+}
+function cancelNewCatForm() {
+  document.getElementById('new-cat-input').value = '';
+  document.getElementById('new-cat-wrap').style.display = 'none';
+}
+
+// ── IMPOSTAZIONI / MINIMI ──────────────────────────────────────────────────────
+function renderImpostazioni() {
+  const order = getAllCategories();
+  const bycat = {};
+  products.forEach((p, idx) => {
+    if (!bycat[p.cat]) bycat[p.cat] = [];
+    bycat[p.cat].push({...p, idx});
+  });
+  let html = '';
+  order.forEach(cat => {
+    if (!bycat[cat]) return;
+    const c = getCatColor(cat);
+    html += `<div class="imp-cat-title" style="color:#${c.h};border-bottom:2px solid #${c.h}">${cat}</div>`;
+    bycat[cat].forEach(p => {
+      html += `<div class="imp-row-expanded">
+        <div class="imp-row-top">
+          <input class="imp-name-input" type="text" value="${p.name}" data-id="${p.id}" data-field="name"
+            onchange="saveImpField(this)" placeholder="Nome prodotto">
+        </div>
+        <div class="imp-row-bottom">
+          <div class="imp-field">
+            <label>Categoria</label>
+            <select data-id="${p.id}" data-field="cat" class="imp-select" onchange="saveImpField(this)">
+              ${order.map(o => `<option value="${o}" ${o===p.cat?'selected':''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="imp-field">
+            <label>Min pz</label>
+            <input type="number" min="0" value="${p.min}" data-id="${p.id}" data-field="min" onchange="saveImpField(this)">
+          </div>
+          <div class="imp-field">
+            <label>Pz/cart</label>
+            <input type="number" min="1" value="${p.pxc}" data-id="${p.id}" data-field="pxc" onchange="saveImpField(this)">
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('impostazioni-list').innerHTML = html;
+}
+
+async function saveImpField(el) {
+  const id    = el.dataset.id;
+  const field = el.dataset.field;
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  if (field === 'name') p[field] = el.value.trim() || p[field];
+  else if (field === 'cat') p[field] = el.value;
+  else p[field] = Math.max(field === 'pxc' ? 1 : 0, parseInt(el.value) || 0);
+  try { await fsSetProduct(p); showToast('✅ Salvato'); }
+  catch(e) { showToast('Errore salvataggio'); }
+}
+
+// ── GESTIONE CATEGORIE ──────────────────────────────────────────────────────
+function renderCatManager() {
+  let html = '';
+  if (DEFAULT_CATS.length) {
+    html += `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Categorie di default</p>`;
+    DEFAULT_CATS.forEach(cat => {
+      const c = getCatColor(cat);
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="font-size:11px;color:var(--gray-500)">${products.filter(p=>p.cat===cat).length} prodotti</span>
+      </div>`;
+    });
+  }
+  if (customCats.length) {
+    html += `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Categorie personalizzate</p>`;
+    customCats.forEach(cat => {
+      const c = getCatColor(cat);
+      const count = products.filter(p=>p.cat===cat).length;
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="font-size:11px;color:var(--gray-500);margin-right:4px">${count} prodotti</span>
+        <button onclick="deleteCat('${cat}')"
+          style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+      </div>`;
+    });
+  } else {
+    html += `<p style="font-size:13px;color:var(--gray-500);margin-top:12px;text-align:center;padding:20px 0">Nessuna categoria personalizzata — aggiungine una!</p>`;
+  }
+  document.getElementById('cat-list').innerHTML = html;
+}
+
+async function addCatFromManager() {
+  const inp = document.getElementById('cat-new-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
+  if (DEFAULT_CATS.includes(name)) { showToast('⚠️ Categoria già esistente'); return; }
+  try {
+    await fsAddCategoria(name);
+    inp.value = '';
+    showToast(`✅ Categoria "${name}" aggiunta!`);
+  } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function deleteCat(cat) {
+  const count = products.filter(p => p.cat === cat).length;
+  const msg = count > 0
+    ? `Eliminare la categoria "${cat}"? I ${count} prodotti associati verranno spostati in "🥤 Bibite".`
+    : `Eliminare la categoria "${cat}"?`;
+  showModal('Elimina categoria', msg, 'Elimina', 'var(--red)', async () => {
+    try {
+      if (count > 0) {
+        const toMove = products.filter(p => p.cat === cat);
+        for (const p of toMove) { p.cat = '🥤 Bibite'; await fsSetProduct(p); }
+      }
+      await fsDeleteCategoria(cat);
+      showToast('🗑 Categoria eliminata');
+    } catch(e) { showToast('Errore eliminazione'); }
+  });
+}
+
+// ── WHATSAPP ─────────────────────────────────────────────────────────────────
+function sendWhatsApp(fornId) {
+  const byForn = window._byForn || {};
+  const forn = Object.keys(byForn).find(k => k.replace(/\s+/g,'_') === fornId);
+  if (!forn) return;
+  const prods = byForn[forn];
+  const oggiStr = new Date().toLocaleDateString('it-IT');
+  let msg = `Ordine del ${oggiStr}:\n\n`;
+  prods.forEach(p => {
+    const cart = cartoniFabbisogno(p);
+    const n = stato(p) === 'red' ? Math.ceil(p.min/p.pxc) : cart;
+    msg += `- ${p.name}: ${n} carton${n===1?'e':'i'}\n`;
+  });
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+}
+
+// ── SESSIONE HUB / PERMESSI SEZIONI ───────────────────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+
+function computeAllowedSections() {
+  const admin = isAdmin();
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = admin || sez[id] !== false; // non specificato = consentito di default
+    if (ok) allowedSections.add(id);
+  });
+}
+
+const TAB_EL_BY_SECTION = {
+  giacenze: 'tab-giacenze', ordine: 'tab-ordine', aggiungi: 'tab-aggiungi',
+  impostazioni: 'tab-impostazioni', categorie: 'tab-categorie', setup: 'btn-setup'
+};
+function applySectionVisibility() {
+  Object.entries(TAB_EL_BY_SECTION).forEach(([sec, elId]) => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = allowedSections.has(sec) ? '' : 'none';
+  });
+}
+
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (allowedSections.size === 0) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applySectionVisibility();
+  applyRole();
+  const activeEl = document.querySelector('.section.active');
+  const activeId = activeEl ? activeEl.id.replace('sec-','') : null;
+  if (!activeId || !allowedSections.has(activeId)) {
+    const first = SECTION_IDS.find(id => allowedSections.has(id));
+    if (first) switchTab(first);
+  }
+}
+
+function doLogout() {
+  showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
+    'Esci', 'var(--red)', () => {
+      sessionStorage.removeItem('gr_session');
+      sessionStorage.removeItem('gr_permessi');
+      location.href = HUB_URL;
+    });
+}
+
+function applyRole() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent      = confirmLabel || 'Conferma';
+  btn.style.background = confirmColor || 'var(--green-700)';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  const overlay = document.getElementById('modal-overlay');
+  overlay.style.display = 'flex';
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(id) {
+  if (SECTION_IDS.includes(id) && !allowedSections.has(id)) {
+    const fallback = SECTION_IDS.find(s => allowedSections.has(s));
+    if (!fallback) return; // nessuna sezione consentita: resta dove sei
+    id = fallback;
+  }
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  const tabBtn = document.getElementById('tab-'+id);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (id === 'impostazioni') renderImpostazioni();
+  if (id === 'categorie') renderCatManager();
+}
+
+// ── DEBUG / TEST CONNESSIONE ──────────────────────────────────────────────────
+function _dbg(msg, color) {
+  const panel = document.getElementById('debug-panel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  const ts = new Date().toLocaleTimeString('it-IT');
+  panel.innerHTML += `<div style="color:${color||'#cdd6f4'}">[${ts}] ${msg}</div>`;
+  panel.scrollTop = panel.scrollHeight;
+}
+async function testConnessione() {
+  const panel = document.getElementById('debug-panel');
+  if (panel) { panel.style.display = 'block'; panel.innerHTML = ''; }
+  _dbg('=== TEST CONNESSIONE FIREBASE ===', '#89b4fa');
+  await waitForFirebase();
+  _dbg('SDK Firebase caricato', '#a6e3a1');
+  const { db, collection, getDocs, doc, setDoc, deleteDoc } = window._fb;
+  try {
+    _dbg('Test lettura collection prodotti...', '#89dceb');
+    const snap = await getDocs(collection(db, 'prodotti'));
+    _dbg(`OK — trovati ${snap.size} prodotti nel database`, '#a6e3a1');
+  } catch(e) {
+    _dbg(`ERRORE lettura: ${e.message}`, '#f38ba8');
+    return;
+  }
+  try {
+    _dbg('Test scrittura...', '#89dceb');
+    await setDoc(doc(db, '_test', 'connessione'), { ts: Date.now() });
+    _dbg('OK — scrittura riuscita', '#a6e3a1');
+    await deleteDoc(doc(db, '_test', 'connessione'));
+    _dbg('Pulizia completata', '#a6e3a1');
+  } catch(e) {
+    _dbg(`ERRORE scrittura: ${e.message}`, '#f38ba8');
+    _dbg('Controlla le regole di sicurezza Firestore (modalità test scaduta?)', '#fab387');
+    return;
+  }
+  _dbg('=== TUTTO OK — database funzionante ===', '#a6e3a1');
+  showToast('Connessione Firebase funzionante!');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── SWIPE PER TORNARE INDIETRO (come su iOS, dal bordo sinistro) ─────────────
+function initSwipeBack(onNoBack) {
+  let touchStartX = 0, touchStartY = 0, touching = false;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    if (e.target.closest('.top-bar')) return; // non interferire con lo scroll dei tab
+    const t = e.touches[0];
+    if (t.clientX > 30) return; // solo se parte dal margine sinistro
+    touchStartX = t.clientX; touchStartY = t.clientY; touching = true;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!touching) return;
+    touching = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (dx > 80 && dy < 60) {
+      const activeSection = document.querySelector('.section.active');
+      const backBtn = activeSection && activeSection.querySelector('.back-btn');
+      if (backBtn) backBtn.click();
+      else if (onNoBack) onNoBack();
+    }
+  }, { passive: true });
+}
+initSwipeBack(() => location.href = HUB_URL);
+
+// ── START ─────────────────────────────────────────────────────────────────────
+async function start() {
+  render();
+  initLogin();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    setSyncStatus('error');
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  await ensureDefaultData();
+  await startRealtimeSync();
+}
+
+start();
+</script>
+</body>
+</html>
