@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Garden River · Hub</title>
+<link rel="apple-touch-icon" href="logo1.png">
+<link rel="icon" type="image/png" href="logo1.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Garden River">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // ⚠️ SOSTITUISCI questi valori con quelli del TUO progetto Firebase dedicato
+  // alla Hub (consigliato chiamarlo "garden-river-hub" su console.firebase.google.com).
+  // È un progetto NUOVO e diverso da quelli di Magazzino Bar e Conti Aperti: la Hub
+  // ha un proprio database con operatori e permessi, condiviso da tutta la suite.
+  // Ricorda di abilitare Firestore (in modalità test o con regole adeguate) e
+  // Authentication → Sign-in method → Anonymous, esattamente come per le altre due app.
+  const firebaseConfig = {
+    apiKey: "INSERISCI_API_KEY",
+    authDomain: "INSERISCI_PROGETTO.firebaseapp.com",
+    projectId: "INSERISCI_PROGETTO",
+    storageBucket: "INSERISCI_PROGETTO.firebasestorage.app",
+    messagingSenderId: "INSERISCI_SENDER_ID",
+    appId: "INSERISCI_APP_ID"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-300:  #D1D5DB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-lt: #F59E0B;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
+  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
+  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
+.login-screen {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--green-700);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+}
+.login-screen.hidden { display: none; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; text-align: center; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; display: block; }
+.login-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; margin-bottom: 14px; transition: border-color .15s; }
+.login-select:focus { border-color: var(--green-400); }
+.pin-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 16px; display: block; text-align: center; }
+.pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gray-300); background: var(--white); transition: all .15s; }
+.pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
+.pin-dot.error  { background: var(--red); border-color: var(--red); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
+.pin-key { height: 56px; border: 1.5px solid #E5E7EB; border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
+.pin-key:active { background: var(--gray-100); }
+.pin-key.del    { font-size: 18px; color: var(--gray-500); }
+.pin-key.empty  { border: none; background: none; cursor: default; }
+.login-error { font-size: 12px; color: var(--red); font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
+.btn-primary:active   { opacity: .85; }
+.btn-primary:disabled { opacity: .45; pointer-events: none; }
+
+/* ══ HEADER (stile coerente con le altre app della suite) ════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: linear-gradient(155deg, var(--green-900), var(--green-700)); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 18px 16px; gap: 14px; }
+.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.header-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--green-900); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 18px; font-weight: 800; color: var(--white); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-role  { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.hbtn { height: 36px; padding: 0 14px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
+.hbtn.icon    { width: 36px; padding: 0; font-size: 16px; }
+.hbtn.ghost   { background: rgba(255,255,255,0.14); color: var(--white); border: none; }
+.hbtn:active  { opacity: .8; }
+
+/* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
+main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
+.search-wrap { position: relative; margin-bottom: 22px; }
+.search-wrap input { width: 100%; height: 52px; padding: 0 46px; border: 1.5px solid var(--blue-bd); border-radius: var(--radius-xl); font-size: 15px; font-family: var(--font); color: var(--gray-900); outline: none; box-shadow: var(--shadow-sm); transition: border-color .15s; }
+.search-wrap input:focus { border-color: var(--blue); }
+.search-wrap input::placeholder { color: var(--gray-500); font-style: italic; }
+.search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 17px; pointer-events: none; }
+.search-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
+.search-clear.hidden { display: none; }
+
+.module-list { display: flex; flex-direction: column; gap: 20px; }
+.module-card { background: var(--white); border-radius: var(--radius-xl); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; -webkit-tap-highlight-color: transparent; }
+.module-card:active { transform: scale(.98); }
+.module-icon-wrap { padding: 38px 20px 24px; display: flex; align-items: center; justify-content: center; }
+.module-icon-wrap svg { width: 92px; height: 92px; }
+.module-footer { background: linear-gradient(155deg, var(--green-700), var(--green-900)); padding: 18px 16px; text-align: center; }
+.module-footer span { color: var(--white); font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.module-empty { text-align: center; padding: 60px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
+
+/* ══ SETTINGS ══════════════════════════════════════════════════════════════ */
+.section { display: none; }
+.section.active { display: block; }
+.back-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--white); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+.back-title { font-size: 19px; font-weight: 800; }
+.card { background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 14px; }
+.card h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
+.card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; line-height: 1.5; }
+
+.op-row { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); flex-wrap: wrap; }
+.op-row:last-child { border-bottom: none; }
+.op-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.op-name { font-size: 14px; font-weight: 700; flex: 1; min-width: 90px; }
+.op-ruolo-select { height: 32px; padding: 0 8px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font); background: var(--white); outline: none; }
+.op-pin-status { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.op-btn { height: 28px; padding: 0 10px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); border: none; white-space: nowrap; }
+.op-btn.reset { border: 1px solid var(--amber-bd); background: var(--amber-bg); color: var(--amber); }
+.op-del { width: 28px; height: 28px; border: none; background: var(--red-bg); color: var(--red); border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.perm-op-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); outline: none; margin-bottom: 16px; }
+.perm-module { margin-bottom: 16px; }
+.perm-module-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--green-700); border-bottom: 2px solid var(--green-100); padding-bottom: 6px; margin-bottom: 8px; }
+.perm-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; font-weight: 600; cursor: pointer; }
+.perm-row input { width: 18px; height: 18px; accent-color: var(--green-700); cursor: pointer; }
+.perm-hint { font-size: 12px; color: var(--gray-500); text-align: center; padding: 16px 0; line-height: 1.6; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
+<div id="login-screen" class="login-screen">
+  <img class="login-logo" alt="Garden River" src="logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Garden River</div>
+  <div class="login-sub">Centro Vacanze · Hub delle app interne</div>
+  <div class="login-card">
+    <div id="login-step-op">
+      <label class="login-label">Chi sei?</label>
+      <select class="login-select" id="login-sel">
+        <option value="">— Seleziona operatore —</option>
+      </select>
+      <button class="btn-primary" onclick="loginStepPin()">Avanti</button>
+    </div>
+    <div id="login-step-pin" style="display:none">
+      <div class="pin-label" id="pin-label">Inserisci il tuo PIN</div>
+      <div class="pin-dots" id="pin-dots">
+        <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+        <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+        <div class="pin-dot" id="pd4"></div><div class="pin-dot" id="pd5"></div>
+      </div>
+      <div class="pin-keypad">
+        <button class="pin-key" onclick="pinPress('1')">1</button>
+        <button class="pin-key" onclick="pinPress('2')">2</button>
+        <button class="pin-key" onclick="pinPress('3')">3</button>
+        <button class="pin-key" onclick="pinPress('4')">4</button>
+        <button class="pin-key" onclick="pinPress('5')">5</button>
+        <button class="pin-key" onclick="pinPress('6')">6</button>
+        <button class="pin-key" onclick="pinPress('7')">7</button>
+        <button class="pin-key" onclick="pinPress('8')">8</button>
+        <button class="pin-key" onclick="pinPress('9')">9</button>
+        <button class="pin-key empty"></button>
+        <button class="pin-key" onclick="pinPress('0')">0</button>
+        <button class="pin-key del" onclick="pinDel()">&#9003;</button>
+      </div>
+      <div class="login-error" id="pin-error"></div>
+      <div style="text-align:center;margin-top:12px">
+        <span style="font-size:12px;color:var(--gray-500);cursor:pointer;text-decoration:underline" onclick="loginBack()">Cambia operatore</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div style="min-width:0">
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" id="btn-settings" onclick="openSettings()" title="Impostazioni">&#9881;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Esci">Esci</button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
+  <div id="sec-home" class="section active">
+    <div class="search-wrap">
+      <span class="search-icon">&#9906;</span>
+      <input type="text" id="search-input" placeholder="Cerca funzione" oninput="onSearchInput()">
+      <span class="search-clear hidden" id="search-clear" onclick="clearSearch()">&times;</span>
+    </div>
+    <div id="module-list" class="module-list"></div>
+  </div>
+
+  <!-- ══ IMPOSTAZIONI ════════════════════════════════════════════════════════ -->
+  <div id="sec-settings" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="closeSettings()">&#8592;</button>
+      <div class="back-title">Impostazioni</div>
+    </div>
+
+    <div class="card">
+      <h3>Operatori</h3>
+      <p class="subtitle">Gli operatori creati qui possono accedere a tutta la suite Garden River con un unico PIN.</p>
+      <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+        <input type="text" id="new-op-nome" placeholder="Nome operatore…" style="flex:1;min-width:140px;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none">
+        <select id="new-op-ruolo" style="height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--white)">
+          <option value="operatore">Operatore</option>
+          <option value="admin">Amministratore</option>
+        </select>
+        <button onclick="addOperatore()" style="height:48px;padding:0 18px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">+ Aggiungi</button>
+      </div>
+      <div id="operatori-list" style="margin-top:6px"></div>
+    </div>
+
+    <div class="card" id="permessi-card">
+      <h3>Permessi per modulo</h3>
+      <p class="subtitle">Scegli quali sezioni di ogni app può vedere ciascun operatore. Gli amministratori hanno sempre accesso completo a tutto. Le modifiche hanno effetto dal prossimo accesso dell'operatore.</p>
+      <select class="perm-op-select" id="perm-op-select" onchange="renderPermessiForm(this.value)">
+        <option value="">— Seleziona operatore —</option>
+      </select>
+      <div id="permessi-form"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
+  <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
+    <div id="modal-title" style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:8px"></div>
+    <div id="modal-body"  style="font-size:14px;color:var(--gray-500);line-height:1.6;margin-bottom:20px;white-space:pre-line"></div>
+    <div style="display:flex;gap:10px">
+      <button id="modal-cancel" onclick="closeModal()" style="flex:1;height:48px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Annulla</button>
+      <button id="modal-confirm" style="flex:1;height:48px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── ICONE MODULI (line icon stile arancione, coerenti col mockup) ────────────
+const ICON_WAREHOUSE = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 44 L50 13 L90 44"/>
+  <path d="M18 44 L18 84 L82 84 L82 44"/>
+  <rect x="39" y="58" width="22" height="14"/>
+  <rect x="32" y="69" width="36" height="15"/>
+</svg>`;
+
+const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="26" r="13"/>
+  <circle cx="64" cy="20" r="13"/>
+  <path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/>
+  <path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/>
+  <path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/>
+</svg>`;
+
+// ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
+// 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
+//    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
+//    delle sue sezioni interne) — non serve altro codice.
+const MODULES = [
+  {
+    id: 'magazzino',
+    nome: 'Magazzino Bar',
+    url: 'magazzino.html', // 👉 cambia se l'app è ospitata altrove
+    icon: ICON_WAREHOUSE,
+    sezioni: [
+      { id: 'giacenze',     nome: 'Giacenze' },
+      { id: 'ordine',       nome: 'Ordine' },
+      { id: 'aggiungi',     nome: 'Nuovo prodotto' },
+      { id: 'impostazioni', nome: 'Quantità minime' },
+      { id: 'categorie',    nome: 'Categorie' },
+      { id: 'setup',        nome: 'Impostazioni app' },
+    ],
+  },
+  {
+    id: 'conti',
+    nome: 'Gestione Conti Pensioni',
+    url: 'conti.html', // 👉 cambia se l'app è ospitata altrove
+    icon: ICON_HANDCOINS,
+    sezioni: [
+      { id: 'ospiti',   nome: 'Ospiti' },
+      { id: 'scadenze', nome: 'Scadenze' },
+      { id: 'chiusi',   nome: 'Conti chiusi' },
+      { id: 'setup',    nome: 'Impostazioni app' },
+    ],
+  },
+];
+
+// ── COSTANTI / STATO ───────────────────────────────────────────────────────
+const PIN_LENGTH = 6;
+// Marco è l'amministratore principale: non può mai essere rimosso né
+// retrocesso, così non si rischia di restare bloccati fuori dalla Hub.
+const SUPER_ADMIN_NAME = 'Marco';
+
+let operatori        = [];   // [{ nome, ruolo, pin }]
+let permessi          = {};  // { [nome]: { moduli: {...} } }
+let currentOperatore  = null;
+let currentRuolo      = null;
+let loginTargetOp     = null;
+let pinBuffer         = '';
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function isAdmin() { return currentRuolo === 'admin'; }
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once: true });
+  });
+}
+
+async function ensureDefaultData() {
+  await waitForFirebase();
+  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'operatori'));
+    if (snap.empty) {
+      const defaults = [
+        { nome: 'Marco',  ruolo: 'admin' },
+        { nome: 'Giulia', ruolo: 'operatore' },
+        { nome: 'Luca',   ruolo: 'operatore' },
+        { nome: 'Sara',   ruolo: 'operatore' },
+      ];
+      for (const d of defaults) {
+        await setDoc(doc(db, 'operatori', d.nome), { nome: d.nome, ruolo: d.ruolo, pin: '' });
+      }
+    }
+  } catch(e) { console.error('Errore init dati default:', e); }
+}
+
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  try {
+    onSnapshot(collection(db, 'operatori'), (snap) => {
+      operatori = snap.docs.map(d => ({ nome: d.id, ruolo: 'operatore', pin: '', ...d.data() }));
+      initLogin();
+      if (document.getElementById('sec-settings').classList.contains('active')) {
+        renderOperatoriList();
+        renderPermessiSelect();
+      }
+    }, (err) => console.error('Errore listener operatori:', err));
+
+    onSnapshot(collection(db, 'permessi'), (snap) => {
+      permessi = {};
+      snap.docs.forEach(d => { permessi[d.id] = d.data(); });
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore listener permessi:', err));
+  } catch(e) { console.error('Errore avvio sync:', e); }
+}
+
+async function fsSetOperatore(nome, ruolo) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  await setDoc(doc(db, 'operatori', nome), { nome, ruolo, pin: '' });
+}
+async function fsUpdateOperatore(nome, data) {
+  await waitForFirebase();
+  const { db, doc, updateDoc } = window._fb;
+  await updateDoc(doc(db, 'operatori', nome), data);
+}
+async function fsDeleteOperatore(nome) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'operatori', nome));
+}
+async function fsSetPermessi(nome, moduli) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  await setDoc(doc(db, 'permessi', nome), { moduli });
+}
+async function fsDeletePermessi(nome) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  try { await deleteDoc(doc(db, 'permessi', nome)); } catch(e) { /* può non esistere */ }
+}
+
+// ── LOGIN / PIN ───────────────────────────────────────────────────────────
+function initLogin() {
+  const sel = document.getElementById('login-sel');
+  if (!sel) return;
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>' +
+    operatori.map(o => `<option value="${o.nome}">${o.nome}</option>`).join('');
+  if (operatori.some(o => o.nome === prevValue)) sel.value = prevValue;
+
+  if (currentOperatore) return; // già loggato in questa sessione
+
+  const saved = sessionStorage.getItem('gr_session');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.nome && operatori.some(o => o.nome === parsed.nome)) {
+        currentOperatore = parsed.nome;
+        currentRuolo = parsed.ruolo;
+        document.getElementById('login-screen').classList.add('hidden');
+        applyHeader();
+        renderHome();
+        return;
+      }
+    } catch(e) { /* sessione non valida, richiedi login */ }
+  }
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
+function loginStepPin() {
+  const op = document.getElementById('login-sel').value;
+  if (!op) { showToast('Seleziona un operatore'); return; }
+  loginTargetOp = op; pinBuffer = '';
+  const opObj = operatori.find(o => o.nome === op);
+  const hasPIN = !!(opObj && opObj.pin);
+  document.getElementById('pin-label').textContent = hasPIN ? `PIN di ${op}` : `Imposta PIN per ${op}`;
+  document.getElementById('login-step-op').style.display  = 'none';
+  document.getElementById('login-step-pin').style.display = 'block';
+  document.getElementById('pin-error').textContent = '';
+  updatePinDots();
+}
+
+function loginBack() {
+  pinBuffer = ''; loginTargetOp = null;
+  document.getElementById('login-step-pin').style.display = 'none';
+  document.getElementById('login-step-op').style.display  = 'block';
+  document.getElementById('pin-error').textContent = '';
+  updatePinDots();
+}
+
+function pinPress(d) {
+  if (pinBuffer.length >= PIN_LENGTH) return;
+  pinBuffer += d; updatePinDots();
+  if (pinBuffer.length === PIN_LENGTH) setTimeout(checkPin, 120);
+}
+function pinDel() {
+  pinBuffer = pinBuffer.slice(0, -1); updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  for (let i = 0; i < PIN_LENGTH; i++) document.getElementById('pd'+i).classList.remove('error');
+}
+function updatePinDots() {
+  for (let i = 0; i < PIN_LENGTH; i++) {
+    const d = document.getElementById('pd'+i);
+    d.classList.toggle('filled', i < pinBuffer.length);
+    d.classList.remove('error');
+  }
+}
+
+async function checkPin() {
+  const opObj = operatori.find(o => o.nome === loginTargetOp);
+  if (!opObj) { showToast('Operatore non trovato'); return; }
+  if (!opObj.pin) {
+    try {
+      await fsUpdateOperatore(loginTargetOp, { pin: pinBuffer });
+      loginSuccess(loginTargetOp);
+    } catch(e) { showToast('Errore impostazione PIN'); }
+    return;
+  }
+  if (pinBuffer === opObj.pin) {
+    loginSuccess(loginTargetOp);
+  } else {
+    for (let i = 0; i < PIN_LENGTH; i++) document.getElementById('pd'+i).classList.add('error');
+    document.getElementById('pin-error').textContent = 'PIN non corretto';
+    setTimeout(() => { pinBuffer = ''; updatePinDots(); document.getElementById('pin-error').textContent = ''; }, 1000);
+  }
+}
+
+function loginSuccess(op) {
+  const opObj = operatori.find(o => o.nome === op);
+  currentOperatore = op;
+  currentRuolo = (opObj && opObj.ruolo) || 'operatore';
+  sessionStorage.setItem('gr_session', JSON.stringify({ nome: op, ruolo: currentRuolo }));
+  sessionStorage.setItem('gr_permessi', JSON.stringify(permessi[op] || {}));
+  document.getElementById('login-screen').classList.add('hidden');
+  applyHeader();
+  renderHome();
+  showToast('Benvenuto, ' + op + '!');
+  maybeOpenDeepLink();
+}
+
+function doLogout() {
+  showModal('Cambio operatore', 'Vuoi uscire da ' + (currentOperatore || '') + '?', 'Esci', 'var(--red)', () => {
+    currentOperatore = null; currentRuolo = null;
+    sessionStorage.removeItem('gr_session');
+    sessionStorage.removeItem('gr_permessi');
+    pinBuffer = ''; loginTargetOp = null;
+    document.getElementById('login-step-pin').style.display = 'none';
+    document.getElementById('login-step-op').style.display  = 'block';
+    document.getElementById('login-sel').value = '';
+    updatePinDots();
+    document.getElementById('pin-error').textContent = '';
+    closeSettings();
+    document.getElementById('login-screen').classList.remove('hidden');
+  });
+}
+
+function applyHeader() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+  document.getElementById('btn-settings').style.display = admin ? '' : 'none';
+}
+
+function maybeOpenDeepLink() {
+  const go = new URLSearchParams(location.search).get('go');
+  if (go === 'permessi' && isAdmin()) openSettings();
+}
+
+// ── HOME / MODULI ─────────────────────────────────────────────────────────
+function moduleAccessible(mod) {
+  if (isAdmin()) return true;
+  const userPerm = (permessi[currentOperatore] && permessi[currentOperatore].moduli && permessi[currentOperatore].moduli[mod.id]) || null;
+  const sez = userPerm ? userPerm.sezioni : null;
+  return mod.sezioni.some(s => !sez || sez[s.id] !== false);
+}
+
+function onSearchInput() {
+  document.getElementById('search-clear').classList.toggle('hidden', !document.getElementById('search-input').value);
+  renderHome();
+}
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.add('hidden');
+  renderHome();
+}
+
+function renderHome() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const list = MODULES.filter(m => m.nome.toLowerCase().includes(q) && moduleAccessible(m));
+  const wrap = document.getElementById('module-list');
+  if (!list.length) {
+    wrap.innerHTML = `<div class="module-empty">${
+      q ? 'Nessuna funzione corrisponde alla ricerca.'
+        : "Nessuna funzione disponibile per il tuo profilo.<br>Chiedi all'amministratore di abilitarti dalla Hub."
+    }</div>`;
+    return;
+  }
+  wrap.innerHTML = list.map(m => `
+    <div class="module-card" onclick="openModule('${m.url}')">
+      <div class="module-icon-wrap">${m.icon}</div>
+      <div class="module-footer"><span>${m.nome}</span></div>
+    </div>`).join('');
+}
+
+function openModule(url) { location.href = url; }
+
+// ── IMPOSTAZIONI (solo admin) ─────────────────────────────────────────────
+function openSettings() {
+  if (!isAdmin()) return;
+  document.getElementById('sec-home').classList.remove('active');
+  document.getElementById('sec-settings').classList.add('active');
+  renderOperatoriList();
+  renderPermessiSelect();
+}
+function closeSettings() {
+  document.getElementById('sec-settings').classList.remove('active');
+  document.getElementById('sec-home').classList.add('active');
+  renderHome();
+}
+
+function renderOperatoriList() {
+  document.getElementById('operatori-list').innerHTML = operatori.map(o => {
+    const isSuper = o.nome === SUPER_ADMIN_NAME;
+    const hasPIN = !!o.pin;
+    const admin = o.ruolo === 'admin';
+    return `<div class="op-row">
+      <div class="op-avatar" style="background:${admin?'var(--green-700)':'var(--gray-100)'};color:${admin?'var(--white)':'var(--gray-500)'}">${o.nome.slice(0,2).toUpperCase()}</div>
+      <span class="op-name">${o.nome}</span>
+      ${isSuper
+        ? `<span style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase">Admin principale</span>`
+        : `<select class="op-ruolo-select" onchange="changeRuolo('${o.nome}', this.value)">
+             <option value="operatore" ${!admin?'selected':''}>Operatore</option>
+             <option value="admin" ${admin?'selected':''}>Amministratore</option>
+           </select>`}
+      <span class="op-pin-status" style="color:${hasPIN?'var(--green-ok)':'var(--amber)'}">${hasPIN?'PIN ok':'Nessun PIN'}</span>
+      ${hasPIN?`<button class="op-btn reset" onclick="resetPin('${o.nome}')">Reset PIN</button>`:''}
+      ${!isSuper?`<button class="op-del" onclick="deleteOperatore('${o.nome}')" title="Rimuovi">&#10005;</button>`:''}
+    </div>`;
+  }).join('') || `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px 0">Nessun operatore.</p>`;
+}
+
+async function addOperatore() {
+  const inp = document.getElementById('new-op-nome');
+  const nome = inp.value.trim();
+  const ruolo = document.getElementById('new-op-ruolo').value;
+  if (!nome) { showToast('Inserisci un nome'); return; }
+  if (operatori.some(o => o.nome === nome)) { showToast('Operatore già presente'); return; }
+  try {
+    await fsSetOperatore(nome, ruolo);
+    inp.value = '';
+    showToast(`${nome} aggiunto!`);
+  } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function deleteOperatore(nome) {
+  if (nome === SUPER_ADMIN_NAME) { showToast("Non puoi rimuovere l'amministratore principale"); return; }
+  if (operatori.length <= 1) { showToast('Almeno un operatore richiesto'); return; }
+  showModal('Rimuovi operatore', `Rimuovere ${nome}? Non potrà più accedere a nessuna app della suite.`, 'Rimuovi', 'var(--red)',
+    async () => {
+      try {
+        await fsDeleteOperatore(nome);
+        await fsDeletePermessi(nome);
+        showToast(`${nome} rimosso`);
+      } catch(e) { showToast('Errore rimozione'); }
+    });
+}
+
+async function resetPin(nome) {
+  try { await fsUpdateOperatore(nome, { pin: '' }); showToast('PIN di ' + nome + ' resettato'); }
+  catch(e) { showToast('Errore reset PIN'); }
+}
+
+async function changeRuolo(nome, ruolo) {
+  try { await fsUpdateOperatore(nome, { ruolo }); showToast('Ruolo aggiornato'); }
+  catch(e) { showToast('Errore aggiornamento ruolo'); renderOperatoriList(); }
+}
+
+function renderPermessiSelect() {
+  const sel = document.getElementById('perm-op-select');
+  const prev = sel.value;
+  const eligibili = operatori.filter(o => o.ruolo !== 'admin');
+  sel.innerHTML = '<option value="">— Seleziona operatore —</option>' +
+    eligibili.map(o => `<option value="${o.nome}">${o.nome}</option>`).join('');
+  if (eligibili.some(o => o.nome === prev)) sel.value = prev;
+  renderPermessiForm(sel.value);
+}
+
+function renderPermessiForm(nome) {
+  const wrap = document.getElementById('permessi-form');
+  if (!nome) {
+    wrap.innerHTML = `<p class="perm-hint">Seleziona un operatore per gestire i permessi sulle singole sezioni di ogni app.<br>Gli amministratori non compaiono qui perché vedono sempre tutto.</p>`;
+    return;
+  }
+  const userModuli = (permessi[nome] && permessi[nome].moduli) || {};
+  wrap.innerHTML = MODULES.map(mod => {
+    const sez = (userModuli[mod.id] && userModuli[mod.id].sezioni) || {};
+    return `<div class="perm-module">
+      <div class="perm-module-title">${mod.nome}</div>
+      ${mod.sezioni.map(s => {
+        const checked = sez[s.id] !== false;
+        return `<label class="perm-row"><input type="checkbox" id="perm-${mod.id}-${s.id}" ${checked?'checked':''}> ${s.nome}</label>`;
+      }).join('')}
+    </div>`;
+  }).join('') + `<button class="btn-primary" onclick="savePermessi('${nome}')">Salva permessi di ${nome}</button>`;
+}
+
+async function savePermessi(nome) {
+  const moduli = {};
+  MODULES.forEach(mod => {
+    const sezioni = {};
+    mod.sezioni.forEach(s => { sezioni[s.id] = document.getElementById(`perm-${mod.id}-${s.id}`).checked; });
+    moduli[mod.id] = { sezioni };
+  });
+  try { await fsSetPermessi(nome, moduli); showToast('Permessi salvati per ' + nome); }
+  catch(e) { showToast('Errore salvataggio permessi'); }
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent      = confirmLabel || 'Conferma';
+  btn.style.background = confirmColor || 'var(--green-700)';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  const overlay = document.getElementById('modal-overlay');
+  overlay.style.display = 'flex';
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+async function start() {
+  initLogin();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  await ensureDefaultData();
+  await startRealtimeSync();
+}
+
+start();
+</script>
+</body>
+</html>
