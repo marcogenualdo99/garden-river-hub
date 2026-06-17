@@ -1001,6 +1001,14 @@ async function saveImpField(el) {
   if (field === 'name') p[field] = el.value.trim() || p[field];
   else if (field === 'cat') p[field] = el.value;
   else p[field] = Math.max(field === 'pxc' ? 1 : 0, parseInt(el.value) || 0);
+
+  // Aggiorna subito tutta la UI (Giacenze, Alert, Ordine) con il dato in memoria,
+  // senza aspettare il round-trip da Firestore — stesso schema usato da changeQty/setQty.
+  render();
+  // Se è cambiata la categoria, il prodotto deve "spostarsi" anche nella vista
+  // Minimi stessa, dal blocco della vecchia categoria a quello della nuova.
+  if (field === 'cat') renderImpostazioni();
+
   try { await fsSetProduct(p); showToast('✅ Salvato'); }
   catch(e) { showToast('Errore salvataggio'); }
 }
