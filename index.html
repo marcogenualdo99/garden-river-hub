@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Garden River · Hub</title>
-<link rel="apple-touch-icon" href="logo1.png">
-<link rel="icon" type="image/png" href="logo1.png">
+<title>Garden Hub</title>
+<link rel="apple-touch-icon" href="logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Garden River">
+<meta name="apple-mobile-web-app-title" content="Garden Hub">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- Firebase SDK -->
 <script type="module">
@@ -106,7 +106,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
 .login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; text-align: center; }
 .login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; display: block; }
+.login-label { font-size: 17px; font-weight: 800; color: var(--gray-900); text-align: center; margin-bottom: 14px; display: block; }
 .login-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; margin-bottom: 14px; transition: border-color .15s; }
 .login-select:focus { border-color: var(--green-400); }
 .pin-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 16px; display: block; text-align: center; }
@@ -192,12 +192,12 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 
 <!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
 <div id="login-screen" class="login-screen hidden">
-  <img class="login-logo" alt="Garden River" src="logo-login.png" onerror="this.style.display='none'">
-  <div class="login-title">Garden River</div>
-  <div class="login-sub">Centro Vacanze · Hub delle app interne</div>
+  <img class="login-logo" alt="Garden Hub" src="logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Garden Hub</div>
+  <div class="login-sub">Hub gestione app interne</div>
   <div class="login-card">
     <div id="login-step-op">
-      <label class="login-label">Chi sei?</label>
+      <label class="login-label">Selezionare l'operatore</label>
       <select class="login-select" id="login-sel">
         <option value="">— Seleziona operatore —</option>
       </select>
