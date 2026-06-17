@@ -191,7 +191,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 <body>
 
 <!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
-<div id="login-screen" class="login-screen">
+<div id="login-screen" class="login-screen hidden">
   <img class="login-logo" alt="Garden River" src="logo-login.png" onerror="this.style.display='none'">
   <div class="login-title">Garden River</div>
   <div class="login-sub">Centro Vacanze · Hub delle app interne</div>
@@ -333,7 +333,7 @@ const MODULES = [
   {
     id: 'magazzino',
     nome: 'Magazzino Bar',
-    url: 'https://marcogenualdo99.github.io/MAGAZZINO-BAR-DEF/', // 👉 repo Magazzino Bar
+    url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_WAREHOUSE,
     sezioni: [
       { id: 'giacenze',     nome: 'Giacenze' },
@@ -347,7 +347,7 @@ const MODULES = [
   {
     id: 'conti',
     nome: 'Gestione Conti Pensioni',
-    url: 'https://marcogenualdo99.github.io/Web-app-conti/', // 👉 repo Conti Aperti
+    url: 'conti/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_HANDCOINS,
     sezioni: [
       { id: 'ospiti',   nome: 'Ospiti' },
@@ -463,7 +463,7 @@ function initLogin() {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (parsed && parsed.nome && operatori.some(o => o.nome === parsed.nome)) {
+      if (parsed && parsed.nome) {
         currentOperatore = parsed.nome;
         currentRuolo = parsed.ruolo;
         document.getElementById('login-screen').classList.add('hidden');
