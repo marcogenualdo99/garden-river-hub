@@ -746,6 +746,32 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── SWIPE PER TORNARE INDIETRO (come su iOS, dal bordo sinistro) ─────────────
+function initSwipeBack(onNoBack) {
+  let touchStartX = 0, touchStartY = 0, touching = false;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    if (e.target.closest('.top-bar')) return;
+    const t = e.touches[0];
+    if (t.clientX > 30) return;
+    touchStartX = t.clientX; touchStartY = t.clientY; touching = true;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!touching) return;
+    touching = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (dx > 80 && dy < 60) {
+      const activeSection = document.querySelector('.section.active');
+      const backBtn = activeSection && activeSection.querySelector('.back-btn');
+      if (backBtn) backBtn.click();
+      else if (onNoBack) onNoBack();
+    }
+  }, { passive: true });
+}
+initSwipeBack(); // nella Hub non c'è "indietro" oltre la home: se non c'è un back-btn, non fa nulla
+
 // ── START ─────────────────────────────────────────────────────────────────
 async function start() {
   initLogin();
