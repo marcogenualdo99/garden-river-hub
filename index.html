@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -39,7 +39,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -189,6 +189,12 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 </style>
 </head>
 <body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
 
 <!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
 <div id="login-screen" class="login-screen hidden">
@@ -443,6 +449,66 @@ async function fsSetOperatore(nome, ruolo) {
   const { db, doc, setDoc } = window._fb;
   await setDoc(doc(db, 'operatori', nome), { nome, ruolo, pin: '' });
 }
+
+// Rilegge operatori e permessi con una query diretta — serve come rete di
+// sicurezza se la connessione realtime si blocca (vedi sotto) o quando la
+// pagina torna in primo piano dopo essere stata in background.
+async function forceRefresh() {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const [snapOp, snapPerm] = await Promise.all([
+      getDocs(collection(db, 'operatori')),
+      getDocs(collection(db, 'permessi')),
+    ]);
+    operatori = snapOp.docs.map(d => ({ nome: d.id, ruolo: 'operatore', pin: '', ...d.data() }));
+    permessi = {};
+    snapPerm.docs.forEach(d => { permessi[d.id] = d.data(); });
+    initLogin();
+    if (currentOperatore) renderHome();
+    if (document.getElementById('sec-settings').classList.contains('active')) {
+      renderOperatoriList();
+      renderPermessiSelect();
+    }
+  } catch(e) { console.error('Errore refresh manuale:', e); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh();
+});
+window.addEventListener('online', () => forceRefresh());
+window.addEventListener('focus',  () => forceRefresh());
+
+// ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia ───
+// A volte (rete instabile, wifi che cambia, ecc.) la connessione realtime
+// resta "agganciata" senza dare né dati né errore: l'app sembra bloccata per
+// sempre finché non si chiude e riapre. Ogni 30s proviamo una piccola lettura
+// con un tempo massimo: se non risponde in tempo, forziamo la riconnessione.
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'operatori'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    await kickFirestoreConnection();
+    forceRefresh();
+  }
+}
+setInterval(checkConnessione, 30000);
 async function fsUpdateOperatore(nome, data) {
   await waitForFirebase();
   const { db, doc, updateDoc } = window._fb;
@@ -485,12 +551,26 @@ function initLogin() {
         document.getElementById('login-screen').classList.add('hidden');
         applyHeader();
         renderHome();
+        hideLoadingScreen();
         return;
       }
     } catch(e) { /* sessione non valida, richiedi login */ }
   }
   document.getElementById('login-screen').classList.remove('hidden');
+  hideLoadingScreen();
 }
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+setTimeout(hideLoadingScreen, 8000); // rete di sicurezza: non resta bloccata per sempre
 
 function loginStepPin() {
   const op = document.getElementById('login-sel').value;
