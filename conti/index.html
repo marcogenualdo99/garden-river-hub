@@ -15,10 +15,11 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -32,6 +33,38 @@
   const fbApp = initializeApp(firebaseConfig);
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
+  const messaging = getMessaging(fbApp);
+
+  // 👉 Generata da: Firebase Console → Impostazioni progetto → Cloud Messaging
+  //    → "Web Push certificates" → Generate key pair. Incolla qui la chiave.
+  const VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
+
+  // Richiede il permesso di notifica, registra il service worker dedicato e
+  // salva il token del dispositivo su Firestore, associato all'operatore
+  // che ha eseguito l'azione (può avere più dispositivi: usiamo arrayUnion).
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      return { ok: false, motivo: 'non-supportato' };
+    }
+    try {
+      const permesso = await Notification.requestPermission();
+      if (permesso !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      await setDoc(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrayUnion(token),
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      return { ok: true };
+    } catch (e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
 
   // Expose to global scope so the main script (non-module) can use it
   window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
@@ -572,6 +605,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       </div>
       <button onclick="testConnessione()" style="width:100%;height:44px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Testa connessione</button>
       <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <h3>Notifiche</h3>
+      <p class="subtitle">Ricevi un avviso quando un conto aperto ha il checkout il giorno dopo.</p>
+      <p id="notifiche-status" style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Verifica in corso...</p>
+      <button id="btn-attiva-notifiche" onclick="attivaNotifiche()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
     </div>
     <div class="card">
       <h3>Utenti e permessi</h3>
@@ -1330,6 +1369,38 @@ function switchTab(id) {
   if (id==='dettaglio-chiuso') document.getElementById('tab-chiusi').classList.add('active');
   if (id==='scadenze') renderScadenze();
   if (id==='chiusi')   renderChiusi();
+  if (id==='setup')    aggiornaStatoNotifiche();
+}
+
+// ── NOTIFICHE PUSH ──────────────────────────────────────────────────────────
+function aggiornaStatoNotifiche() {
+  const el = document.getElementById('notifiche-status');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser';
+    return;
+  }
+  el.textContent = Notification.permission === 'granted'
+    ? 'Attive su questo dispositivo'
+    : 'Non attive su questo dispositivo';
+}
+
+async function attivaNotifiche() {
+  const btn = document.getElementById('btn-attiva-notifiche');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso...'; }
+  const res = await window._abilitaNotifichePush(currentOperatore);
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const messaggi = {
+      'negato': 'Permesso negato — abilitalo nelle impostazioni di Safari per questa app',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token': 'Impossibile registrare il dispositivo, riprova'
+    };
+    showToast(messaggi[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
 }
 
 function goDettaglio(id) {
