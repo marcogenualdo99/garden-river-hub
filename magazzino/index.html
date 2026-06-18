@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -33,7 +33,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -275,6 +275,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 </style>
 </head>
 <body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
 
 <!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
 <div id="login-screen" class="login-screen hidden">
@@ -648,6 +654,8 @@ async function startRealtimeSync() {
       products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setSyncStatus('live');
       render();
+      _dataReady = true;
+      maybeHideLoading();
       if (document.getElementById('sec-impostazioni').classList.contains('active')) renderImpostazioni();
       if (document.getElementById('sec-categorie').classList.contains('active')) renderCatManager();
     }, (err) => {
@@ -694,6 +702,39 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('online', () => forceRefresh(true));
 window.addEventListener('focus',  () => forceRefresh(true));
+
+// ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia ───
+// A volte (rete instabile, wifi che cambia, ecc.) la connessione realtime
+// resta "agganciata" senza dare né dati né errore: l'app sembra bloccata per
+// sempre finché non si chiude e riapre. Ogni 30s proviamo una piccola lettura
+// con un tempo massimo: se non risponde in tempo, forziamo la riconnessione.
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'prodotti'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    setSyncStatus('error');
+    await kickFirestoreConnection();
+    forceRefresh(true);
+  }
+}
+setInterval(checkConnessione, 30000);
 
 async function ensureDefaultData() {
   await waitForFirebase();
@@ -1132,6 +1173,7 @@ function initLogin() {
   if (!loadHubSession()) {
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('no-access-screen').classList.add('hidden');
+    maybeHideLoading();
     return;
   }
   currentOperatore = hubSession.nome;
@@ -1139,6 +1181,7 @@ function initLogin() {
   computeAllowedSections();
   if (allowedSections.size === 0) {
     document.getElementById('no-access-screen').classList.remove('hidden');
+    maybeHideLoading();
     return;
   }
   document.getElementById('no-access-screen').classList.add('hidden');
@@ -1150,7 +1193,26 @@ function initLogin() {
     const first = SECTION_IDS.find(id => allowedSections.has(id));
     if (first) switchTab(first);
   }
+  maybeHideLoading();
 }
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+let _dataReady = false;
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+function maybeHideLoading() {
+  const loginVisible = !document.getElementById('login-screen').classList.contains('hidden');
+  const noAccessVisible = !document.getElementById('no-access-screen').classList.contains('hidden');
+  if (loginVisible || noAccessVisible || _dataReady) hideLoadingScreen();
+}
+setTimeout(hideLoadingScreen, 8000); // rete di sicurezza: non resta bloccata per sempre
 
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
