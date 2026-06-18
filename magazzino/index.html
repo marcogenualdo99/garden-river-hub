@@ -1212,7 +1212,16 @@ function maybeHideLoading() {
   const noAccessVisible = !document.getElementById('no-access-screen').classList.contains('hidden');
   if (loginVisible || noAccessVisible || _dataReady) hideLoadingScreen();
 }
-setTimeout(hideLoadingScreen, 8000); // rete di sicurezza: non resta bloccata per sempre
+// Se dopo 8s i dati non sono ancora arrivati, prima di mostrare una schermata
+// vuota proviamo a forzare attivamente la riconnessione; solo se anche questo
+// non basta, dopo 18s in totale mostriamo comunque la pagina (rete di sicurezza).
+setTimeout(async () => {
+  if (_dataReady || _loadingHidden) return;
+  console.warn('Caricamento lento, provo a forzare la riconnessione...');
+  await kickFirestoreConnection();
+  forceRefresh(true);
+}, 8000);
+setTimeout(hideLoadingScreen, 18000);
 
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
