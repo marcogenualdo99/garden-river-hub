@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc }
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -35,7 +35,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc };
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -281,10 +281,10 @@ const CATS = [
 ];
 
 const STATUS_META = {
-  checkout_ok:    { label:'Check-out ok',    color:'#FF6E6E', btnBg:'#FF6E6E', btnFg:'var(--gray-900)' },
-  da_pulire:      { label:'Da pulire',       color:'#FFCF48', btnBg:'#FFCF48', btnFg:'var(--gray-900)' },
-  pronta:         { label:'Pronta',          color:'#92BA7F', btnBg:'#92BA7F', btnFg:'var(--gray-900)' },
-  occupata:       { label:'Occupata',        color:'#7EB7A9', btnBg:'#7EB7A9', btnFg:'var(--gray-900)' },
+  checkout_ok:    { label:'Check-out ok',    color:'#FF6E6E', btnBg:'#FF6E6E', btnFg:'#fff' },
+  da_pulire:      { label:'Da pulire',       color:'#FFCF48', btnBg:'#FFCF48', btnFg:'#fff' },
+  pronta:         { label:'Pronta',          color:'#92BA7F', btnBg:'#92BA7F', btnFg:'#fff' },
+  occupata:       { label:'Occupata',        color:'#7EB7A9', btnBg:'#7EB7A9', btnFg:'#fff' },
   non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)', btnBg:'var(--gray-500)', btnFg:'#fff' },
 };
 // Le 4 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
@@ -325,13 +325,15 @@ function setSyncStatus(state) {
 }
 
 // Crea gli alloggi mancanti in Firestore in base alla configurazione CATS.
-// Viene chiamata ad ogni avvio: se un alloggio esiste già non viene toccato,
-// così non si perdono mai stato/storico già presenti.
+// Gira in background ad ogni avvio, ma legge un solo documento (non tutti e
+// 67) per controllare se la collezione è già stata inizializzata — molto più
+// veloce. Se un alloggio esiste già non viene toccato, così non si perdono
+// mai stato/storico già presenti.
 async function ensureDefaultData() {
   await waitForFirebase();
-  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  const { db, collection, getDocs, setDoc, doc, query, limit } = window._fb;
   try {
-    const snap = await getDocs(collection(db, 'alloggi'));
+    const snap = await getDocs(query(collection(db, 'alloggi'), limit(1)));
     // Il riempimento automatico scatta solo al primissimo avvio (collezione
     // del tutto vuota). Dopo, l'unico modo per aggiungere/eliminare alloggi
     // è dalle Impostazioni — altrimenti un alloggio eliminato "rinascerebbe"
@@ -692,8 +694,11 @@ async function start() {
     setSyncStatus('error');
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
-  await ensureDefaultData();
-  await startRealtimeSync();
+  // Le due cose partono in parallelo: la sync mostra subito i dati appena
+  // arrivano, mentre il controllo di inizializzazione gira in background
+  // (serve solo al primissimo avvio in assoluto, non deve far aspettare).
+  startRealtimeSync();
+  ensureDefaultData();
 }
 start();
 </script>
