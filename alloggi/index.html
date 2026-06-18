@@ -119,11 +119,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 
 /* ══ CATEGORIE (accordion) ═══════════════════════════════════════════════════ */
 .cat-block { margin-bottom: 10px; }
-.cat-header { width: 100%; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
-.cat-header .nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
-.cat-header .meta { display: flex; align-items: center; gap: 10px; }
-.cat-header .da-gestire { font-size: 11px; font-weight: 700; color: var(--orange); background: var(--orange-bg); padding: 3px 9px; border-radius: 20px; }
-.cat-header .chev { font-size: 14px; color: var(--orange); transition: transform .2s; display: inline-block; }
+.cat-header { width: 100%; min-height: 76px; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 22px 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.cat-header:active { background: var(--gray-50); }
+.cat-header .nome { font-size: 19px; font-weight: 800; color: var(--gray-900); }
+.cat-header .meta { display: flex; align-items: center; gap: 12px; }
+.cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--white); background: var(--orange); padding: 6px 14px; border-radius: 20px; }
+.cat-header .chev { font-size: 20px; color: var(--orange); transition: transform .2s; display: inline-block; }
 .cat-header .chev.open { transform: rotate(180deg); }
 .cat-units { margin-top: 10px; }
 
@@ -135,9 +136,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .unit-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .unit-status .lbl { font-size: 13px; font-weight: 800; white-space: nowrap; }
 .info-btn { width: 22px; height: 22px; border-radius: 50%; background: var(--gray-100); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray-500); font-size: 12px; font-weight: 800; flex-shrink: 0; font-family: var(--font); font-style: italic; }
-.unit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
-.unit-actions button { height: 38px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
-.unit-actions button:active { opacity: .8; }
+.unit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.unit-actions button { height: 52px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.unit-actions button:active { transform: scale(.97); }
 .unit-actions button:disabled { opacity: .35; pointer-events: none; }
 .unit-log { margin-top: 10px; background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
 .log-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
@@ -148,6 +149,29 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
+
+/* ══ IMPOSTAZIONI ═════════════════════════════════════════════════════════ */
+.settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 16px; }
+.settings-card h3 { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.settings-form-row { display: flex; gap: 8px; }
+.settings-form-row select, .settings-form-row input { flex: 1; height: 46px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); color: var(--gray-900); outline: none; }
+.settings-form-row button { height: 46px; padding: 0 18px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.settings-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin: 18px 0 8px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--white); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow-sm); }
+.settings-row .nome { font-size: 14px; font-weight: 800; }
+.settings-row .stato-lbl { font-size: 11px; font-weight: 700; margin-top: 2px; }
+.settings-row .btns { display: flex; gap: 6px; flex-shrink: 0; }
+.settings-row .btns button { height: 36px; padding: 0 12px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.btn-toggle  { background: var(--gray-100); color: var(--gray-700); }
+.btn-delete  { background: var(--red-bg); color: var(--red); }
+
+/* ══ MODAL ════════════════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 320px; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm { flex: 1; height: 46px; background: var(--red); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 </style>
 </head>
 <body>
@@ -181,7 +205,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 </div>
 
 <!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
-<div class="top-bar">
+<div class="top-bar" id="top-bar-main">
   <div class="header-inner">
     <div class="header-left">
       <div class="header-avatar" id="header-avatar"></div>
@@ -194,15 +218,44 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">&#8592;</button>
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">&#9881;</button>
       <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
     </div>
   </div>
 </div>
 
-<main>
+<!-- ══ HEADER IMPOSTAZIONI ══════════════════════════════════════════════════ -->
+<div class="top-bar hidden" id="top-bar-settings">
+  <div class="header-inner">
+    <div class="header-left">
+      <button class="hbtn ghost icon" onclick="closeSettings()" title="Torna">&#8592;</button>
+      <div>
+        <div class="header-name">Impostazioni alloggi</div>
+        <div class="header-role">Aggiungi, elimina o disattiva un alloggio</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main id="main-view">
   <div class="stats-row" id="stats-row"></div>
   <div id="cats-container"></div>
 </main>
+
+<main id="settings-view" class="hidden">
+  <div id="settings-container"></div>
+</main>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -223,11 +276,16 @@ const CATS = [
 ];
 
 const STATUS_META = {
-  checkout_ok: { label:'Check-out ok', color:'var(--red)',      bg:'var(--red-bg)'   },
-  da_pulire:   { label:'Da pulire',    color:'var(--amber)',    bg:'var(--amber-bg)' },
-  pronta:      { label:'Pronta',       color:'var(--green-ok)', bg:'var(--green-bg)' },
-  occupata:    { label:'Occupata',     color:'var(--blue)',     bg:'var(--blue-bg)'  },
+  checkout_ok:    { label:'Check-out ok',    color:'var(--red)',      btnBg:'var(--red)',      btnFg:'#fff' },
+  da_pulire:      { label:'Da pulire',       color:'var(--amber)',    btnBg:'var(--amber)',    btnFg:'#fff' },
+  pronta:         { label:'Pronta',          color:'var(--green-ok)', btnBg:'var(--green-ok)', btnFg:'#fff' },
+  occupata:       { label:'Occupata',        color:'var(--blue)',     btnBg:'var(--blue)',     btnFg:'#fff' },
+  non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)', btnBg:'var(--gray-500)', btnFg:'#fff' },
 };
+// Le 4 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
+// nella vista principale. "non_disponibile" si gestisce solo da Impostazioni,
+// per evitare che venga toccata per errore durante il lavoro di tutti i giorni.
+const OPERATIONAL_KEYS = ['checkout_ok','da_pulire','pronta','occupata'];
 const STATUS_KEYS = Object.keys(STATUS_META);
 
 let hubSession       = null;
@@ -237,6 +295,7 @@ let currentOperatore  = null;
 let alloggiMap        = {};  // id -> { id, categoria, categoriaLabel, numero, nome, stato, log }
 let expanded          = {};  // categoria key -> bool
 let logOpen           = {};  // unit id -> bool
+let settingsOpen      = false;
 
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
 function unitId(catKey, n) { return catKey + '_' + n; }
@@ -268,12 +327,15 @@ async function ensureDefaultData() {
   const { db, collection, getDocs, setDoc, doc } = window._fb;
   try {
     const snap = await getDocs(collection(db, 'alloggi'));
-    const existing = new Set(snap.docs.map(d => d.id));
+    // Il riempimento automatico scatta solo al primissimo avvio (collezione
+    // del tutto vuota). Dopo, l'unico modo per aggiungere/eliminare alloggi
+    // è dalle Impostazioni — altrimenti un alloggio eliminato "rinascerebbe"
+    // da solo al prossimo refresh.
+    if (!snap.empty) return;
     const ops = [];
     CATS.forEach(cat => {
       for (let n = cat.from; n <= cat.to; n++) {
         const id = unitId(cat.key, n);
-        if (existing.has(id)) continue;
         ops.push(setDoc(doc(db, 'alloggi', id), {
           categoria: cat.key,
           categoriaLabel: cat.label,
@@ -372,6 +434,7 @@ function applyRole() {
   document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
   document.getElementById('header-name').textContent   = currentOperatore || '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+  document.getElementById('btn-settings').style.display = admin ? '' : 'none';
 }
 function initLogin() {
   if (!loadHubSession()) {
@@ -396,7 +459,7 @@ function doLogout() {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────
-function render() { renderStats(); renderCats(); }
+function render() { renderStats(); renderCats(); if (settingsOpen) renderSettings(); }
 
 function renderStats() {
   const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
@@ -405,6 +468,9 @@ function renderStats() {
     const m = STATUS_META[k];
     return '<div class="stat-chip"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
   }).join('');
+}
+function unitsForCat(catKey) {
+  return Object.values(alloggiMap).filter(u => u.categoria === catKey).sort((a,b) => a.numero - b.numero);
 }
 function unitsDaGestire(catKey) {
   let n = 0;
@@ -417,11 +483,17 @@ function renderUnitCard(u) {
   if (!u) return '';
   const m = STATUS_META[u.stato] || STATUS_META.pronta;
   const last = (u.log && u.log[0]) || { op:'-', ts:null };
-  const btns = STATUS_KEYS.map(k => {
-    const sm = STATUS_META[k];
-    const dis = k === u.stato;
-    return '<button '+(dis?'disabled':'')+' onclick="setStato(\''+u.id+'\',\''+k+'\')" style="background:'+sm.bg+';color:'+sm.color+'">'+sm.label+'</button>';
-  }).join('');
+  let actionsHtml;
+  if (u.stato === 'non_disponibile') {
+    actionsHtml = '<div style="margin-top:12px;background:var(--gray-100);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--gray-500);text-align:center">Alloggio non disponibile — gestiscilo dalle Impostazioni</div>';
+  } else {
+    const btns = OPERATIONAL_KEYS.map(k => {
+      const sm = STATUS_META[k];
+      const dis = k === u.stato;
+      return '<button '+(dis?'disabled':'')+' onclick="setStato(\''+u.id+'\',\''+k+'\')" style="background:'+sm.btnBg+';color:'+sm.btnFg+'">'+sm.label+'</button>';
+    }).join('');
+    actionsHtml = '<div class="unit-actions">'+btns+'</div>';
+  }
   let logHtml = '';
   if (logOpen[u.id] && u.log && u.log.length) {
     logHtml = '<div class="unit-log">' + u.log.map(le => {
@@ -440,7 +512,7 @@ function renderUnitCard(u) {
         '<button class="info-btn" onclick="toggleLog(\''+u.id+'\')" aria-label="Storico modifiche">i</button>'+
       '</div>'+
     '</div>'+
-    '<div class="unit-actions">'+btns+'</div>'+
+    actionsHtml+
     logHtml+
   '</div>';
 }
@@ -450,7 +522,7 @@ function renderCats() {
     const daGestire = unitsDaGestire(cat.key);
     let unitsHtml = '';
     if (open) {
-      for (let n = cat.from; n <= cat.to; n++) unitsHtml += renderUnitCard(alloggiMap[unitId(cat.key, n)]);
+      unitsForCat(cat.key).forEach(u => { unitsHtml += renderUnitCard(u); });
     }
     return '<div class="cat-block">'+
       '<button class="cat-header" onclick="toggleCat(\''+cat.key+'\')">'+
@@ -466,12 +538,125 @@ function renderCats() {
   document.getElementById('cats-container').innerHTML = html;
 }
 
+// ── IMPOSTAZIONI (solo admin): aggiungi / elimina / disattiva un alloggio ───
+function openSettings() {
+  if (!isAdmin()) return;
+  settingsOpen = true;
+  document.getElementById('top-bar-main').classList.add('hidden');
+  document.getElementById('top-bar-settings').classList.remove('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('settings-view').classList.remove('hidden');
+  renderSettings();
+}
+function closeSettings() {
+  settingsOpen = false;
+  document.getElementById('top-bar-settings').classList.add('hidden');
+  document.getElementById('top-bar-main').classList.remove('hidden');
+  document.getElementById('settings-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+}
+function renderSettings() {
+  const catOptions = CATS.map(c => '<option value="'+c.key+'">'+c.label+'</option>').join('');
+  let html = '<div class="settings-card">'+
+    '<h3>Aggiungi un alloggio</h3>'+
+    '<div class="settings-form-row">'+
+      '<select id="add-cat-select">'+catOptions+'</select>'+
+      '<input type="number" id="add-num-input" placeholder="Numero" min="1">'+
+      '<button onclick="addAlloggio()">+ Aggiungi</button>'+
+    '</div>'+
+  '</div>';
+  CATS.forEach(cat => {
+    const units = unitsForCat(cat.key);
+    html += '<div class="settings-cat-title">'+cat.label+' ('+units.length+')</div>';
+    if (!units.length) {
+      html += '<div style="font-size:12px;color:var(--gray-500);padding:0 4px 8px">Nessun alloggio in questa categoria</div>';
+    }
+    units.forEach(u => {
+      const m = STATUS_META[u.stato] || STATUS_META.pronta;
+      const nonDisp = u.stato === 'non_disponibile';
+      html += '<div class="settings-row">'+
+        '<div><div class="nome">'+u.nome+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
+        '<div class="btns">'+
+          '<button class="btn-toggle" onclick="toggleDisponibilita(\''+u.id+'\')">'+(nonDisp ? 'Riattiva' : 'Rendi non disp.')+'</button>'+
+          '<button class="btn-delete" onclick="requestDeleteAlloggio(\''+u.id+'\')">Elimina</button>'+
+        '</div>'+
+      '</div>';
+    });
+  });
+  document.getElementById('settings-container').innerHTML = html;
+}
+function toggleDisponibilita(id) {
+  const u = alloggiMap[id];
+  if (!u) return;
+  setStato(id, u.stato === 'non_disponibile' ? 'pronta' : 'non_disponibile');
+}
+async function addAlloggio() {
+  const catKey = document.getElementById('add-cat-select').value;
+  const numInput = document.getElementById('add-num-input');
+  const n = parseInt(numInput.value, 10);
+  const cat = CATS.find(c => c.key === catKey);
+  if (!cat || !n || n < 1) { showToast('Inserisci un numero valido'); return; }
+  const id = unitId(catKey, n);
+  if (alloggiMap[id]) { showToast('Questo alloggio esiste già'); return; }
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'alloggi', id), {
+      categoria: cat.key,
+      categoriaLabel: cat.label,
+      numero: n,
+      nome: cat.label + ' ' + n,
+      stato: 'pronta',
+      log: [{ op: currentOperatore || 'Operatore', ts: new Date().toISOString(), stato:'pronta' }],
+    });
+    numInput.value = '';
+    showToast('Alloggio aggiunto');
+  } catch(e) {
+    console.error('Errore aggiunta alloggio:', e);
+    showToast('Errore durante l\'aggiunta');
+  }
+}
+function requestDeleteAlloggio(id) {
+  const u = alloggiMap[id];
+  if (!u) return;
+  showModal(
+    'Eliminare ' + u.nome + '?',
+    'Questa azione non può essere annullata. L\'alloggio e il suo storico verranno eliminati definitivamente.',
+    'Elimina',
+    async () => {
+      try {
+        await waitForFirebase();
+        const { db, doc, deleteDoc } = window._fb;
+        await deleteDoc(doc(db, 'alloggi', id));
+        showToast('Alloggio eliminato');
+      } catch(e) {
+        console.error('Errore eliminazione alloggio:', e);
+        showToast('Errore durante l\'eliminazione');
+      }
+    }
+  );
+}
+
+// ── MODAL DI CONFERMA ────────────────────────────────────────────────────
+function showModal(title, body, confirmLabel, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent = confirmLabel || 'Conferma';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
 }
+
 
 // ── START ─────────────────────────────────────────────────────────────────
 async function start() {
