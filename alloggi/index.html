@@ -113,9 +113,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 
 /* ══ STATS ════════════════════════════════════════════════════════════════ */
 .stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); }
+.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
+.stat-chip:active { transform: scale(.96); }
 .stat-chip .n { font-size: 20px; font-weight: 800; line-height: 1; }
 .stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.filter-label { font-size: 15px; font-weight: 800; }
+.filter-clear { background: var(--white); border: none; box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
+.empty-filter { text-align: center; padding: 40px 20px; color: var(--gray-500); font-size: 13px; }
 
 /* ══ CATEGORIE (accordion) ═══════════════════════════════════════════════════ */
 .cat-block { margin-bottom: 10px; }
@@ -154,8 +159,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 16px; }
 .settings-card h3 { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
 .settings-form-row { display: flex; gap: 8px; }
-.settings-form-row select, .settings-form-row input { flex: 1; height: 46px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); color: var(--gray-900); outline: none; }
-.settings-form-row button { height: 46px; padding: 0 18px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.settings-form-row select, .settings-form-row input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); color: var(--gray-900); outline: none; }
+.settings-form-row button { flex-shrink: 0; width: 46px; height: 46px; padding: 0; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; font-family: var(--font); }
 .settings-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin: 18px 0 8px; }
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--white); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow-sm); }
 .settings-row .nome { font-size: 14px; font-weight: 800; }
@@ -276,10 +281,10 @@ const CATS = [
 ];
 
 const STATUS_META = {
-  checkout_ok:    { label:'Check-out ok',    color:'var(--red)',      btnBg:'var(--red)',      btnFg:'#fff' },
-  da_pulire:      { label:'Da pulire',       color:'var(--amber)',    btnBg:'var(--amber)',    btnFg:'#fff' },
-  pronta:         { label:'Pronta',          color:'var(--green-ok)', btnBg:'var(--green-ok)', btnFg:'#fff' },
-  occupata:       { label:'Occupata',        color:'var(--blue)',     btnBg:'var(--blue)',     btnFg:'#fff' },
+  checkout_ok:    { label:'Check-out ok',    color:'#FF6E6E', btnBg:'#FF6E6E', btnFg:'var(--gray-900)' },
+  da_pulire:      { label:'Da pulire',       color:'#FFCF48', btnBg:'#FFCF48', btnFg:'var(--gray-900)' },
+  pronta:         { label:'Pronta',          color:'#92BA7F', btnBg:'#92BA7F', btnFg:'var(--gray-900)' },
+  occupata:       { label:'Occupata',        color:'#7EB7A9', btnBg:'#7EB7A9', btnFg:'var(--gray-900)' },
   non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)', btnBg:'var(--gray-500)', btnFg:'#fff' },
 };
 // Le 4 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
@@ -458,6 +463,8 @@ function doLogout() {
   location.href = HUB_URL;
 }
 
+let activeFilter = null; // null oppure una delle chiavi di STATUS_META
+
 // ── RENDER ────────────────────────────────────────────────────────────────
 function render() { renderStats(); renderCats(); if (settingsOpen) renderSettings(); }
 
@@ -466,8 +473,13 @@ function renderStats() {
   Object.values(alloggiMap).forEach(u => { if (counts[u.stato] !== undefined) counts[u.stato]++; });
   document.getElementById('stats-row').innerHTML = STATUS_KEYS.map(k => {
     const m = STATUS_META[k];
-    return '<div class="stat-chip"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
+    const active = activeFilter === k;
+    return '<div class="stat-chip'+(active?' active':'')+'" onclick="toggleStatFilter(\''+k+'\')" style="'+(active?'box-shadow:0 0 0 2.5px '+m.color+';':'')+'"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
   }).join('');
+}
+function toggleStatFilter(key) {
+  activeFilter = (activeFilter === key) ? null : key;
+  render();
 }
 function unitsForCat(catKey) {
   return Object.values(alloggiMap).filter(u => u.categoria === catKey).sort((a,b) => a.numero - b.numero);
@@ -517,6 +529,19 @@ function renderUnitCard(u) {
   '</div>';
 }
 function renderCats() {
+  if (activeFilter) {
+    const m = STATUS_META[activeFilter];
+    const lista = Object.values(alloggiMap)
+      .filter(u => u.stato === activeFilter)
+      .sort((a,b) => (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero);
+    let html = '<div class="filter-bar">'+
+      '<span class="filter-label" style="color:'+m.color+'">'+m.label+' · '+lista.length+'</span>'+
+      '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
+    '</div>';
+    html += lista.length ? lista.map(u => renderUnitCard(u)).join('') : '<div class="empty-filter">Nessun alloggio in questo stato</div>';
+    document.getElementById('cats-container').innerHTML = html;
+    return;
+  }
   const html = CATS.map(cat => {
     const open = !!expanded[cat.key];
     const daGestire = unitsDaGestire(cat.key);
@@ -562,7 +587,7 @@ function renderSettings() {
     '<div class="settings-form-row">'+
       '<select id="add-cat-select">'+catOptions+'</select>'+
       '<input type="number" id="add-num-input" placeholder="Numero" min="1">'+
-      '<button onclick="addAlloggio()">+ Aggiungi</button>'+
+      '<button onclick="addAlloggio()" aria-label="Aggiungi alloggio">+</button>'+
     '</div>'+
   '</div>';
   CATS.forEach(cat => {
