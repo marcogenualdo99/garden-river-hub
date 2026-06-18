@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Gestione Alloggi · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Alloggi">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // Stesso progetto Firestore già usato da "Conti Aperti": qui usiamo solo
+  // una nuova collezione ("alloggi"), non serve nessun progetto Firebase nuovo.
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-300:  #D1D5DB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2;
+  --amber:     #D97706; --amber-bg: #FFFBEB;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4;
+  --blue:      #2563EB; --blue-bg: #EFF6FF;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN (stesso stile delle altre app della suite) ════════════════════════ */
+.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+.login-screen.hidden { display: none; }
+.login-logo { height: 84px; width: auto; margin-bottom: 16px; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.btn-primary:active { opacity: .85; }
+
+/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 800; color: var(--white); line-height: 1.2; }
+.header-role  { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.hbtn.icon  { width: 32px; padding: 0; font-size: 15px; }
+.hbtn.ghost { background: rgba(255,255,255,0.12); color: var(--white); border: none; }
+.hbtn:active { opacity: .8; }
+
+main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
+
+/* ══ STATS ════════════════════════════════════════════════════════════════ */
+.stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); }
+.stat-chip .n { font-size: 20px; font-weight: 800; line-height: 1; }
+.stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+
+/* ══ CATEGORIE (accordion) ═══════════════════════════════════════════════════ */
+.cat-block { margin-bottom: 10px; }
+.cat-header { width: 100%; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.cat-header .nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.cat-header .meta { display: flex; align-items: center; gap: 10px; }
+.cat-header .da-gestire { font-size: 11px; font-weight: 700; color: var(--orange); background: var(--orange-bg); padding: 3px 9px; border-radius: 20px; }
+.cat-header .chev { font-size: 14px; color: var(--orange); transition: transform .2s; display: inline-block; }
+.cat-header .chev.open { transform: rotate(180deg); }
+.cat-units { margin-top: 10px; }
+
+/* ══ UNIT CARD ════════════════════════════════════════════════════════════ */
+.unit-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 10px; }
+.unit-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.unit-nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.unit-sub  { font-size: 12px; color: var(--gray-500); margin-top: 3px; }
+.unit-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.unit-status .lbl { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.info-btn { width: 22px; height: 22px; border-radius: 50%; background: var(--gray-100); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray-500); font-size: 12px; font-weight: 800; flex-shrink: 0; font-family: var(--font); font-style: italic; }
+.unit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.unit-actions button { height: 38px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.unit-actions button:active { opacity: .8; }
+.unit-actions button:disabled { opacity: .35; pointer-events: none; }
+.unit-log { margin-top: 10px; background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
+.log-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
+.log-row:first-child { border-top: none; }
+.log-row .op { color: var(--gray-700); font-weight: 700; flex-shrink: 0; }
+.log-row .ts { color: var(--gray-500); flex: 1; text-align: center; }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Gestione Alloggi</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Gestione Alloggi</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">&#8592;</button>
+      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;transition:background .3s"></span>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="stats-row" id="stats-row"></div>
+  <div id="cats-container"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL      = '../';
+const MODULE_ID    = 'alloggi';
+const SECTION_IDS  = ['alloggi'];
+
+// 👉 Per aggiungere/modificare una categoria o il range di numeri al suo
+//    interno, basta modificare questo array — il resto dell'app si adatta.
+const CATS = [
+  { key:'bluehouse',      label:'Blue House',     from:9,  to:14 },
+  { key:'villinicomfort', label:'Villini Comfort', from:7,  to:25 },
+  { key:'villinideluxe',  label:'Villini Deluxe',  from:1,  to:6  },
+  { key:'riviera',        label:'Riviera',         from:1,  to:20 },
+  { key:'supertitania',   label:'Super Titania',   from:1,  to:10 },
+  { key:'joy',            label:'Joy',             from:1,  to:6  },
+];
+
+const STATUS_META = {
+  checkout_ok: { label:'Check-out ok', color:'var(--red)',      bg:'var(--red-bg)'   },
+  da_pulire:   { label:'Da pulire',    color:'var(--amber)',    bg:'var(--amber-bg)' },
+  pronta:      { label:'Pronta',       color:'var(--green-ok)', bg:'var(--green-bg)' },
+  occupata:    { label:'Occupata',     color:'var(--blue)',     bg:'var(--blue-bg)'  },
+};
+const STATUS_KEYS = Object.keys(STATUS_META);
+
+let hubSession       = null;
+let hubPermessi       = { sezioni: {} };
+let allowedSections   = new Set(SECTION_IDS);
+let currentOperatore  = null;
+let alloggiMap        = {};  // id -> { id, categoria, categoriaLabel, numero, nome, stato, log }
+let expanded          = {};  // categoria key -> bool
+let logOpen           = {};  // unit id -> bool
+
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+function unitId(catKey, n) { return catKey + '_' + n; }
+function fmtTs(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once:true });
+  });
+}
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const map = { connecting:'#60A5FA', live:'#4ADE80', saving:'#FCD34D', error:'#F87171', offline:'rgba(255,255,255,0.3)' };
+  if (dot) dot.style.background = map[state] || map.offline;
+}
+
+// Crea gli alloggi mancanti in Firestore in base alla configurazione CATS.
+// Viene chiamata ad ogni avvio: se un alloggio esiste già non viene toccato,
+// così non si perdono mai stato/storico già presenti.
+async function ensureDefaultData() {
+  await waitForFirebase();
+  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'alloggi'));
+    const existing = new Set(snap.docs.map(d => d.id));
+    const ops = [];
+    CATS.forEach(cat => {
+      for (let n = cat.from; n <= cat.to; n++) {
+        const id = unitId(cat.key, n);
+        if (existing.has(id)) continue;
+        ops.push(setDoc(doc(db, 'alloggi', id), {
+          categoria: cat.key,
+          categoriaLabel: cat.label,
+          numero: n,
+          nome: cat.label + ' ' + n,
+          stato: 'pronta',
+          log: [{ op:'Sistema', ts: new Date().toISOString(), stato:'pronta' }],
+        }));
+      }
+    });
+    if (ops.length) await Promise.all(ops);
+  } catch(e) { console.error('Errore init alloggi:', e); }
+}
+
+let _unsubAlloggi = null;
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  setSyncStatus('connecting');
+  try {
+    _unsubAlloggi = onSnapshot(collection(db, 'alloggi'), (snap) => {
+      const map = {};
+      snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+      alloggiMap = map;
+      setSyncStatus('live');
+      render();
+    }, (err) => { console.error('Errore listener alloggi:', err); setSyncStatus('error'); });
+  } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
+}
+
+async function forceRefresh(manual) {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'alloggi'));
+    const map = {};
+    snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+    alloggiMap = map;
+    setSyncStatus('live');
+    render();
+    if (manual) showToast('Aggiornato');
+  } catch(e) { console.error('Errore refresh:', e); setSyncStatus('error'); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh(false);
+});
+window.addEventListener('online', () => forceRefresh(false));
+window.addEventListener('focus',  () => forceRefresh(false));
+
+async function setStato(id, nuovoStato) {
+  const u = alloggiMap[id];
+  if (!u || u.stato === nuovoStato) return;
+  const entry = { op: currentOperatore || 'Operatore', ts: new Date().toISOString(), stato: nuovoStato };
+  const newLog = [entry].concat(u.log || []).slice(0, 30);
+  // Aggiornamento ottimistico: si vede subito il cambio, poi si salva su Firestore
+  u.stato = nuovoStato;
+  u.log = newLog;
+  render();
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'alloggi', id), { stato: nuovoStato, log: newLog });
+  } catch(e) {
+    console.error('Errore salvataggio stato:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+function toggleCat(key) { expanded[key] = !expanded[key]; render(); }
+function toggleLog(id)  { logOpen[id] = !logOpen[id]; render(); }
+
+// ── LOGIN / PERMESSI (single sign-on dalla Hub) ──────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+function computeAllowedSections() {
+  const admin = isAdmin();
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = admin || sez[id] !== false;
+    if (ok) allowedSections.add(id);
+  });
+}
+function applyRole() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+}
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (allowedSections.size === 0) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applyRole();
+}
+function doLogout() {
+  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_permessi');
+  location.href = HUB_URL;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() { renderStats(); renderCats(); }
+
+function renderStats() {
+  const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
+  Object.values(alloggiMap).forEach(u => { if (counts[u.stato] !== undefined) counts[u.stato]++; });
+  document.getElementById('stats-row').innerHTML = STATUS_KEYS.map(k => {
+    const m = STATUS_META[k];
+    return '<div class="stat-chip"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
+  }).join('');
+}
+function unitsDaGestire(catKey) {
+  let n = 0;
+  Object.values(alloggiMap).forEach(u => {
+    if (u.categoria === catKey && (u.stato === 'da_pulire' || u.stato === 'checkout_ok')) n++;
+  });
+  return n;
+}
+function renderUnitCard(u) {
+  if (!u) return '';
+  const m = STATUS_META[u.stato] || STATUS_META.pronta;
+  const last = (u.log && u.log[0]) || { op:'-', ts:null };
+  const btns = STATUS_KEYS.map(k => {
+    const sm = STATUS_META[k];
+    const dis = k === u.stato;
+    return '<button '+(dis?'disabled':'')+' onclick="setStato(\''+u.id+'\',\''+k+'\')" style="background:'+sm.bg+';color:'+sm.color+'">'+sm.label+'</button>';
+  }).join('');
+  let logHtml = '';
+  if (logOpen[u.id] && u.log && u.log.length) {
+    logHtml = '<div class="unit-log">' + u.log.map(le => {
+      const lm = STATUS_META[le.stato] || STATUS_META.pronta;
+      return '<div class="log-row"><span class="op">'+le.op+'</span><span class="ts">'+fmtTs(le.ts)+'</span><span style="color:'+lm.color+';font-weight:700">'+lm.label+'</span></div>';
+    }).join('') + '</div>';
+  }
+  return '<div class="unit-card" style="border-left:4px solid '+m.color+'">'+
+    '<div class="unit-top">'+
+      '<div><div class="unit-nome">'+u.nome+'</div>'+
+        '<div class="unit-sub">Stato modificato da \''+last.op+'\'</div>'+
+        (last.ts ? '<div class="unit-sub">'+fmtTs(last.ts)+'</div>' : '')+
+      '</div>'+
+      '<div class="unit-status">'+
+        '<span class="lbl" style="color:'+m.color+'">'+m.label+'</span>'+
+        '<button class="info-btn" onclick="toggleLog(\''+u.id+'\')" aria-label="Storico modifiche">i</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="unit-actions">'+btns+'</div>'+
+    logHtml+
+  '</div>';
+}
+function renderCats() {
+  const html = CATS.map(cat => {
+    const open = !!expanded[cat.key];
+    const daGestire = unitsDaGestire(cat.key);
+    let unitsHtml = '';
+    if (open) {
+      for (let n = cat.from; n <= cat.to; n++) unitsHtml += renderUnitCard(alloggiMap[unitId(cat.key, n)]);
+    }
+    return '<div class="cat-block">'+
+      '<button class="cat-header" onclick="toggleCat(\''+cat.key+'\')">'+
+        '<span class="nome">'+cat.label+'</span>'+
+        '<span class="meta">'+
+          (daGestire>0 ? '<span class="da-gestire">'+daGestire+' da gestire</span>' : '')+
+          '<span class="chev'+(open?' open':'')+'">&#9660;</span>'+
+        '</span>'+
+      '</button>'+
+      (open ? '<div class="cat-units">'+unitsHtml+'</div>' : '')+
+    '</div>';
+  }).join('');
+  document.getElementById('cats-container').innerHTML = html;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+async function start() {
+  render();
+  initLogin();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    setSyncStatus('error');
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  await ensureDefaultData();
+  await startRealtimeSync();
+}
+start();
+</script>
+</body>
+</html>
