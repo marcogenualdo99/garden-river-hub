@@ -472,7 +472,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="form-group"><label>Nome</label><input type="text" id="no-nome" placeholder="Marco"></div>
         <div class="form-group"><label>Cognome</label><input type="text" id="no-cognome" placeholder="Rossi"></div>
       </div>
-      <div class="form-group"><label>Alloggio</label><input type="text" id="no-alloggio" placeholder="es. Bungalow 12, Glamping 3…"></div>
+      <div class="form-group"><label>Alloggio</label><select id="no-alloggio"></select></div>
       <div class="form-row">
         <div class="form-group">
           <label>Piano pasti</label>
@@ -501,7 +501,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="form-group"><label>Nome</label><input type="text" id="mo-nome"></div>
         <div class="form-group"><label>Cognome</label><input type="text" id="mo-cognome"></div>
       </div>
-      <div class="form-group"><label>Alloggio</label><input type="text" id="mo-alloggio"></div>
+      <div class="form-group"><label>Alloggio</label><select id="mo-alloggio"></select></div>
       <div class="form-row">
         <div class="form-group">
           <label>Piano pasti</label>
@@ -610,6 +610,7 @@ let allowedSections    = new Set(SECTION_IDS);
 // ── STATO ─────────────────────────────────────────────────────────────────────
 let ospiti           = [];
 let ordini           = [];
+let alloggiList       = []; // letta dalla collezione 'alloggi' (app Gestione Alloggi)
 let currentOperatore = null;
 let currentOspiteId  = null;
 let activeFilter     = null; // 'oggi' | 'breve' | 'attivi' | null
@@ -630,6 +631,48 @@ function fmtTs(ts) {
 function oggi()       { return new Date().toISOString().split('T')[0]; }
 function giorniA(d)   { return Math.ceil((new Date(d) - new Date(oggi())) / 86400000); }
 function initials(o)  { return (o.cognome[0]||'') + (o.nome[0]||''); }
+// Stesso ordine di categorie usato nell'app Gestione Alloggi, così il menu
+// a tendina segue la stessa logica (non l'ordine alfabetico).
+const ALLOGGIO_CAT_ORDER = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy'];
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Ricostruisce le opzioni di un menu a tendina "Alloggio" mantenendo
+// selezionato il valore passato — anche se non è (più) nella lista ufficiale,
+// così non si perde mai/sostituisce a sorpresa il dato di un ospite esistente.
+function populateAlloggioSelect(selectEl, currentValue) {
+  if (!selectEl) return;
+  const sorted = [...alloggiList].sort((a,b) => {
+    const oa = ALLOGGIO_CAT_ORDER.indexOf(a.categoriaLabel), ob = ALLOGGIO_CAT_ORDER.indexOf(b.categoriaLabel);
+    if (oa !== ob) return (oa===-1?999:oa) - (ob===-1?999:ob);
+    return (a.numero||0) - (b.numero||0);
+  });
+  let html = '<option value="">— Seleziona alloggio —</option>';
+  let lastCat = null;
+  sorted.forEach(a => {
+    if (a.categoriaLabel !== lastCat) {
+      if (lastCat !== null) html += '</optgroup>';
+      html += '<optgroup label="'+escHtml(a.categoriaLabel||'Altro')+'">';
+      lastCat = a.categoriaLabel;
+    }
+    html += '<option value="'+escHtml(a.nome)+'">'+escHtml(a.nome)+'</option>';
+  });
+  if (lastCat !== null) html += '</optgroup>';
+  const matches = sorted.some(a => a.nome === currentValue);
+  if (currentValue && !matches) {
+    html = '<option value="'+escHtml(currentValue)+'">'+escHtml(currentValue)+' (non in lista)</option>' + html;
+  }
+  selectEl.innerHTML = html;
+  selectEl.value = currentValue || '';
+}
+// Richiamata ogni volta che arriva un aggiornamento della lista alloggi:
+// ricostruisce i menu mantenendo quello che l'utente aveva già scelto.
+function refreshAlloggioSelects() {
+  ['no-alloggio','mo-alloggio'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) populateAlloggioSelect(el, el.value);
+  });
+}
 function totOspite(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
 function pianoLabel(piano) {
   if (piano === 'completa') return 'Pensione completa';
@@ -709,6 +752,14 @@ async function startRealtimeSync() {
       setSyncStatus('error');
     });
 
+    // Listener alloggi (usato per il menu a tendina "Alloggio" nei form ospite)
+    onSnapshot(collection(db, 'alloggi'), (snap) => {
+      alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      refreshAlloggioSelects();
+    }, (err) => {
+      console.error('Errore listener alloggi:', err);
+    });
+
   } catch(e) {
     console.error('Errore avvio sync:', e);
     setSyncStatus('error');
@@ -723,12 +774,15 @@ async function forceRefresh(silent) {
   await waitForFirebase();
   const { db, collection, getDocs } = window._fb;
   try {
-    const [snapO, snapOr] = await Promise.all([
+    const [snapO, snapOr, snapAl] = await Promise.all([
       getDocs(collection(db, 'ospiti')),
       getDocs(collection(db, 'ordini')),
+      getDocs(collection(db, 'alloggi')),
     ]);
     ospiti = snapO.docs.map(d => ({ id: d.id, ...d.data() }));
     ordini = snapOr.docs.map(d => ({ id: d.id, ...d.data() }));
+    alloggiList = snapAl.docs.map(d => ({ id: d.id, ...d.data() }));
+    refreshAlloggioSelects();
     render();
     if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
     fbConnected = true;
@@ -1250,7 +1304,7 @@ function goModificaOspite() {
   const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
   document.getElementById('mo-nome').value     = o.nome;
   document.getElementById('mo-cognome').value  = o.cognome;
-  document.getElementById('mo-alloggio').value = o.alloggio;
+  populateAlloggioSelect(document.getElementById('mo-alloggio'), o.alloggio);
   document.getElementById('mo-piano').value    = o.piano || 'mezza';
   document.getElementById('mo-checkout').value = o.checkout;
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
