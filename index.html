@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -39,7 +39,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -400,9 +400,9 @@ function waitForFirebase() {
 
 async function ensureDefaultData() {
   await waitForFirebase();
-  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  const { db, collection, getDocs, setDoc, doc, query, limit } = window._fb;
   try {
-    const snap = await getDocs(collection(db, 'operatori'));
+    const snap = await getDocs(query(collection(db, 'operatori'), limit(1)));
     if (snap.empty) {
       const defaults = [
         { nome: 'Marco',  ruolo: 'admin' },
@@ -795,8 +795,11 @@ async function start() {
   if (window._fbAuthError) {
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
-  await ensureDefaultData();
-  await startRealtimeSync();
+  // Le due cose partono in parallelo: la sync mostra subito gli operatori
+  // appena arrivano, mentre il controllo "creo i default se manca tutto"
+  // gira in background (serve solo al primissimo avvio in assoluto).
+  startRealtimeSync();
+  ensureDefaultData();
 }
 
 start();
