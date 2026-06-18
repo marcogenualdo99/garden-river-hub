@@ -325,6 +325,13 @@ const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--ora
   <path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/>
 </svg>`;
 
+const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/>
+  <path d="M12 66 L88 66"/>
+  <rect x="20" y="38" width="24" height="14" rx="3"/>
+  <path d="M12 76 L12 88 M88 76 L88 88"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -354,6 +361,15 @@ const MODULES = [
       { id: 'scadenze', nome: 'Scadenze' },
       { id: 'chiusi',   nome: 'Conti chiusi' },
       { id: 'setup',    nome: 'Impostazioni app' },
+    ],
+  },
+  {
+    id: 'alloggi',
+    nome: 'Gestione Alloggi',
+    url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_BED,
+    sezioni: [
+      { id: 'alloggi', nome: 'Alloggi' },
     ],
   },
 ];
