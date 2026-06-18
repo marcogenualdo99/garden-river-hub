@@ -429,6 +429,7 @@ async function startRealtimeSync() {
   try {
     onSnapshot(collection(db, 'operatori'), (snap) => {
       operatori = snap.docs.map(d => ({ nome: d.id, ruolo: 'operatore', pin: '', ...d.data() }));
+      _dataReady = true;
       initLogin();
       if (document.getElementById('sec-settings').classList.contains('active')) {
         renderOperatoriList();
@@ -562,6 +563,7 @@ function initLogin() {
 
 // ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
 let _loadingHidden = false;
+let _dataReady = false;
 function hideLoadingScreen() {
   if (_loadingHidden) return;
   _loadingHidden = true;
@@ -570,7 +572,16 @@ function hideLoadingScreen() {
   el.style.opacity = '0';
   setTimeout(() => { el.style.display = 'none'; }, 250);
 }
-setTimeout(hideLoadingScreen, 8000); // rete di sicurezza: non resta bloccata per sempre
+// Se dopo 8s i dati non sono ancora arrivati, prima di mostrare una schermata
+// vuota proviamo a forzare attivamente la riconnessione; solo se anche questo
+// non basta, dopo 18s in totale mostriamo comunque la pagina (rete di sicurezza).
+setTimeout(async () => {
+  if (_dataReady || _loadingHidden) return;
+  console.warn('Caricamento lento, provo a forzare la riconnessione...');
+  await kickFirestoreConnection();
+  forceRefresh();
+}, 8000);
+setTimeout(hideLoadingScreen, 18000);
 
 function loginStepPin() {
   const op = document.getElementById('login-sel').value;
@@ -870,7 +881,6 @@ initSwipeBack(); // nella Hub non c'è "indietro" oltre la home: se non c'è un 
 
 // ── START ─────────────────────────────────────────────────────────────────
 async function start() {
-  initLogin();
   await waitForFirebase();
   if (window._fbAuthError) {
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
