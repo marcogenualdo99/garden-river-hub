@@ -329,6 +329,7 @@ const STATUS_META = {
   non_disponibile: { label: 'Non disponibile', color: 'var(--gray-500)' },
 };
 const STATUS_KEYS = Object.keys(STATUS_META);
+const TIPOLOGIE_BICI = { grande: 'Grande', piccola: 'Piccola', media: 'Media' };
 
 let hubSession       = null;
 let hubPermessi      = { sezioni: {} };
@@ -631,7 +632,7 @@ function renderBikeCard(b) {
   if (!locked) rightHtml += '<span class="bike-chev'+(open?' open':'')+'">&#9660;</span>';
   return '<div class="bike-card">'+
     '<div class="bike-header'+(locked?' locked':'')+'" role="button" tabindex="0" '+(locked?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
-      '<div class="bike-title-block"><div class="bike-title">Bici N°'+b.numero+'</div><div class="bike-sub">Tipologia per '+(b.tipologia||'adulto')+'</div></div>'+
+      '<div class="bike-title-block"><div class="bike-title">Bici N°'+b.numero+'</div><div class="bike-sub">Taglia '+(TIPOLOGIE_BICI[b.tipologia]||'Media')+'</div></div>'+
       '<div class="bike-header-right">'+rightHtml+'</div>'+
     '</div>'+
     (open && !locked ? renderBikeBody(b) : '')+
@@ -757,8 +758,9 @@ function renderSettings() {
     '<h3>Aggiungi una bici</h3>'+
     '<div class="settings-form-row">'+
       '<select id="add-tipo-select">'+
-        '<option value="adulto">Per adulto</option>'+
-        '<option value="bambino">Per bambino</option>'+
+        '<option value="grande">Grande</option>'+
+        '<option value="piccola">Piccola</option>'+
+        '<option value="media">Media</option>'+
       '</select>'+
       '<input type="number" id="add-num-input" placeholder="Numero" min="1" value="'+nextSuggestedNumero()+'">'+
       '<button onclick="addBici()" aria-label="Aggiungi bici">+</button>'+
@@ -774,7 +776,7 @@ function renderSettings() {
     const m = STATUS_META[stato];
     const isOccupata = stato === 'occupata';
     html += '<div class="settings-row">'+
-      '<div><div class="nome">Bici N°'+b.numero+' · per '+(b.tipologia||'adulto')+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
+      '<div><div class="nome">Bici N°'+b.numero+' · taglia '+(TIPOLOGIE_BICI[b.tipologia]||'Media')+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
       '<div class="btns">'+
         '<button class="btn-toggle" '+(isOccupata?'disabled':'')+' onclick="toggleDisponibilitaBici(\''+b.id+'\')">'+(stato==='non_disponibile' ? 'Riattiva' : 'Rendi non disp.')+'</button>'+
         '<button class="btn-delete" '+(isOccupata?'disabled':'')+' onclick="requestDeleteBici(\''+b.id+'\')">Elimina</button>'+
