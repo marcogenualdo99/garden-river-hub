@@ -57,6 +57,47 @@
   });
   setTimeout(segnalaPronto, 8000);
 </script>
+<!-- Secondo collegamento Firebase: serve a leggere (in sola lettura) i dati
+     delle altre app — prodotti, ospiti, alloggi — per mostrare i numeri live
+     nelle card della home. È un progetto Firebase diverso da quello della Hub
+     (è lo stesso usato da Magazzino Bar, Conti e Alloggi: garden-river-conti-febed),
+     quindi serve una seconda istanza separata dell'app Firebase. -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const dataFirebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const dataApp  = initializeApp(dataFirebaseConfig, "datiSuite");
+  const dataDb   = getFirestore(dataApp);
+  const dataAuth = getAuth(dataApp);
+
+  window._fbData = { db: dataDb, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork };
+  window._fbDataReady = false;
+
+  function segnalaDatiPronti() {
+    if (window._fbDataReady) return;
+    window._fbDataReady = true;
+    window.dispatchEvent(new Event('firebase-data-ready'));
+  }
+
+  onAuthStateChanged(dataAuth, (user) => { if (user) segnalaDatiPronti(); });
+  signInAnonymously(dataAuth).catch((err) => {
+    console.error('Errore login anonimo dati suite:', err);
+    segnalaDatiPronti();
+  });
+  setTimeout(segnalaDatiPronti, 8000);
+</script>
 <style>
 :root {
   --green-900: #0D2B1E;
@@ -76,6 +117,8 @@
   --orange:    #E07B00;
   --orange-lt: #F59E0B;
   --orange-bg: #FFF8F0;
+  --tile-amber-bg: #FFF3E2;
+  --tile-sage-bg:  #E7F3EC;
   --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
   --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
   --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
@@ -125,36 +168,59 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .btn-primary:disabled { opacity: .45; pointer-events: none; }
 
 /* ══ HEADER (stile coerente con le altre app della suite) ════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: linear-gradient(155deg, var(--green-900), var(--green-700)); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 18px 16px; gap: 14px; }
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 16px 16px; gap: 14px; }
 .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.header-avatar { width: 50px; height: 50px; border-radius: 50%; background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--green-900); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 18px; font-weight: 800; color: var(--white); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-role  { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 2px; }
+.header-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--white); flex-shrink: 0; }
+.header-name  { font-size: 17px; font-weight: 800; color: var(--gray-900); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-role  { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
 .header-btns  { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .hbtn { height: 36px; padding: 0 14px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
 .hbtn.icon    { width: 36px; padding: 0; font-size: 16px; }
-.hbtn.ghost   { background: rgba(255,255,255,0.14); color: var(--white); border: none; }
+.hbtn.ghost   { background: var(--gray-100); color: var(--gray-700); border: none; }
 .hbtn:active  { opacity: .8; }
 
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .search-wrap { position: relative; margin-bottom: 22px; }
-.search-wrap input { width: 100%; height: 52px; padding: 0 46px; border: 1.5px solid var(--blue-bd); border-radius: var(--radius-xl); font-size: 15px; font-family: var(--font); color: var(--gray-900); outline: none; box-shadow: var(--shadow-sm); transition: border-color .15s; }
-.search-wrap input:focus { border-color: var(--blue); }
-.search-wrap input::placeholder { color: var(--gray-500); font-style: italic; }
+.search-wrap input { width: 100%; height: 50px; padding: 0 46px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--gray-100); transition: box-shadow .15s; }
+.search-wrap input:focus { box-shadow: 0 0 0 2px var(--green-200); }
+.search-wrap input::placeholder { color: var(--gray-500); font-style: normal; }
 .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 17px; pointer-events: none; }
 .search-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
 .search-clear.hidden { display: none; }
 
-.module-list { display: flex; flex-direction: column; gap: 20px; }
-.module-card { background: var(--white); border-radius: var(--radius-xl); box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; -webkit-tap-highlight-color: transparent; }
-.module-card:active { transform: scale(.98); }
-.module-icon-wrap { padding: 38px 20px 24px; display: flex; align-items: center; justify-content: center; }
-.module-icon-wrap svg { width: 92px; height: 92px; }
-.module-footer { background: linear-gradient(155deg, var(--green-700), var(--green-900)); padding: 18px 16px; text-align: center; }
-.module-footer span { color: var(--white); font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.module-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); grid-auto-rows: 132px; gap: 12px; }
+.module-tile { position: relative; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+.module-tile:active { transform: scale(.97); }
+.module-tile.feature { grid-row: span 2; }
+.module-tile.solo    { grid-column: span 2; }
+.module-icon-chip { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.module-icon-chip svg { width: 22px; height: 22px; }
+.module-tile.feature .module-icon-chip { width: 46px; height: 46px; border-radius: 14px; }
+.module-tile.feature .module-icon-chip svg { width: 24px; height: 24px; }
+.module-title { font-size: 14px; font-weight: 800; line-height: 1.25; }
+.module-tile.feature .module-title { font-size: 17px; margin-bottom: 4px; }
+.module-sub { font-size: 11.5px; margin-top: 4px; color: var(--gray-500); }
+.module-tile.feature .module-sub { font-size: 12px; }
+.module-badge { position: absolute; top: 14px; right: 14px; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 10px; color: var(--white); background: var(--orange); }
 .module-empty { text-align: center; padding: 60px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
+
+.tile-dark  { background: var(--green-700); color: var(--white); }
+.tile-dark .module-sub        { color: rgba(255,255,255,.65); }
+.tile-dark .module-icon-chip  { background: rgba(255,255,255,.15); color: var(--white); }
+.tile-amber { background: var(--tile-amber-bg); color: var(--gray-900); }
+.tile-amber .module-icon-chip { background: rgba(224,123,0,.15); color: var(--orange); }
+.tile-sage  { background: var(--tile-sage-bg); color: var(--gray-900); }
+.tile-sage .module-icon-chip  { background: rgba(27,67,50,.12); color: var(--green-700); }
+
+@media (min-width: 860px) {
+  .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
+  .module-tile.feature, .module-tile.solo { grid-row: auto; grid-column: auto; }
+  .module-icon-chip, .module-tile.feature .module-icon-chip { width: 48px; height: 48px; border-radius: 14px; }
+  .module-icon-chip svg, .module-tile.feature .module-icon-chip svg { width: 24px; height: 24px; }
+  .module-title, .module-tile.feature .module-title { font-size: 16px; }
+}
 
 /* ══ SETTINGS ══════════════════════════════════════════════════════════════ */
 .section { display: none; }
@@ -264,7 +330,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
       <input type="text" id="search-input" placeholder="Cerca funzione" oninput="onSearchInput()">
       <span class="search-clear hidden" id="search-clear" onclick="clearSearch()">&times;</span>
     </div>
-    <div id="module-list" class="module-list"></div>
+    <div id="module-list" class="module-grid"></div>
   </div>
 
   <!-- ══ IMPOSTAZIONI ════════════════════════════════════════════════════════ -->
@@ -316,14 +382,14 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 
 <script>
 // ── ICONE MODULI (line icon stile arancione, coerenti col mockup) ────────────
-const ICON_WAREHOUSE = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+const ICON_WAREHOUSE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
   <path d="M10 44 L50 13 L90 44"/>
   <path d="M18 44 L18 84 L82 84 L82 44"/>
   <rect x="39" y="58" width="22" height="14"/>
   <rect x="32" y="69" width="36" height="15"/>
 </svg>`;
 
-const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
   <circle cx="40" cy="26" r="13"/>
   <circle cx="64" cy="20" r="13"/>
   <path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/>
@@ -331,20 +397,11 @@ const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--ora
   <path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/>
 </svg>`;
 
-const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
   <path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/>
   <path d="M12 66 L88 66"/>
   <rect x="20" y="38" width="24" height="14" rx="3"/>
   <path d="M12 76 L12 88 M88 76 L88 88"/>
-</svg>`;
-
-const ICON_BIKE = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="23" cy="74" r="15"/>
-  <circle cx="77" cy="74" r="15"/>
-  <path d="M23 74 L46 36 L66 36 L77 74"/>
-  <path d="M46 36 L58 60 L77 74"/>
-  <path d="M58 60 L33 60"/>
-  <path d="M46 36 L40 22 L30 22"/>
 </svg>`;
 
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
@@ -357,6 +414,8 @@ const MODULES = [
     nome: 'Magazzino Bar',
     url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_WAREHOUSE,
+    tile: 'dark',
+    statKey: 'magazzino',
     sezioni: [
       { id: 'giacenze',     nome: 'Giacenze' },
       { id: 'ordine',       nome: 'Ordine' },
@@ -371,6 +430,8 @@ const MODULES = [
     nome: 'Gestione Conti Pensioni',
     url: 'conti/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_HANDCOINS,
+    tile: 'amber',
+    statKey: 'conti',
     sezioni: [
       { id: 'ospiti',   nome: 'Ospiti' },
       { id: 'scadenze', nome: 'Scadenze' },
@@ -383,17 +444,10 @@ const MODULES = [
     nome: 'Gestione Alloggi',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
+    tile: 'sage',
+    statKey: 'alloggi',
     sezioni: [
       { id: 'alloggi', nome: 'Alloggi' },
-    ],
-  },
-  {
-    id: 'bici',
-    nome: 'Noleggio Bici',
-    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
-    icon: ICON_BIKE,
-    sezioni: [
-      { id: 'bici', nome: 'Bici' },
     ],
   },
 ];
@@ -549,6 +603,67 @@ async function fsDeletePermessi(nome) {
   try { await deleteDoc(doc(db, 'permessi', nome)); } catch(e) { /* può non esistere */ }
 }
 
+// ── FIREBASE (dati condivisi, sola lettura per le statistiche home) ────────
+function waitForFirebaseData() {
+  return new Promise(resolve => {
+    if (window._fbDataReady) return resolve();
+    window.addEventListener('firebase-data-ready', () => resolve(), { once: true });
+  });
+}
+
+// giorniA: stessa logica usata in Conti per calcolare le scadenze (giorni
+// che restano al checkout, può essere negativo se già passato).
+function giorniA(d) { return Math.ceil((new Date(d) - new Date(new Date().toDateString())) / 86400000); }
+
+async function startHomeStatsSync() {
+  await waitForFirebaseData();
+  const { db, collection, onSnapshot } = window._fbData;
+  try {
+    onSnapshot(collection(db, 'prodotti'), (snap) => {
+      const prodotti = snap.docs.map(d => d.data());
+      const sottoScorta = prodotti.filter(p => p.pz === 0 || p.pz < p.min).length;
+      homeStats.magazzino = { sottoScorta };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche prodotti:', err));
+
+    onSnapshot(collection(db, 'ospiti'), (snap) => {
+      const ospiti = snap.docs.map(d => d.data());
+      const scadenze = ospiti.filter(o => !o.chiuso && giorniA(o.checkout) >= 0 && giorniA(o.checkout) <= 7).length;
+      homeStats.conti = { scadenze };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche ospiti:', err));
+
+    onSnapshot(collection(db, 'alloggi'), (snap) => {
+      const alloggi = snap.docs.map(d => d.data());
+      const occupati = alloggi.filter(a => a.stato === 'occupata').length;
+      homeStats.alloggi = { occupati, totale: alloggi.length };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche alloggi:', err));
+  } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
+}
+
+// Stesso pattern di auto-recovery già usato per la connessione principale:
+// se la connessione al progetto dati si blocca, la riavviamo da sola.
+async function kickFirestoreConnectionData() {
+  try {
+    await waitForFirebaseData();
+    const { db, enableNetwork, disableNetwork } = window._fbData;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione dati:', e); }
+}
+async function checkConnessioneData() {
+  try {
+    await waitForFirebaseData();
+    const { db, collection, getDocs, query, limit } = window._fbData;
+    await withTimeout(getDocs(query(collection(db, 'alloggi'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione dati statistiche bloccata, la riavvio:', e);
+    await kickFirestoreConnectionData();
+  }
+}
+setInterval(checkConnessioneData, 30000);
+
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────
 function initLogin() {
   const sel = document.getElementById('login-sel');
@@ -688,10 +803,15 @@ function doLogout() {
   });
 }
 
+function saluto() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
+}
+
 function applyHeader() {
   const admin = isAdmin();
   document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
-  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-name').textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings').style.display = admin ? '' : 'none';
 }
@@ -719,6 +839,32 @@ function clearSearch() {
   renderHome();
 }
 
+// ── STATISTICHE LIVE PER LE CARD DELLA HOME ─────────────────────────────────
+// Calcolate dai dati reali delle altre app (letti in sola lettura dal secondo
+// progetto Firebase collegato in cima al file). Finché non arrivano, le card
+// mostrano "Caricamento…" e si aggiornano da sole quando i dati sono pronti.
+let homeStats = { magazzino: null, conti: null, alloggi: null };
+
+function statoModulo(mod) {
+  const s = homeStats[mod.statKey];
+  if (!s) return { sub: 'Caricamento…', badge: null };
+  if (mod.statKey === 'magazzino') {
+    return s.sottoScorta > 0
+      ? { sub: `${s.sottoScorta} prodott${s.sottoScorta===1?'o':'i'} sotto scorta`, badge: null }
+      : { sub: 'Scorte ok', badge: null };
+  }
+  if (mod.statKey === 'conti') {
+    return {
+      sub: 'Conti aperti',
+      badge: s.scadenze > 0 ? `${s.scadenze} scadenz${s.scadenze===1?'a':'e'}` : null
+    };
+  }
+  if (mod.statKey === 'alloggi') {
+    return { sub: `${s.occupati} occupati su ${s.totale}`, badge: null };
+  }
+  return { sub: '', badge: null };
+}
+
 function renderHome() {
   const q = (document.getElementById('search-input').value || '').toLowerCase();
   const list = MODULES.filter(m => m.nome.toLowerCase().includes(q) && moduleAccessible(m));
@@ -730,11 +876,19 @@ function renderHome() {
     }</div>`;
     return;
   }
-  wrap.innerHTML = list.map(m => `
-    <div class="module-card" onclick="openModule('${m.url}')">
-      <div class="module-icon-wrap">${m.icon}</div>
-      <div class="module-footer"><span>${m.nome}</span></div>
-    </div>`).join('');
+  wrap.innerHTML = list.map((m, idx) => {
+    const tileClass = list.length >= 3 && idx === 0 ? ' feature' : list.length === 1 ? ' solo' : '';
+    const { sub, badge } = statoModulo(m);
+    return `
+    <div class="module-tile tile-${m.tile}${tileClass}" onclick="openModule('${m.url}')">
+      ${badge ? `<span class="module-badge">${badge}</span>` : ''}
+      <div class="module-icon-chip">${m.icon}</div>
+      <div>
+        <div class="module-title">${m.nome}</div>
+        <div class="module-sub">${sub}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function openModule(url) { location.href = url; }
@@ -908,6 +1062,7 @@ async function start() {
   // gira in background (serve solo al primissimo avvio in assoluto).
   startRealtimeSync();
   ensureDefaultData();
+  startHomeStatsSync();
 }
 
 start();
