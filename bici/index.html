@@ -125,6 +125,17 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .filter-clear { background: var(--white); border: none; box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
 .empty-filter, .empty-state { text-align: center; padding: 50px 20px; color: var(--gray-500); font-size: 13px; line-height: 1.6; }
 
+/* ══ CATEGORIE (taglia bici) ══════════════════════════════════════════════ */
+.cat-block { margin-bottom: 10px; }
+.cat-header { width: 100%; min-height: 76px; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 22px 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.cat-header:active { background: var(--gray-50); }
+.cat-header .nome { font-size: 19px; font-weight: 800; color: var(--gray-900); }
+.cat-header .meta { display: flex; align-items: center; gap: 12px; }
+.cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--white); background: var(--orange); padding: 6px 14px; border-radius: 20px; }
+.cat-header .chev { font-size: 20px; color: var(--orange); transition: transform .2s; display: inline-block; }
+.cat-header .chev.open { transform: rotate(180deg); }
+.cat-units { margin-top: 10px; }
+
 /* ══ BIKE CARD ════════════════════════════════════════════════════════════ */
 .bike-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 12px; overflow: hidden; }
 .bike-header { width: 100%; background: none; border: none; padding: 20px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; font-family: var(--font); text-align: left; -webkit-tap-highlight-color: transparent; }
@@ -336,7 +347,18 @@ let hubPermessi      = { sezioni: {} };
 let allowedSections  = new Set(SECTION_IDS);
 let currentOperatore = null;
 let bikesMap         = {};   // id -> { id, numero, tipologia, attiva, stato, clienteNome, clienteAlloggio, ritiroTs, ritiroOp, log }
-let expanded         = {};   // bici id -> bool
+let expanded         = {};   // bici id -> bool (apertura della singola card)
+let catExpanded      = {};   // taglia (grande/piccola/media) -> bool (apertura della categoria)
+const TIPOLOGIE = [
+  { key:'grande',  label:'Grande'  },
+  { key:'piccola', label:'Piccola' },
+  { key:'media',   label:'Media'   },
+];
+function effCat(b) { return TIPOLOGIE.some(t => t.key === b.tipologia) ? b.tipologia : 'media'; }
+function bikesForCat(catKey) {
+  return Object.values(bikesMap).filter(b => effCat(b) === catKey).sort((a,b) => a.numero - b.numero);
+}
+function toggleCat(key) { catExpanded[key] = !catExpanded[key]; render(); }
 let settingsOpen     = false;
 let activeFilter     = null; // null oppure una delle chiavi di STATUS_META
 // Valori digitati nel form "Assegna a cliente", per non perderli se arriva
@@ -640,24 +662,45 @@ function renderBikeCard(b) {
 }
 
 function renderList() {
-  const all = Object.values(bikesMap).sort((a,b) => a.numero - b.numero);
   const container = document.getElementById('bikes-container');
-  if (!all.length) {
+  if (!Object.keys(bikesMap).length) {
     container.innerHTML = '<div class="empty-state">Nessuna bici configurata.<br>Aggiungine una dalle Impostazioni (icona ⚙️ in alto).</div>';
     return;
   }
-  let html = '';
-  let list = all;
   if (activeFilter) {
     const m = STATUS_META[activeFilter];
-    list = all.filter(b => effectiveStato(b) === activeFilter);
-    html += '<div class="filter-bar">'+
+    const list = Object.values(bikesMap)
+      .filter(b => effectiveStato(b) === activeFilter)
+      .sort((a,b) => effCat(a).localeCompare(effCat(b)) || a.numero - b.numero);
+    let html = '<div class="filter-bar">'+
       '<span class="filter-label" style="color:'+m.color+'">'+m.label+' · '+list.length+'</span>'+
       '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
     '</div>';
-    if (!list.length) { html += '<div class="empty-filter">Nessuna bici in questo stato</div>'; container.innerHTML = html; return; }
+    html += list.length ? list.map(b => renderBikeCard(b)).join('') : '<div class="empty-filter">Nessuna bici in questo stato</div>';
+    container.innerHTML = html;
+    return;
   }
-  html += list.map(b => renderBikeCard(b)).join('');
+  const html = TIPOLOGIE.map(t => {
+    const open = !!catExpanded[t.key];
+    const bikes = bikesForCat(t.key);
+    const daPagare = bikes.filter(b => effectiveStato(b) === 'occupata').length;
+    let bikesHtml = '';
+    if (open) {
+      bikesHtml = bikes.length
+        ? bikes.map(b => renderBikeCard(b)).join('')
+        : '<div class="empty-filter">Nessuna bici in questa categoria</div>';
+    }
+    return '<div class="cat-block">'+
+      '<button class="cat-header" onclick="toggleCat(\''+t.key+'\')">'+
+        '<span class="nome">'+t.label+'</span>'+
+        '<span class="meta">'+
+          (daPagare > 0 ? '<span class="da-gestire">'+daPagare+' da pagare</span>' : '')+
+          '<span class="chev'+(open?' open':'')+'">&#9660;</span>'+
+        '</span>'+
+      '</button>'+
+      (open ? '<div class="cat-units">'+bikesHtml+'</div>' : '')+
+    '</div>';
+  }).join('');
   container.innerHTML = html;
 }
 
