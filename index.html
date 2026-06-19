@@ -338,6 +338,15 @@ const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" 
   <path d="M12 76 L12 88 M88 76 L88 88"/>
 </svg>`;
 
+const ICON_BIKE = `<svg viewBox="0 0 100 100" fill="none" stroke="var(--orange)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="23" cy="74" r="15"/>
+  <circle cx="77" cy="74" r="15"/>
+  <path d="M23 74 L46 36 L66 36 L77 74"/>
+  <path d="M46 36 L58 60 L77 74"/>
+  <path d="M58 60 L33 60"/>
+  <path d="M46 36 L40 22 L30 22"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -376,6 +385,15 @@ const MODULES = [
     icon: ICON_BED,
     sezioni: [
       { id: 'alloggi', nome: 'Alloggi' },
+    ],
+  },
+  {
+    id: 'bici',
+    nome: 'Noleggio Bici',
+    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_BIKE,
+    sezioni: [
+      { id: 'bici', nome: 'Bici' },
     ],
   },
 ];
