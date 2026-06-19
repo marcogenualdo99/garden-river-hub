@@ -58,10 +58,10 @@
   setTimeout(segnalaPronto, 8000);
 </script>
 <!-- Secondo collegamento Firebase: serve a leggere (in sola lettura) i dati
-     delle altre app — prodotti, ospiti, alloggi — per mostrare i numeri live
-     nelle card della home. È un progetto Firebase diverso da quello della Hub
-     (è lo stesso usato da Magazzino Bar, Conti e Alloggi: garden-river-conti-febed),
-     quindi serve una seconda istanza separata dell'app Firebase. -->
+     di Conti / Alloggi / Bici per mostrare i numeri live nelle card della
+     home. È il progetto "garden-river-conti-febed", condiviso da quelle tre
+     app — diverso dal progetto della Hub, quindi serve una seconda istanza
+     separata dell'app Firebase. -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
@@ -98,6 +98,46 @@
   });
   setTimeout(segnalaDatiPronti, 8000);
 </script>
+<!-- Terzo collegamento Firebase: Magazzino Bar vive nel SUO progetto separato
+     "garden-river-magazzino" (diverso da quello di Conti/Alloggi/Bici), quindi
+     per leggere "prodotti" e calcolare le scorte sotto soglia serve una terza
+     istanza Firebase dedicata. -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const magazzinoFirebaseConfig = {
+    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
+    authDomain: "garden-river-magazzino.firebaseapp.com",
+    projectId: "garden-river-magazzino",
+    storageBucket: "garden-river-magazzino.firebasestorage.app",
+    messagingSenderId: "595247360399",
+    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
+  };
+
+  const magApp  = initializeApp(magazzinoFirebaseConfig, "magazzinoSuite");
+  const magDb   = getFirestore(magApp);
+  const magAuth = getAuth(magApp);
+
+  window._fbMagazzino = { db: magDb, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork };
+  window._fbMagazzinoReady = false;
+
+  function segnalaMagazzinoPronto() {
+    if (window._fbMagazzinoReady) return;
+    window._fbMagazzinoReady = true;
+    window.dispatchEvent(new Event('firebase-magazzino-ready'));
+  }
+
+  onAuthStateChanged(magAuth, (user) => { if (user) segnalaMagazzinoPronto(); });
+  signInAnonymously(magAuth).catch((err) => {
+    console.error('Errore login anonimo dati magazzino:', err);
+    segnalaMagazzinoPronto();
+  });
+  setTimeout(segnalaMagazzinoPronto, 8000);
+</script>
 <style>
 :root {
   --green-900: #0D2B1E;
@@ -119,6 +159,7 @@
   --orange-bg: #FFF8F0;
   --tile-amber-bg: #FFF3E2;
   --tile-sage-bg:  #E7F3EC;
+  --tile-sky-bg:   #E7EFF8;
   --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
   --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
   --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
@@ -182,6 +223,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
+.home-headline { font-size: 24px; font-weight: 800; color: var(--gray-900); line-height: 1.25; margin: 4px 0 20px; }
 .search-wrap { position: relative; margin-bottom: 22px; }
 .search-wrap input { width: 100%; height: 50px; padding: 0 46px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--gray-100); transition: box-shadow .15s; }
 .search-wrap input:focus { box-shadow: 0 0 0 2px var(--green-200); }
@@ -213,8 +255,11 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .tile-amber .module-icon-chip { background: rgba(224,123,0,.15); color: var(--orange); }
 .tile-sage  { background: var(--tile-sage-bg); color: var(--gray-900); }
 .tile-sage .module-icon-chip  { background: rgba(27,67,50,.12); color: var(--green-700); }
+.tile-sky   { background: var(--tile-sky-bg); color: var(--gray-900); }
+.tile-sky .module-icon-chip   { background: rgba(37,99,235,.12); color: var(--blue); }
 
 @media (min-width: 860px) {
+  .home-headline { font-size: 28px; }
   .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
   .module-tile.feature, .module-tile.solo { grid-row: auto; grid-column: auto; }
   .module-icon-chip, .module-tile.feature .module-icon-chip { width: 48px; height: 48px; border-radius: 14px; }
@@ -325,6 +370,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 
   <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
   <div id="sec-home" class="section active">
+    <div class="home-headline">Cosa vuoi<br>gestire oggi?</div>
     <div class="search-wrap">
       <span class="search-icon">&#9906;</span>
       <input type="text" id="search-input" placeholder="Cerca funzione" oninput="onSearchInput()">
@@ -404,6 +450,15 @@ const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" s
   <path d="M12 76 L12 88 M88 76 L88 88"/>
 </svg>`;
 
+const ICON_BIKE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="25" cy="75" r="14"/>
+  <circle cx="75" cy="75" r="14"/>
+  <path d="M25 75 L45 40 L70 40 L75 75"/>
+  <path d="M45 40 L35 75"/>
+  <path d="M55 40 L48 25 L62 25"/>
+  <path d="M70 40 L80 25"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -412,6 +467,7 @@ const MODULES = [
   {
     id: 'magazzino',
     nome: 'Magazzino Bar',
+    titolo: 'Magazzino bar',
     url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_WAREHOUSE,
     tile: 'dark',
@@ -428,6 +484,7 @@ const MODULES = [
   {
     id: 'conti',
     nome: 'Gestione Conti Pensioni',
+    titolo: 'Conti pensioni',
     url: 'conti/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_HANDCOINS,
     tile: 'amber',
@@ -442,12 +499,25 @@ const MODULES = [
   {
     id: 'alloggi',
     nome: 'Gestione Alloggi',
+    titolo: 'Gestione alloggi',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
     tile: 'sage',
     statKey: 'alloggi',
     sezioni: [
       { id: 'alloggi', nome: 'Alloggi' },
+    ],
+  },
+  {
+    id: 'bici',
+    nome: 'Noleggio Bici',
+    titolo: 'Noleggio bici',
+    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_BIKE,
+    tile: 'sky',
+    statKey: 'bici',
+    sezioni: [
+      { id: 'bici', nome: 'Bici' },
     ],
   },
 ];
@@ -603,11 +673,19 @@ async function fsDeletePermessi(nome) {
   try { await deleteDoc(doc(db, 'permessi', nome)); } catch(e) { /* può non esistere */ }
 }
 
-// ── FIREBASE (dati condivisi, sola lettura per le statistiche home) ────────
+// ── FIREBASE (dati condivisi Conti/Alloggi/Bici — sola lettura per le statistiche home) ────────
 function waitForFirebaseData() {
   return new Promise(resolve => {
     if (window._fbDataReady) return resolve();
     window.addEventListener('firebase-data-ready', () => resolve(), { once: true });
+  });
+}
+
+// ── FIREBASE (dati Magazzino Bar — progetto separato, sola lettura) ────────
+function waitForFirebaseMagazzino() {
+  return new Promise(resolve => {
+    if (window._fbMagazzinoReady) return resolve();
+    window.addEventListener('firebase-magazzino-ready', () => resolve(), { once: true });
   });
 }
 
@@ -616,16 +694,23 @@ function waitForFirebaseData() {
 function giorniA(d) { return Math.ceil((new Date(d) - new Date(new Date().toDateString())) / 86400000); }
 
 async function startHomeStatsSync() {
-  await waitForFirebaseData();
-  const { db, collection, onSnapshot } = window._fbData;
+  // Magazzino vive in un progetto Firebase tutto suo (garden-river-magazzino),
+  // quindi usa la sua connessione dedicata _fbMagazzino, non _fbData.
+  await waitForFirebaseMagazzino();
+  const magazzino = window._fbMagazzino;
   try {
-    onSnapshot(collection(db, 'prodotti'), (snap) => {
+    magazzino.onSnapshot(magazzino.collection(magazzino.db, 'prodotti'), (snap) => {
       const prodotti = snap.docs.map(d => d.data());
       const sottoScorta = prodotti.filter(p => p.pz === 0 || p.pz < p.min).length;
       homeStats.magazzino = { sottoScorta };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche prodotti:', err));
+  } catch(e) { console.error('Errore avvio sync statistiche magazzino:', e); }
 
+  // Conti, Alloggi e Bici condividono invece il progetto garden-river-conti-febed.
+  await waitForFirebaseData();
+  const { db, collection, onSnapshot } = window._fbData;
+  try {
     onSnapshot(collection(db, 'ospiti'), (snap) => {
       const ospiti = snap.docs.map(d => d.data());
       const scadenze = ospiti.filter(o => !o.chiuso && giorniA(o.checkout) >= 0 && giorniA(o.checkout) <= 7).length;
@@ -639,11 +724,18 @@ async function startHomeStatsSync() {
       homeStats.alloggi = { occupati, totale: alloggi.length };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche alloggi:', err));
+
+    onSnapshot(collection(db, 'bici'), (snap) => {
+      const bici = snap.docs.map(d => d.data());
+      const occupate = bici.filter(b => b.stato === 'occupata').length;
+      homeStats.bici = { occupate, totale: bici.length };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche bici:', err));
   } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
 }
 
 // Stesso pattern di auto-recovery già usato per la connessione principale:
-// se la connessione al progetto dati si blocca, la riavviamo da sola.
+// se una delle connessioni dati si blocca, la riavviamo da sola.
 async function kickFirestoreConnectionData() {
   try {
     await waitForFirebaseData();
@@ -663,6 +755,26 @@ async function checkConnessioneData() {
   }
 }
 setInterval(checkConnessioneData, 30000);
+
+async function kickFirestoreConnectionMagazzino() {
+  try {
+    await waitForFirebaseMagazzino();
+    const { db, enableNetwork, disableNetwork } = window._fbMagazzino;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione dati magazzino:', e); }
+}
+async function checkConnessioneMagazzino() {
+  try {
+    await waitForFirebaseMagazzino();
+    const { db, collection, getDocs, query, limit } = window._fbMagazzino;
+    await withTimeout(getDocs(query(collection(db, 'prodotti'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione dati magazzino bloccata, la riavvio:', e);
+    await kickFirestoreConnectionMagazzino();
+  }
+}
+setInterval(checkConnessioneMagazzino, 30000);
 
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────
 function initLogin() {
@@ -840,10 +952,10 @@ function clearSearch() {
 }
 
 // ── STATISTICHE LIVE PER LE CARD DELLA HOME ─────────────────────────────────
-// Calcolate dai dati reali delle altre app (letti in sola lettura dal secondo
-// progetto Firebase collegato in cima al file). Finché non arrivano, le card
-// mostrano "Caricamento…" e si aggiornano da sole quando i dati sono pronti.
-let homeStats = { magazzino: null, conti: null, alloggi: null };
+// Calcolate dai dati reali delle altre app (lette in sola lettura dalle
+// connessioni Firebase dedicate in cima al file). Finché non arrivano, le
+// card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null };
 
 function statoModulo(mod) {
   const s = homeStats[mod.statKey];
@@ -855,12 +967,18 @@ function statoModulo(mod) {
   }
   if (mod.statKey === 'conti') {
     return {
-      sub: 'Conti aperti',
+      sub: null,
       badge: s.scadenze > 0 ? `${s.scadenze} scadenz${s.scadenze===1?'a':'e'}` : null
     };
   }
   if (mod.statKey === 'alloggi') {
     return { sub: `${s.occupati} occupati su ${s.totale}`, badge: null };
+  }
+  if (mod.statKey === 'bici') {
+    return {
+      sub: `${s.totale - s.occupate} liber${(s.totale - s.occupate)===1?'a':'e'} su ${s.totale}`,
+      badge: s.occupate > 0 ? `${s.occupate} da pagare` : null
+    };
   }
   return { sub: '', badge: null };
 }
@@ -876,16 +994,26 @@ function renderHome() {
     }</div>`;
     return;
   }
+  // La prima tessera è "in evidenza" (alta, doppia riga) solo quando ci sono
+  // almeno 3 moduli visibili. Le successive riempiono la colonna a fianco a
+  // due a due; se alla fine resta un modulo da solo in una nuova riga, gli
+  // diamo larghezza piena (classe "solo") così non lascia un buco vuoto.
+  const hasFeature = list.length >= 3;
+  const subsequentCount = list.length - 3; // moduli dopo i primi due accanto alla tessera alta
+  const lastIsLonely = hasFeature && subsequentCount > 0 && subsequentCount % 2 === 1;
   wrap.innerHTML = list.map((m, idx) => {
-    const tileClass = list.length >= 3 && idx === 0 ? ' feature' : list.length === 1 ? ' solo' : '';
+    let tileClass = '';
+    if (hasFeature && idx === 0) tileClass = ' feature';
+    else if (!hasFeature && list.length === 1) tileClass = ' solo';
+    else if (lastIsLonely && idx === list.length - 1) tileClass = ' solo';
     const { sub, badge } = statoModulo(m);
     return `
     <div class="module-tile tile-${m.tile}${tileClass}" onclick="openModule('${m.url}')">
       ${badge ? `<span class="module-badge">${badge}</span>` : ''}
       <div class="module-icon-chip">${m.icon}</div>
       <div>
-        <div class="module-title">${m.nome}</div>
-        <div class="module-sub">${sub}</div>
+        <div class="module-title">${m.titolo || m.nome}</div>
+        ${sub ? `<div class="module-sub">${sub}</div>` : ''}
       </div>
     </div>`;
   }).join('');
