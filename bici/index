@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Noleggio Bici · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bici">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // Stesso progetto Firestore già usato dalle altre app della suite: qui
+  // usiamo solo una nuova collezione ("bici"), non serve nessun progetto
+  // Firebase nuovo.
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-400:  #9CA3AF;
+  --gray-300:  #D1D5DB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2;
+  --amber:     #D97706; --amber-bg: #FFFBEB;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4;
+  --pink-busy: #FF6E6E;
+  --blue:      #2563EB; --blue-bg: #EFF6FF;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN (stesso stile delle altre app della suite) ════════════════════════ */
+.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+.login-screen.hidden { display: none; }
+.login-logo { height: 84px; width: auto; margin-bottom: 16px; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.btn-primary:active { opacity: .85; }
+
+/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 800; color: var(--white); line-height: 1.2; }
+.header-role  { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.hbtn.icon  { width: 32px; padding: 0; font-size: 15px; }
+.hbtn.ghost { background: rgba(255,255,255,0.12); color: var(--white); border: none; }
+.hbtn:active { opacity: .8; }
+
+main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
+
+/* ══ STATS ════════════════════════════════════════════════════════════════ */
+.stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
+.stat-chip:active { transform: scale(.96); }
+.stat-chip .n { font-size: 20px; font-weight: 800; line-height: 1; }
+.stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.filter-label { font-size: 15px; font-weight: 800; }
+.filter-clear { background: var(--white); border: none; box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
+.empty-filter, .empty-state { text-align: center; padding: 50px 20px; color: var(--gray-500); font-size: 13px; line-height: 1.6; }
+
+/* ══ BIKE CARD ════════════════════════════════════════════════════════════ */
+.bike-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 12px; overflow: hidden; }
+.bike-header { width: 100%; background: none; border: none; padding: 20px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; font-family: var(--font); text-align: left; -webkit-tap-highlight-color: transparent; }
+.bike-header:active { background: var(--gray-50); }
+.bike-header.locked { cursor: default; }
+.bike-title-block { min-width: 0; }
+.bike-title { font-size: 18px; font-weight: 800; color: var(--gray-900); }
+.bike-sub   { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.bike-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.bike-status { font-size: 15px; font-weight: 800; white-space: nowrap; }
+.pill-assign { background: var(--green-ok); color: #fff; border: none; border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.pill-assign:active { opacity: .85; }
+.bike-chev { font-size: 17px; color: var(--gray-400); transition: transform .2s; display: inline-block; flex-shrink: 0; }
+.bike-chev.open { transform: rotate(180deg); }
+
+.bike-body { padding: 0 20px 20px; }
+.bike-divider { height: 1px; background: var(--gray-100); margin-bottom: 16px; }
+.bike-info-row { display: flex; gap: 20px; margin-bottom: 16px; flex-wrap: wrap; }
+.bike-info-col { flex: 1; min-width: 130px; }
+.bike-info-label { font-size: 12px; color: var(--gray-500); font-weight: 600; margin-bottom: 4px; }
+.bike-info-value { font-size: 14px; font-weight: 800; color: var(--gray-900); }
+.bike-cost-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; gap: 10px; }
+.bike-cost-label { font-size: 13px; font-weight: 700; color: var(--green-ok); margin-bottom: 4px; }
+.bike-cost-value { font-size: 30px; font-weight: 800; color: var(--gray-900); line-height: 1; }
+.bike-cost-detail { font-size: 11px; color: var(--gray-500); margin-top: 4px; text-align: right; }
+
+.form-row-2 { display: flex; gap: 8px; margin-bottom: 14px; }
+.form-row-2 input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; }
+.form-row-2 input:focus { border-color: var(--green-400); }
+
+.btn-block { width: 100%; height: 54px; border: none; border-radius: var(--radius-xl); font-size: 16px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.btn-block:active { opacity: .88; }
+.btn-block:disabled { opacity: .4; pointer-events: none; }
+.btn-block.green { background: var(--green-ok); color: #fff; }
+.btn-block.red   { background: var(--pink-busy); color: #fff; }
+
+.disabled-note { margin-top: 4px; background: var(--gray-100); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.hidden { display: none !important; }
+
+/* ══ IMPOSTAZIONI ═════════════════════════════════════════════════════════ */
+.settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 16px; }
+.settings-card h3 { font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+.settings-form-row { display: flex; gap: 8px; }
+.settings-form-row select, .settings-form-row input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); color: var(--gray-900); outline: none; }
+.settings-form-row button { flex-shrink: 0; width: 46px; height: 46px; padding: 0; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; font-family: var(--font); }
+.settings-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin: 18px 0 8px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--white); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; box-shadow: var(--shadow-sm); }
+.settings-row .nome { font-size: 14px; font-weight: 800; }
+.settings-row .stato-lbl { font-size: 11px; font-weight: 700; margin-top: 2px; }
+.settings-row .btns { display: flex; gap: 6px; flex-shrink: 0; }
+.settings-row .btns button { height: 36px; padding: 0 12px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.btn-toggle  { background: var(--gray-100); color: var(--gray-700); }
+.btn-delete  { background: var(--red-bg); color: var(--red); }
+
+/* ══ MODAL ════════════════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 320px; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm { flex: 1; height: 46px; background: var(--green-ok); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+</style>
+</head>
+<body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Noleggio Bici</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Noleggio Bici</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<div class="top-bar" id="top-bar-main">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">&#8592;</button>
+      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;transition:background .3s"></span>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">&#9881;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HEADER IMPOSTAZIONI ══════════════════════════════════════════════════ -->
+<div class="top-bar hidden" id="top-bar-settings">
+  <div class="header-inner">
+    <div class="header-left">
+      <button class="hbtn ghost icon" onclick="closeSettings()" title="Torna">&#8592;</button>
+      <div>
+        <div class="header-name">Impostazioni bici</div>
+        <div class="header-role">Aggiungi, elimina o disattiva una bici</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main id="main-view">
+  <div class="stats-row" id="stats-row"></div>
+  <div id="bikes-container"></div>
+</main>
+
+<main id="settings-view" class="hidden">
+  <div id="settings-container"></div>
+</main>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL      = '../';
+const MODULE_ID    = 'bici';
+const SECTION_IDS  = ['bici'];
+
+// 👉 TARIFFE NOLEGGIO BICI — modifica solo questi numeri per cambiare prezzi
+//    e soglie orarie, il resto dell'app si adatta da solo.
+//    Logica: fino a "sogliaOrariaH" si paga a ore; superata quella soglia si
+//    passa alla fascia successiva a prezzo fisso; se il noleggio dura più di
+//    un giorno si paga "giornataIntera" per ogni giorno, con un tetto massimo
+//    pari alla tariffa "settimana" (oltre quel tetto non si paga più nulla).
+const TARIFFE_BICI = {
+  oraria:               1,   // € per ogni ora (o frazione) iniziata
+  sogliaOrariaH:        5,   // fino a 5 ore comprese: tariffa oraria
+  mezzaGiornata:        5,   // € fissi da 5 a 6 ore
+  sogliaMezzaGiornataH: 6,
+  giornataIntera:      10,   // € fissi da 12 a 24 ore, poi per ogni giorno extra
+  sogliaGiornataH:     24,
+  settimana:           50,   // € fissi — tetto massimo (raggiunto al 5° giorno)
+};
+
+function calcolaCostoBici(ms) {
+  const ore = ms / 3600000;
+  if (ore <= TARIFFE_BICI.sogliaOrariaH) {
+    const h = Math.max(1, Math.ceil(ore));
+    return { fascia: 'Tariffa oraria', dettaglio: h + (h === 1 ? ' ora' : ' ore') + ' × ' + TARIFFE_BICI.oraria + '€', costo: h * TARIFFE_BICI.oraria };
+  }
+  if (ore <= TARIFFE_BICI.sogliaMezzaGiornataH) {
+    return { fascia: 'Mezza giornata', dettaglio: 'fascia fissa fino a ' + TARIFFE_BICI.sogliaMezzaGiornataH + 'h', costo: TARIFFE_BICI.mezzaGiornata };
+  }
+  if (ore <= TARIFFE_BICI.sogliaGiornataH) {
+    return { fascia: 'Giornata intera', dettaglio: 'fascia fissa fino a 24h', costo: TARIFFE_BICI.giornataIntera };
+  }
+  const giorni = Math.ceil(ore / 24);
+  const costoGiorni = giorni * TARIFFE_BICI.giornataIntera;
+  if (costoGiorni >= TARIFFE_BICI.settimana) {
+    return { fascia: 'Tariffa settimanale', dettaglio: giorni + ' giorni (tetto massimo)', costo: TARIFFE_BICI.settimana };
+  }
+  return { fascia: 'Più giorni', dettaglio: giorni + ' giorni × ' + TARIFFE_BICI.giornataIntera + '€', costo: costoGiorni };
+}
+
+const STATUS_META = {
+  libera:          { label: 'Libera',          color: '#92BA7F' },
+  occupata:        { label: 'Occupata',        color: '#FF6E6E' },
+  non_disponibile: { label: 'Non disponibile', color: 'var(--gray-500)' },
+};
+const STATUS_KEYS = Object.keys(STATUS_META);
+
+let hubSession       = null;
+let hubPermessi      = { sezioni: {} };
+let allowedSections  = new Set(SECTION_IDS);
+let currentOperatore = null;
+let bikesMap         = {};   // id -> { id, numero, tipologia, attiva, stato, clienteNome, clienteAlloggio, ritiroTs, ritiroOp, log }
+let expanded         = {};   // bici id -> bool
+let settingsOpen     = false;
+let activeFilter     = null; // null oppure una delle chiavi di STATUS_META
+// Valori digitati nel form "Assegna a cliente", per non perderli se arriva
+// un aggiornamento realtime da un altro dispositivo mentre si sta scrivendo.
+let formTemp         = {};   // bici id -> { nome, alloggio }
+
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+function bikeId(n) { return 'bici_' + n; }
+function fmtTs(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+         d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+}
+function effectiveStato(b) {
+  if (b.stato === 'occupata') return 'occupata';
+  return b.attiva === false ? 'non_disponibile' : 'libera';
+}
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once:true });
+  });
+}
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const map = { connecting:'#60A5FA', live:'#4ADE80', saving:'#FCD34D', error:'#F87171', offline:'rgba(255,255,255,0.3)' };
+  if (dot) dot.style.background = map[state] || map.offline;
+}
+
+let _unsubBici = null;
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  setSyncStatus('connecting');
+  try {
+    _unsubBici = onSnapshot(collection(db, 'bici'), (snap) => {
+      const map = {};
+      snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+      bikesMap = map;
+      setSyncStatus('live');
+      render();
+      _dataReady = true;
+      maybeHideLoading();
+    }, (err) => { console.error('Errore listener bici:', err); setSyncStatus('error'); });
+  } catch(e) { console.error('Errore avvio sync bici:', e); setSyncStatus('error'); }
+}
+
+async function forceRefresh(manual) {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'bici'));
+    const map = {};
+    snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+    bikesMap = map;
+    setSyncStatus('live');
+    render();
+    if (manual) showToast('Aggiornato');
+  } catch(e) { console.error('Errore refresh:', e); setSyncStatus('error'); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh(false);
+});
+window.addEventListener('online', () => forceRefresh(false));
+window.addEventListener('focus',  () => forceRefresh(false));
+
+// ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia ───
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'bici'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    setSyncStatus('error');
+    await kickFirestoreConnection();
+    forceRefresh(false);
+  }
+}
+setInterval(checkConnessione, 30000);
+// Ogni 30s aggiorniamo anche solo per far avanzare l'orario/il costo delle
+// bici occupate mostrate a schermo (nessuna chiamata di rete, solo render).
+setInterval(() => { if (!settingsOpen) render(); }, 30000);
+
+// ── LOGIN / PERMESSI (single sign-on dalla Hub) ──────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+function computeAllowedSections() {
+  const admin = isAdmin();
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = admin || sez[id] !== false;
+    if (ok) allowedSections.add(id);
+  });
+}
+function applyRole() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+  document.getElementById('btn-settings').style.display = admin ? '' : 'none';
+}
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    maybeHideLoading();
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (allowedSections.size === 0) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    maybeHideLoading();
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applyRole();
+  maybeHideLoading();
+}
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+let _dataReady = false;
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+function maybeHideLoading() {
+  const loginVisible = !document.getElementById('login-screen').classList.contains('hidden');
+  const noAccessVisible = !document.getElementById('no-access-screen').classList.contains('hidden');
+  if (loginVisible || noAccessVisible || _dataReady) hideLoadingScreen();
+}
+setTimeout(async () => {
+  if (_dataReady || _loadingHidden) return;
+  console.warn('Caricamento lento, provo a forzare la riconnessione...');
+  await kickFirestoreConnection();
+  forceRefresh(false);
+}, 8000);
+setTimeout(hideLoadingScreen, 18000);
+function doLogout() {
+  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_permessi');
+  location.href = HUB_URL;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render() { renderStats(); renderList(); if (settingsOpen) renderSettings(); }
+
+function renderStats() {
+  const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
+  Object.values(bikesMap).forEach(b => { counts[effectiveStato(b)]++; });
+  document.getElementById('stats-row').innerHTML = STATUS_KEYS.map(k => {
+    const m = STATUS_META[k];
+    const active = activeFilter === k;
+    return '<div class="stat-chip" onclick="toggleStatFilter(\''+k+'\')" style="'+(active?'box-shadow:0 0 0 2.5px '+m.color+';':'')+'"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
+  }).join('');
+}
+function toggleStatFilter(key) {
+  activeFilter = (activeFilter === key) ? null : key;
+  render();
+}
+function toggleBike(id) {
+  const b = bikesMap[id];
+  if (b && effectiveStato(b) === 'non_disponibile') return;
+  expanded[id] = !expanded[id];
+  render();
+}
+function forceOpenBike(id) {
+  expanded[id] = true;
+  render();
+}
+
+function renderBikeBody(b) {
+  const stato = effectiveStato(b);
+  if (stato === 'libera') {
+    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'' });
+    return '<div class="bike-body">'+
+      '<div class="bike-divider"></div>'+
+      '<div class="form-row-2">'+
+        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+b.id+'\'].nome=this.value">'+
+        '<input type="text" placeholder="Alloggio" value="'+(t.alloggio||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+b.id+'\'].alloggio=this.value">'+
+      '</div>'+
+      '<div class="bike-info-row" style="margin-bottom:18px">'+
+        '<div class="bike-info-col"><div class="bike-info-label">Data e ora attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
+      '</div>'+
+      '<button class="btn-block green" onclick="segnalaRitiro(\''+b.id+'\')">Segnala Ritiro</button>'+
+    '</div>';
+  }
+  if (stato === 'occupata') {
+    const r = calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
+    return '<div class="bike-body">'+
+      '<div class="bike-divider"></div>'+
+      '<div class="bike-info-row">'+
+        '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
+        '<div class="bike-info-col"><div class="bike-info-label">Orario attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
+      '</div>'+
+      '<div class="bike-info-row">'+
+        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div><div class="bike-sub">'+(b.clienteAlloggio||'')+'</div></div>'+
+      '</div>'+
+      '<div class="bike-cost-row">'+
+        '<div><div class="bike-cost-label">Costo calcolato</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+        '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
+      '</div>'+
+      '<button class="btn-block red" onclick="confermaRiscuoti(\''+b.id+'\')">Riscuoti</button>'+
+    '</div>';
+  }
+  return '';
+}
+
+function renderBikeCard(b) {
+  const stato = effectiveStato(b);
+  const m = STATUS_META[stato];
+  const open = !!expanded[b.id];
+  const locked = stato === 'non_disponibile';
+  let rightHtml = '<span class="bike-status" style="color:'+m.color+'">'+m.label+'</span>';
+  if (stato === 'libera') {
+    rightHtml = '<span class="bike-status" style="color:'+m.color+'">'+m.label+'</span>'+
+      '<button class="pill-assign" onclick="event.stopPropagation();forceOpenBike(\''+b.id+'\')">Assegna a cliente</button>';
+  }
+  if (!locked) rightHtml += '<span class="bike-chev'+(open?' open':'')+'">&#9660;</span>';
+  return '<div class="bike-card">'+
+    '<button class="bike-header'+(locked?' locked':'')+'" '+(locked?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
+      '<div class="bike-title-block"><div class="bike-title">Bici N°'+b.numero+'</div><div class="bike-sub">Tipologia per '+(b.tipologia||'adulto')+'</div></div>'+
+      '<div class="bike-header-right">'+rightHtml+'</div>'+
+    '</button>'+
+    (open && !locked ? renderBikeBody(b) : '')+
+  '</div>';
+}
+
+function renderList() {
+  const all = Object.values(bikesMap).sort((a,b) => a.numero - b.numero);
+  const container = document.getElementById('bikes-container');
+  if (!all.length) {
+    container.innerHTML = '<div class="empty-state">Nessuna bici configurata.<br>Aggiungine una dalle Impostazioni (icona ⚙️ in alto).</div>';
+    return;
+  }
+  let html = '';
+  let list = all;
+  if (activeFilter) {
+    const m = STATUS_META[activeFilter];
+    list = all.filter(b => effectiveStato(b) === activeFilter);
+    html += '<div class="filter-bar">'+
+      '<span class="filter-label" style="color:'+m.color+'">'+m.label+' · '+list.length+'</span>'+
+      '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
+    '</div>';
+    if (!list.length) { html += '<div class="empty-filter">Nessuna bici in questo stato</div>'; container.innerHTML = html; return; }
+  }
+  html += list.map(b => renderBikeCard(b)).join('');
+  container.innerHTML = html;
+}
+
+// ── AZIONI ────────────────────────────────────────────────────────────────
+async function segnalaRitiro(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const t = formTemp[id] || { nome:'', alloggio:'' };
+  const nome = (t.nome || '').trim();
+  const alloggio = (t.alloggio || '').trim();
+  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
+  const nowIso = new Date().toISOString();
+  // Aggiornamento ottimistico: si vede subito il cambio, poi si salva su Firestore
+  b.stato = 'occupata';
+  b.clienteNome = nome;
+  b.clienteAlloggio = alloggio;
+  b.ritiroTs = nowIso;
+  b.ritiroOp = currentOperatore || 'Operatore';
+  delete formTemp[id];
+  render();
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'occupata', clienteNome: nome, clienteAlloggio: alloggio,
+      ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
+    });
+  } catch(e) {
+    console.error('Errore segnalazione ritiro:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+
+function confermaRiscuoti(id) {
+  const b = bikesMap[id];
+  if (!b || b.stato !== 'occupata') return;
+  const r = calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
+  showModal(
+    'Riscuoti ' + r.costo.toFixed(2).replace('.',',') + '€',
+    'Bici N°'+b.numero+' — '+(b.clienteNome||'')+'. Confermi di aver incassato il pagamento e di voler segnalare il rientro della bici?',
+    'Riscuoti',
+    () => riscuoti(id)
+  );
+}
+async function riscuoti(id) {
+  const b = bikesMap[id];
+  if (!b || b.stato !== 'occupata') return;
+  const nowIso = new Date().toISOString();
+  const r = calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
+  const entry = {
+    clienteNome: b.clienteNome || '', clienteAlloggio: b.clienteAlloggio || '',
+    ritiroTs: b.ritiroTs, rientroTs: nowIso,
+    fascia: r.fascia, dettaglio: r.dettaglio, costo: r.costo,
+    opRitiro: b.ritiroOp || '', opRiscossione: currentOperatore || 'Operatore',
+  };
+  const newLog = [entry].concat(b.log || []).slice(0, 30);
+  // Aggiornamento ottimistico
+  b.stato = 'libera';
+  b.clienteNome = null; b.clienteAlloggio = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.log = newLog;
+  render();
+  showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'libera', clienteNome: null, clienteAlloggio: null, ritiroTs: null, ritiroOp: null, log: newLog,
+    });
+  } catch(e) {
+    console.error('Errore riscossione:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+
+// ── IMPOSTAZIONI (solo admin): aggiungi / elimina / disattiva una bici ──────
+function openSettings() {
+  if (!isAdmin()) return;
+  settingsOpen = true;
+  document.getElementById('top-bar-main').classList.add('hidden');
+  document.getElementById('top-bar-settings').classList.remove('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('settings-view').classList.remove('hidden');
+  renderSettings();
+}
+function closeSettings() {
+  settingsOpen = false;
+  document.getElementById('top-bar-settings').classList.add('hidden');
+  document.getElementById('top-bar-main').classList.remove('hidden');
+  document.getElementById('settings-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+}
+function nextSuggestedNumero() {
+  const nums = Object.values(bikesMap).map(b => b.numero);
+  return nums.length ? Math.max.apply(null, nums) + 1 : 1;
+}
+function renderSettings() {
+  let html = '<div class="settings-card">'+
+    '<h3>Aggiungi una bici</h3>'+
+    '<div class="settings-form-row">'+
+      '<select id="add-tipo-select">'+
+        '<option value="adulto">Per adulto</option>'+
+        '<option value="bambino">Per bambino</option>'+
+      '</select>'+
+      '<input type="number" id="add-num-input" placeholder="Numero" min="1" value="'+nextSuggestedNumero()+'">'+
+      '<button onclick="addBici()" aria-label="Aggiungi bici">+</button>'+
+    '</div>'+
+  '</div>';
+  const bikes = Object.values(bikesMap).sort((a,b) => a.numero - b.numero);
+  html += '<div class="settings-cat-title">Bici configurate ('+bikes.length+')</div>';
+  if (!bikes.length) {
+    html += '<div style="font-size:12px;color:var(--gray-500);padding:0 4px 8px">Nessuna bici ancora configurata</div>';
+  }
+  bikes.forEach(b => {
+    const stato = effectiveStato(b);
+    const m = STATUS_META[stato];
+    const isOccupata = stato === 'occupata';
+    html += '<div class="settings-row">'+
+      '<div><div class="nome">Bici N°'+b.numero+' · per '+(b.tipologia||'adulto')+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
+      '<div class="btns">'+
+        '<button class="btn-toggle" '+(isOccupata?'disabled':'')+' onclick="toggleDisponibilitaBici(\''+b.id+'\')">'+(stato==='non_disponibile' ? 'Riattiva' : 'Rendi non disp.')+'</button>'+
+        '<button class="btn-delete" '+(isOccupata?'disabled':'')+' onclick="requestDeleteBici(\''+b.id+'\')">Elimina</button>'+
+      '</div>'+
+    '</div>';
+  });
+  document.getElementById('settings-container').innerHTML = html;
+}
+async function toggleDisponibilitaBici(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  if (b.stato === 'occupata') { showToast('Non puoi disattivare una bici occupata'); return; }
+  const nuovo = b.attiva === false ? true : false;
+  b.attiva = nuovo;
+  renderSettings(); renderStats(); renderList();
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), { attiva: nuovo });
+  } catch(e) {
+    console.error('Errore aggiornamento disponibilità:', e);
+    showToast('Errore durante l\'aggiornamento');
+  }
+}
+async function addBici() {
+  const tipologia = document.getElementById('add-tipo-select').value;
+  const numInput = document.getElementById('add-num-input');
+  const n = parseInt(numInput.value, 10);
+  if (!n || n < 1) { showToast('Inserisci un numero valido'); return; }
+  const id = bikeId(n);
+  if (bikesMap[id]) { showToast('Una bici con questo numero esiste già'); return; }
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'bici', id), {
+      numero: n,
+      tipologia: tipologia,
+      attiva: true,
+      stato: 'libera',
+      clienteNome: null,
+      clienteAlloggio: null,
+      ritiroTs: null,
+      ritiroOp: null,
+      log: [],
+    });
+    showToast('Bici aggiunta');
+  } catch(e) {
+    console.error('Errore aggiunta bici:', e);
+    showToast('Errore durante l\'aggiunta');
+  }
+}
+function requestDeleteBici(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  if (b.stato === 'occupata') { showToast('Non puoi eliminare una bici occupata: segnala prima il rientro'); return; }
+  showModal(
+    'Eliminare Bici N°' + b.numero + '?',
+    'Questa azione non può essere annullata. La bici e il suo storico verranno eliminati definitivamente.',
+    'Elimina',
+    async () => {
+      try {
+        await waitForFirebase();
+        const { db, doc, deleteDoc } = window._fb;
+        await deleteDoc(doc(db, 'bici', id));
+        showToast('Bici eliminata');
+      } catch(e) {
+        console.error('Errore eliminazione bici:', e);
+        showToast('Errore durante l\'eliminazione');
+      }
+    }
+  );
+}
+
+// ── MODAL DI CONFERMA ────────────────────────────────────────────────────
+function showModal(title, body, confirmLabel, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent = confirmLabel || 'Conferma';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+async function start() {
+  render();
+  initLogin();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    setSyncStatus('error');
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  startRealtimeSync();
+}
+start();
+</script>
+</body>
+</html>
