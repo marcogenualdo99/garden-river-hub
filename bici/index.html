@@ -592,10 +592,10 @@ function renderBikeCard(b) {
   }
   if (!locked) rightHtml += '<span class="bike-chev'+(open?' open':'')+'">&#9660;</span>';
   return '<div class="bike-card">'+
-    '<button class="bike-header'+(locked?' locked':'')+'" '+(locked?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
+    '<div class="bike-header'+(locked?' locked':'')+'" role="button" tabindex="0" '+(locked?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
       '<div class="bike-title-block"><div class="bike-title">Bici N°'+b.numero+'</div><div class="bike-sub">Tipologia per '+(b.tipologia||'adulto')+'</div></div>'+
       '<div class="bike-header-right">'+rightHtml+'</div>'+
-    '</button>'+
+    '</div>'+
     (open && !locked ? renderBikeBody(b) : '')+
   '</div>';
 }
