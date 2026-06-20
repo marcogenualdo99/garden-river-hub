@@ -100,16 +100,16 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .btn-primary:active { opacity: .85; }
 
 /* ══ HEADER ═══════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--green-700); padding-top: env(safe-area-inset-top); }
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
 .header-left { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 14px; font-weight: 800; color: var(--white); line-height: 1.2; }
-.header-role  { font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+.header-role  { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
 .header-btns  { display: flex; align-items: center; gap: 6px; }
 .hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
-.hbtn.icon  { width: 32px; padding: 0; font-size: 15px; }
-.hbtn.ghost { background: rgba(255,255,255,0.12); color: var(--white); border: none; }
+.hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); border: none; }
 .hbtn:active { opacity: .8; }
 
 main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
@@ -118,7 +118,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
 .stat-chip:active { transform: scale(.96); }
-.stat-chip .n { font-size: 20px; font-weight: 800; line-height: 1; }
+.stat-chip .n { font-size: 26px; font-weight: 800; line-height: 1; }
 .stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
 .filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .filter-label { font-size: 15px; font-weight: 800; }
@@ -249,10 +249,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">&#8592;</button>
-      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.35);flex-shrink:0;transition:background .3s"></span>
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
-      <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">&#9881;</button>
+      <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
       <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
     </div>
   </div>
@@ -262,7 +266,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 <div class="top-bar hidden" id="top-bar-settings">
   <div class="header-inner">
     <div class="header-left">
-      <button class="hbtn ghost icon" onclick="closeSettings()" title="Torna">&#8592;</button>
+      <button class="hbtn ghost icon" onclick="closeSettings()" title="Torna">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
       <div>
         <div class="header-name">Impostazioni bici</div>
         <div class="header-role">Aggiungi, elimina o disattiva una bici</div>
