@@ -303,6 +303,45 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
+
+/* ══ SHIMMER LOADING ═════════════════════════════════════════════════════════ */
+@keyframes gr-shimmer { 0%,100% { opacity:.15 } 50% { opacity:.38 } }
+.stat-loading {
+  display: inline-block; width: 72px; height: 9px; border-radius: 5px;
+  background: currentColor; animation: gr-shimmer 1.5s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+/* ══ HEADER LOGOUT HINT ══════════════════════════════════════════════════════ */
+.header-logout-hint {
+  display: flex; align-items: center; flex-shrink: 0;
+  color: var(--gray-300); margin-left: 4px; transition: color .15s;
+  pointer-events: none;
+}
+.header-left:active .header-logout-hint { color: var(--gray-700); }
+
+/* ══ SETTINGS NEW-OP FORM ════════════════════════════════════════════════════ */
+.new-op-form { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.new-op-input {
+  flex: 1; min-width: 140px; height: 48px; padding: 0 14px;
+  border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm);
+  font-size: 14px; font-family: var(--font); outline: none;
+  transition: border-color .15s;
+}
+.new-op-input:focus { border-color: var(--green-400); }
+.new-op-ruolo {
+  height: 48px; padding: 0 10px;
+  border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm);
+  font-size: 13px; font-family: var(--font); background: var(--white);
+}
+.new-op-btn {
+  height: 48px; padding: 0 18px;
+  background: var(--green-700); color: var(--white);
+  border: none; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); transition: opacity .15s;
+}
+.new-op-btn:active { opacity: .85; }
 </style>
 </head>
 <body>
@@ -358,11 +397,14 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 <!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
 <div class="top-bar">
   <div class="header-inner">
-    <div class="header-left" onclick="doLogout()" title="Esci" style="cursor:pointer;-webkit-tap-highlight-color:transparent">
+    <div class="header-left" onclick="doLogout()" title="Cambia operatore" style="cursor:pointer;-webkit-tap-highlight-color:transparent">
       <div class="header-avatar" id="header-avatar"></div>
       <div style="min-width:0">
         <div class="header-name" id="header-name"></div>
         <div class="header-role" id="header-role"></div>
+      </div>
+      <div class="header-logout-hint" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M13 4.5h2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2"/><polyline points="3,10 11,10"/><polyline points="8,7 11,10 8,13"/></svg>
       </div>
     </div>
     <div class="header-btns">
@@ -404,13 +446,13 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
     <div class="card">
       <h3>Operatori</h3>
       <p class="subtitle">Gli operatori creati qui possono accedere a tutta la suite Garden River con un unico PIN.</p>
-      <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">
-        <input type="text" id="new-op-nome" placeholder="Nome operatore…" style="flex:1;min-width:140px;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none">
-        <select id="new-op-ruolo" style="height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);background:var(--white)">
+      <div class="new-op-form">
+        <input type="text" id="new-op-nome" placeholder="Nome operatore…" class="new-op-input">
+        <select id="new-op-ruolo" class="new-op-ruolo">
           <option value="operatore">Operatore</option>
           <option value="admin">Amministratore</option>
         </select>
-        <button onclick="addOperatore()" style="height:48px;padding:0 18px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">+ Aggiungi</button>
+        <button onclick="addOperatore()" class="new-op-btn">+ Aggiungi</button>
       </div>
       <div id="operatori-list" style="margin-top:6px"></div>
     </div>
@@ -987,7 +1029,7 @@ let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null };
 
 function statoModulo(mod) {
   const s = homeStats[mod.statKey];
-  if (!s) return { sub: 'Caricamento…', badge: null };
+  if (!s) return { sub: '<span class="stat-loading"></span>', badge: null };
   if (mod.statKey === 'magazzino') {
     return s.sottoScorta > 0
       ? { sub: `${s.sottoScorta} prodott${s.sottoScorta===1?'o':'i'} sotto scorta`, badge: null }
@@ -995,7 +1037,7 @@ function statoModulo(mod) {
   }
   if (mod.statKey === 'conti') {
     return {
-      sub: null,
+      sub: s.scadenze === 0 ? 'Nessuna scadenza imminente' : null,
       badge: s.scadenze > 0 ? `${s.scadenze} scadenz${s.scadenze===1?'a':'e'}` : null
     };
   }
