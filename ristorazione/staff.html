@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Staff Ristorazione · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Staff Ristorazione">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const app  = initializeApp(firebaseConfig, "staff-risto");
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  window._fbStaff = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, enableNetwork, disableNetwork };
+  window._fbStaffReady = false;
+
+  function ok(){ if(window._fbStaffReady)return; window._fbStaffReady=true; window.dispatchEvent(new Event('firebase-staff-ready')); }
+  onAuthStateChanged(auth, u=>{ if(u) ok(); });
+  signInAnonymously(auth).catch(()=>ok());
+  setTimeout(ok, 8000);
+</script>
+
+<style>
+:root {
+  --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
+  --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
+  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280;
+  --gray-300:#D1D5DB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
+  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
+  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+  --red:#DC2626; --red-bg:#FEF2F2;
+  --font:'Inter',-apple-system,sans-serif;
+  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{font-family:var(--font);background:var(--gray-50);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+@keyframes gr-spin{to{transform:rotate(360deg)}}
+
+/* ── LOADING ── */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s}
+.gr-spinner{width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite}
+
+/* ── LOGIN (identico ad Alloggi) ── */
+.login-screen{position:fixed;inset:0;z-index:999;background:var(--green-700);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.login-screen.hidden{display:none}
+.login-logo{height:84px;width:auto;margin-bottom:16px}
+.login-title{font-size:24px;font-weight:800;color:var(--white);margin-bottom:4px}
+.login-sub{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:32px}
+.login-card{background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center}
+.login-card p{font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px}
+.btn-primary{width:100%;height:50px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-primary:active{opacity:.85}
+
+/* ── HEADER (identico ad Alloggi) ── */
+.top-bar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--gray-100);padding-top:env(safe-area-inset-top)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;max-width:860px;margin:0 auto;padding:10px 16px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-700);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--white);letter-spacing:-.5px;flex-shrink:0}
+.header-name{font-size:14px;font-weight:800;color:var(--gray-900);line-height:1.2}
+.header-role{font-size:10px;color:var(--gray-500);margin-top:1px}
+.header-btns{display:flex;align-items:center;gap:6px}
+.hbtn{height:32px;padding:0 12px;border:none;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap}
+.hbtn.icon{width:32px;padding:0;display:flex;align-items:center;justify-content:center}
+.hbtn.ghost{background:var(--gray-100);color:var(--gray-700)}
+.hbtn:active{opacity:.8}
+
+/* ── NAV TABS ── */
+.nav-wrap{background:var(--white);border-bottom:1px solid var(--gray-100)}
+.nav-tabs{display:flex;max-width:860px;margin:0 auto;padding:0 16px;overflow-x:auto}
+.nav-tab{padding:10px 16px;font-size:13px;font-weight:700;color:var(--gray-500);border:none;background:none;cursor:pointer;font-family:var(--font);border-bottom:2px solid transparent;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.nav-tab.active{color:var(--green-700);border-bottom-color:var(--green-700)}
+
+/* ── MAIN ── */
+main{max-width:860px;margin:0 auto;padding:16px 14px 60px}
+.section{display:none}
+.section.active{display:block}
+
+/* ── FILTRI ── */
+.filter-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.pill{height:32px;padding:0 14px;border-radius:30px;border:1.5px solid var(--gray-300);background:var(--white);color:var(--gray-500);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.pill.active{background:var(--green-700);border-color:var(--green-700);color:var(--white)}
+
+/* ── QUICK VIEW ── */
+.qv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+.qv-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 12px;text-align:center}
+.qv-num{font-size:30px;font-weight:800;color:var(--green-700);line-height:1}
+.qv-lbl{font-size:12px;color:var(--gray-500);margin-top:5px;font-weight:600}
+.qv-bar-wrap{height:4px;background:var(--gray-100);border-radius:2px;margin-top:8px;overflow:hidden}
+.qv-bar{height:100%;background:var(--green-400);border-radius:2px}
+
+/* ── DETAIL ── */
+.detail-block{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
+.detail-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.detail-head:active{background:var(--gray-50)}
+.detail-piatto{font-size:15px;font-weight:800}
+.detail-count{font-size:13px;font-weight:800;color:var(--white);background:var(--green-500);padding:4px 12px;border-radius:20px}
+.detail-chev{font-size:16px;color:var(--gray-400,#9CA3AF);transition:transform .2s;display:inline-block}
+.detail-chev.open{transform:rotate(180deg)}
+.detail-body{border-top:1px solid var(--gray-100);display:none}
+.detail-body.open{display:block}
+.detail-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:1px solid var(--gray-100)}
+.detail-row:last-child{border-bottom:none}
+.detail-fam{font-size:13px;font-weight:700}
+.detail-unita{font-size:11px;color:var(--gray-500);margin-top:2px}
+.detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:3px 8px;margin-top:4px;display:inline-block}
+.detail-qty{font-size:13px;font-weight:800;color:var(--gray-700);flex-shrink:0}
+
+/* ── MENU SETTIMANALE ── */
+.week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.week-label{font-size:14px;font-weight:800}
+.week-btns{display:flex;gap:6px}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--gray-300);background:var(--white);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:var(--font)}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day-col{min-width:0}
+.day-head{text-align:center;font-size:10px;font-weight:800;color:var(--gray-500);text-transform:uppercase;margin-bottom:4px}
+.day-date{text-align:center;font-size:13px;font-weight:800;color:var(--gray-900);margin-bottom:6px}
+.day-date.today{color:var(--green-700)}
+.menu-slot{background:var(--white);border-radius:8px;box-shadow:var(--shadow-sm);padding:5px 7px;margin-bottom:4px;font-size:11px;display:flex;align-items:flex-start;gap:4px}
+.slot-tipo{font-size:9px;font-weight:800;padding:1px 4px;border-radius:5px;flex-shrink:0;margin-top:1px}
+.slot-tipo.pranzo{background:var(--blue-bg);color:var(--blue)}
+.slot-tipo.cena{background:var(--green-50);color:var(--green-500)}
+.slot-nome{flex:1;color:var(--gray-700);line-height:1.3}
+.slot-del{background:none;border:none;color:var(--gray-300);font-size:14px;cursor:pointer;flex-shrink:0;padding:0;line-height:1}
+.slot-del:hover{color:var(--red)}
+.add-slot{border:1.5px dashed var(--gray-300);border-radius:8px;padding:5px;text-align:center;font-size:18px;color:var(--gray-300);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.add-slot:hover{border-color:var(--green-400);color:var(--green-400)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:flex-end;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal-box{background:var(--white);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:14px}
+.modal-label{font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.modal-input{width:100%;height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;margin-bottom:12px;outline:none}
+.modal-input:focus{border-color:var(--green-400)}
+.modal-select{width:100%;height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;margin-bottom:16px;outline:none;background:var(--white)}
+.modal-btns{display:flex;gap:8px}
+.modal-btns button{flex:1;height:48px;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)}
+.btn-cancel{background:var(--gray-100);color:var(--gray-700)}
+.btn-save{background:var(--green-700);color:var(--white)}
+
+/* ── FAMIGLIE ── */
+.fam-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.fam-avatar{width:38px;height:38px;border-radius:50%;background:var(--green-100);color:var(--green-700);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-nome{font-size:14px;font-weight:800}
+.fam-sub{font-size:11px;color:var(--gray-500);margin-top:2px}
+.fam-codice{font-family:monospace;font-size:12px;background:var(--green-50);color:var(--green-700);padding:3px 9px;border-radius:6px;border:1px solid var(--green-100);white-space:nowrap}
+.fam-del{width:32px;height:32px;background:var(--red-bg);border:none;border-radius:8px;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.add-fam-form{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px;margin-bottom:16px}
+.add-fam-form h3{font-size:13px;font-weight:800;margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.form-input{height:44px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);padding:0 10px;outline:none;width:100%}
+.form-input:focus{border-color:var(--green-400)}
+.btn-add{width:100%;height:46px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
+
+/* ── LABEL SEZIONE ── */
+.sec-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin:18px 0 10px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:var(--white);padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="gr-spinner"></div></div>
+
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" src="../logo-login.png" alt="Garden Hub" onerror="this.style.display='none'">
+  <div class="login-title">Staff Ristorazione</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card">
+    <p>L'accesso è gestito dalla <strong>Hub Garden River</strong>.<br>Accedi da lì e seleziona il tuo profilo per entrare automaticamente.</p>
+    <button class="btn-primary" onclick="location.href='../'">Vai alla Hub</button>
+  </div>
+</div>
+
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" src="../logo-login.png" alt="Garden Hub" onerror="this.style.display='none'">
+  <div class="login-title">Staff Ristorazione</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card">
+    <p>Il tuo profilo non ha i permessi per usare questa app.<br>Chiedi all'amministratore di abilitarti dalla Hub.</p>
+    <button class="btn-primary" onclick="location.href='../'">Torna alla Hub</button>
+  </div>
+</div>
+
+<div id="app-wrap" class="hidden">
+  <div class="top-bar">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-avatar" id="hdr-av">??</div>
+        <div>
+          <div class="header-name"  id="hdr-name">—</div>
+          <div class="header-role"  id="hdr-role">Operatore</div>
+        </div>
+      </div>
+      <div class="header-btns">
+        <button class="hbtn ghost icon" onclick="location.href='../'" title="Torna alla Hub">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </button>
+        <button class="hbtn ghost icon" onclick="forceRefresh()" title="Aggiorna">&#8635;</button>
+        <button class="hbtn ghost" onclick="doLogout()">Esci</button>
+      </div>
+    </div>
+    <div class="nav-wrap">
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="showSec('ordini',this)">📊 Ordini</button>
+        <button class="nav-tab"        onclick="showSec('menu',this)">📅 Menu</button>
+        <button class="nav-tab"        onclick="showSec('famiglie',this)">👥 Famiglie</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- ORDINI -->
+    <div class="section active" id="sec-ordini">
+      <div class="filter-row">
+        <button class="pill active" id="fp-oggi"   onclick="setFD('oggi')">Oggi</button>
+        <button class="pill"        id="fp-domani" onclick="setFD('domani')">Domani</button>
+        <button class="pill active" id="fp-pranzo" onclick="setFT('pranzo')">Pranzo</button>
+        <button class="pill"        id="fp-cena"   onclick="setFT('cena')">Cena</button>
+      </div>
+      <div class="sec-title">Riepilogo porzioni</div>
+      <div class="qv-grid" id="qv-grid"></div>
+      <div class="sec-title">Dettaglio per piatto</div>
+      <div id="detail-container"></div>
+    </div>
+
+    <!-- MENU -->
+    <div class="section" id="sec-menu">
+      <div class="week-nav">
+        <span class="week-label" id="week-label">—</span>
+        <div class="week-btns">
+          <button class="icon-btn" onclick="cambiaSettimana(-1)">‹</button>
+          <button class="icon-btn" onclick="cambiaSettimana(+1)">›</button>
+        </div>
+      </div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+
+    <!-- FAMIGLIE -->
+    <div class="section" id="sec-famiglie">
+      <div class="add-fam-form">
+        <h3>Aggiungi famiglia</h3>
+        <div class="form-grid">
+          <input class="form-input" id="f-nome"   placeholder="Nome famiglia" autocomplete="off">
+          <input class="form-input" id="f-unita"  placeholder="Unità (es. B3)" autocomplete="off">
+        </div>
+        <div class="form-grid">
+          <input class="form-input" id="f-codice" placeholder="Codice (es. ROSSI42)" autocomplete="off" style="text-transform:uppercase">
+          <input class="form-input" id="f-ospiti" placeholder="N. ospiti" type="number" min="1" max="20">
+        </div>
+        <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
+      </div>
+      <div class="sec-title">Famiglie registrate</div>
+      <div id="fam-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-title">Aggiungi piatto</div>
+    <div class="modal-label">Piatto</div>
+    <input class="modal-input" id="m-piatto" placeholder="Es. Spaghetti al pomodoro" autocomplete="off">
+    <div class="modal-label">Pasto</div>
+    <select class="modal-select" id="m-tipo">
+      <option value="pranzo">Pranzo</option>
+      <option value="cena">Cena</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Annulla</button>
+      <button class="btn-save"   onclick="salvaPiatto()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL = '../';
+let currentOp=null, isAdmin=false;
+let filtroD='oggi', filtroT='pranzo';
+let ordini=[], menuItems=[], famiglie=[];
+let weekOffset=0, modalData=null;
+let unsubO=null, unsubM=null, unsubF=null;
+let _dataReady=false;
+
+function isoDate(o=0){ const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().split('T')[0]; }
+const OGGI=isoDate(0), DOMANI=isoDate(1);
+function getISO(){ return filtroD==='oggi'?OGGI:DOMANI; }
+
+function isoFromDate(d){ return d.toISOString().split('T')[0]; }
+function lunedi(off=0){ const d=new Date(); const day=d.getDay()||7; d.setDate(d.getDate()-day+1+off*7); d.setHours(0,0,0,0); return d; }
+
+function waitFB(){ return new Promise(r=>{ if(window._fbStaffReady)return r(); window.addEventListener('firebase-staff-ready',()=>r(),{once:true}); }); }
+
+window.addEventListener('DOMContentLoaded', async()=>{
+  await waitFB();
+  const hub=loadSession();
+  if(!hub){ hideLoading(); document.getElementById('login-screen').classList.remove('hidden'); return; }
+  currentOp=hub.nome; isAdmin=(hub.ruolo==='admin');
+  hideLoading();
+  avviaApp();
+});
+
+function loadSession(){
+  try{ const r=sessionStorage.getItem('gr_session'); const p=r?JSON.parse(r):null; return p?.nome?p:null; }catch{ return null; }
+}
+function doLogout(){ sessionStorage.removeItem('gr_session'); sessionStorage.removeItem('gr_permessi'); location.href=HUB_URL; }
+function forceRefresh(){ avviaListenerOrdini(); showToast('Aggiornato'); }
+
+function avviaApp(){
+  document.getElementById('app-wrap').classList.remove('hidden');
+  document.getElementById('hdr-av').textContent=(currentOp||'?').slice(0,2).toUpperCase();
+  document.getElementById('hdr-name').textContent=currentOp||'—';
+  document.getElementById('hdr-role').textContent=isAdmin?'Amministratore':'Operatore';
+  avviaListenerOrdini();
+  avviaListenerMenu();
+  avviaListenerFamiglie();
+}
+
+function avviaListenerOrdini(){
+  if(unsubO) unsubO();
+  const {db,collection,query,where,onSnapshot}=window._fbStaff;
+  const q=query(collection(db,'ordini_ristorazione'),where('data','==',getISO()),where('tipo','==',filtroT));
+  unsubO=onSnapshot(q, snap=>{ ordini=snap.docs.map(d=>({_id:d.id,...d.data()})); renderOrdini(); }, e=>console.error(e));
+}
+
+function avviaListenerMenu(){
+  if(unsubM) unsubM();
+  const {db,collection,onSnapshot}=window._fbStaff;
+  unsubM=onSnapshot(collection(db,'menu_ristorazione'), snap=>{ menuItems=snap.docs.map(d=>({_id:d.id,...d.data()})); renderMenu(); }, e=>console.error(e));
+}
+
+function avviaListenerFamiglie(){
+  if(unsubF) unsubF();
+  const {db,collection,onSnapshot}=window._fbStaff;
+  unsubF=onSnapshot(collection(db,'famiglie_ristorazione'), snap=>{ famiglie=snap.docs.map(d=>({_id:d.id,...d.data()})); renderFamiglie(); }, e=>console.error(e));
+}
+
+/* ── ORDINI ── */
+function renderOrdini(){ renderQV(); renderDetail(); }
+
+function renderQV(){
+  const cnt={};
+  ordini.forEach(o=>{ (o.piatti||[]).forEach(p=>{ if(p.quantita>0) cnt[p.piatto]=(cnt[p.piatto]||0)+p.quantita; }); });
+  const voci=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  const max=voci[0]?.[1]||1;
+  document.getElementById('qv-grid').innerHTML=voci.length
+    ? voci.map(([p,q])=>`<div class="qv-card"><div class="qv-num">${q}</div><div class="qv-lbl">${esc(p)}</div><div class="qv-bar-wrap"><div class="qv-bar" style="width:${Math.round(q/max*100)}%"></div></div></div>`).join('')
+    : `<div style="color:var(--gray-500);font-size:13px;grid-column:1/-1">Nessun ordine.</div>`;
+}
+
+function renderDetail(){
+  const gruppi={};
+  ordini.forEach(o=>{ (o.piatti||[]).forEach(p=>{ if(p.quantita<=0)return; if(!gruppi[p.piatto])gruppi[p.piatto]=[]; gruppi[p.piatto].push({fam:o.famiglia_nome,unita:o.unita,qty:p.quantita,note:o.note}); }); });
+  const voci=Object.entries(gruppi).sort((a,b)=>b[1].reduce((s,r)=>s+r.qty,0)-a[1].reduce((s,r)=>s+r.qty,0));
+  document.getElementById('detail-container').innerHTML=voci.length
+    ? voci.map(([p,righe],i)=>{
+        const tot=righe.reduce((s,r)=>s+r.qty,0);
+        const rows=righe.map(r=>`<div class="detail-row"><div><div class="detail-fam">${esc(r.fam)}</div><div class="detail-unita">Unità ${esc(r.unita)}</div>${r.note?`<span class="detail-note">📝 ${esc(r.note)}</span>`:''}</div><div class="detail-qty">×${r.qty}</div></div>`).join('');
+        return `<div class="detail-block"><div class="detail-head" onclick="toggleDetail('db${i}')"><span class="detail-piatto">${esc(p)}</span><span style="display:flex;align-items:center;gap:8px"><span class="detail-count">${tot}</span><span class="detail-chev" id="chev-db${i}">▾</span></span></div><div class="detail-body" id="db${i}">${rows}</div></div>`;
+      }).join('')
+    : `<div style="color:var(--gray-500);font-size:13px">Nessun ordine.</div>`;
+}
+
+function toggleDetail(id){ const b=document.getElementById(id),c=document.getElementById('chev-'+id); if(!b)return; const o=b.classList.toggle('open'); if(c)c.classList.toggle('open',o); }
+
+/* ── MENU ── */
+function renderMenu(){
+  const lun=lunedi(weekOffset);
+  const GG=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  const MM=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  const fin=new Date(lun); fin.setDate(fin.getDate()+6);
+  document.getElementById('week-label').textContent=`${lun.getDate()} ${MM[lun.getMonth()]} – ${fin.getDate()} ${MM[fin.getMonth()]} ${fin.getFullYear()}`;
+  let html='';
+  for(let i=0;i<7;i++){
+    const d=new Date(lun); d.setDate(lun.getDate()+i);
+    const iso=isoFromDate(d);
+    const voci=menuItems.filter(m=>m.data===iso).sort((a,b)=>a.tipo.localeCompare(b.tipo));
+    html+=`<div class="day-col"><div class="day-head">${GG[i]}</div><div class="day-date ${iso===OGGI?'today':''}">${d.getDate()}</div>
+      ${voci.map(v=>`<div class="menu-slot"><span class="slot-tipo ${v.tipo}">${v.tipo==='pranzo'?'P':'C'}</span><span class="slot-nome">${esc(v.piatto)}</span><button class="slot-del" onclick="eliminaPiatto('${v._id}')">×</button></div>`).join('')}
+      <div class="add-slot" onclick="openModal('${iso}')">+</div></div>`;
+  }
+  document.getElementById('week-grid').innerHTML=html;
+}
+
+function cambiaSettimana(d){ weekOffset+=d; renderMenu(); }
+function openModal(data){ modalData=data; document.getElementById('m-piatto').value=''; document.getElementById('m-tipo').value='pranzo'; document.getElementById('modal-overlay').classList.remove('hidden'); setTimeout(()=>document.getElementById('m-piatto').focus(),100); }
+function closeModal(){ document.getElementById('modal-overlay').classList.add('hidden'); modalData=null; }
+
+async function salvaPiatto(){
+  const piatto=document.getElementById('m-piatto').value.trim();
+  const tipo=document.getElementById('m-tipo').value;
+  if(!piatto){ document.getElementById('m-piatto').focus(); return; }
+  const {db,doc,setDoc}=window._fbStaff;
+  try{ await setDoc(doc(db,'menu_ristorazione',`menu_${modalData}_${tipo}_${Date.now()}`),{data:modalData,tipo,piatto}); showToast('Piatto aggiunto'); closeModal(); }
+  catch(e){ console.error(e); showToast('Errore — riprova'); }
+}
+
+async function eliminaPiatto(id){
+  if(!confirm('Eliminare questo piatto?'))return;
+  const {db,doc,deleteDoc}=window._fbStaff;
+  try{ await deleteDoc(doc(db,'menu_ristorazione',id)); showToast('Eliminato'); }
+  catch(e){ console.error(e); showToast('Errore — riprova'); }
+}
+
+/* ── FAMIGLIE ── */
+function renderFamiglie(){
+  document.getElementById('fam-list').innerHTML=famiglie.length
+    ? famiglie.sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(f=>`
+        <div class="fam-card">
+          <div class="fam-avatar">${(f.nome||'?').slice(0,2).toUpperCase()}</div>
+          <div style="flex:1;min-width:0"><div class="fam-nome">${esc(f.nome)}</div><div class="fam-sub">Unità ${esc(f.unita)} · ${f.max_ospiti} ospiti</div></div>
+          <span class="fam-codice">${esc(f.codice)}</span>
+          <button class="fam-del" onclick="eliminaFamiglia('${f._id}','${esc(f.nome)}')">×</button>
+        </div>`).join('')
+    : `<div style="color:var(--gray-500);font-size:13px">Nessuna famiglia registrata.</div>`;
+}
+
+async function aggiungiFamiglia(){
+  const nome=document.getElementById('f-nome').value.trim();
+  const unita=document.getElementById('f-unita').value.trim();
+  const codice=document.getElementById('f-codice').value.trim().toUpperCase();
+  const ospiti=parseInt(document.getElementById('f-ospiti').value)||1;
+  if(!nome||!unita||!codice){ showToast('Compila tutti i campi'); return; }
+  const {db,doc,setDoc}=window._fbStaff;
+  try{
+    await setDoc(doc(db,'famiglie_ristorazione','famiglia_'+codice.toLowerCase().replace(/[^a-z0-9]/g,'_')),{nome,unita,codice,max_ospiti:ospiti});
+    showToast('Famiglia aggiunta');
+    ['f-nome','f-unita','f-codice','f-ospiti'].forEach(id=>document.getElementById(id).value='');
+  }catch(e){ console.error(e); showToast('Errore — riprova'); }
+}
+
+async function eliminaFamiglia(id,nome){
+  if(!confirm(`Eliminare ${nome}?`))return;
+  const {db,doc,deleteDoc}=window._fbStaff;
+  try{ await deleteDoc(doc(db,'famiglie_ristorazione',id)); showToast('Eliminata'); }
+  catch(e){ console.error(e); showToast('Errore — riprova'); }
+}
+
+/* ── FILTRI / NAV ── */
+function setFD(d){ filtroD=d; document.getElementById('fp-oggi').classList.toggle('active',d==='oggi'); document.getElementById('fp-domani').classList.toggle('active',d==='domani'); avviaListenerOrdini(); }
+function setFT(t){ filtroT=t; document.getElementById('fp-pranzo').classList.toggle('active',t==='pranzo'); document.getElementById('fp-cena').classList.toggle('active',t==='cena'); avviaListenerOrdini(); }
+function showSec(id,btn){ document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); document.getElementById('sec-'+id).classList.add('active'); btn.classList.add('active'); }
+
+function hideLoading(){ const el=document.getElementById('loading-screen'); el.style.opacity='0'; setTimeout(()=>el.style.display='none',250); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let _tt; function showToast(m){ const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),2500); }
+
+window.showSec=showSec; window.setFD=setFD; window.setFT=setFT;
+window.cambiaSettimana=cambiaSettimana; window.openModal=openModal; window.closeModal=closeModal;
+window.salvaPiatto=salvaPiatto; window.eliminaPiatto=eliminaPiatto;
+window.aggiungiFamiglia=aggiungiFamiglia; window.eliminaFamiglia=eliminaFamiglia;
+window.toggleDetail=toggleDetail; window.doLogout=doLogout; window.forceRefresh=forceRefresh;
+</script>
+</body>
+</html>
