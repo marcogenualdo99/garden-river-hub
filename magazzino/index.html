@@ -3,93 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Conti Aperti · Garden River</title>
+<title>Magazzino Bar · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Conti Aperti">
+<meta name="apple-mobile-web-app-title" content="Magazzino Bar">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
-    authDomain: "garden-river-conti-febed.firebaseapp.com",
-    projectId: "garden-river-conti-febed",
-    storageBucket: "garden-river-conti-febed.firebasestorage.app",
-    messagingSenderId: "113994721180",
-    appId: "1:113994721180:web:c41d309c9270134b640a59"
+    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
+    authDomain: "garden-river-magazzino.firebaseapp.com",
+    projectId: "garden-river-magazzino",
+    storageBucket: "garden-river-magazzino.firebasestorage.app",
+    messagingSenderId: "595247360399",
+    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
   };
 
   const fbApp = initializeApp(firebaseConfig);
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
-  const messaging = getMessaging(fbApp);
 
-  // 👉 Generata da: Firebase Console → Impostazioni progetto → Cloud Messaging
-  //    → "Web Push certificates" → Generate key pair. Incolla qui la chiave.
-  const VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
-
-  // Richiede il permesso di notifica, registra il service worker dedicato e
-  // salva il token del dispositivo su Firestore, associato all'operatore
-  // che ha eseguito l'azione (può avere più dispositivi: usiamo arrayUnion).
-  window._abilitaNotifichePush = async function(operatoreNome) {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      return { ok: false, motivo: 'non-supportato' };
-    }
-    try {
-      const permesso = await Notification.requestPermission();
-      if (permesso !== 'granted') return { ok: false, motivo: 'negato' };
-
-      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-      if (!token) return { ok: false, motivo: 'nessun-token' };
-
-      await setDoc(doc(db, 'staffTokens', operatoreNome), {
-        tokens: arrayUnion(token),
-        aggiornato: Date.now()
-      }, { merge: true });
-
-      return { ok: true };
-    } catch (e) {
-      console.error('Errore attivazione notifiche push:', e);
-      return { ok: false, motivo: 'errore', dettaglio: e.message };
-    }
-  };
-
-  // Expose to global scope so the main script (non-module) can use it
   window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
   function segnalaPronto() {
-    if (window._fbReady) return; // evita doppio dispatch
+    if (window._fbReady) return;
     window._fbReady = true;
     window.dispatchEvent(new Event('firebase-ready'));
   }
 
-  // Login anonimo: non crea nessun "account" reale e non raccoglie dati
-  // personali — serve solo a far sì che Firestore veda request.auth != null,
-  // così possiamo chiudere il database alle richieste esterne mantenendo
-  // intatta la gestione di operatori/PIN già fatta dentro l'app.
+  // Login anonimo: nessun account reale, serve solo per autenticare le richieste a Firestore
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
   signInAnonymously(auth).catch((err) => {
     console.error('Errore login anonimo Firebase:', err);
     window._fbAuthError = true;
-    // Non blocchiamo l'app a tempo indefinito: meglio mostrare un errore
-    // che restare su una schermata che non carica nulla.
     segnalaPronto();
   });
-  // Rete di sicurezza in caso onAuthStateChanged non scattasse per qualche motivo
   setTimeout(segnalaPronto, 8000);
 </script>
 <style>
@@ -137,7 +97,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
   padding: 32px 24px;
 }
 .login-screen.hidden { display: none; }
-.login-logo { height: 84px; width: auto; margin-bottom: 16px; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
 .login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
 .login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
 .login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -155,6 +115,9 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 .pin-key.del    { font-size: 18px; color: var(--gray-500); }
 .pin-key.empty  { border: none; background: none; cursor: default; }
 .login-error { font-size: 12px; color: var(--red); font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
+.btn-primary:active   { opacity: .85; }
+.btn-primary:disabled { opacity: .45; pointer-events: none; }
 
 /* ══ HEADER ═════════════════════════════════════════════════════════════════ */
 .top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); will-change: transform; padding-top: env(safe-area-inset-top); }
@@ -173,15 +136,16 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 
 /* ══ NAV TABS ═══════════════════════════════════════════════════════════════ */
 .nav-wrap { background: var(--white); border-bottom: 1px solid var(--gray-100); }
-.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 12px 10px; gap: 6px; justify-content: center; }
-.tab { padding: 8px 20px; border-radius: 24px; font-size: 14px; font-weight: 700; cursor: pointer; color: var(--gray-500); transition: all .15s; -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap; }
+.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 10px 10px; gap: 5px; justify-content: center; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.nav-inner::-webkit-scrollbar { display: none; }
+.tab { padding: 8px 14px; border-radius: 24px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--gray-500); transition: all .15s; -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap; flex-shrink: 0; }
 .tab.active { background: var(--orange); color: var(--white); }
 .tab:not(.active):active { background: var(--gray-100); color: var(--gray-700); }
 
 /* ══ MAIN ═══════════════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 
-/* ══ ALERT GRID ══ (no border, taller, clickable) ═══════════════════════════ */
+/* ══ ALERT GRID ══════════════════════════════════════════════════════════════ */
 .alert-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
 .alert-card {
   background: var(--white); border-radius: var(--radius-lg);
@@ -213,120 +177,101 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 .filter-label { font-size: 13px; font-weight: 700; color: var(--gray-700); }
 .filter-clear { font-size: 12px; font-weight: 600; color: var(--orange); cursor: pointer; text-decoration: underline; }
 
-/* ══ OSPITE CARD ═════════════════════════════════════════════════════════════ */
-.ospite-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
-.ospite-header { display: flex; align-items: center; gap: 14px; padding: 18px 18px 12px; cursor: pointer; }
-.ospite-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--green-100); color: var(--green-700); font-size: 15px; font-weight: 800; letter-spacing: -.5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ospite-avatar.urgente { background: #FEF3C7; color: #92400E; }
-.ospite-info { flex: 1; min-width: 0; }
-.ospite-nome { font-size: 17px; font-weight: 800; color: var(--gray-900); }
-.ospite-sub  { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
-.ospite-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
-.ospite-totale { text-align: right; flex-shrink: 0; }
-.ospite-totale .importo  { font-size: 22px; font-weight: 800; color: var(--green-ok); line-height: 1; }
-.ospite-totale .n-ordini { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
-.ospite-actions { display: flex; gap: 10px; padding: 0 18px 18px; }
-.btn-action { flex: 1; height: 44px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
-.btn-action:active { opacity: .8; }
-.btn-action.primary { background: var(--green-700); color: var(--white); }
-.btn-action.ghost   { background: var(--gray-100);  color: var(--gray-700); }
+/* ══ CATEGORIA BLOCK ═════════════════════════════════════════════════════════ */
+.cat-block { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
+.cat-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cat-header-left { display: flex; align-items: center; gap: 10px; }
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-name { font-size: 14px; font-weight: 800; color: var(--gray-900); }
+.cat-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.cat-chevron { font-size: 12px; color: var(--gray-400,#9CA3AF); transition: transform .2s; flex-shrink: 0; }
+.cat-chevron.open { transform: rotate(180deg); }
 
-/* ══ BADGE ═══════════════════════════════════════════════════════════════════ */
-.badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
-.badge.green  { background: var(--green-bg);  color: var(--green-ok); border: 1px solid var(--green-bd); }
-.badge.amber  { background: var(--amber-bg);  color: var(--amber);    border: 1px solid var(--amber-bd); }
-.badge.red    { background: var(--red-bg);    color: var(--red);      border: 1px solid var(--red-bd);   }
-.badge.blue   { background: var(--blue-bg);   color: var(--blue);     border: 1px solid var(--blue-bd);  }
-.badge.gray   { background: var(--gray-100);  color: var(--gray-500); border: 1px solid var(--gray-300); }
-.badge.orange { background: var(--orange-bg); color: var(--orange);   border: 1px solid #FFCC80; }
+/* ══ PRODUCT ROW ═════════════════════════════════════════════════════════════ */
+.product-list { border-top: 1px solid var(--gray-100); }
+.product-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--gray-100); }
+.product-row:last-child { border-bottom: none; }
+.status-pill { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pill-red   { background: var(--red); }
+.pill-amber { background: var(--orange); }
+.pill-green { background: var(--green-ok); }
+.product-info { flex: 1; min-width: 0; }
+.product-name { font-size: 14px; font-weight: 700; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.product-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.product-meta.warn    { color: var(--red); font-weight: 600; }
+.product-meta.caution { color: var(--orange); font-weight: 600; }
 
-/* ══ ORDINE BLOCK ════════════════════════════════════════════════════════════ */
-.ordine-block { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 10px; }
-.ordine-block-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: var(--green-50); border-bottom: 1px solid var(--green-100); }
-.ordine-block-title  { font-size: 12px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .07em; }
-.ordine-block-tot    { font-size: 14px; font-weight: 800; color: var(--green-ok); }
-.ordine-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--gray-100); }
-.ordine-row:last-child { border-bottom: none; }
-.ordine-info { flex: 1; min-width: 0; }
-.ordine-desc    { font-size: 14px; font-weight: 600; color: var(--gray-900); }
-.ordine-meta    { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
-.ordine-destra  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.ordine-importo { font-size: 15px; font-weight: 700; color: var(--gray-700); }
-.del-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* ══ QTY CONTROLS ════════════════════════════════════════════════════════════ */
+.qty-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.qty-btn { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-300); background: var(--white); color: var(--gray-700); font-size: 17px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .1s; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.qty-btn:active { background: var(--gray-100); }
+.qty-val { width: 50px; height: 32px; text-align: center; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 14px; font-weight: 700; color: var(--gray-900); outline: none; font-family: var(--font); }
+.qty-unit { font-size: 10px; color: var(--gray-500); }
+.del-btn { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
 .del-btn:active { background: var(--red-bd); }
 
-/* ══ CARD ════════════════════════════════════════════════════════════════════ */
+/* ══ CARD GENERICA ═══════════════════════════════════════════════════════════ */
 .card { background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 12px; }
 .card h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
 .card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; }
 
-/* ══ FORM ════════════════════════════════════════════════════════════════════ */
+/* ══ FORM ═════════════════════════════════════════════════════════════════════ */
 .form-group { margin-bottom: 13px; }
 .form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
 .form-group input, .form-group select, .form-group textarea { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; transition: border-color .15s; }
 .form-group textarea { height: 76px; padding: 12px 14px; resize: none; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green-400); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
-.btn-primary:active   { opacity: .85; }
-.btn-primary:disabled { opacity: .45; pointer-events: none; }
 
-/* ══ SCADENZE HERO ═══════════════════════════════════════════════════════════ */
-.scadenze-hero { background: linear-gradient(135deg,var(--green-700),var(--green-500)); border-radius: var(--radius-lg); padding: 20px; color: var(--white); margin-bottom: 16px; box-shadow: 0 4px 20px rgba(27,67,50,.3); }
-.scadenze-hero .lbl { font-size: 11px; font-weight: 700; opacity: .7; text-transform: uppercase; letter-spacing: .07em; }
-.scadenze-hero .val { font-size: 38px; font-weight: 800; line-height: 1; margin: 4px 0; }
-.scadenze-hero .sub { font-size: 13px; opacity: .8; }
-.scadenza-row { background: var(--white); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 12px; }
-.scadenza-row.urgente { border-left: 4px solid var(--orange); }
-.scadenza-row.oggi    { border-left: 4px solid var(--red);    }
-.scadenza-info  { flex: 1; min-width: 0; }
-.scadenza-nome  { font-size: 15px; font-weight: 800; color: var(--gray-900); }
-.scadenza-sub   { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
-.scadenza-destra { text-align: right; flex-shrink: 0; }
-.scadenza-destra .importo { font-size: 20px; font-weight: 800; color: var(--green-ok); }
-.scadenza-destra .data    { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+/* ══ ORDINE / FORNITORE BLOCK ═════════════════════════════════════════════════ */
+.ordine-block { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
+.ordine-block-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; background: var(--green-50); border-bottom: 1px solid var(--green-100); }
+.ordine-block-title  { font-size: 13px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .05em; }
+.ordine-block-count  { font-size: 12px; font-weight: 700; color: var(--gray-500); }
+.ordine-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--gray-100); }
+.ordine-row:last-child { border-bottom: none; }
+.ordine-info { flex: 1; min-width: 0; }
+.ordine-desc { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.ordine-meta { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
+.ordine-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; flex-shrink: 0; margin-left: 8px; }
+.ordine-badge.red   { background: var(--red-bg); color: var(--red); }
+.ordine-badge.amber { background: var(--orange-bg); color: var(--orange); }
+.wa-btn { width: calc(100% - 32px); margin: 12px 16px 14px; height: 46px; background: #25D366; color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font); transition: opacity .15s; }
+.wa-btn:active { opacity: .85; }
 
-/* ══ REPORT ══════════════════════════════════════════════════════════════════ */
-.report-header { background: var(--green-700); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 20px; text-align: center; }
-.report-nome { font-size: 22px; font-weight: 800; margin: 6px 0 2px; }
-.report-sub  { font-size: 13px; opacity: .75; }
-.report-body { background: var(--white); border: 1px solid var(--gray-100); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: var(--shadow-sm); padding: 18px; margin-bottom: 12px; }
-.report-cat    { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-500); margin: 12px 0 6px; display: flex; justify-content: space-between; }
-.report-row    { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray-700); padding: 5px 0; border-bottom: 1px solid var(--gray-100); }
-.report-row:last-child { border-bottom: none; }
-.report-totale { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--gray-900); padding-top: 14px; margin-top: 10px; }
-.report-totale .lbl { font-size: 14px; font-weight: 700; }
-.report-totale .val { font-size: 32px; font-weight: 800; color: var(--green-ok); }
+/* ══ IMPOSTAZIONI / MINIMI ════════════════════════════════════════════════════ */
+.imp-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 14px 0 8px; margin-top: 4px; }
+.imp-row-expanded { padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
+.imp-row-expanded:last-child { border-bottom: none; }
+.imp-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.imp-name-input { flex: 1; height: 40px; padding: 0 12px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; color: var(--gray-900); font-family: var(--font); outline: none; }
+.imp-name-input:focus { border-color: var(--green-400); }
+.imp-row-bottom { display: flex; gap: 8px; align-items: flex-end; }
+.imp-field { display: flex; flex-direction: column; gap: 4px; }
+.imp-field label { font-size: 10px; color: var(--gray-500); font-weight: 600; }
+.imp-field input { width: 64px; height: 38px; text-align: center; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 13px; font-weight: 700; color: var(--gray-900); outline: none; font-family: var(--font); }
+.imp-field input:focus { border-color: var(--green-400); }
+.imp-select { height: 38px; padding: 0 8px; border: 1.5px solid var(--green-200); border-radius: var(--radius-sm); background: var(--green-50); font-size: 12px; font-weight: 600; color: var(--gray-900); outline: none; font-family: var(--font); max-width: 150px; }
+.imp-select:focus { border-color: var(--green-400); }
 
-/* ══ BACK HEADER ═════════════════════════════════════════════════════════════ */
+/* ══ BACK HEADER ══════════════════════════════════════════════════════════════ */
 .back-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--white); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
 .back-title { font-size: 18px; font-weight: 800; }
 .back-sub   { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
 
-/* ══ SETUP ═══════════════════════════════════════════════════════════════════ */
-.setup-step { display: flex; gap: 12px; margin-bottom: 14px; }
-.step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--green-700); color: var(--white); font-size: 12px; font-weight: 700; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.step-text { font-size: 13px; color: var(--gray-700); line-height: 1.6; padding-top: 3px; }
+/* ══ DIVIDER / EMPTY ══════════════════════════════════════════════════════════ */
 .divider { height: 1px; background: var(--gray-100); margin: 14px 0; }
-
-/* ══ EMPTY ════════════════════════════════════════════════════════════════════ */
 .empty { text-align: center; padding: 48px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
 
 /* ══ TOAST ════════════════════════════════════════════════════════════════════ */
-.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ══ MISC ═════════════════════════════════════════════════════════════════════ */
 .hidden  { display: none !important; }
 .section { display: none; }
 .section.active { display: block; }
-
-@media print {
-  .top-bar,.nav-wrap,.back-header,.btn-action,.no-print { display: none !important; }
-  .report-header { border-radius: var(--radius-lg); }
-  body { background: white; }
-}
 </style>
 </head>
 <body>
@@ -339,8 +284,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 
 <!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
 <div id="login-screen" class="login-screen hidden">
-  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
-  <div class="login-title">Gestione Conti Pensioni</div>
+  <img class="login-logo" alt="Garden River" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Magazzino Bar</div>
   <div class="login-sub">Centro Vacanze Garden River</div>
   <div class="login-card" style="text-align:center">
     <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
@@ -353,8 +298,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 
 <!-- ══ ACCESSO NEGATO (utente loggato ma senza permessi su questo modulo) ══════ -->
 <div id="no-access-screen" class="login-screen hidden">
-  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
-  <div class="login-title">Gestione Conti Pensioni</div>
+  <img class="login-logo" alt="Garden River" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Magazzino Bar</div>
   <div class="login-sub">Centro Vacanze Garden River</div>
   <div class="login-card" style="text-align:center">
     <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
@@ -379,7 +324,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
-      <button class="hbtn ghost icon" onclick="switchTab('setup')" id="btn-setup" title="Impostazioni">
+      <button class="hbtn ghost icon" id="btn-setup" onclick="switchTab('setup')" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
       <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
@@ -392,209 +337,126 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
   </div>
   <div class="nav-wrap">
     <div class="nav-inner">
-      <div class="tab active" onclick="switchTab('ospiti')"   id="tab-ospiti">Ospiti</div>
-      <div class="tab"        onclick="switchTab('scadenze')" id="tab-scadenze">Scadenze</div>
-      <div class="tab"        onclick="switchTab('chiusi')"   id="tab-chiusi">Chiusi</div>
+      <div class="tab active" onclick="switchTab('giacenze')"      id="tab-giacenze">Giacenze</div>
+      <div class="tab"        onclick="switchTab('ordine')"        id="tab-ordine">Ordine</div>
+      <div class="tab"        onclick="switchTab('aggiungi')"      id="tab-aggiungi">Prodotto</div>
+      <div class="tab"        onclick="switchTab('impostazioni')"  id="tab-impostazioni">Minimi</div>
+      <div class="tab"        onclick="switchTab('categorie')"     id="tab-categorie">Categorie</div>
     </div>
   </div>
 </div>
 
 <main>
 
-  <!-- OSPITI -->
-  <div id="sec-ospiti" class="section active">
+  <!-- ══ GIACENZE ══════════════════════════════════════════════════════════════ -->
+  <div id="sec-giacenze" class="section active">
     <div class="alert-grid">
-      <div class="alert-card red"   id="card-oggi"   onclick="filterByCard('oggi')">
-        <div class="num" id="cnt-oggi">–</div>
-        <div class="lbl">Check out oggi</div>
+      <div class="alert-card red"   id="card-red"   onclick="filterByCard('red')">
+        <div class="num" id="cnt-red">–</div>
+        <div class="lbl">Esauriti</div>
       </div>
-      <div class="alert-card amber" id="card-breve"  onclick="filterByCard('breve')">
-        <div class="num" id="cnt-breve">–</div>
-        <div class="lbl">Entro 2 giorni</div>
+      <div class="alert-card amber" id="card-amber" onclick="filterByCard('amber')">
+        <div class="num" id="cnt-amber">–</div>
+        <div class="lbl">Da ordinare</div>
       </div>
-      <div class="alert-card green" id="card-attivi" onclick="filterByCard('attivi')">
-        <div class="num" id="cnt-attivi">–</div>
-        <div class="lbl">Conti aperti</div>
+      <div class="alert-card green" id="card-green" onclick="filterByCard('green')">
+        <div class="num" id="cnt-green">–</div>
+        <div class="lbl">OK</div>
       </div>
     </div>
     <div class="search-row">
       <div class="search-wrap">
         <span class="search-icon">&#9906;</span>
-        <input type="text" id="search-input" placeholder="Cerca per nome o per alloggio" oninput="renderOspiti()">
+        <input type="text" id="search-input" placeholder="Cerca prodotto…" oninput="renderGiacenze()">
       </div>
-      <button class="add-btn" id="btn-add-ospite" onclick="switchTab('nuovo-ospite')">+ Ospite</button>
     </div>
     <div id="filter-bar" class="filter-bar hidden">
       <span class="filter-label" id="filter-label"></span>
       <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
     </div>
-    <div id="ospiti-list"></div>
+    <div id="giacenze-list"></div>
   </div>
 
-  <!-- SCADENZE -->
-  <div id="sec-scadenze" class="section">
-    <div class="scadenze-hero">
-      <div class="lbl">Totale da incassare</div>
-      <div class="val" id="scad-totale">0,00 €</div>
-      <div class="sub" id="scad-sub">— ospiti in scadenza</div>
-    </div>
-    <div id="scadenze-list"></div>
+  <!-- ══ ORDINE ════════════════════════════════════════════════════════════════ -->
+  <div id="sec-ordine" class="section">
+    <div id="ordine-list"></div>
   </div>
 
-  <!-- CHIUSI -->
-  <div id="sec-chiusi" class="section">
-    <div id="chiusi-list"></div>
-  </div>
-
-  <!-- DETTAGLIO CONTO CHIUSO -->
-  <div id="sec-dettaglio-chiuso" class="section">
-    <div class="back-header">
-      <button class="back-btn" onclick="switchTab('chiusi')">&#8592;</button>
-      <div style="flex:1">
-        <div class="back-title" id="chdet-nome">—</div>
-        <div class="back-sub"   id="chdet-sub">—</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-size:24px;font-weight:800;color:var(--gray-400);text-decoration:line-through" id="chdet-totale">0,00 €</div>
-        <div style="font-size:10px;color:var(--gray-500)">incassato</div>
-      </div>
-    </div>
-    <!-- Banner stato chiuso -->
-    <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--green-ok)">Conto incassato</div>
-        <div style="font-size:12px;color:var(--gray-500);margin-top:2px">Sola lettura — puoi ripristinarlo se necessario</div>
-      </div>
-      <button id="btn-ripristina" onclick="ripristinaConto()" style="height:36px;padding:0 14px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;flex-shrink:0">Ripristina</button>
-    </div>
-    <div id="chdet-ordini-list"></div>
-  </div>
-
-  <!-- DETTAGLIO OSPITE -->
-  <div id="sec-dettaglio" class="section">
-    <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
-      <div style="flex:1">
-        <div class="back-title" id="det-nome">—</div>
-        <div class="back-sub"   id="det-sub">—</div>
-      </div>
-      <button class="back-btn" id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica">&#9998;</button>
-      <div style="text-align:right">
-        <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
-        <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px">
-      <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
-      <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
-      <button class="btn-action ghost" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl)">Chiudi</button>
-    </div>
-    <div id="ordini-list"></div>
-  </div>
-
-  <!-- REPORT -->
-  <div id="sec-report" class="section">
-    <div class="back-header no-print">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
-      <div><div class="back-title">Resoconto conto</div></div>
-      <button onclick="stampaReport()" class="no-print" style="height:36px;padding:0 14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;font-family:var(--font)">Stampa / Condividi</button>
-    </div>
-    <div id="report-content"></div>
-  </div>
-
-  <!-- NUOVO OSPITE -->
-  <div id="sec-nuovo-ospite" class="section">
-    <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
-      <div><div class="back-title">Nuovo ospite</div></div>
-    </div>
+  <!-- ══ AGGIUNGI PRODOTTO ════════════════════════════════════════════════════ -->
+  <div id="sec-aggiungi" class="section">
     <div class="card">
-      <h3>Registra ospite</h3>
-      <p class="subtitle">Compila i dati di check-in</p>
-      <div class="form-row">
-        <div class="form-group"><label>Nome</label><input type="text" id="no-nome" placeholder="Marco"></div>
-        <div class="form-group"><label>Cognome</label><input type="text" id="no-cognome" placeholder="Rossi"></div>
-      </div>
-      <div class="form-group"><label>Alloggio</label><select id="no-alloggio"></select></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Piano pasti</label>
-          <select id="no-piano">
-            <option value="mezza">Mezza pensione</option>
-            <option value="completa">Pensione completa</option>
-            <option value="nessuno">Nessuno (conto libero)</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Data checkout</label><input type="date" id="no-checkout"></div>
-      </div>
-      <button class="btn-primary" onclick="addOspite()">Registra ospite</button>
-    </div>
-  </div>
-
-  <!-- MODIFICA OSPITE -->
-  <div id="sec-modifica-ospite" class="section">
-    <div class="back-header">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
-      <div><div class="back-title">Modifica anagrafica</div></div>
-    </div>
-    <div class="card">
-      <h3>Dati ospite</h3>
-      <p class="subtitle">Correggi i dati del conto, se necessario</p>
-      <div class="form-row">
-        <div class="form-group"><label>Nome</label><input type="text" id="mo-nome"></div>
-        <div class="form-group"><label>Cognome</label><input type="text" id="mo-cognome"></div>
-      </div>
-      <div class="form-group"><label>Alloggio</label><select id="mo-alloggio"></select></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Piano pasti</label>
-          <select id="mo-piano">
-            <option value="mezza">Mezza pensione</option>
-            <option value="completa">Pensione completa</option>
-            <option value="nessuno">Nessuno (conto libero)</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Data checkout</label><input type="date" id="mo-checkout"></div>
-      </div>
-      <button class="btn-primary" onclick="salvaModificaOspite()">Salva modifiche</button>
-    </div>
-  </div>
-
-  <!-- NUOVO ORDINE -->
-  <div id="sec-nuovo-ordine" class="section">
-    <div class="back-header">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
-      <div>
-        <div class="back-title">Nuovo ordine</div>
-        <div class="back-sub" id="no2-sub">—</div>
-      </div>
-    </div>
-    <div class="card">
+      <h3>Nuovo prodotto</h3>
+      <p class="subtitle">Compila i campi e aggiungi al magazzino</p>
       <div class="form-group">
-        <label>Punto ristoro</label>
-        <select id="or-punto">
-          <option value="Bar Piscina">Bar Piscina</option>
-          <option value="Bar Teatro">Bar Teatro</option>
-          <option value="Ristorante">Ristorante</option>
+        <label>Nome prodotto</label>
+        <input type="text" id="new-name" placeholder="es. Birra Corona 33cl">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="new-cat">
+          <option value="__new__">+ Nuova categoria…</option>
         </select>
+        <div id="new-cat-wrap" style="display:none;margin-top:8px;flex-direction:column;gap:8px">
+          <input type="text" id="new-cat-input" placeholder="Nome nuova categoria…"
+            style="height:42px;padding:0 12px;border:1.5px solid var(--green-400);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none;width:100%">
+          <div style="display:flex;gap:6px">
+            <button type="button" onclick="confirmNewCatForm()"
+              style="flex:1;height:36px;background:var(--green-500);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✓ Aggiungi</button>
+            <button type="button" onclick="cancelNewCatForm()"
+              style="height:36px;padding:0 14px;background:var(--white);border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:var(--font)">Annulla</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Minimo pezzi</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-min" placeholder="24">
+        </div>
+        <div class="form-group">
+          <label>Pz per cartone</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-pxc" placeholder="24">
+        </div>
       </div>
       <div class="form-group">
-        <label>Operatore</label>
-        <div id="or-operatore-label" style="height:48px;padding:0 14px;border:1.5px solid var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);font-size:15px;font-weight:700;color:var(--green-700);display:flex;align-items:center;">—</div>
+        <label>Fornitore</label>
+        <input type="text" id="new-fornitore" value="Cupra Bibite">
       </div>
-      <div class="form-group"><label>Descrizione</label><textarea id="or-desc" placeholder="es. Cena 2 persone, cocktail x2…"></textarea></div>
-      <div class="form-row">
-        <div class="form-group"><label>Importo (€)</label><input type="text" inputmode="decimal" id="or-importo" placeholder="0.00"></div>
-        <div class="form-group"><label>Data e ora</label><input type="datetime-local" id="or-ts"></div>
+      <div class="form-group">
+        <label>Giacenza iniziale</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-pezzi" placeholder="0" value="0">
       </div>
-      <button class="btn-primary" onclick="addOrdine()">Salva ordine</button>
+      <button class="btn-primary" onclick="addProduct()">Aggiungi al magazzino</button>
     </div>
   </div>
 
-  <!-- SETUP -->
+  <!-- ══ IMPOSTAZIONI / MINIMI ════════════════════════════════════════════════ -->
+  <div id="sec-impostazioni" class="section">
+    <div class="card">
+      <h3>Quantità minime</h3>
+      <p class="subtitle">Modifica nome, categoria, soglie e pezzi per cartone — si salva subito</p>
+      <div id="impostazioni-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ CATEGORIE ════════════════════════════════════════════════════════════ -->
+  <div id="sec-categorie" class="section">
+    <div class="card">
+      <h3>Gestione categorie</h3>
+      <p class="subtitle">Aggiungi o elimina categorie personalizzate</p>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="cat-new-input" placeholder="Nome nuova categoria…"
+          style="flex:1;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none">
+        <button onclick="addCatFromManager()"
+          style="height:48px;padding:0 18px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">+ Aggiungi</button>
+      </div>
+      <div id="cat-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ SETUP ════════════════════════════════════════════════════════════════ -->
   <div id="sec-setup" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('giacenze')">&#8592;</button>
       <div><div class="back-title">Impostazioni</div></div>
     </div>
     <div class="card">
@@ -611,12 +473,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
     </div>
     <div class="card">
-      <h3>Notifiche</h3>
-      <p class="subtitle">Ricevi un avviso quando un conto aperto ha il checkout il giorno dopo.</p>
-      <p id="notifiche-status" style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Verifica in corso...</p>
-      <button id="btn-attiva-notifiche" onclick="attivaNotifiche()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
-    </div>
-    <div class="card">
       <h3>Utenti e permessi</h3>
       <p class="subtitle">Operatori, ruoli e permessi di accesso sono gestiti centralmente dalla Hub Garden River — non più da qui.</p>
       <button onclick="location.href=HUB_URL+'?go=permessi'" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Apri Hub → Utenti e permessi</button>
@@ -624,6 +480,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
   </div>
 
 </main>
+
 <!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
 <div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
   <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
@@ -646,96 +503,119 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 //    all'origine — protocollo+dominio+porta).
 const HUB_URL = '../';
 // Identifica questo modulo nella mappa permessi gestita dalla Hub.
-const MODULE_ID = 'conti';
+const MODULE_ID = 'magazzino';
 // Tutte le sezioni di questa app che possono essere abilitate/disabilitate
 // per singolo operatore dalla Hub.
-const SECTION_IDS = ['ospiti','scadenze','chiusi','setup'];
-const PUNTI_RISTORO = ['Bar Piscina', 'Bar Teatro', 'Ristorante'];
+const SECTION_IDS = ['giacenze','ordine','aggiungi','impostazioni','categorie','setup'];
 
 let hubSession        = null;              // { nome, ruolo } — impostato dalla Hub al login
 let hubPermessi        = { sezioni: {} };  // permessi di questo operatore per questo modulo
 let allowedSections    = new Set(SECTION_IDS);
 
+// Colori categoria: header hex, sfondo righe pari, sfondo righe dispari
+const CAT_COLORS = {
+  "💧 Acque":                {h:"1565C0", e:"E3F2FD", o:"BBDEFB"},
+  "🥤 Bibite":                {h:"E53935", e:"FDE8E8", o:"FFCDD2"},
+  "🍺 Birre":                 {h:"6D4C41", e:"EFEBE9", o:"D7CCC8"},
+  "🍹 Alcolici & Aperitivi":  {h:"6A1B9A", e:"F3E5F5", o:"E1BEE7"},
+  "🧃 Succhi Amita":          {h:"2E7D32", e:"E8F5E9", o:"C8E6C9"},
+};
+const EXTRA_COLORS = [
+  {h:"00838F", e:"E0F7FA", o:"B2EBF2"},
+  {h:"EF6C00", e:"FFF3E0", o:"FFE0B2"},
+  {h:"AD1457", e:"FCE4EC", o:"F8BBD0"},
+  {h:"37474F", e:"ECEFF1", o:"CFD8DC"},
+  {h:"558B2F", e:"F1F8E9", o:"DCEDC8"},
+];
+const DEFAULT_CATS = Object.keys(CAT_COLORS);
+
 // ── STATO ─────────────────────────────────────────────────────────────────────
-let ospiti           = [];
-let ordini           = [];
-let alloggiList       = []; // letta dalla collezione 'alloggi' (app Gestione Alloggi)
-let currentOperatore = null;
-let currentOspiteId  = null;
-let activeFilter     = null; // 'oggi' | 'breve' | 'attivi' | null
-let fbConnected      = false;
+let products         = [];
+let customCats        = [];
+let currentOperatore   = null;
+let activeFilter        = null; // 'red' | 'amber' | 'green' | null
+
+// ── DATI DI DEFAULT (primo avvio, prima che Firestore risponda) ─────────────
+const DEFAULT_PRODUCTS = [
+  {name:"Acqua pet 1L Naturale", cat:"💧 Acque", min:24, pxc:12, pz:44, forn:"Cupra Bibite"},
+  {name:"Acqua pet 0.5L Naturale", cat:"💧 Acque", min:72, pxc:24, pz:6, forn:"Cupra Bibite"},
+  {name:"Acqua pet 1L Frizzante", cat:"💧 Acque", min:24, pxc:12, pz:18, forn:"Cupra Bibite"},
+  {name:"Acqua pet 0.5L Frizzante", cat:"💧 Acque", min:72, pxc:24, pz:4, forn:"Cupra Bibite"},
+  {name:"Acqua Tonica", cat:"💧 Acque", min:24, pxc:24, pz:12, forn:"Cupra Bibite"},
+  {name:"Crodino", cat:"🥤 Bibite", min:20, pxc:48, pz:24, forn:"Cupra Bibite"},
+  {name:"Coca Cola 1.5L", cat:"🥤 Bibite", min:12, pxc:6, pz:5, forn:"Cupra Bibite"},
+  {name:"Coca Cola litro vetro", cat:"🥤 Bibite", min:24, pxc:12, pz:1, forn:"Cupra Bibite"},
+  {name:"Coca Cola 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:2, forn:"Cupra Bibite"},
+  {name:"Coca Cola Zero 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Coca Cola Zero Zero 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Fanta 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:2, forn:"Cupra Bibite"},
+  {name:"Sprite 33cl", cat:"🥤 Bibite", min:24, pxc:24, pz:12, forn:"Cupra Bibite"},
+  {name:"Lemon Soda", cat:"🥤 Bibite", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Esta Thé Brick Pesca", cat:"🥤 Bibite", min:24, pxc:72, pz:3, forn:"Cupra Bibite"},
+  {name:"Esta Thé Brick Limone", cat:"🥤 Bibite", min:24, pxc:72, pz:3, forn:"Cupra Bibite"},
+  {name:"Monster", cat:"🥤 Bibite", min:10, pxc:24, pz:36, forn:"Cupra Bibite"},
+  {name:"Powerade Rossa 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"Powerade Blu 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"Powerade Arancione 50cl", cat:"🥤 Bibite", min:12, pxc:12, pz:0, forn:"Cupra Bibite"},
+  {name:"RedBull 25cl", cat:"🥤 Bibite", min:10, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"RedBull Zero 25cl", cat:"🥤 Bibite", min:10, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Campari", cat:"🥤 Bibite", min:1, pxc:1, pz:1, forn:"Cupra Bibite"},
+  {name:"Birra alla spina (fusto)", cat:"🍺 Birre", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Heineken 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Tennent's 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Ichnusa non filtrata 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Messina Cristalli Sale 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Corona 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Ceres 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Filtrata Freddo 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Moretti Filtrata Freddo 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Bionda 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Moretti Bionda 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Peroni 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Peroni 66cl", cat:"🍺 Birre", min:15, pxc:15, pz:0, forn:"Cupra Bibite"},
+  {name:"Raffo 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Messina Vivace 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Leffe 33cl", cat:"🍺 Birre", min:10, pxc:24, pz:1, forn:"Cupra Bibite"},
+  {name:"Hoegaarden Bianca 33cl", cat:"🍺 Birre", min:24, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Aperol", cat:"🍹 Alcolici & Aperitivi", min:2, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Amaro del Capo", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:1, forn:"Cupra Bibite"},
+  {name:"Jagermeister 100cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:3, forn:"Cupra Bibite"},
+  {name:"Grappa Lucano Barocca 70cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Molinari Sambuca 100cl", cat:"🍹 Alcolici & Aperitivi", min:1, pxc:1, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Ace 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Ananas 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Arancia 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Pesca 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Pera 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Albicocca 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+  {name:"Amita Mirtillo 20cl", cat:"🧃 Succhi Amita", min:12, pxc:24, pz:0, forn:"Cupra Bibite"},
+];
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-// ID univoco — sicuro anche con più dispositivi simultanei
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+
+function stato(p) {
+  if (p.pz === 0)   return 'red';
+  if (p.pz < p.min) return 'amber';
+  return 'green';
 }
-function isAdmin()    { return !!hubSession && hubSession.ruolo === 'admin'; }
-function fmt(n)       { return n.toFixed(2).replace('.',',') + ' €'; }
-function fmtTs(ts) {
-  const d = new Date(ts);
-  return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) + ' ' +
-         d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+function cartoniFabbisogno(p) {
+  if (p.pz >= p.min) return 0;
+  return Math.ceil((p.min - p.pz) / p.pxc);
 }
-function oggi()       { return new Date().toISOString().split('T')[0]; }
-function giorniA(d)   { return Math.ceil((new Date(d) - new Date(oggi())) / 86400000); }
-function initials(o)  { return (o.cognome[0]||'') + (o.nome[0]||''); }
-// Stesso ordine di categorie usato nell'app Gestione Alloggi, così il menu
-// a tendina segue la stessa logica (non l'ordine alfabetico).
-const ALLOGGIO_CAT_ORDER = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy'];
-function escHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function getAllCategories() {
+  const fromProducts = products.map(p => p.cat).filter(Boolean);
+  return [...new Set([...DEFAULT_CATS, ...customCats, ...fromProducts])];
 }
-// Ricostruisce le opzioni di un menu a tendina "Alloggio" mantenendo
-// selezionato il valore passato — anche se non è (più) nella lista ufficiale,
-// così non si perde mai/sostituisce a sorpresa il dato di un ospite esistente.
-function populateAlloggioSelect(selectEl, currentValue) {
-  if (!selectEl) return;
-  const sorted = [...alloggiList].sort((a,b) => {
-    const oa = ALLOGGIO_CAT_ORDER.indexOf(a.categoriaLabel), ob = ALLOGGIO_CAT_ORDER.indexOf(b.categoriaLabel);
-    if (oa !== ob) return (oa===-1?999:oa) - (ob===-1?999:ob);
-    return (a.numero||0) - (b.numero||0);
-  });
-  let html = '<option value="">— Seleziona alloggio —</option>';
-  let lastCat = null;
-  sorted.forEach(a => {
-    if (a.categoriaLabel !== lastCat) {
-      if (lastCat !== null) html += '</optgroup>';
-      html += '<optgroup label="'+escHtml(a.categoriaLabel||'Altro')+'">';
-      lastCat = a.categoriaLabel;
-    }
-    html += '<option value="'+escHtml(a.nome)+'">'+escHtml(a.nome)+'</option>';
-  });
-  if (lastCat !== null) html += '</optgroup>';
-  const matches = sorted.some(a => a.nome === currentValue);
-  if (currentValue && !matches) {
-    html = '<option value="'+escHtml(currentValue)+'">'+escHtml(currentValue)+' (non in lista)</option>' + html;
-  }
-  selectEl.innerHTML = html;
-  selectEl.value = currentValue || '';
-}
-// Richiamata ogni volta che arriva un aggiornamento della lista alloggi:
-// ricostruisce i menu mantenendo quello che l'utente aveva già scelto.
-function refreshAlloggioSelects() {
-  ['no-alloggio','mo-alloggio'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) populateAlloggioSelect(el, el.value);
-  });
-}
-function totOspite(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
-function pianoLabel(piano) {
-  if (piano === 'completa') return 'Pensione completa';
-  if (piano === 'nessuno')  return 'Conto libero';
-  return 'Mezza pensione';
-}
-function pianoBadgeHtml(piano) {
-  if (piano === 'completa') return `<span class="badge blue">Pensione completa</span>`;
-  if (piano === 'nessuno')  return `<span class="badge amber">Conto libero</span>`;
-  return `<span class="badge gray">Mezza pensione</span>`;
+function getCatColor(cat) {
+  if (CAT_COLORS[cat]) return CAT_COLORS[cat];
+  const custom = getAllCategories().filter(c => !CAT_COLORS[c]);
+  const idx = Math.max(0, custom.indexOf(cat)) % EXTRA_COLORS.length;
+  return EXTRA_COLORS[idx];
 }
 
 // ── FIREBASE — REALTIME SYNC ─────────────────────────────────────────────────
-// Aspetta che il modulo Firebase (caricato in <head>) sia pronto
 function waitForFirebase() {
   return new Promise(resolve => {
     if (window._fbReady) return resolve();
@@ -743,8 +623,8 @@ function waitForFirebase() {
   });
 }
 
-let _unsubOspiti = null;
-let _unsubOrdini = null;
+let _unsubProducts = null;
+let _unsubMeta = null;
 
 function setSyncStatus(state) {
   const dot   = document.getElementById('sync-dot');
@@ -760,10 +640,7 @@ function setSyncStatus(state) {
   };
   const s = map[state] || map.offline;
   if (dot)   dot.style.background = s.color;
-  if (label) {
-    label.textContent = s.text;
-    label.style.display = state === 'live' ? 'none' : '';
-  }
+  if (label) { label.textContent = s.text; label.style.display = state === 'live' ? 'none' : ''; }
   if (fbDot) fbDot.style.background = s.color;
   if (fbTxt) fbTxt.textContent = state === 'live' ? 'Connesso — sincronizzazione in tempo reale attiva'
                                 : state === 'connecting' ? 'Connessione in corso...'
@@ -771,45 +648,30 @@ function setSyncStatus(state) {
                                 : 'Database offline';
 }
 
-// Avvia i listener realtime su Firestore — ogni modifica remota aggiorna subito la UI
 async function startRealtimeSync() {
   await waitForFirebase();
   const { db, collection, onSnapshot } = window._fb;
   setSyncStatus('connecting');
 
   try {
-    // Listener ospiti
-    _unsubOspiti = onSnapshot(collection(db, 'ospiti'), (snap) => {
-      ospiti = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      render();
-      fbConnected = true;
+    _unsubProducts = onSnapshot(collection(db, 'prodotti'), (snap) => {
+      products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setSyncStatus('live');
+      render();
       _dataReady = true;
       maybeHideLoading();
-      // Se siamo nel dettaglio di un ospite, aggiorna anche quella vista
-      if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
+      if (document.getElementById('sec-impostazioni').classList.contains('active')) renderImpostazioni();
+      if (document.getElementById('sec-categorie').classList.contains('active')) renderCatManager();
     }, (err) => {
-      console.error('Errore listener ospiti:', err);
+      console.error('Errore listener prodotti:', err);
       setSyncStatus('error');
     });
 
-    // Listener ordini
-    _unsubOrdini = onSnapshot(collection(db, 'ordini'), (snap) => {
-      ordini = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _unsubMeta = onSnapshot(collection(db, 'categorie'), (snap) => {
+      customCats = snap.docs.map(d => d.data().nome).filter(Boolean);
+      populateCatSelect();
       render();
-      if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
-    }, (err) => {
-      console.error('Errore listener ordini:', err);
-      setSyncStatus('error');
-    });
-
-    // Listener alloggi (usato per il menu a tendina "Alloggio" nei form ospite)
-    onSnapshot(collection(db, 'alloggi'), (snap) => {
-      alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      refreshAlloggioSelects();
-    }, (err) => {
-      console.error('Errore listener alloggi:', err);
-    });
+    }, (err) => { console.error('Errore listener categorie:', err); });
 
   } catch(e) {
     console.error('Errore avvio sync:', e);
@@ -817,26 +679,20 @@ async function startRealtimeSync() {
   }
 }
 
-// Refresh manuale/di sicurezza: rilegge tutto da Firestore con una query diretta.
-// Serve perché su mobile (specialmente iOS/Safari "Aggiungi a Home") il sistema
-// può sospendere la connessione realtime quando l'app va in background o lo
-// schermo si blocca, e talvolta non si riconnette subito da sola al ritorno.
 async function forceRefresh(silent) {
   await waitForFirebase();
   const { db, collection, getDocs } = window._fb;
   try {
-    const [snapO, snapOr, snapAl] = await Promise.all([
-      getDocs(collection(db, 'ospiti')),
-      getDocs(collection(db, 'ordini')),
-      getDocs(collection(db, 'alloggi')),
+    const [snapP, snapCat] = await Promise.all([
+      getDocs(collection(db, 'prodotti')),
+      getDocs(collection(db, 'categorie')),
     ]);
-    ospiti = snapO.docs.map(d => ({ id: d.id, ...d.data() }));
-    ordini = snapOr.docs.map(d => ({ id: d.id, ...d.data() }));
-    alloggiList = snapAl.docs.map(d => ({ id: d.id, ...d.data() }));
-    refreshAlloggioSelects();
+    products = snapP.docs.map(d => ({ id: d.id, ...d.data() }));
+    customCats = snapCat.docs.map(d => d.data().nome).filter(Boolean);
+    populateCatSelect();
     render();
-    if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
-    fbConnected = true;
+    if (document.getElementById('sec-impostazioni').classList.contains('active')) renderImpostazioni();
+    if (document.getElementById('sec-categorie').classList.contains('active')) renderCatManager();
     setSyncStatus('live');
     if (!silent) showToast('Dati aggiornati');
   } catch(e) {
@@ -845,10 +701,6 @@ async function forceRefresh(silent) {
   }
 }
 
-// Quando l'app torna in primo piano, torna online, o la finestra riprende il
-// focus, facciamo un refresh "silenzioso" di sicurezza: se i listener realtime
-// erano ancora attivi non cambia nulla, se invece si erano bloccati questo
-// riallinea subito i dati senza bisogno che l'operatore ricarichi la pagina.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') forceRefresh(true);
 });
@@ -878,7 +730,7 @@ async function checkConnessione() {
   try {
     await waitForFirebase();
     const { db, collection, getDocs, query, limit } = window._fb;
-    await withTimeout(getDocs(query(collection(db, 'ospiti'), limit(1))), 8000);
+    await withTimeout(getDocs(query(collection(db, 'prodotti'), limit(1))), 8000);
   } catch(e) {
     console.warn('Connessione Firestore bloccata, la riavvio:', e);
     setSyncStatus('error');
@@ -888,34 +740,403 @@ async function checkConnessione() {
 }
 setInterval(checkConnessione, 30000);
 
-// ── SCRITTURE FIRESTORE ──────────────────────────────────────────────────────
-async function fsSetOspite(ospite) {
+async function ensureDefaultData() {
+  await waitForFirebase();
+  const { db, collection, getDocs, setDoc, doc } = window._fb;
+  try {
+    const snapP = await getDocs(collection(db, 'prodotti'));
+    if (snapP.empty) {
+      for (const p of DEFAULT_PRODUCTS) {
+        const id = uid();
+        await setDoc(doc(db, 'prodotti', id), p);
+      }
+    }
+  } catch(e) { console.error('Errore init dati default:', e); }
+}
+
+// ── SCRITTURE FIRESTORE — PRODOTTI ───────────────────────────────────────────
+async function fsSetProduct(p) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
-  const { id, ...data } = ospite;
-  await setDoc(doc(db, 'ospiti', id), data);
+  const { id, ...data } = p;
+  await setDoc(doc(db, 'prodotti', id), data);
 }
-
-async function fsDeleteOspite(id) {
+async function fsDeleteProduct(id) {
   await waitForFirebase();
   const { db, doc, deleteDoc } = window._fb;
-  await deleteDoc(doc(db, 'ospiti', id));
+  await deleteDoc(doc(db, 'prodotti', id));
 }
-
-async function fsSetOrdine(ordine) {
+async function fsAddCategoria(nome) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
-  const { id, ...data } = ordine;
-  await setDoc(doc(db, 'ordini', id), data);
+  await setDoc(doc(db, 'categorie', nome), { nome });
 }
-
-async function fsDeleteOrdine(id) {
+async function fsDeleteCategoria(nome) {
   await waitForFirebase();
   const { db, doc, deleteDoc } = window._fb;
-  await deleteDoc(doc(db, 'ordini', id));
+  await deleteDoc(doc(db, 'categorie', nome));
 }
 
-// ── LOGIN / PIN ───────────────────────────────────────────────────────────────
+// ── RENDER PRINCIPALE ─────────────────────────────────────────────────────────
+function render() {
+  renderAlerts();
+  renderGiacenze();
+  renderOrdine();
+}
+
+function renderAlerts() {
+  const r = products.filter(p => stato(p)==='red').length;
+  const a = products.filter(p => stato(p)==='amber').length;
+  const g = products.filter(p => stato(p)==='green').length;
+  document.getElementById('cnt-red').textContent   = r;
+  document.getElementById('cnt-amber').textContent = a;
+  document.getElementById('cnt-green').textContent = g;
+  ['red','amber','green'].forEach(k => {
+    document.getElementById('card-'+k).classList.toggle('active-filter', activeFilter === k);
+  });
+}
+
+function filterByCard(key) {
+  activeFilter = activeFilter === key ? null : key;
+  renderGiacenze();
+}
+function clearFilter() { activeFilter = null; renderGiacenze(); }
+
+function renderGiacenze() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filterBar = document.getElementById('filter-bar');
+  const labels = { red:'Solo esauriti', amber:'Solo da ordinare', green:'Solo OK' };
+  if (activeFilter) {
+    filterBar.classList.remove('hidden');
+    document.getElementById('filter-label').textContent = labels[activeFilter];
+  } else {
+    filterBar.classList.add('hidden');
+  }
+
+  const bycat = {};
+  products.forEach((p, idx) => {
+    if (q && !p.name.toLowerCase().includes(q)) return;
+    if (activeFilter && stato(p) !== activeFilter) return;
+    if (!bycat[p.cat]) bycat[p.cat] = [];
+    bycat[p.cat].push({...p, idx});
+  });
+
+  const order = getAllCategories();
+  let html = '';
+  order.forEach(cat => {
+    if (!bycat[cat] || bycat[cat].length === 0) return;
+    const cc = getCatColor(cat);
+    const critico = bycat[cat].filter(p => stato(p) !== 'green').length;
+    html += `<div class="cat-block">
+      <div class="cat-header" style="background:#${cc.h}18" onclick="toggleCat(this)">
+        <div class="cat-header-left">
+          <div class="cat-dot" style="background:#${cc.h}"></div>
+          <span class="cat-name" style="color:#${cc.h}">${cat.replace(/^\S+\s/,'')}</span>
+        </div>
+        ${critico > 0
+          ? `<span class="cat-badge" style="background:#${cc.h}22;color:#${cc.h}">⚠ ${critico}</span>`
+          : `<span class="cat-badge" style="background:var(--green-bg);color:var(--green-ok)">✓ ok</span>`}
+      </div>
+      <div class="product-list">`;
+    bycat[cat].forEach(p => {
+      const s = stato(p);
+      const cart = cartoniFabbisogno(p);
+      const metaClass = s==='red' ? 'warn' : s==='amber' ? 'caution' : '';
+      const meta = s !== 'green'
+        ? `Min ${p.min} pz · Ordina ${cart} carton${cart===1?'e':'i'}`
+        : `Min ${p.min} pz · ${p.pxc} pz/cartone`;
+      html += `<div class="product-row">
+        <div class="status-pill pill-${s}"></div>
+        <div class="product-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-meta ${metaClass}">${meta}</div>
+        </div>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="changeQty('${p.id}',-1)">−</button>
+          <input class="qty-val" type="text" inputmode="numeric" pattern="[0-9]*" value="${p.pz}"
+            onchange="setQty('${p.id}', this.value)">
+          <span class="qty-unit">pz</span>
+          <button class="qty-btn" onclick="changeQty('${p.id}',+1)">+</button>
+          <button class="del-btn" onclick="deleteProduct('${p.id}')" title="Elimina">🗑</button>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('giacenze-list').innerHTML = html ||
+    `<div class="empty">Nessun prodotto trovato</div>`;
+}
+
+function renderOrdine() {
+  const critici = products.filter(p => stato(p) !== 'green');
+  if (critici.length === 0) {
+    document.getElementById('ordine-list').innerHTML =
+      `<div class="empty">🟢 Tutto ok — nessun prodotto da ordinare!</div>`;
+    return;
+  }
+  const byForn = {};
+  critici.forEach(p => {
+    if (!byForn[p.forn]) byForn[p.forn] = [];
+    byForn[p.forn].push(p);
+  });
+  let html = '';
+  Object.entries(byForn).forEach(([forn, prods]) => {
+    const fornId = forn.replace(/\s+/g,'_');
+    html += `<div class="ordine-block">
+      <div class="ordine-block-header">
+        <span class="ordine-block-title">📦 ${forn}</span>
+        <span class="ordine-block-count">${prods.length} prodotti</span>
+      </div>`;
+    prods.forEach(p => {
+      const cart = cartoniFabbisogno(p);
+      const isRed = stato(p)==='red';
+      const label = isRed ? '🔴 ESAURITO' : `🟠 ${cart} carton${cart===1?'e':'i'}`;
+      html += `<div class="ordine-row">
+        <div class="ordine-info">
+          <div class="ordine-desc">${p.name}</div>
+          <div class="ordine-meta">${p.pz} pz presenti · min ${p.min} pz</div>
+        </div>
+        <div class="ordine-badge ${isRed?'red':'amber'}">${label}</div>
+      </div>`;
+    });
+    html += `<button class="wa-btn" onclick="sendWhatsApp('${fornId}')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Invia ordine su WhatsApp
+      </button></div>`;
+  });
+  document.getElementById('ordine-list').innerHTML = html;
+  window._byForn = byForn;
+}
+
+// ── INTERAZIONI GIACENZE ──────────────────────────────────────────────────────
+function toggleCat(el) {
+  const list = el.nextElementSibling;
+  list.style.display = list.style.display === 'none' ? '' : 'none';
+}
+
+async function changeQty(id, delta) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  p.pz = Math.max(0, (p.pz||0) + delta);
+  renderGiacenze(); renderAlerts(); renderOrdine();
+  try { await fsSetProduct(p); } catch(e) { showToast('Errore salvataggio'); }
+}
+async function setQty(id, val) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  p.pz = Math.max(0, parseInt(val) || 0);
+  renderAlerts(); renderOrdine();
+  try { await fsSetProduct(p); } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function deleteProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  showModal('Elimina prodotto', `Eliminare "${p.name}" dal magazzino?`, 'Elimina', 'var(--red)',
+    async () => {
+      try { await fsDeleteProduct(id); showToast(`🗑 "${p.name}" eliminato`); }
+      catch(e) { showToast('Errore eliminazione'); }
+    });
+}
+
+// ── AGGIUNGI PRODOTTO ─────────────────────────────────────────────────────────
+async function addProduct() {
+  const name = document.getElementById('new-name').value.trim();
+  const cat  = document.getElementById('new-cat').value;
+  const min  = parseInt(document.getElementById('new-min').value) || 0;
+  const pxc  = parseInt(document.getElementById('new-pxc').value) || 1;
+  const forn = document.getElementById('new-fornitore').value.trim() || 'Altro';
+  const pz   = parseInt(document.getElementById('new-pezzi').value) || 0;
+  if (!name) { showToast('⚠️ Inserisci il nome del prodotto'); return; }
+  if (!cat || cat === '__new__') { showToast('⚠️ Seleziona una categoria'); return; }
+  const newP = { id: uid(), name, cat, min, pxc, pz, forn };
+  try {
+    await fsSetProduct(newP);
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-min').value  = '';
+    document.getElementById('new-pxc').value  = '';
+    document.getElementById('new-pezzi').value = '0';
+    showToast(`✅ "${name}" aggiunto!`);
+    switchTab('giacenze');
+  } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('new-cat');
+  if (!sel) return;
+  const current = sel.value;
+  const cats = getAllCategories();
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('') +
+    `<option value="__new__">+ Nuova categoria…</option>`;
+  if (cats.includes(current)) sel.value = current;
+}
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'new-cat' && e.target.value === '__new__') {
+    e.target.value = e.target.options[0].value;
+    const wrap = document.getElementById('new-cat-wrap');
+    wrap.style.display = 'flex';
+    document.getElementById('new-cat-input').focus();
+  }
+});
+
+async function confirmNewCatForm() {
+  const inp = document.getElementById('new-cat-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
+  try {
+    await fsAddCategoria(name);
+    inp.value = '';
+    document.getElementById('new-cat-wrap').style.display = 'none';
+    setTimeout(() => { document.getElementById('new-cat').value = name; }, 300);
+    showToast(`✅ Categoria "${name}" aggiunta!`);
+  } catch(e) { showToast('Errore salvataggio categoria'); }
+}
+function cancelNewCatForm() {
+  document.getElementById('new-cat-input').value = '';
+  document.getElementById('new-cat-wrap').style.display = 'none';
+}
+
+// ── IMPOSTAZIONI / MINIMI ──────────────────────────────────────────────────────
+function renderImpostazioni() {
+  const order = getAllCategories();
+  const bycat = {};
+  products.forEach((p, idx) => {
+    if (!bycat[p.cat]) bycat[p.cat] = [];
+    bycat[p.cat].push({...p, idx});
+  });
+  let html = '';
+  order.forEach(cat => {
+    if (!bycat[cat]) return;
+    const c = getCatColor(cat);
+    html += `<div class="imp-cat-title" style="color:#${c.h};border-bottom:2px solid #${c.h}">${cat}</div>`;
+    bycat[cat].forEach(p => {
+      html += `<div class="imp-row-expanded">
+        <div class="imp-row-top">
+          <input class="imp-name-input" type="text" value="${p.name}" data-id="${p.id}" data-field="name"
+            onchange="saveImpField(this)" placeholder="Nome prodotto">
+        </div>
+        <div class="imp-row-bottom">
+          <div class="imp-field">
+            <label>Categoria</label>
+            <select data-id="${p.id}" data-field="cat" class="imp-select" onchange="saveImpField(this)">
+              ${order.map(o => `<option value="${o}" ${o===p.cat?'selected':''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="imp-field">
+            <label>Min pz</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" value="${p.min}" data-id="${p.id}" data-field="min" onchange="saveImpField(this)">
+          </div>
+          <div class="imp-field">
+            <label>Pz/cart</label>
+            <input type="text" inputmode="numeric" pattern="[0-9]*" value="${p.pxc}" data-id="${p.id}" data-field="pxc" onchange="saveImpField(this)">
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('impostazioni-list').innerHTML = html;
+}
+
+async function saveImpField(el) {
+  const id    = el.dataset.id;
+  const field = el.dataset.field;
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  if (field === 'name') p[field] = el.value.trim() || p[field];
+  else if (field === 'cat') p[field] = el.value;
+  else p[field] = Math.max(field === 'pxc' ? 1 : 0, parseInt(el.value) || 0);
+
+  // Aggiorna subito tutta la UI (Giacenze, Alert, Ordine) con il dato in memoria,
+  // senza aspettare il round-trip da Firestore — stesso schema usato da changeQty/setQty.
+  render();
+  // Se è cambiata la categoria, il prodotto deve "spostarsi" anche nella vista
+  // Minimi stessa, dal blocco della vecchia categoria a quello della nuova.
+  if (field === 'cat') renderImpostazioni();
+
+  try { await fsSetProduct(p); showToast('✅ Salvato'); }
+  catch(e) { showToast('Errore salvataggio'); }
+}
+
+// ── GESTIONE CATEGORIE ──────────────────────────────────────────────────────
+function renderCatManager() {
+  let html = '';
+  if (DEFAULT_CATS.length) {
+    html += `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Categorie di default</p>`;
+    DEFAULT_CATS.forEach(cat => {
+      const c = getCatColor(cat);
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="font-size:11px;color:var(--gray-500)">${products.filter(p=>p.cat===cat).length} prodotti</span>
+      </div>`;
+    });
+  }
+  if (customCats.length) {
+    html += `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px">Categorie personalizzate</p>`;
+    customCats.forEach(cat => {
+      const c = getCatColor(cat);
+      const count = products.filter(p=>p.cat===cat).length;
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
+        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="font-size:11px;color:var(--gray-500);margin-right:4px">${count} prodotti</span>
+        <button onclick="deleteCat('${cat}')"
+          style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+      </div>`;
+    });
+  } else {
+    html += `<p style="font-size:13px;color:var(--gray-500);margin-top:12px;text-align:center;padding:20px 0">Nessuna categoria personalizzata — aggiungine una!</p>`;
+  }
+  document.getElementById('cat-list').innerHTML = html;
+}
+
+async function addCatFromManager() {
+  const inp = document.getElementById('cat-new-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
+  if (DEFAULT_CATS.includes(name)) { showToast('⚠️ Categoria già esistente'); return; }
+  try {
+    await fsAddCategoria(name);
+    inp.value = '';
+    showToast(`✅ Categoria "${name}" aggiunta!`);
+  } catch(e) { showToast('Errore salvataggio'); }
+}
+
+function deleteCat(cat) {
+  const count = products.filter(p => p.cat === cat).length;
+  const msg = count > 0
+    ? `Eliminare la categoria "${cat}"? I ${count} prodotti associati verranno spostati in "🥤 Bibite".`
+    : `Eliminare la categoria "${cat}"?`;
+  showModal('Elimina categoria', msg, 'Elimina', 'var(--red)', async () => {
+    try {
+      if (count > 0) {
+        const toMove = products.filter(p => p.cat === cat);
+        for (const p of toMove) { p.cat = '🥤 Bibite'; await fsSetProduct(p); }
+      }
+      await fsDeleteCategoria(cat);
+      showToast('🗑 Categoria eliminata');
+    } catch(e) { showToast('Errore eliminazione'); }
+  });
+}
+
+// ── WHATSAPP ─────────────────────────────────────────────────────────────────
+function sendWhatsApp(fornId) {
+  const byForn = window._byForn || {};
+  const forn = Object.keys(byForn).find(k => k.replace(/\s+/g,'_') === fornId);
+  if (!forn) return;
+  const prods = byForn[forn];
+  const oggiStr = new Date().toLocaleDateString('it-IT');
+  let msg = `Ordine del ${oggiStr}:\n\n`;
+  prods.forEach(p => {
+    const cart = cartoniFabbisogno(p);
+    const n = stato(p) === 'red' ? Math.ceil(p.min/p.pxc) : cart;
+    msg += `- ${p.name}: ${n} carton${n===1?'e':'i'}\n`;
+  });
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+}
+
 // ── SESSIONE HUB / PERMESSI SEZIONI ───────────────────────────────────────────
 function loadHubSession() {
   try {
@@ -942,7 +1163,8 @@ function computeAllowedSections() {
 }
 
 const TAB_EL_BY_SECTION = {
-  ospiti: 'tab-ospiti', scadenze: 'tab-scadenze', chiusi: 'tab-chiusi', setup: 'btn-setup'
+  giacenze: 'tab-giacenze', ordine: 'tab-ordine', aggiungi: 'tab-aggiungi',
+  impostazioni: 'tab-impostazioni', categorie: 'tab-categorie', setup: 'btn-setup'
 };
 function applySectionVisibility() {
   Object.entries(TAB_EL_BY_SECTION).forEach(([sec, elId]) => {
@@ -979,10 +1201,6 @@ function initLogin() {
 }
 
 // ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
-// Resta visibile finché non sappiamo cosa mostrare: se non c'è sessione (o
-// non c'è permesso) si nasconde subito, altrimenti aspetta che arrivino
-// davvero i primi dati degli ospiti, così non si vede mai la pagina vuota
-// per un istante prima che Firestore risponda.
 let _dataReady = false;
 let _loadingHidden = false;
 function hideLoadingScreen() {
@@ -1039,499 +1257,23 @@ function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
 }
 function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-function init() {
-  render();
-  initLogin();
-}
-
-// ── FILTER BOX ────────────────────────────────────────────────────────────────
-function filterByCard(type) {
-  if (activeFilter === type) { clearFilter(); return; }
-  activeFilter = type;
-  ['oggi','breve','attivi'].forEach(k => {
-    document.getElementById('card-'+k).classList.toggle('active-filter', k === type);
-  });
-  const labels = { oggi:'Checkout oggi', breve:'Checkout entro 2 giorni', attivi:'Tutti i conti aperti' };
-  document.getElementById('filter-label').textContent = labels[type];
-  document.getElementById('filter-bar').classList.remove('hidden');
-  renderOspiti();
-}
-
-function clearFilter() {
-  activeFilter = null;
-  ['oggi','breve','attivi'].forEach(k => document.getElementById('card-'+k).classList.remove('active-filter'));
-  document.getElementById('filter-bar').classList.add('hidden');
-  renderOspiti();
-}
-
-// ── RENDER ────────────────────────────────────────────────────────────────────
-function render() { renderAlerts(); renderOspiti(); renderScadenze(); renderChiusi(); }
-
-function renderAlerts() {
-  const attivi = ospiti.filter(o=>!o.chiuso);
-  document.getElementById('cnt-oggi').textContent   = attivi.filter(o=>giorniA(o.checkout)===0).length;
-  document.getElementById('cnt-breve').textContent  = attivi.filter(o=>{const g=giorniA(o.checkout);return g>0&&g<=2;}).length;
-  document.getElementById('cnt-attivi').textContent = attivi.length;
-}
-
-function renderOspiti() {
-  const searchEl = document.getElementById('search-input');
-  const q = (searchEl ? searchEl.value : '').toLowerCase();
-  let lista = ospiti.filter(o=>!o.chiuso);
-
-  if (activeFilter === 'oggi')  lista = lista.filter(o => giorniA(o.checkout) === 0);
-  if (activeFilter === 'breve') lista = lista.filter(o => { const g=giorniA(o.checkout); return g>0&&g<=2; });
-
-  if (q) lista = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
-  lista.sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
-
-  if (!lista.length) {
-    document.getElementById('ospiti-list').innerHTML =
-      `<div class="empty">Nessun ospite trovato.${!activeFilter?'<br>Premi "+ Ospite" per aggiungerne uno.':''}</div>`;
-    return;
-  }
-
-  document.getElementById('ospiti-list').innerHTML = lista.map(o => {
-    const g = giorniA(o.checkout); const tot = totOspite(o.id);
-    const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-    const urgente = g>=0&&g<=2; const isOggi = g===0;
-    const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
-    const badgeChk = isOggi
-      ? `<span class="badge red">Checkout oggi</span>`
-      : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
-      : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
-    const badgePiano = pianoBadgeHtml(o.piano);
-    return `<div class="ospite-card" style="border-left:${borderLeft}">
-      <div class="ospite-header" onclick="goDettaglio('${o.id}')">
-        <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
-        <div class="ospite-info">
-          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
-          <div class="ospite-sub">${o.alloggio}</div>
-          <div class="ospite-badges">${badgeChk}${badgePiano}</div>
-        </div>
-        <div class="ospite-totale">
-          <div class="importo">${fmt(tot)}</div>
-          <div class="n-ordini">${nOrd} ordini</div>
-        </div>
-      </div>
-      <div class="ospite-actions">
-        <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
-        <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderScadenze() {
-  const attivi = ospiti.filter(o=>!o.chiuso&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
-    .sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
-  document.getElementById('scad-totale').textContent = fmt(attivi.reduce((s,o)=>s+totOspite(o.id),0));
-  document.getElementById('scad-sub').textContent    = `${attivi.length} ospiti in scadenza`;
-  if (!attivi.length) {
-    document.getElementById('scadenze-list').innerHTML = '<div class="empty">Nessun checkout nei prossimi 7 giorni.</div>';
-    return;
-  }
-  document.getElementById('scadenze-list').innerHTML = attivi.map(o=>{
-    const g=giorniA(o.checkout); const tot=totOspite(o.id);
-    const cls=g===0?'oggi':g<=2?'urgente':'';
-    const badge=g===0?`<span class="badge red">Checkout oggi</span>`:g<=2?`<span class="badge orange">Tra ${g} giorni</span>`:`<span class="badge gray">Tra ${g} giorni</span>`;
-    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${o.id}')" style="cursor:pointer">
-      <div class="ospite-avatar ${cls?'urgente':''}">${initials(o)}</div>
-      <div class="scadenza-info"><div class="scadenza-nome">${o.cognome} ${o.nome}</div><div class="scadenza-sub">${o.alloggio}</div><div style="margin-top:5px">${badge}</div></div>
-      <div class="scadenza-destra"><div class="importo">${fmt(tot)}</div><div class="data">${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>
-    </div>`;
-  }).join('');
-}
-
-function renderChiusi() {
-  const chiusi = ospiti.filter(o=>o.chiuso).sort((a,b)=>new Date(b.checkout)-new Date(a.checkout));
-  if (!chiusi.length) {
-    document.getElementById('chiusi-list').innerHTML='<div class="empty">Nessun conto chiuso ancora.</div>';
-    return;
-  }
-  document.getElementById('chiusi-list').innerHTML =
-    `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conti incassati — tocca per vedere gli ordini</p>` +
-    chiusi.map(o=>{
-      const tot = totOspite(o.id);
-      const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${o.id}')">
-        <div class="ospite-header">
-          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
-          <div class="ospite-info">
-            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
-            <div class="ospite-sub">${o.alloggio}</div>
-            <div class="ospite-badges"><span class="badge gray">Incassato</span></div>
-          </div>
-          <div class="ospite-totale">
-            <div class="importo" style="color:var(--gray-400);text-decoration:line-through">${fmt(tot)}</div>
-            <div class="n-ordini">${nOrd} ordini</div>
-          </div>
-          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${o.id}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-}
-
-function eliminaContoChiuso(id) {
-  if (!isAdmin()) { showToast("Solo l'amministratore può eliminare i conti chiusi"); return; }
-  const o = ospiti.find(x => x.id === id); if (!o) return;
-  const suoiOrdini = ordini.filter(x => x.ospiteId === id);
-  showModal(
-    'Elimina conto',
-    `Eliminare definitivamente il conto di ${o.cognome} ${o.nome}? Verranno eliminati anche i ${suoiOrdini.length} ordini collegati. L'operazione non è reversibile.`,
-    'Elimina', 'var(--red)',
-    async () => {
-      try {
-        for (const ord of suoiOrdini) await fsDeleteOrdine(ord.id);
-        await fsDeleteOspite(id);
-        showToast(`${o.cognome} ${o.nome} eliminato`);
-      } catch (e) {
-        console.error(e);
-        showToast("Errore durante l'eliminazione");
-      }
-    }
-  );
-}
-
-function goDettaglioChiuso(id) {
-  currentOspiteId = id;
-  const o = ospiti.find(x=>x.id===id); if (!o) return;
-  document.getElementById('chdet-nome').textContent   = `${o.cognome} ${o.nome}`;
-  document.getElementById('chdet-sub').textContent    = o.alloggio;
-  document.getElementById('chdet-totale').textContent = fmt(totOspite(o.id));
-  document.getElementById('btn-ripristina').style.display = '';
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
-  if (!miei.length) {
-    document.getElementById('chdet-ordini-list').innerHTML = '<div class="empty">Nessun ordine registrato per questo conto.</div>';
-  } else {
-    document.getElementById('chdet-ordini-list').innerHTML = PUNTI_RISTORO.map(p=>{
-      const po = miei.filter(x=>x.punto===p);
-      if (!po.length) return '';
-      const ptot = po.reduce((s,x)=>s+x.importo,0);
-      return `<div class="ordine-block">
-        <div class="ordine-block-header">
-          <span class="ordine-block-title">${p}</span>
-          <span class="ordine-block-tot">${fmt(ptot)}</span>
-        </div>
-        ${po.map(ord=>`<div class="ordine-row">
-          <div class="ordine-info">
-            <div class="ordine-desc">${ord.desc}</div>
-            <div class="ordine-meta">${fmtTs(ord.ts)} · ${ord.operatore}</div>
-          </div>
-          <div class="ordine-destra"><span class="ordine-importo">${fmt(ord.importo)}</span></div>
-        </div>`).join('')}
-      </div>`;
-    }).join('');
-  }
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-dettaglio-chiuso').classList.add('active');
-}
-
-async function ripristinaConto() {
-  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
-  showModal(
-    'Ripristina conto',
-    `Riaprire il conto di ${o.cognome} ${o.nome}? Tornerà tra i conti attivi.`,
-    'Ripristina', 'var(--amber)',
-    async () => {
-      o.chiuso = false;
-      await fsSetOspite(o);
-      showToast(`Conto di ${o.cognome} ${o.nome} ripristinato!`);
-      switchTab('ospiti');
-    }
-  );
-}
-
-function renderDettaglio() {
-  const o = ospiti.find(x=>x.id===currentOspiteId);
-  if (!o) return;
-  document.getElementById('det-nome').textContent   = `${o.cognome} ${o.nome}`;
-  document.getElementById('det-sub').textContent    = o.alloggio;
-  document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
-  document.getElementById('btn-chiudi-conto').style.display = '';
-  document.getElementById('btn-edit-ospite').style.display  = '';
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
-  if (!miei.length) {
-    document.getElementById('ordini-list').innerHTML = '<div class="empty">Nessun ordine ancora.<br>Premi "Aggiungi ordine" per iniziare.</div>';
-    return;
-  }
-  document.getElementById('ordini-list').innerHTML = PUNTI_RISTORO.map(p=>{
-    const po = miei.filter(x=>x.punto===p);
-    if (!po.length) return '';
-    const ptot = po.reduce((s,x)=>s+x.importo,0);
-    return `<div class="ordine-block">
-      <div class="ordine-block-header">
-        <span class="ordine-block-title">${p}</span>
-        <span class="ordine-block-tot">${fmt(ptot)}</span>
-      </div>
-      ${po.map(ord=>`<div class="ordine-row">
-        <div class="ordine-info">
-          <div class="ordine-desc">${ord.desc}</div>
-          <div class="ordine-meta">${fmtTs(ord.ts)} · ${ord.operatore}</div>
-        </div>
-        <div class="ordine-destra">
-          <span class="ordine-importo">${fmt(ord.importo)}</span>
-          <button class="del-btn" onclick="deleteOrdine('${ord.id}')">&#10005;</button>
-        </div>
-      </div>`).join('')}
-    </div>`;
-  }).join('');
-}
-
-function _buildReportData(ospiteId) {
-  const o = ospiti.find(x=>x.id===ospiteId); if (!o) return null;
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
-  const tot  = miei.reduce((s,x)=>s+x.importo, 0);
-  const now  = new Date().toLocaleString('it-IT');
-  const rows = PUNTI_RISTORO.map(p=>{
-    const po = miei.filter(x=>x.punto===p); if (!po.length) return '';
-    const ptot = po.reduce((s,x)=>s+x.importo, 0);
-    return `<div class="report-cat"><span>${p}</span><span>${fmt(ptot)}</span></div>` +
-      po.map(ord=>`<div class="report-row"><span>${fmtTs(ord.ts)} — ${ord.desc}</span><span class="report-imp">${fmt(ord.importo)}</span></div>`).join('');
-  }).join('');
-  return { rows, tot, now, o };
-}
-
-function renderReport(ospiteId) {
-  const r = _buildReportData(ospiteId); if (!r) return;
-  const { rows, tot, now, o } = r;
-  document.getElementById('report-content').innerHTML=`
-    <div class="report-header">
-      <div style="font-size:11px;opacity:.65;text-transform:uppercase;letter-spacing:.06em">Centro Vacanze Garden River</div>
-      <div class="report-nome">${o.cognome} ${o.nome}</div>
-      <div class="report-sub">${o.alloggio} · ${pianoLabel(o.piano)}</div>
-      <div style="font-size:11px;opacity:.55;margin-top:6px">Generato il ${now}</div>
-    </div>
-    <div class="report-body">
-      ${rows||'<p style="color:#6B7280;font-size:13px;text-align:center;padding:16px 0">Nessun ordine registrato</p>'}
-      <div class="report-totale"><span class="lbl">TOTALE DA INCASSARE</span><span class="val">${fmt(tot)}</span></div>
-    </div>`;
-}
-
-function stampaReport() {
-  const r = _buildReportData(currentOspiteId); if (!r) return;
-  const { rows, tot, now, o } = r;
-  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Conto ${o.cognome} ${o.nome}</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Inter',sans-serif; background:#F9FAFB; color:#111827; padding:20px 16px 60px; max-width:480px; margin:0 auto; -webkit-font-smoothing:antialiased; }
-  .header { background:#1B4332; color:white; border-radius:16px; padding:20px; text-align:center; }
-  .header .brand { font-size:11px; opacity:.65; text-transform:uppercase; letter-spacing:.06em; }
-  .header .nome  { font-size:22px; font-weight:800; margin:6px 0 2px; }
-  .header .sub   { font-size:13px; opacity:.75; }
-  .header .data  { font-size:11px; opacity:.5; margin-top:6px; }
-  .body { background:white; border:1px solid #F3F4F6; border-top:none; border-radius:0 0 16px 16px; padding:18px; margin-bottom:16px; }
-  .cat  { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#6B7280; margin:12px 0 6px; display:flex; justify-content:space-between; }
-  .row  { display:flex; justify-content:space-between; font-size:13px; color:#374151; padding:5px 0; border-bottom:1px solid #F3F4F6; }
-  .row:last-child { border-bottom:none; }
-  .imp  { font-weight:700; margin-left:8px; flex-shrink:0; }
-  .totale { display:flex; justify-content:space-between; align-items:center; border-top:2px solid #111827; padding-top:14px; margin-top:10px; }
-  .totale .lbl { font-size:14px; font-weight:700; }
-  .totale .val { font-size:32px; font-weight:800; color:#16A34A; }
-  .print-btn { display:block; width:100%; padding:16px; background:#1B4332; color:white; border:none; border-radius:28px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px; }
-  @media print { .print-btn { display:none; } body { padding:0; background:white; } }
-</style></head><body>
-  <div class="header">
-    <div class="brand">Centro Vacanze Garden River</div>
-    <div class="nome">${o.cognome} ${o.nome}</div>
-    <div class="sub">${o.alloggio} · ${pianoLabel(o.piano)}</div>
-    <div class="data">Generato il ${now}</div>
-  </div>
-  <div class="body">
-    ${rows||'<p style="color:#6B7280;font-size:13px;text-align:center;padding:16px 0">Nessun ordine registrato</p>'}
-    <div class="totale"><span class="lbl">TOTALE DA INCASSARE</span><span class="val">${fmt(tot)}</span></div>
-  </div>
-  <button class="print-btn" onclick="window.print()">Stampa</button>
-</body></html>`;
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); }
-  else {
-    const blob = new Blob([html], { type:'text/html' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `conto-${o.cognome}-${o.nome}.html`.replace(/\s+/g,'-');
-    a.click(); URL.revokeObjectURL(url);
-  }
-}
-
-// ── NAVIGAZIONE ───────────────────────────────────────────────────────────────
+// ── TABS ─────────────────────────────────────────────────────────────────────
 function switchTab(id) {
   if (SECTION_IDS.includes(id) && !allowedSections.has(id)) {
     const fallback = SECTION_IDS.find(s => allowedSections.has(s));
     if (!fallback) return; // nessuna sezione consentita: resta dove sei
     id = fallback;
   }
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
-  const tm={ospiti:'tab-ospiti',scadenze:'tab-scadenze',chiusi:'tab-chiusi'};
-  if (tm[id]) document.getElementById(tm[id]).classList.add('active');
-  if (id==='dettaglio-chiuso') document.getElementById('tab-chiusi').classList.add('active');
-  if (id==='scadenze') renderScadenze();
-  if (id==='chiusi')   renderChiusi();
-  if (id==='setup')    aggiornaStatoNotifiche();
+  const tabBtn = document.getElementById('tab-'+id);
+  if (tabBtn) tabBtn.classList.add('active');
+  if (id === 'impostazioni') renderImpostazioni();
+  if (id === 'categorie') renderCatManager();
 }
 
-// ── NOTIFICHE PUSH ──────────────────────────────────────────────────────────
-function aggiornaStatoNotifiche() {
-  const el = document.getElementById('notifiche-status');
-  if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Non supportate su questo browser';
-    return;
-  }
-  el.textContent = Notification.permission === 'granted'
-    ? 'Attive su questo dispositivo'
-    : 'Non attive su questo dispositivo';
-}
-
-async function attivaNotifiche() {
-  const btn = document.getElementById('btn-attiva-notifiche');
-  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso...'; }
-  const res = await window._abilitaNotifichePush(currentOperatore);
-  if (res.ok) {
-    showToast('Notifiche attivate!');
-  } else {
-    const messaggi = {
-      'negato': 'Permesso negato — abilitalo nelle impostazioni di Safari per questa app',
-      'non-supportato': 'Il tuo browser non supporta le notifiche push',
-      'nessun-token': 'Impossibile registrare il dispositivo, riprova'
-    };
-    showToast(messaggi[res.motivo] || 'Errore, riprova');
-  }
-  aggiornaStatoNotifiche();
-  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
-}
-
-function goDettaglio(id) {
-  currentOspiteId = id;
-  renderDettaglio();
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-dettaglio').classList.add('active');
-}
-
-function goNuovoOrdine() {
-  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
-  document.getElementById('no2-sub').textContent = `${o.cognome} ${o.nome} · ${o.alloggio}`;
-  const now = new Date();
-  document.getElementById('or-ts').value = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
-  document.getElementById('or-desc').value = ''; document.getElementById('or-importo').value = '';
-  document.getElementById('or-operatore-label').textContent = currentOperatore || '—';
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-nuovo-ordine').classList.add('active');
-}
-
-function goReport()    { renderReport(currentOspiteId); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('sec-report').classList.add('active'); }
-function goReportDa(id){ currentOspiteId=id; renderReport(id); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('sec-report').classList.add('active'); }
-
-// ── AZIONI ────────────────────────────────────────────────────────────────────
-async function addOspite() {
-  const nome     = document.getElementById('no-nome').value.trim();
-  const cognome  = document.getElementById('no-cognome').value.trim();
-  const alloggio = document.getElementById('no-alloggio').value.trim();
-  const piano    = document.getElementById('no-piano').value;
-  const checkout = document.getElementById('no-checkout').value;
-  if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
-  const nuovoId = uid();
-  const ospite = { id: nuovoId, nome, cognome, alloggio, piano, checkout, chiuso: false };
-  try {
-    await fsSetOspite(ospite);
-    ['no-nome','no-cognome','no-alloggio','no-checkout'].forEach(id=>document.getElementById(id).value='');
-    showToast(`${cognome} ${nome} registrato!`);
-    switchTab('ospiti');
-  } catch(e) {
-    console.error(e);
-    showToast('Errore salvataggio — riprova');
-  }
-}
-
-// ── MODIFICA ANAGRAFICA OSPITE ────────────────────────────────────────────────
-function goModificaOspite() {
-  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
-  document.getElementById('mo-nome').value     = o.nome;
-  document.getElementById('mo-cognome').value  = o.cognome;
-  populateAlloggioSelect(document.getElementById('mo-alloggio'), o.alloggio);
-  document.getElementById('mo-piano').value    = o.piano || 'mezza';
-  document.getElementById('mo-checkout').value = o.checkout;
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('sec-modifica-ospite').classList.add('active');
-}
-
-async function salvaModificaOspite() {
-  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
-  const nome     = document.getElementById('mo-nome').value.trim();
-  const cognome  = document.getElementById('mo-cognome').value.trim();
-  const alloggio = document.getElementById('mo-alloggio').value.trim();
-  const piano    = document.getElementById('mo-piano').value;
-  const checkout = document.getElementById('mo-checkout').value;
-  if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
-  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout };
-  try {
-    await fsSetOspite(aggiornato);
-    showToast('Anagrafica aggiornata!');
-    goDettaglio(o.id);
-  } catch(e) {
-    console.error(e);
-    showToast('Errore salvataggio — riprova');
-  }
-}
-
-async function addOrdine() {
-  const punto     = document.getElementById('or-punto').value;
-  const operatore = currentOperatore || 'N/D';
-  const desc      = document.getElementById('or-desc').value.trim();
-  const importoS  = document.getElementById('or-importo').value;
-  const ts        = document.getElementById('or-ts').value;
-  if (!desc||!importoS||!ts) { showToast('Compila tutti i campi'); return; }
-  const importo = parseFloat(importoS.replace(',','.'));
-  if (isNaN(importo)||importo<=0) { showToast('Importo non valido'); return; }
-  const nuovoId = uid();
-  const ordine = { id: nuovoId, ospiteId: currentOspiteId, punto, desc, importo, operatore, ts };
-  try {
-    await fsSetOrdine(ordine);
-    showToast('Ordine salvato!');
-    switchTab('dettaglio');
-  } catch(e) {
-    console.error(e);
-    showToast('Errore salvataggio — riprova');
-  }
-}
-
-function deleteOrdine(id) {
-  const o = ordini.find(x => x.id === id);
-  if (!o) return;
-  showModal(
-    'Elimina ordine', `Eliminare "${o.desc}" (${fmt(o.importo)})?`, 'Elimina', 'var(--red)',
-    async () => {
-      try {
-        await fsDeleteOrdine(id);
-        showToast('Ordine eliminato');
-      } catch(e) { showToast('Errore eliminazione'); }
-    }
-  );
-}
-
-function chiudiConto() {
-  const o = ospiti.find(x => x.id === currentOspiteId);
-  if (!o) return;
-  const tot = totOspite(o.id);
-  showModal(
-    'Chiudi conto', `Segna come incassato il conto di ${o.cognome} ${o.nome}?\nTotale: ${fmt(tot)}`,
-    'Chiudi e incassa', 'var(--green-700)',
-    async () => {
-      o.chiuso = true;
-      await fsSetOspite(o);
-      showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
-      switchTab('ospiti');
-    }
-  );
-}
-
-// ── DEBUG / TEST ──────────────────────────────────────────────────────────────
+// ── DEBUG / TEST CONNESSIONE ──────────────────────────────────────────────────
 function _dbg(msg, color) {
   const panel = document.getElementById('debug-panel');
   if (!panel) return;
@@ -1540,26 +1282,21 @@ function _dbg(msg, color) {
   panel.innerHTML += `<div style="color:${color||'#cdd6f4'}">[${ts}] ${msg}</div>`;
   panel.scrollTop = panel.scrollHeight;
 }
-
 async function testConnessione() {
   const panel = document.getElementById('debug-panel');
   if (panel) { panel.style.display = 'block'; panel.innerHTML = ''; }
   _dbg('=== TEST CONNESSIONE FIREBASE ===', '#89b4fa');
-
   await waitForFirebase();
   _dbg('SDK Firebase caricato', '#a6e3a1');
-
   const { db, collection, getDocs, doc, setDoc, deleteDoc } = window._fb;
-
   try {
-    _dbg('Test lettura collection ospiti...', '#89dceb');
-    const snap = await getDocs(collection(db, 'ospiti'));
-    _dbg(`OK — trovati ${snap.size} ospiti nel database`, '#a6e3a1');
+    _dbg('Test lettura collection prodotti...', '#89dceb');
+    const snap = await getDocs(collection(db, 'prodotti'));
+    _dbg(`OK — trovati ${snap.size} prodotti nel database`, '#a6e3a1');
   } catch(e) {
     _dbg(`ERRORE lettura: ${e.message}`, '#f38ba8');
     return;
   }
-
   try {
     _dbg('Test scrittura...', '#89dceb');
     await setDoc(doc(db, '_test', 'connessione'), { ts: Date.now() });
@@ -1571,7 +1308,6 @@ async function testConnessione() {
     _dbg('Controlla le regole di sicurezza Firestore (modalità test scaduta?)', '#fab387');
     return;
   }
-
   _dbg('=== TUTTO OK — database funzionante ===', '#a6e3a1');
   showToast('Connessione Firebase funzionante!');
 }
@@ -1611,12 +1347,14 @@ initSwipeBack(() => location.href = HUB_URL);
 
 // ── START ─────────────────────────────────────────────────────────────────────
 async function start() {
-  init();
+  render();
+  initLogin();
   await waitForFirebase();
   if (window._fbAuthError) {
     setSyncStatus('error');
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
+  await ensureDefaultData();
   await startRealtimeSync();
 }
 
