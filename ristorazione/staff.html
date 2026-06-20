@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Staff Ristorazione · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Staff Ristorazione">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const app  = initializeApp(firebaseConfig, "staff-risto");
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  window._fbStaff = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, enableNetwork, disableNetwork };
+  window._fbStaffReady = false;
+
+  function segnalaPronto() {
+    if (window._fbStaffReady) return;
+    window._fbStaffReady = true;
+    window.dispatchEvent(new Event('firebase-staff-ready'));
+  }
+  onAuthStateChanged(auth, u => { if (u) segnalaPronto(); });
+  signInAnonymously(auth).catch(() => segnalaPronto());
+  setTimeout(segnalaPronto, 8000);
+</script>
+
+<style>
+:root {
+  --green-900: #0D2B1E; --green-700: #1B4332; --green-500: #2D6A4F;
+  --green-400: #40916C; --green-200: #95D5B2; --green-100: #D8F3DC; --green-50: #F0FAF4;
+  --gray-900: #111827; --gray-700: #374151; --gray-500: #6B7280;
+  --gray-300: #D1D5DB; --gray-100: #F3F4F6; --gray-50: #F9FAFB; --white: #FFFFFF;
+  --blue: #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
+  --amber: #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
+  --red: #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
+  --font: 'Inter', -apple-system, sans-serif;
+  --radius-sm: 12px; --radius: 16px; --radius-lg: 22px; --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07); --shadow: 0 4px 20px rgba(0,0,0,0.10);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.hidden { display: none !important; }
+
+/* ── LOGIN ──────────────────────────────────────────────────────────── */
+#login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+#login-screen.hidden { display: none; }
+.login-logo  { height: 80px; border-radius: 18px; margin-bottom: 16px; }
+.login-title { font-size: 22px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 28px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 22px 18px; width: 100%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.login-select { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 12px; outline: none; background: var(--white); color: var(--gray-900); }
+.login-btn { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.login-err { font-size: 12px; color: var(--red); margin-top: 8px; text-align: center; min-height: 16px; }
+
+/* ── HEADER ──────────────────────────────────────────────────────────── */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 860px; margin: 0 auto; padding: 10px 16px; gap: 8px; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--green-700); color: var(--white); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.header-title { font-size: 15px; font-weight: 800; line-height: 1.2; }
+.header-sub   { font-size: 10px; color: var(--gray-500); }
+
+/* ── NAV TABS ────────────────────────────────────────────────────────── */
+.nav-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--gray-100); background: var(--white); max-width: 860px; margin: 0 auto; padding: 0 16px; overflow-x: auto; }
+.nav-tab { padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--gray-500); border: none; background: none; cursor: pointer; font-family: var(--font); border-bottom: 2px solid transparent; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.nav-tab.active { color: var(--green-700); border-bottom-color: var(--green-700); }
+
+/* ── MAIN ────────────────────────────────────────────────────────────── */
+main { max-width: 860px; margin: 0 auto; padding: 16px 14px 60px; }
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── FILTRI DATA/TIPO ────────────────────────────────────────────────── */
+.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.pill { height: 32px; padding: 0 14px; border-radius: 30px; border: 1.5px solid var(--gray-200, #E5E7EB); background: var(--white); color: var(--gray-500); font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.pill.active { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+
+/* ── QUICK VIEW ──────────────────────────────────────────────────────── */
+.qv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.qv-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 12px; text-align: center; }
+.qv-num  { font-size: 30px; font-weight: 800; color: var(--green-700); line-height: 1; }
+.qv-lbl  { font-size: 12px; color: var(--gray-500); margin-top: 5px; font-weight: 600; }
+.qv-bar-wrap { height: 4px; background: var(--gray-100); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.qv-bar { height: 100%; background: var(--green-400); border-radius: 2px; }
+
+/* ── DETAIL VIEW ─────────────────────────────────────────────────────── */
+.detail-block { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.detail-head:active { background: var(--gray-50); }
+.detail-piatto { font-size: 15px; font-weight: 800; }
+.detail-count  { font-size: 13px; font-weight: 800; color: var(--white); background: var(--green-500); padding: 4px 12px; border-radius: 20px; }
+.detail-chev   { font-size: 16px; color: var(--gray-400, #9CA3AF); transition: transform .2s; }
+.detail-chev.open { transform: rotate(180deg); }
+.detail-body   { border-top: 1px solid var(--gray-100); display: none; }
+.detail-body.open { display: block; }
+.detail-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--gray-100); }
+.detail-row:last-child { border-bottom: none; }
+.detail-fam  { font-size: 13px; font-weight: 700; color: var(--gray-900); }
+.detail-unita { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.detail-note { font-size: 11px; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-bd); border-radius: 6px; padding: 3px 8px; margin-top: 4px; display: inline-block; }
+.detail-qty  { font-size: 13px; font-weight: 800; color: var(--gray-700); flex-shrink: 0; }
+
+/* ── GESTIONE MENU ───────────────────────────────────────────────────── */
+.week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.week-label { font-size: 14px; font-weight: 800; }
+.week-btns  { display: flex; gap: 6px; }
+.icon-btn { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.day-col   { min-width: 0; }
+.day-head  { text-align: center; font-size: 10px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; margin-bottom: 6px; }
+.day-date  { text-align: center; font-size: 13px; font-weight: 800; color: var(--gray-900); margin-bottom: 6px; }
+.day-date.today { color: var(--green-700); }
+.menu-slot { background: var(--white); border-radius: 8px; box-shadow: var(--shadow-sm); padding: 6px 8px; margin-bottom: 4px; font-size: 11px; display: flex; align-items: flex-start; gap: 4px; }
+.slot-tipo { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 6px; flex-shrink: 0; margin-top: 1px; }
+.slot-tipo.pranzo { background: var(--blue-bg); color: var(--blue); }
+.slot-tipo.cena   { background: var(--green-50); color: var(--green-500); }
+.slot-nome { flex: 1; color: var(--gray-700); line-height: 1.3; }
+.slot-del  { background: none; border: none; color: var(--gray-300); font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1; }
+.slot-del:hover { color: var(--red); }
+.add-slot  { border: 1.5px dashed var(--gray-300); border-radius: 8px; padding: 6px; text-align: center; font-size: 18px; color: var(--gray-300); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.add-slot:hover { border-color: var(--green-400); color: var(--green-400); }
+
+/* ── MODAL AGGIUNGI PIATTO ───────────────────────────────────────────── */
+#modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end; justify-content: center; }
+#modal-overlay.hidden { display: none; }
+#modal-box { background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); width: 100%; max-width: 500px; }
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 14px; }
+.modal-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.modal-input { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 12px; outline: none; }
+.modal-input:focus { border-color: var(--green-400); }
+.modal-select { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 16px; outline: none; background: var(--white); }
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns button { flex: 1; height: 48px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.btn-cancel { background: var(--gray-100); color: var(--gray-700); }
+.btn-save   { background: var(--green-700); color: var(--white); }
+
+/* ── GESTIONE FAMIGLIE ───────────────────────────────────────────────── */
+.fam-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fam-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--green-100); color: var(--green-700); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fam-nome  { font-size: 14px; font-weight: 800; }
+.fam-sub   { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.fam-codice { font-family: monospace; font-size: 12px; background: var(--green-50); color: var(--green-700); padding: 3px 9px; border-radius: 6px; border: 1px solid var(--green-100); white-space: nowrap; }
+.fam-del   { width: 32px; height: 32px; background: var(--red-bg); border: none; border-radius: 8px; color: var(--red); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.add-fam-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 16px; }
+.add-fam-card h3 { font-size: 13px; font-weight: 800; margin-bottom: 12px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.form-input { height: 44px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); padding: 0 10px; outline: none; width: 100%; }
+.form-input:focus { border-color: var(--green-400); }
+.btn-add-fam { width: 100%; height: 46px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+
+/* ── TOAST ───────────────────────────────────────────────────────────── */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── SEZIONE LABEL ───────────────────────────────────────────────────── */
+.sec-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin: 18px 0 10px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <img class="login-logo" src="../logo-hub-app.jpg" alt="">
+  <div class="login-title">Staff Ristorazione</div>
+  <div class="login-sub">Accesso riservato allo staff</div>
+  <div class="login-card">
+    <div class="login-label">Operatore</div>
+    <select class="login-select" id="sel-op"><option value="">Seleziona…</option></select>
+    <button class="login-btn" onclick="doLogin()">Accedi</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="hidden" id="app-wrap">
+  <div class="top-bar">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-avatar" id="hdr-av">??</div>
+        <div>
+          <div class="header-title">Staff Ristorazione</div>
+          <div class="header-sub" id="hdr-sub">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showSec('ordini', this)">📊 Ordini</button>
+      <button class="nav-tab"        onclick="showSec('menu',   this)">📅 Menu</button>
+      <button class="nav-tab"        onclick="showSec('famiglie', this)">👥 Famiglie</button>
+    </div>
+  </div>
+
+  <main>
+    <!-- ── ORDINI ──────────────────────────────────────────── -->
+    <div class="section active" id="sec-ordini">
+      <div class="filter-row">
+        <button class="pill active" id="fp-oggi"   onclick="setFiltroData('oggi')">Oggi</button>
+        <button class="pill"        id="fp-domani" onclick="setFiltroData('domani')">Domani</button>
+        <button class="pill active" id="fp-pranzo" onclick="setFiltroTipo('pranzo')">Pranzo</button>
+        <button class="pill"        id="fp-cena"   onclick="setFiltroTipo('cena')">Cena</button>
+      </div>
+
+      <div class="sec-title">Riepilogo porzioni</div>
+      <div class="qv-grid" id="qv-grid"></div>
+
+      <div class="sec-title">Dettaglio per piatto</div>
+      <div id="detail-container"></div>
+    </div>
+
+    <!-- ── MENU ───────────────────────────────────────────── -->
+    <div class="section" id="sec-menu">
+      <div class="week-nav">
+        <span class="week-label" id="week-label">—</span>
+        <div class="week-btns">
+          <button class="icon-btn" onclick="cambiaSettimana(-1)">‹</button>
+          <button class="icon-btn" onclick="cambiaSettimana(+1)">›</button>
+        </div>
+      </div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+
+    <!-- ── FAMIGLIE ────────────────────────────────────────── -->
+    <div class="section" id="sec-famiglie">
+      <div class="add-fam-card">
+        <h3>Aggiungi famiglia</h3>
+        <div class="form-row">
+          <input class="form-input" id="f-nome"   placeholder="Nome famiglia" autocomplete="off">
+          <input class="form-input" id="f-unita"  placeholder="Unità (es. B3)" autocomplete="off">
+        </div>
+        <div class="form-row">
+          <input class="form-input" id="f-codice" placeholder="Codice (es. ROSSI42)" autocomplete="off" style="text-transform:uppercase">
+          <input class="form-input" id="f-ospiti" placeholder="N. ospiti" type="number" min="1" max="20">
+        </div>
+        <button class="btn-add-fam" onclick="aggiungiFamiglia()">Aggiungi</button>
+      </div>
+      <div class="sec-title">Famiglie registrate</div>
+      <div id="fam-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL AGGIUNGI PIATTO -->
+<div id="modal-overlay" class="hidden" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <div class="modal-title">Aggiungi piatto</div>
+    <div class="modal-label">Piatto</div>
+    <input class="modal-input" id="m-piatto" placeholder="Es. Spaghetti al pomodoro" autocomplete="off">
+    <div class="modal-label">Pasto</div>
+    <select class="modal-select" id="m-tipo">
+      <option value="pranzo">Pranzo</option>
+      <option value="cena">Cena</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Annulla</button>
+      <button class="btn-save"   onclick="salvaPiatto()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATO ─────────────────────────────────────────────────────────────────
+let currentOp    = null;
+let filtroData   = 'oggi';
+let filtroTipo   = 'pranzo';
+let ordini       = [];
+let menuItems    = [];
+let famiglie     = [];
+let weekOffset   = 0;   // settimane rispetto a questa
+let modalData    = null; // data ISO per il modal
+let unsubOrdini  = null;
+let unsubMenu    = null;
+let unsubFam     = null;
+
+// ── DATE ──────────────────────────────────────────────────────────────────
+function isoDate(offset = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().split('T')[0];
+}
+const OGGI   = isoDate(0);
+const DOMANI = isoDate(1);
+function getDataISO() { return filtroData === 'oggi' ? OGGI : DOMANI; }
+
+function lunediSettimana(offset = 0) {
+  const d = new Date();
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1 + offset * 7);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function isoFromDate(d) { return d.toISOString().split('T')[0]; }
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(r => {
+    if (window._fbStaffReady) return r();
+    window.addEventListener('firebase-staff-ready', () => r(), { once: true });
+  });
+}
+
+// ── AVVIO ─────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  await waitForFirebase();
+  const hub = loadHubSession();
+  if (hub) { currentOp = hub.nome; avviaApp(); }
+  else { await caricaOperatori(); }
+});
+
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    const p = raw ? JSON.parse(raw) : null;
+    return p?.nome ? p : null;
+  } catch { return null; }
+}
+
+async function caricaOperatori() {
+  const { db, collection, getDocs } = window._fbStaff;
+  try {
+    const snap = await getDocs(collection(db, 'operatori'));
+    const sel  = document.getElementById('sel-op');
+    snap.docs.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d.id; o.textContent = d.id;
+      sel.appendChild(o);
+    });
+  } catch(e) { console.error(e); }
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
+function doLogin() {
+  const nome = document.getElementById('sel-op').value;
+  if (!nome) { document.getElementById('login-err').textContent = 'Seleziona un operatore.'; return; }
+  currentOp = nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  avviaApp();
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────
+function avviaApp() {
+  document.getElementById('app-wrap').classList.remove('hidden');
+  document.getElementById('hdr-av').textContent  = (currentOp || '?').slice(0, 2).toUpperCase();
+  document.getElementById('hdr-sub').textContent = currentOp || '—';
+  avviaListenerOrdini();
+  avviaListenerMenu();
+  avviaListenerFamiglie();
+}
+
+// ── LISTENER ORDINI ───────────────────────────────────────────────────────
+function avviaListenerOrdini() {
+  if (unsubOrdini) unsubOrdini();
+  const { db, collection, query, where, onSnapshot } = window._fbStaff;
+  const q = query(
+    collection(db, 'ordini_ristorazione'),
+    where('data', '==', getDataISO()),
+    where('tipo', '==', filtroTipo)
+  );
+  unsubOrdini = onSnapshot(q, snap => {
+    ordini = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    renderOrdini();
+  }, e => console.error(e));
+}
+
+// ── LISTENER MENU ─────────────────────────────────────────────────────────
+function avviaListenerMenu() {
+  if (unsubMenu) unsubMenu();
+  const { db, collection, onSnapshot } = window._fbStaff;
+  unsubMenu = onSnapshot(collection(db, 'menu_ristorazione'), snap => {
+    menuItems = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    renderMenu();
+  }, e => console.error(e));
+}
+
+// ── LISTENER FAMIGLIE ─────────────────────────────────────────────────────
+function avviaListenerFamiglie() {
+  if (unsubFam) unsubFam();
+  const { db, collection, onSnapshot } = window._fbStaff;
+  unsubFam = onSnapshot(collection(db, 'famiglie_ristorazione'), snap => {
+    famiglie = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    renderFamiglie();
+  }, e => console.error(e));
+}
+
+// ── RENDER ORDINI ─────────────────────────────────────────────────────────
+function renderOrdini() {
+  renderQuickView();
+  renderDetailView();
+}
+
+function renderQuickView() {
+  // Conta porzioni per piatto (somma quantita di tutti gli ordini)
+  const conteggi = {};
+  ordini.forEach(o => {
+    (o.piatti || []).forEach(p => {
+      if (p.quantita > 0)
+        conteggi[p.piatto] = (conteggi[p.piatto] || 0) + p.quantita;
+    });
+  });
+  const voci   = Object.entries(conteggi).sort((a, b) => b[1] - a[1]);
+  const maxQty = voci[0]?.[1] || 1;
+
+  if (voci.length === 0) {
+    document.getElementById('qv-grid').innerHTML = `<div style="color:var(--gray-500);font-size:13px;grid-column:1/-1">Nessun ordine.</div>`;
+    return;
+  }
+  document.getElementById('qv-grid').innerHTML = voci.map(([piatto, qty]) => `
+    <div class="qv-card">
+      <div class="qv-num">${qty}</div>
+      <div class="qv-lbl">${esc(piatto)}</div>
+      <div class="qv-bar-wrap"><div class="qv-bar" style="width:${Math.round(qty/maxQty*100)}%"></div></div>
+    </div>
+  `).join('');
+}
+
+function renderDetailView() {
+  // Raggruppa per piatto → lista famiglie
+  const gruppi = {};
+  ordini.forEach(o => {
+    (o.piatti || []).forEach(p => {
+      if (p.quantita <= 0) return;
+      if (!gruppi[p.piatto]) gruppi[p.piatto] = [];
+      gruppi[p.piatto].push({ fam: o.famiglia_nome, unita: o.unita, qty: p.quantita, note: o.note });
+    });
+  });
+
+  const voci = Object.entries(gruppi).sort((a, b) => {
+    const ta = a[1].reduce((s, r) => s + r.qty, 0);
+    const tb = b[1].reduce((s, r) => s + r.qty, 0);
+    return tb - ta;
+  });
+
+  if (voci.length === 0) {
+    document.getElementById('detail-container').innerHTML = `<div style="color:var(--gray-500);font-size:13px">Nessun ordine.</div>`;
+    return;
+  }
+
+  document.getElementById('detail-container').innerHTML = voci.map(([piatto, righe], i) => {
+    const totale = righe.reduce((s, r) => s + r.qty, 0);
+    const righeHtml = righe.map(r => `
+      <div class="detail-row">
+        <div>
+          <div class="detail-fam">${esc(r.fam)}</div>
+          <div class="detail-unita">Unità ${esc(r.unita)}</div>
+          ${r.note ? `<span class="detail-note">📝 ${esc(r.note)}</span>` : ''}
+        </div>
+        <div class="detail-qty">×${r.qty}</div>
+      </div>
+    `).join('');
+    return `
+      <div class="detail-block">
+        <div class="detail-head" onclick="toggleDetail('db-${i}')">
+          <span class="detail-piatto">${esc(piatto)}</span>
+          <span style="display:flex;align-items:center;gap:8px">
+            <span class="detail-count">${totale}</span>
+            <span class="detail-chev" id="chev-db-${i}">▾</span>
+          </span>
+        </div>
+        <div class="detail-body" id="db-${i}">${righeHtml}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('chev-' + id);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', open);
+}
+
+// ── RENDER MENU SETTIMANALE ───────────────────────────────────────────────
+function renderMenu() {
+  const lun = lunediSettimana(weekOffset);
+  const giorni = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  const mesi   = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+
+  // Label settimana
+  const fin = new Date(lun); fin.setDate(fin.getDate() + 6);
+  document.getElementById('week-label').textContent =
+    `${lun.getDate()} ${mesi[lun.getMonth()]} – ${fin.getDate()} ${mesi[fin.getMonth()]} ${fin.getFullYear()}`;
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d    = new Date(lun); d.setDate(lun.getDate() + i);
+    const iso  = isoFromDate(d);
+    const isToday = iso === OGGI;
+    const voci = menuItems.filter(m => m.data === iso).sort((a, b) => a.tipo.localeCompare(b.tipo));
+
+    const slotsHtml = voci.map(v => `
+      <div class="menu-slot">
+        <span class="slot-tipo ${v.tipo}">${v.tipo === 'pranzo' ? 'P' : 'C'}</span>
+        <span class="slot-nome">${esc(v.piatto)}</span>
+        <button class="slot-del" onclick="eliminaPiatto('${v._id}')" title="Elimina">×</button>
+      </div>
+    `).join('');
+
+    html += `
+      <div class="day-col">
+        <div class="day-head">${giorni[i]}</div>
+        <div class="day-date ${isToday ? 'today' : ''}">${d.getDate()}</div>
+        ${slotsHtml}
+        <div class="add-slot" onclick="openModal('${iso}')" title="Aggiungi piatto">+</div>
+      </div>
+    `;
+  }
+  document.getElementById('week-grid').innerHTML = html;
+}
+
+function cambiaSettimana(delta) {
+  weekOffset += delta;
+  renderMenu();
+}
+
+function openModal(data) {
+  modalData = data;
+  document.getElementById('m-piatto').value = '';
+  document.getElementById('m-tipo').value   = 'pranzo';
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('m-piatto').focus(), 100);
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  modalData = null;
+}
+
+async function salvaPiatto() {
+  const piatto = document.getElementById('m-piatto').value.trim();
+  const tipo   = document.getElementById('m-tipo').value;
+  if (!piatto) { document.getElementById('m-piatto').focus(); return; }
+
+  const id  = `menu_${modalData}_${tipo}_${Date.now()}`;
+  const { db, doc, setDoc } = window._fbStaff;
+  try {
+    await setDoc(doc(db, 'menu_ristorazione', id), { data: modalData, tipo, piatto });
+    showToast('Piatto aggiunto');
+    closeModal();
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+async function eliminaPiatto(id) {
+  if (!confirm('Eliminare questo piatto dal menu?')) return;
+  const { db, doc, deleteDoc } = window._fbStaff;
+  try {
+    await deleteDoc(doc(db, 'menu_ristorazione', id));
+    showToast('Piatto eliminato');
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+// ── RENDER FAMIGLIE ───────────────────────────────────────────────────────
+function renderFamiglie() {
+  if (famiglie.length === 0) {
+    document.getElementById('fam-list').innerHTML = `<div style="color:var(--gray-500);font-size:13px">Nessuna famiglia registrata.</div>`;
+    return;
+  }
+  document.getElementById('fam-list').innerHTML = famiglie
+    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    .map(f => `
+      <div class="fam-card">
+        <div class="fam-avatar">${(f.nome || '?').slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="fam-nome">${esc(f.nome)}</div>
+          <div class="fam-sub">Unità ${esc(f.unita)} · ${f.max_ospiti} ospiti</div>
+        </div>
+        <span class="fam-codice">${esc(f.codice)}</span>
+        <button class="fam-del" onclick="eliminaFamiglia('${f._id}', '${esc(f.nome)}')" title="Elimina">×</button>
+      </div>
+    `).join('');
+}
+
+async function aggiungiFamiglia() {
+  const nome   = document.getElementById('f-nome').value.trim();
+  const unita  = document.getElementById('f-unita').value.trim();
+  const codice = document.getElementById('f-codice').value.trim().toUpperCase();
+  const ospiti = parseInt(document.getElementById('f-ospiti').value) || 1;
+
+  if (!nome || !unita || !codice) { showToast('Compila tutti i campi'); return; }
+
+  const id = 'famiglia_' + codice.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const { db, doc, setDoc } = window._fbStaff;
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', id), { nome, unita, codice, max_ospiti: ospiti });
+    showToast('Famiglia aggiunta');
+    document.getElementById('f-nome').value   = '';
+    document.getElementById('f-unita').value  = '';
+    document.getElementById('f-codice').value = '';
+    document.getElementById('f-ospiti').value = '';
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+async function eliminaFamiglia(id, nome) {
+  if (!confirm(`Eliminare ${nome}? Questa azione è irreversibile.`)) return;
+  const { db, doc, deleteDoc } = window._fbStaff;
+  try {
+    await deleteDoc(doc(db, 'famiglie_ristorazione', id));
+    showToast('Famiglia eliminata');
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+// ── FILTRI ────────────────────────────────────────────────────────────────
+function setFiltroData(d) {
+  filtroData = d;
+  document.getElementById('fp-oggi').classList.toggle('active', d === 'oggi');
+  document.getElementById('fp-domani').classList.toggle('active', d === 'domani');
+  avviaListenerOrdini();
+}
+function setFiltroTipo(t) {
+  filtroTipo = t;
+  document.getElementById('fp-pranzo').classList.toggle('active', t === 'pranzo');
+  document.getElementById('fp-cena').classList.toggle('active', t === 'cena');
+  avviaListenerOrdini();
+}
+
+// ── NAV SEZIONI ───────────────────────────────────────────────────────────
+function showSec(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+window.doLogin         = doLogin;
+window.showSec         = showSec;
+window.setFiltroData   = setFiltroData;
+window.setFiltroTipo   = setFiltroTipo;
+window.toggleDetail    = toggleDetail;
+window.cambiaSettimana = cambiaSettimana;
+window.openModal       = openModal;
+window.closeModal      = closeModal;
+window.salvaPiatto     = salvaPiatto;
+window.eliminaPiatto   = eliminaPiatto;
+window.aggiungiFamiglia  = aggiungiFamiglia;
+window.eliminaFamiglia   = eliminaFamiglia;
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
