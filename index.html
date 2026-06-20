@@ -516,6 +516,15 @@ const ICON_BIKE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" 
   <path d="M70 40 L80 25"/>
 </svg>`;
 
+const ICON_RISTORAZIONE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M20 20 L20 50 Q20 62 32 62 L50 62"/>
+  <path d="M50 20 L50 62"/>
+  <path d="M80 20 L80 36 Q80 50 65 50 L60 50"/>
+  <path d="M35 62 L35 85"/>
+  <path d="M25 85 L75 85"/>
+  <path d="M65 62 L65 85"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -575,6 +584,20 @@ const MODULES = [
     statKey: 'bici',
     sezioni: [
       { id: 'bici', nome: 'Bici' },
+    ],
+  },
+  {
+    id: 'ristorazione',
+    nome: 'Gestione Ristorazione',
+    titolo: 'Ristorazione',
+    url: 'ristorazione/staff.html',
+    icon: ICON_RISTORAZIONE,
+    tile: 'sage',
+    statKey: 'ristorazione',
+    sezioni: [
+      { id: 'ordini',   nome: 'Ordini' },
+      { id: 'menu',     nome: 'Menu settimanale' },
+      { id: 'famiglie', nome: 'Famiglie' },
     ],
   },
 ];
@@ -788,6 +811,13 @@ async function startHomeStatsSync() {
       homeStats.bici = { occupate, totale: bici.length };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche bici:', err));
+
+    const oggi = new Date().toISOString().split('T')[0];
+    onSnapshot(query(collection(db, 'ordini_ristorazione'), limit(200)), (snap) => {
+      const ordiniOggi = snap.docs.filter(d => d.data().data === oggi).length;
+      homeStats.ristorazione = { ordiniOggi };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche ristorazione:', err));
   } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
 }
 
@@ -1025,7 +1055,7 @@ function clearSearch() {
 // Calcolate dai dati reali delle altre app (lette in sola lettura dalle
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
-let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null };
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null };
 
 function statoModulo(mod) {
   const s = homeStats[mod.statKey];
@@ -1049,6 +1079,11 @@ function statoModulo(mod) {
       sub: `${s.totale - s.occupate} liber${(s.totale - s.occupate)===1?'a':'e'} su ${s.totale}`,
       badge: s.occupate > 0 ? `${s.occupate} da pagare` : null
     };
+  }
+  if (mod.statKey === 'ristorazione') {
+    return s.ordiniOggi > 0
+      ? { sub: `${s.ordiniOggi} ordin${s.ordiniOggi===1?'e':'i'} oggi`, badge: null }
+      : { sub: 'Nessun ordine oggi', badge: null };
   }
   return { sub: '', badge: null };
 }
