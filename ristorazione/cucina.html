@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Kitchen Monitor · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Cucina">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, updateDoc, getDocs, query, where, onSnapshot, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const app  = initializeApp(firebaseConfig, "cucina");
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  window._fbCucina = { db, collection, doc, updateDoc, getDocs, query, where, onSnapshot, enableNetwork, disableNetwork };
+  window._fbCucinaReady = false;
+
+  function ok() { if(window._fbCucinaReady)return; window._fbCucinaReady=true; window.dispatchEvent(new Event('firebase-cucina-ready')); }
+  onAuthStateChanged(auth, u => { if(u) ok(); });
+  signInAnonymously(auth).catch(() => ok());
+  setTimeout(ok, 8000);
+</script>
+
+<style>
+:root {
+  --bg:#0f1117; --bg2:#1a1d27; --bg3:#22263a;
+  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
+  --text:#f0f0f0; --text2:#8a8fa8; --text3:#555a72;
+  --green:#22c55e; --green-bg:rgba(34,197,94,0.12); --green-bd:rgba(34,197,94,0.25);
+  --amber:#f59e0b; --amber-bg:rgba(245,158,11,0.12); --amber-bd:rgba(245,158,11,0.25);
+  --blue:#60a5fa; --blue-bg:rgba(96,165,250,0.12); --blue-bd:rgba(96,165,250,0.25);
+  --red:#f87171;
+  /* Hub palette (per login screen) */
+  --green-700:#1B4332; --white:#FFFFFF; --gray-50:#F9FAFB; --gray-100:#F3F4F6;
+  --gray-300:#D1D5DB; --gray-500:#6B7280; --gray-700:#374151; --gray-900:#111827;
+  --font:'Inter',-apple-system,sans-serif; --radius:14px; --radius-sm:10px;
+  --radius-lg:22px; --radius-xl:32px; --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+@keyframes gr-spin{to{transform:rotate(360deg)}}
+
+/* ── LOADING (bianco come gli altri moduli) ── */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s}
+.gr-spinner{width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite}
+
+/* ── LOGIN (stesso stile Hub) ── */
+#login-screen{position:fixed;inset:0;z-index:999;background:var(--green-700);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+#login-screen.hidden{display:none}
+.login-logo{height:84px;width:auto;border-radius:18px;margin-bottom:16px}
+.login-title{font-size:24px;font-weight:800;color:var(--white);margin-bottom:4px}
+.login-sub{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:32px}
+.login-card{background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center}
+.login-card p{font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px}
+.btn-primary{width:100%;height:50px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-primary:active{opacity:.85}
+
+/* ── HEADER ── */
+.top-bar{position:sticky;top:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--border);padding-top:env(safe-area-inset-top)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;padding:10px 16px;gap:12px;flex-wrap:wrap}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-avatar{width:36px;height:36px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#000;flex-shrink:0}
+.header-name{font-size:14px;font-weight:800;color:var(--text);line-height:1.2}
+.header-role{font-size:10px;color:var(--text2);margin-top:1px}
+.hbtn{height:32px;padding:0 12px;border:none;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;background:var(--bg3);color:var(--text2)}
+.hbtn.icon{width:32px;padding:0;display:flex;align-items:center;justify-content:center}
+.hbtn:active{opacity:.8}
+
+/* ── PILLS ── */
+.pill-group{display:flex;gap:6px;flex-wrap:wrap}
+.pill{height:30px;padding:0 14px;border-radius:30px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.pill.active-pranzo{background:var(--blue-bg);border-color:var(--blue-bd);color:var(--blue)}
+.pill.active-cena{background:var(--amber-bg);border-color:var(--amber-bd);color:var(--amber)}
+.pill.active-data{background:var(--bg3);border-color:var(--border2);color:var(--text)}
+
+/* ── MAIN ── */
+main{max-width:960px;margin:0 auto;padding:16px 14px 40px}
+
+/* ── STATS ── */
+.stats-bar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.stat-chip{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:center;gap:8px}
+.stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stat-dot.attesa{background:var(--text3)}
+.stat-dot.uscito{background:var(--green)}
+.stat-num{font-size:20px;font-weight:800;color:var(--text);line-height:1}
+.stat-lbl{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── GRID ── */
+.comande-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.section-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:18px 0 10px;padding:0 2px}
+
+/* ── CARD ── */
+.comanda-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;transition:opacity .3s}
+.comanda-card.uscita{opacity:.42}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+.card-fam{font-size:13px;font-weight:800;color:var(--text);line-height:1.3}
+.comanda-card.uscita .card-fam{color:var(--text3)}
+.card-unita{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ── CHECK BUTTON ── */
+.check-btn{width:36px;height:36px;flex-shrink:0;border-radius:50%;border:2px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:transparent;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.check-btn:not(.checked):hover{border-color:var(--green)}
+.check-btn.checked{background:var(--green);border-color:var(--green);color:#000}
+.check-btn.loading{opacity:.5;pointer-events:none}
+
+/* ── PIATTI ── */
+.piatti-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.piatto-item{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.piatto-nome{font-size:14px;color:var(--text);font-weight:500;flex:1}
+.piatto-qty{font-size:13px;font-weight:800;color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:6px;flex-shrink:0}
+.comanda-card.uscita .piatto-nome{color:var(--text3);text-decoration:line-through}
+.card-note{font-size:12px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:8px;padding:6px 10px;margin-top:8px;line-height:1.4}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-title{font-size:15px;font-weight:700;color:var(--text2);margin-bottom:4px}
+.empty-sub{font-size:13px}
+
+/* ── CLOCK ── */
+.clock{font-size:12px;font-weight:700;color:var(--text3);font-variant-numeric:tabular-nums}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--bg3);color:var(--text);border:1px solid var(--border2);padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="loading-screen"><div class="gr-spinner"></div></div>
+
+<div id="login-screen" class="hidden">
+  <img class="login-logo" src="../logo-login.png" alt="Garden Hub" onerror="this.style.display='none'">
+  <div class="login-title">Kitchen Monitor</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card">
+    <p>L'accesso è gestito dalla <strong>Hub Garden River</strong>.<br>Accedi da lì e seleziona il tuo profilo per entrare automaticamente.</p>
+    <button class="btn-primary" onclick="location.href='../'">Vai alla Hub</button>
+  </div>
+</div>
+
+<div class="top-bar hidden" id="app-header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="hdr-av">??</div>
+      <div>
+        <div class="header-name" id="hdr-name">—</div>
+        <div class="header-role" id="hdr-role">Kitchen Monitor</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="pill-group">
+        <button class="pill active-data" id="pill-oggi"   onclick="setData('oggi')">Oggi</button>
+        <button class="pill"             id="pill-domani" onclick="setData('domani')">Domani</button>
+      </div>
+      <div class="pill-group">
+        <button class="pill active-pranzo" id="pill-pranzo" onclick="setTipo('pranzo')">Pranzo</button>
+        <button class="pill"               id="pill-cena"   onclick="setTipo('cena')">Cena</button>
+      </div>
+      <span class="clock" id="clock">--:--</span>
+      <button class="hbtn" onclick="doLogout()">Esci</button>
+    </div>
+  </div>
+</div>
+
+<main class="hidden" id="app-main">
+  <div class="stats-bar" id="stats-bar"></div>
+  <div id="comande-container"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL = '../';
+let currentOp = null;
+let dataS = 'oggi', tipoS = 'pranzo';
+let ordini = [], unsubscribe = null;
+
+function isoDate(o=0){ const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().split('T')[0]; }
+const OGGI=isoDate(0), DOMANI=isoDate(1);
+function getISO(){ return dataS==='oggi'?OGGI:DOMANI; }
+function tipoAuto(){ return new Date().getHours()<14?'pranzo':'cena'; }
+
+function waitFB(){ return new Promise(r=>{ if(window._fbCucinaReady)return r(); window.addEventListener('firebase-cucina-ready',()=>r(),{once:true}); }); }
+
+window.addEventListener('DOMContentLoaded', async()=>{
+  await waitFB();
+  tipoS = tipoAuto();
+  clockLoop();
+
+  const hub = loadSession();
+  if(!hub){
+    hideLoading();
+    document.getElementById('login-screen').classList.remove('hidden');
+    return;
+  }
+  currentOp = hub.nome;
+  hideLoading();
+  avviaApp();
+});
+
+function loadSession(){
+  try{ const r=sessionStorage.getItem('gr_session'); const p=r?JSON.parse(r):null; return p?.nome?p:null; }catch{ return null; }
+}
+function doLogout(){ sessionStorage.removeItem('gr_session'); sessionStorage.removeItem('gr_permessi'); location.href=HUB_URL; }
+
+function avviaApp(){
+  document.getElementById('app-header').classList.remove('hidden');
+  document.getElementById('app-main').classList.remove('hidden');
+  document.getElementById('hdr-av').textContent = (currentOp||'?').slice(0,2).toUpperCase();
+  document.getElementById('hdr-name').textContent = currentOp||'—';
+  aggiornaPills();
+  avviaListener();
+}
+
+function avviaListener(){
+  if(unsubscribe) unsubscribe();
+  const {db,collection,query,where,onSnapshot}=window._fbCucina;
+  const q=query(collection(db,'ordini_ristorazione'),where('data','==',getISO()),where('tipo','==',tipoS));
+  unsubscribe=onSnapshot(q, snap=>{ ordini=snap.docs.map(d=>({_id:d.id,...d.data()})); render(); }, e=>console.error(e));
+}
+
+function render(){
+  // Stats
+  const tot=ordini.length, usc=ordini.filter(o=>o.servito).length;
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat-chip"><div><div class="stat-num">${tot}</div><div class="stat-lbl">Comande totali</div></div></div>
+    <div class="stat-chip"><div class="stat-dot attesa"></div><div><div class="stat-num">${tot-usc}</div><div class="stat-lbl">Da servire</div></div></div>
+    <div class="stat-chip"><div class="stat-dot uscito"></div><div><div class="stat-num">${usc}</div><div class="stat-lbl">Usciti</div></div></div>`;
+
+  // Comande
+  const c=document.getElementById('comande-container');
+  if(!ordini.length){
+    c.innerHTML=`<div class="empty-state"><div class="empty-icon">🍽️</div><div class="empty-title">Nessuna comanda</div><div class="empty-sub">Nessun ordine per ${tipoS} di ${dataS==='oggi'?'oggi':'domani'}.</div></div>`;
+    return;
+  }
+  const daServ=ordini.filter(o=>!o.servito).sort((a,b)=>(a.unita||'').localeCompare(b.unita||''));
+  const usciti=ordini.filter(o=> o.servito).sort((a,b)=>(a.unita||'').localeCompare(b.unita||''));
+  let html='';
+  if(daServ.length){ html+=`<div class="section-label">Da servire (${daServ.length})</div><div class="comande-grid">${daServ.map(buildCard).join('')}</div>`; }
+  if(usciti.length){ html+=`<div class="section-label">Usciti (${usciti.length})</div><div class="comande-grid">${usciti.map(buildCard).join('')}</div>`; }
+  c.innerHTML=html;
+}
+
+function buildCard(o){
+  const u=o.servito;
+  const piatti=(o.piatti||[]).filter(p=>p.quantita>0).map(p=>`<div class="piatto-item"><span class="piatto-nome">${esc(p.piatto)}</span><span class="piatto-qty">×${p.quantita}</span></div>`).join('');
+  const nota=o.note?.trim()?`<div class="card-note">📝 ${esc(o.note)}</div>`:'';
+  return `<div class="comanda-card ${u?'uscita':''}">
+    <div class="card-head">
+      <div><div class="card-fam">${esc(o.famiglia_nome||'—')}</div><div class="card-unita">Unità ${esc(o.unita||'—')}</div></div>
+      <button class="check-btn ${u?'checked':''}" onclick="toggleServito('${o._id}',${u})" title="${u?'Segna da servire':'Segna uscito'}">✓</button>
+    </div>
+    <div class="piatti-list">${piatti}</div>
+    ${nota}
+  </div>`;
+}
+
+async function toggleServito(id,stato){
+  const btns=document.querySelectorAll(`[onclick="toggleServito('${id}',${stato})"]`);
+  btns.forEach(b=>b.classList.add('loading'));
+  try{
+    const {db,doc,updateDoc}=window._fbCucina;
+    await updateDoc(doc(db,'ordini_ristorazione',id),{servito:!stato});
+    showToast(stato?'Segnato da servire':'✓ Uscito');
+  }catch(e){ console.error(e); showToast('Errore — riprova'); btns.forEach(b=>b.classList.remove('loading')); }
+}
+
+function setData(d){ dataS=d; aggiornaPills(); avviaListener(); }
+function setTipo(t){ tipoS=t; aggiornaPills(); avviaListener(); }
+
+function aggiornaPills(){
+  document.getElementById('pill-oggi').className  ='pill'+(dataS==='oggi'  ?' active-data':'');
+  document.getElementById('pill-domani').className='pill'+(dataS==='domani'?' active-data':'');
+  document.getElementById('pill-pranzo').className='pill'+(tipoS==='pranzo'?' active-pranzo':'');
+  document.getElementById('pill-cena').className  ='pill'+(tipoS==='cena'  ?' active-cena':'');
+}
+
+function clockLoop(){
+  function tick(){ const n=new Date(); const el=document.getElementById('clock'); if(el) el.textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; }
+  tick(); setInterval(tick,10000);
+}
+
+function hideLoading(){ const el=document.getElementById('loading-screen'); el.style.opacity='0'; setTimeout(()=>el.style.display='none',250); }
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+let _tt; function showToast(m){ const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),2500); }
+
+window.toggleServito=toggleServito; window.setData=setData; window.setTipo=setTipo; window.doLogout=doLogout;
+</script>
+</body>
+</html>
