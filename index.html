@@ -175,7 +175,7 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
 /* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
 .login-screen {
@@ -223,14 +223,20 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
 
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
-.home-headline { font-size: 24px; font-weight: 800; color: var(--gray-900); line-height: 1.25; margin: 4px 0 20px; }
-.search-wrap { position: relative; margin-bottom: 22px; }
-.search-wrap input { width: 100%; height: 50px; padding: 0 46px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--gray-100); transition: box-shadow .15s; }
+.home-headline { font-size: 36px; font-weight: 800; color: var(--gray-900); line-height: 1.2; margin: 4px 0 24px; }
+/* search collassabile nella header */
+.search-header-row { overflow: hidden; max-height: 0; transition: max-height .25s ease, padding .25s ease; padding: 0 16px; }
+.search-header-row.open { max-height: 80px; padding: 0 16px 12px; }
+.search-header-inner { display: flex; align-items: center; gap: 10px; max-width: 750px; margin: 0 auto; }
+.search-wrap { position: relative; flex: 1; }
+.search-wrap input { width: 100%; height: 44px; padding: 0 40px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--gray-100); transition: box-shadow .15s; }
 .search-wrap input:focus { box-shadow: 0 0 0 2px var(--green-200); }
 .search-wrap input::placeholder { color: var(--gray-500); font-style: normal; }
-.search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 17px; pointer-events: none; }
-.search-clear { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
+.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-500); pointer-events: none; display: flex; align-items: center; }
+.search-icon svg { width: 16px; height: 16px; }
+.search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
 .search-clear.hidden { display: none; }
+.search-cancel-btn { background: none; border: none; color: var(--gray-500); font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); white-space: nowrap; padding: 4px; }
 
 .module-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); grid-auto-rows: 132px; gap: 12px; }
 .module-tile { position: relative; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; overflow: hidden; }
@@ -259,7 +265,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .tile-sky .module-icon-chip   { background: rgba(37,99,235,.12); color: var(--blue); }
 
 @media (min-width: 860px) {
-  .home-headline { font-size: 28px; }
+  .home-headline { font-size: 44px; }
   .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
   .module-tile.feature, .module-tile.solo { grid-row: auto; grid-column: auto; }
   .module-icon-chip, .module-tile.feature .module-icon-chip { width: 48px; height: 48px; border-radius: 14px; }
@@ -352,7 +358,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 <!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
 <div class="top-bar">
   <div class="header-inner">
-    <div class="header-left">
+    <div class="header-left" onclick="doLogout()" title="Esci" style="cursor:pointer;-webkit-tap-highlight-color:transparent">
       <div class="header-avatar" id="header-avatar"></div>
       <div style="min-width:0">
         <div class="header-name" id="header-name"></div>
@@ -360,8 +366,22 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn ghost icon" id="btn-settings" onclick="openSettings()" title="Impostazioni">&#9881;</button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Esci">Esci</button>
+      <button class="hbtn ghost icon" id="btn-search" onclick="toggleSearch()" title="Cerca">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="hbtn ghost icon" id="btn-settings" onclick="openSettings()" title="Impostazioni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="search-header-row" id="search-header-row">
+    <div class="search-header-inner">
+      <div class="search-wrap">
+        <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input type="text" id="search-input" placeholder="Cerca funzione…" oninput="onSearchInput()">
+        <span class="search-clear hidden" id="search-clear" onclick="clearSearch()">&times;</span>
+      </div>
+      <button class="search-cancel-btn" onclick="toggleSearch()">Annulla</button>
     </div>
   </div>
 </div>
@@ -371,11 +391,6 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
   <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
   <div id="sec-home" class="section active">
     <div class="home-headline">Cosa vuoi<br>gestire oggi?</div>
-    <div class="search-wrap">
-      <span class="search-icon">&#9906;</span>
-      <input type="text" id="search-input" placeholder="Cerca funzione" oninput="onSearchInput()">
-      <span class="search-clear hidden" id="search-clear" onclick="clearSearch()">&times;</span>
-    </div>
     <div id="module-list" class="module-grid"></div>
   </div>
 
@@ -941,6 +956,19 @@ function moduleAccessible(mod) {
   return mod.sezioni.some(s => !sez || sez[s.id] !== false);
 }
 
+let _searchOpen = false;
+function toggleSearch() {
+  _searchOpen = !_searchOpen;
+  const row = document.getElementById('search-header-row');
+  row.classList.toggle('open', _searchOpen);
+  if (_searchOpen) {
+    setTimeout(() => document.getElementById('search-input').focus(), 200);
+  } else {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-clear').classList.add('hidden');
+    renderHome();
+  }
+}
 function onSearchInput() {
   document.getElementById('search-clear').classList.toggle('hidden', !document.getElementById('search-input').value);
   renderHome();
@@ -1181,6 +1209,22 @@ initSwipeBack(); // nella Hub non c'è "indietro" oltre la home: se non c'è un 
 
 // ── START ─────────────────────────────────────────────────────────────────
 async function start() {
+  // Ripristina la sessione subito se già presente (es. ritorno da una sotto-app),
+  // senza aspettare Firebase: evita il loading screen bloccato al ritorno dalla Hub.
+  const savedSession = sessionStorage.getItem('gr_session');
+  if (savedSession) {
+    try {
+      const parsed = JSON.parse(savedSession);
+      if (parsed && parsed.nome) {
+        currentOperatore = parsed.nome;
+        currentRuolo = parsed.ruolo;
+        applyHeader();
+        renderHome();
+        hideLoadingScreen();
+      }
+    } catch(e) { /* sessione corrotta, procede con login normale */ }
+  }
+
   await waitForFirebase();
   if (window._fbAuthError) {
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
