@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
@@ -329,7 +330,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
       <h3>Inserisci famiglia</h3>
       <div class="form-row">
         <input class="finput" id="f-nome"     type="text"   placeholder="Nome Cognome">
-        <input class="finput" id="f-alloggio" type="text"   placeholder="Alloggio (es. B3)">
+        <select class="fselect" id="f-alloggio"><option value="">Alloggio</option></select>
       </div>
       <div class="form-row">
         <select class="fselect" id="f-trattamento">
@@ -341,9 +342,8 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
         </select>
         <input class="finput" id="f-checkout" type="date"   placeholder="Check-out">
       </div>
-      <div class="form-row" style="grid-template-columns:1fr 2fr">
-        <input class="finput" id="f-pax"      type="number" placeholder="N. pax" min="1" max="20">
-        <div style="display:flex;align-items:center;font-size:12px;color:var(--gray-500)">Il codice QR viene generato automaticamente</div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
       </div>
       <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
     </div>
@@ -370,6 +370,21 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
     <div class="mbtns">
       <button class="mcancel" onclick="closeModal()">Annulla</button>
       <button class="msave"   onclick="salvaMenuPiatto()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QR CODE -->
+<div id="modal-qr" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="text-align:center">
+    <div class="modal-title" id="qr-title"></div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px" id="qr-sub"></p>
+    <div style="display:flex;justify-content:center;margin-bottom:16px">
+      <canvas id="qr-canvas" style="border-radius:12px"></canvas>
+    </div>
+    <div style="font-family:monospace;font-size:13px;background:var(--green-50);color:var(--green-700);padding:8px 14px;border-radius:8px;border:1px solid var(--green-100);margin-bottom:18px;word-break:break-all" id="qr-link"></div>
+    <div class="mbtns">
+      <button class="mcancel" onclick="document.getElementById('modal-qr').classList.add('hidden')">Chiudi</button>
     </div>
   </div>
 </div>
@@ -430,7 +445,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
 
   // Load static data
-  await Promise.all([loadMenu(), loadFamiglie()]);
+  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi()]);
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
@@ -783,6 +798,18 @@ async function eliminaMenuPiatto(id) {
   } catch(e) { showToast('Errore eliminazione'); console.error(e); }
 }
 
+// ── ALLOGGI ───────────────────────────────────────────────────────────────────
+async function loadAlloggi() {
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'alloggi'));
+    const alloggi = snap.docs.map(d => d.data()).sort((a,b) => (a.nome||a.id).localeCompare(b.nome||b.id));
+    const sel = document.getElementById('f-alloggio');
+    sel.innerHTML = '<option value="">Alloggio</option>' +
+      alloggi.map(a => `<option value="${esc(a.nome||a.id)}">${esc(a.nome||a.id)}</option>`).join('');
+  } catch(e) { console.error('loadAlloggi:', e); }
+}
+
 // ── FAMIGLIE ──────────────────────────────────────────────────────────────────
 async function loadFamiglie() {
   const { db, collection, getDocs } = window._fb;
@@ -837,7 +864,7 @@ async function aggiungiFamiglia() {
     document.getElementById('f-checkout').value = '';
     document.getElementById('f-pax').value = '';
     document.getElementById('f-trattamento').value = '';
-    showToast('Famiglia aggiunta · Codice: ' + codice);
+    mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
@@ -850,6 +877,17 @@ async function eliminaFamiglia(id) {
     renderFamiglie();
     showToast('Famiglia eliminata');
   } catch(e) { showToast('Errore eliminazione'); console.error(e); }
+}
+
+function mostraQR(nome, codice) {
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+  const url  = `${base}?f=${codice}`;
+  document.getElementById('qr-title').textContent = nome;
+  document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
+  document.getElementById('qr-link').textContent  = url;
+  document.getElementById('modal-qr').classList.remove('hidden');
+  const canvas = document.getElementById('qr-canvas');
+  QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1B4332', light: '#F0FAF4' } });
 }
 
 function generaCodice() {
