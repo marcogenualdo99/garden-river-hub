@@ -122,6 +122,11 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-detail-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
 .fam-detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fam-detail-qty{font-size:15px;font-weight:800;color:var(--green-500)}
+/* ── REPORT ALERT ── */
+.report-alert{background:#FEF9C3;border:1.5px solid #FDE047;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+.report-alert-title{font-size:13px;font-weight:800;color:#854D0E;margin-bottom:8px}
+.report-alert-list{display:flex;flex-wrap:wrap;gap:6px}
+.report-alert-chip{font-size:12px;font-weight:600;background:#fff;border:1px solid #FDE047;border-radius:20px;padding:3px 10px;color:#713F12}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
@@ -434,6 +439,19 @@ input[type="date"].finput{font-size:13px}
   </div>
 </div>
 
+<!-- MODAL OVERRIDE ORDINE STAFF -->
+<div id="modal-ordine-staff" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title" id="mos-title">Modifica ordine</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px" id="mos-sub"></p>
+    <div id="mos-body"></div>
+    <div class="mbtns" style="margin-top:18px">
+      <button class="mcancel" onclick="document.getElementById('modal-ordine-staff').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="salvaOrdineStaff()">Salva modifica</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL QR CODE -->
 <div id="modal-qr" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
   <div class="modal-box" style="text-align:center">
@@ -568,6 +586,21 @@ async function renderReport() {
     return;
   }
 
+  // Alert famiglie senza ordine (in soggiorno alla data selezionata)
+  const famiglieSenzaOrdine = famiglieDocs.filter(f => {
+    if (f.checkout && f.checkout < targetDate) return false; // già partite
+    const ordId1 = `${f.id}_${targetDate}_${reportPasto}`;
+    const haOrdine = ordini.some(o => o.famiglia_id === f.id || o.id === ordId1);
+    return !haOrdine;
+  });
+  let alertHtml = '';
+  if (famiglieSenzaOrdine.length) {
+    alertHtml = `<div class="report-alert">
+      <div class="report-alert-title">⚠ ${famiglieSenzaOrdine.length} famili${famiglieSenzaOrdine.length===1?'a':'e'} senza ordine</div>
+      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<span class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')" style="cursor:pointer">${esc(f.nome)} · ${esc(f.unita||'—')} ✏</span>`).join('')}</div>
+    </div>`;
+  }
+
   // Aggrega quantità per menuId — gestisce array e mappa legacy
   const totali = {};
   const byFam  = {};
@@ -586,7 +619,7 @@ async function renderReport() {
     for (const {mid, qty} of items) {
       totali[mid] = (totali[mid] || 0) + qty;
       if (!byFam[mid]) byFam[mid] = [];
-      byFam[mid].push({ nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty, nota });
+      byFam[mid].push({ famId: ord.famiglia_id || '', nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty, nota });
     }
   }
 
@@ -619,13 +652,18 @@ async function renderReport() {
                 <div class="fam-detail-meta">Alloggio ${esc(r.unita)}</div>
                 ${r.nota ? `<span class="fam-detail-note">${esc(r.nota)}</span>` : ''}
               </div>
-              <div class="fam-detail-qty">${r.qty}</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="fam-detail-qty">${r.qty}</div>
+                <button class="fam-edit" style="flex-shrink:0" onclick="apriModificaOrdineStaff('${r.famId}','${r.nome}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+                </button>
+              </div>
             </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta">Nessun ordine</div></div>'}
         </div>`;
     }
   }
 
-  el.innerHTML = html || '<div class="empty-state">Nessun ordine registrato.</div>';
+  el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 }
 
 function toggleDetail(id) {
@@ -651,7 +689,17 @@ function startCucina() {
     unsubCucina = onSnapshot(
       query(collection(db,'ordini_ristorazione'), where('data','==',oggi), where('tipo','==',cucinaPasto)),
       snap => {
-        const ordini = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        const oggi2 = isoToday(0);
+        // Costruisce mappa checkout per filtrare famiglie partite
+        const famMap = {};
+        famiglieDocs.forEach(f => { famMap[f.id] = f; });
+        const ordini = snap.docs
+          .map(d => ({id:d.id, ...d.data()}))
+          .filter(ord => {
+            const fam = famMap[ord.famiglia_id];
+            if (!fam || !fam.checkout) return true;
+            return fam.checkout >= oggi2; // escludi se checkout già passato
+          });
         renderCucina(ordini);
       },
       err => console.error('Cucina snapshot:', err)
@@ -770,6 +818,102 @@ function renderCucina(ordini) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ── OVERRIDE ORDINE STAFF ────────────────────────────────────────────────────
+let _mosData = null; // {famId, famNome, data, tipo, selezioni: {menuId: qty}}
+
+async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
+  const { db, collection, query, where, getDocs } = window._fb;
+  const ordId = `${famId}_${data}_${tipo}`;
+  const menuItems = menuDocs.filter(m => m.data === data && m.tipo === tipo);
+  const fam = famiglieDocs.find(f => f.id === famId);
+  const max = fam?.max_ospiti || 1;
+
+  // Carica ordine esistente
+  let curPiatti = {};
+  let curNote = '';
+  try {
+    const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('__name__','==',ordId)));
+    if (!snap.empty) {
+      const d = snap.docs[0].data();
+      curNote = d.note || '';
+      const raw = d.piatti || [];
+      if (Array.isArray(raw)) raw.forEach(p => { if (Number(p.quantita)>0) curPiatti[p.menu_id]=Number(p.quantita); });
+      else Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v==='number'&&v>0) curPiatti[k]=v;
+        else if (v&&typeof v==='object'&&Number(v.quantita)>0) curPiatti[v.menu_id||k]=Number(v.quantita);
+      });
+    }
+  } catch(e) { console.error(e); }
+
+  _mosData = { famId, famNome, data, tipo, max, menuItems, selezioni: {...curPiatti}, note: curNote };
+
+  document.getElementById('mos-title').textContent = `Ordine: ${famNome}`;
+  document.getElementById('mos-sub').textContent = `${tipo.charAt(0).toUpperCase()+tipo.slice(1)} del ${data} · max ${max} per categoria`;
+
+  // Costruisci UI per categoria
+  const byCat = {};
+  menuItems.forEach(m => { const c=m.categoria||'Altro'; if(!byCat[c])byCat[c]=[]; byCat[c].push(m); });
+  const cats = [...CAT_ORDER.filter(c=>byCat[c]), ...Object.keys(byCat).filter(c=>!CAT_ORDER.includes(c))];
+
+  const body = document.getElementById('mos-body');
+  body.innerHTML = cats.map(cat => {
+    const voci = byCat[cat];
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">${esc(cat)}</div>
+      ${voci.map(m => {
+        const qty = curPiatti[m.id] || 0;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="font-size:14px;font-weight:600">${esc(m.piatto)}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="mosStep('${m.id}','${cat}',-1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200);background:#fff;font-size:18px;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center">−</button>
+            <span id="mosv-${m.id}" style="min-width:24px;text-align:center;font-size:15px;font-weight:800">${qty}</span>
+            <button onclick="mosStep('${m.id}','${cat}',+1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--green-400);background:#fff;font-size:18px;cursor:pointer;font-family:var(--font);color:var(--green-500);display:flex;align-items:center;justify-content:center">+</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('') + `<div style="margin-top:4px"><div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:6px">Note</div>
+    <input id="mos-note" type="text" placeholder="Note…" value="${esc(curNote)}" style="width:100%;height:42px;padding:0 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-family:var(--font);outline:none"></div>`;
+
+  document.getElementById('modal-ordine-staff').classList.remove('hidden');
+}
+
+function mosStep(menuId, cat, delta) {
+  if (!_mosData) return;
+  const cur = _mosData.selezioni[menuId] || 0;
+  const catIds = _mosData.menuItems.filter(m=>(m.categoria||'Altro')===cat).map(m=>m.id);
+  const totCat = catIds.reduce((s,id)=>s+(_mosData.selezioni[id]||0), 0);
+  if (delta > 0 && totCat >= _mosData.max) return;
+  if (delta < 0 && cur <= 0) return;
+  _mosData.selezioni[menuId] = cur + delta;
+  const el = document.getElementById(`mosv-${menuId}`);
+  if (el) el.textContent = _mosData.selezioni[menuId];
+}
+
+async function salvaOrdineStaff() {
+  if (!_mosData) return;
+  const { db, doc, setDoc } = window._fb;
+  const { famId, famNome, data, tipo, menuItems, selezioni } = _mosData;
+  const fam = famiglieDocs.find(f => f.id === famId);
+  const note = document.getElementById('mos-note')?.value || '';
+  const menuMap = {};
+  menuItems.forEach(m => { menuMap[m.id] = m; });
+  const piatti = Object.entries(selezioni).filter(([,q])=>q>0).map(([mid,q])=>({
+    menu_id: mid, piatto: menuMap[mid]?.piatto||'—', quantita: q, categoria: menuMap[mid]?.categoria||'Altro'
+  }));
+  const ordId = `${famId}_${data}_${tipo}`;
+  try {
+    await setDoc(doc(db,'ordini_ristorazione',ordId), {
+      famiglia_id: famId, famiglia_nome: famNome,
+      unita: fam?.unita||'', data, tipo, piatti, note,
+      servito: false, timestamp: new Date().toISOString()
+    }, {merge:true});
+    document.getElementById('modal-ordine-staff').classList.add('hidden');
+    showToast('Ordine aggiornato');
+    renderReport();
+  } catch(e) { showToast('Errore: '+(e.message||e.code)); console.error(e); }
 }
 
 function tuttoServito(ord) {
@@ -1069,7 +1213,7 @@ async function eliminaFamiglia(id) {
   const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
-    famiglieDocs = famiglieDocs.filter(f => f.id !== id);
+    await loadFamiglie(); // ricarica da Firestore per garantire consistenza
     renderFamiglie();
     showToast('Famiglia eliminata');
   } catch(e) {
