@@ -378,6 +378,7 @@ function bikesForCat(catKey) {
   return Object.values(bikesMap).filter(b => effCat(b) === catKey).sort((a,b) => a.numero - b.numero);
 }
 function toggleCat(key) { catExpanded[key] = !catExpanded[key]; render(); }
+let alertsCollapsed  = {};   // 'scadute' | 'daRiscuotere' -> bool
 let settingsOpen     = false;
 let activeFilter     = null; // null oppure una delle chiavi di STATUS_META
 // Valori digitati nel form "Assegna a cliente", per non perderli se arriva
@@ -614,26 +615,34 @@ function renderAlerts() {
   let html = '';
 
   if (scadute.length) {
+    const collapsed = !!alertsCollapsed['scadute'];
     html += '<div class="alert-banner orange">'+
-      '<div class="alert-banner-title">⏰ '+scadute.length+' bici rientrata'+(scadute.length>1?'e':'')+' in ritardo</div>'+
-      scadute.map(b =>
+      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'scadute\']=!alertsCollapsed[\'scadute\'];renderAlerts()">'+
+        '<span>'+scadute.length+' bici rientrata'+(scadute.length>1?'e':'')+' in ritardo</span>'+
+        '<span style="font-size:13px;transition:transform .2s;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
+      '</div>'+
+      (!collapsed ? scadute.map(b =>
         '<div class="alert-bike-row">'+
           '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
           '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
         '</div>'
-      ).join('')+
+      ).join('') : '')+
     '</div>';
   }
 
   if (daRiscuotere.length) {
+    const collapsed = !!alertsCollapsed['daRiscuotere'];
     html += '<div class="alert-banner red">'+
-      '<div class="alert-banner-title">💳 '+daRiscuotere.length+' bici da restituire e pagare</div>'+
-      daRiscuotere.map(b =>
+      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'daRiscuotere\']=!alertsCollapsed[\'daRiscuotere\'];renderAlerts()">'+
+        '<span>'+daRiscuotere.length+' bici da restituire e pagare</span>'+
+        '<span style="font-size:13px;transition:transform .2s;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
+      '</div>'+
+      (!collapsed ? daRiscuotere.map(b =>
         '<div class="alert-bike-row">'+
           '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
           '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
         '</div>'
-      ).join('')+
+      ).join('') : '')+
     '</div>';
   }
 
