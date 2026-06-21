@@ -398,6 +398,10 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Numero pax</div>
     <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
+      <img id="edit-qr-img" src="" alt="QR" style="width:180px;height:180px;border-radius:10px">
+      <div style="font-family:monospace;font-size:11px;background:var(--green-50);color:var(--green-700);padding:6px 10px;border-radius:8px;border:1px solid var(--green-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
+    </div>
     <div class="mbtns">
       <button class="mcancel" onclick="document.getElementById('modal-edit-fam').classList.add('hidden')">Annulla</button>
       <button class="msave" onclick="salvaEditFamiglia()">Salva</button>
@@ -912,11 +916,22 @@ function apriEditFamiglia(id) {
   document.getElementById('ef-trattamento').value = f.trattamento || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-pax').value         = f.max_ospiti || 1;
-  // Popola select alloggi copiando le opzioni dal select principale
   const src = document.getElementById('f-alloggio');
   const dst = document.getElementById('ef-alloggio');
   dst.innerHTML = src.innerHTML;
   dst.value = f.unita || '';
+  // Mostra QR se il codice esiste
+  const codice = f.codice || '';
+  const wrap = document.getElementById('edit-qr-wrap');
+  if (codice) {
+    const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+    const url  = `${base}?f=${codice}`;
+    document.getElementById('edit-qr-img').src  = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=1B4332&bgcolor=F0FAF4&data=${encodeURIComponent(url)}`;
+    document.getElementById('edit-qr-link').textContent = url;
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
   document.getElementById('modal-edit-fam').classList.remove('hidden');
 }
 
