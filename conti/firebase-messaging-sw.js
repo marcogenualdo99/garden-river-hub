@@ -11,14 +11,3 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage((payload) => {
-  const { title, body } = payload.notification;
-  self.registration.showNotification(title, {
-    body,
-    icon: '/logo-hub-app.jpg',
-    badge: '/logo-hub-app.jpg',
-    tag: 'checkout-reminder',
-    requireInteraction: true
-  });
-});
