@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion, arrayRemove }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -37,7 +37,7 @@
 
   // 👉 Generata da: Firebase Console → Impostazioni progetto → Cloud Messaging
   //    → "Web Push certificates" → Generate key pair. Incolla qui la chiave.
-  const VAPID_KEY = "INCOLLA_QUI_LA_TUA_VAPID_KEY";
+  const VAPID_KEY = "BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg";
 
   // Richiede il permesso di notifica, registra il service worker dedicato e
   // salva il token del dispositivo su Firestore, associato all'operatore
@@ -54,11 +54,19 @@
       const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
       if (!token) return { ok: false, motivo: 'nessun-token' };
 
+      const vecchioOp = localStorage.getItem('gcm_operatore');
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
+      }
+
       await setDoc(doc(db, 'staffTokens', operatoreNome), {
         tokens: arrayUnion(token),
+        notifiche: true,
         aggiornato: Date.now()
       }, { merge: true });
 
+      localStorage.setItem('gcm_token', token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
       return { ok: true };
     } catch (e) {
       console.error('Errore attivazione notifiche push:', e);
@@ -68,6 +76,24 @@
 
   // Expose to global scope so the main script (non-module) can use it
   window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+
+  // Trasferisce automaticamente il token FCM al nuovo operatore quando cambia chi usa il dispositivo
+  window._riallineaTokenFCM = async function(operatoreNome) {
+    const savedToken = localStorage.getItem('gcm_token');
+    const savedOp    = localStorage.getItem('gcm_operatore');
+    if (!savedToken || savedOp === operatoreNome) return;
+    try {
+      if (savedOp) {
+        await updateDoc(doc(db, 'staffTokens', savedOp), { tokens: arrayRemove(savedToken) });
+      }
+      await setDoc(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrayUnion(savedToken),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+      localStorage.setItem('gcm_operatore', operatoreNome);
+    } catch(e) { console.error('Errore riallineamento token FCM:', e); }
+  };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -959,6 +985,7 @@ function initLogin() {
     return;
   }
   currentOperatore = hubSession.nome;
+  if (window._riallineaTokenFCM) window._riallineaTokenFCM(currentOperatore);
   document.getElementById('login-screen').classList.add('hidden');
   computeAllowedSections();
   if (allowedSections.size === 0) {
