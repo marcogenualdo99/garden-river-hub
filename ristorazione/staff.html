@@ -1112,7 +1112,7 @@ function renderFamiglie() {
     el.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--gray-500);font-size:13px">Nessuna famiglia inserita</div>';
     return;
   }
-  el.innerHTML = famiglieDocs.map(f => {
+  el.innerHTML = famiglieDocs.map((f, idx) => {
     const ini = (f.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
     return `<div class="fam-row">
       <div class="fam-av">${ini}</div>
@@ -1122,10 +1122,10 @@ function renderFamiglie() {
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="fam-edit" onclick="apriEditFamiglia('${f.id}')" title="Modifica">
+        <button class="fam-edit" onclick="apriEditFamiglia(${idx})" title="Modifica">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
         </button>
-        <button class="fam-del" onclick="eliminaFamiglia('${f.id}')" title="Elimina">
+        <button class="fam-del" onclick="eliminaFamiglia(${idx})" title="Elimina">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
         </button>
       </div>
@@ -1160,9 +1160,10 @@ async function aggiungiFamiglia() {
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
-function apriEditFamiglia(id) {
-  const f = famiglieDocs.find(f => f.id === id);
+function apriEditFamiglia(idx) {
+  const f = famiglieDocs[idx];
   if (!f) return;
+  const id = f.id;
   document.getElementById('ef-id').value          = id;
   document.getElementById('ef-nome').value        = f.nome || '';
   document.getElementById('ef-trattamento').value = f.trattamento || '';
@@ -1208,8 +1209,11 @@ async function salvaEditFamiglia() {
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
-async function eliminaFamiglia(id) {
-  if (!confirm('Eliminare questa famiglia?')) return;
+async function eliminaFamiglia(idx) {
+  const f = famiglieDocs[idx];
+  if (!f) return;
+  const id = f.id;
+  if (!confirm(`Eliminare "${f.nome}"?`)) return;
   const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
