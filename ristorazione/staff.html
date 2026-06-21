@@ -137,6 +137,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
+@media(min-width:900px){#cucina-body{grid-template-columns:repeat(3,1fr)}}
 
 /* ── KDS CARD ── */
 .kds-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
@@ -180,8 +181,10 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-done-btn.ready{background:var(--green-700);color:#fff}
 .kds-done-btn.ready:active{opacity:.85}
 .kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
-.kds-edit-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.kds-edit-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:14px;font-weight:700;letter-spacing:-.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;font-family:var(--font)}
 .kds-edit-btn:active{opacity:.7}
+.kds-del-extra{border:none;background:none;color:#EF4444;font-size:11px;cursor:pointer;padding:0 0 0 4px;vertical-align:middle;line-height:1;opacity:.7}
+.kds-del-extra:hover{opacity:1}
 /* ── CAMPO LIBERO ── */
 .kds-log{padding:8px 16px;border-top:1px solid var(--gray-100);background:var(--gray-50,#F9FAFB)}
 .kds-log-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400,#9CA3AF);margin-bottom:4px}
@@ -817,9 +820,10 @@ function renderCucina(ordini) {
       ${cats[cat].map(p => {
         const served = Math.min(Number(serviti[p.mid]||0), p.qty);
         const done   = served >= p.qty;
+        const isExtra = p.mid.startsWith('extra_');
         return `<div class="kds-dish${done?' done':''}">
           <div class="kds-qty-badge">${p.qty}</div>
-          <div class="kds-dish-name">${esc(p.piatto)}</div>
+          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${ord.id}','${p.mid}')" title="Elimina">✕</button>`:''}</div>
           <div class="kds-dish-ctrl">
             <button class="kds-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
             <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
@@ -853,7 +857,7 @@ function renderCucina(ordini) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
-          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">✏</button>
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
@@ -884,6 +888,18 @@ function kdsExtraStep(ordId, delta) {
   _extraQty[ordId] = Math.max(1, (_extraQty[ordId] || 1) + delta);
   const el = document.getElementById(`extra-qty-${ordId}`);
   if (el) el.textContent = _extraQty[ordId];
+}
+
+async function eliminaExtra(ordId, mid) {
+  const { db, doc, updateDoc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'ordini_ristorazione', ordId));
+    if (!snap.exists()) return;
+    const raw = snap.data().piatti || [];
+    const piatti = (Array.isArray(raw) ? raw : Object.values(raw)).filter(p => p.menu_id !== mid);
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), { piatti });
+    showToast('Extra eliminato');
+  } catch(e) { showToast('Errore: ' + (e.message || e.code)); console.error(e); }
 }
 
 async function salvaExtra(ordId, famId) {
