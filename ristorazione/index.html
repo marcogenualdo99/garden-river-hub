@@ -92,10 +92,16 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 
 /* ── MEAL CARD ── */
 .meal-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px 18px 14px;margin-bottom:10px}
-.meal-card-header{margin-bottom:16px}
+.meal-card-header{margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .meal-badge{display:inline-block;font-size:13px;font-weight:800;padding:6px 16px;border-radius:30px;letter-spacing:.02em}
 .meal-badge.pranzo{background:var(--green-700);color:#fff}
 .meal-badge.cena{background:var(--gray-900);color:#fff}
+.lock-badge{font-size:11px;font-weight:700;color:var(--green-500);background:var(--green-50);border:1px solid var(--green-100);border-radius:20px;padding:4px 10px}
+/* locked card */
+.meal-card.locked{opacity:.85}
+.piatto-row-locked{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--gray-100)}
+.piatto-row-locked:last-child{border-bottom:none}
+.piatto-qty-locked{font-size:17px;font-weight:800;color:var(--gray-400,#9CA3AF);min-width:32px;text-align:right}
 
 /* ── CATEGORIA ── */
 .cat-section{margin-bottom:6px}
@@ -351,16 +357,19 @@ function buildMealCard(data,tipo,piatti){
   if(!selezioni[key]) selezioni[key]={piatti:{},note:''};
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
+
+  // Blocca ordini di OGGI già confermati (solo DOMANI è modificabile)
+  const isLocked = data===OGGI && !!ordiniEsistenti[key];
+
   const card=document.createElement('div');
-  card.className='meal-card';
+  card.className='meal-card'+(isLocked?' locked':'');
   card.innerHTML=`
     <div class="meal-card-header">
       <span class="meal-badge ${tipo}">${tipo.charAt(0).toUpperCase()+tipo.slice(1)}</span>
+      ${isLocked?'<span class="lock-badge">✓ Confermato</span>':''}
     </div>
     <div id="piatti-${key}"></div>
-    <div class="note-wrap">
-      <input type="text" placeholder="Note (allergie, preferenze…)" value="${esc(sel.note)}" oninput="aggiornaNota('${key}',this.value)" autocomplete="off">
-    </div>`;
+    ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}`;
   const pDiv=card.querySelector(`#piatti-${key}`);
 
   // raggruppa per categoria
@@ -374,29 +383,45 @@ function buildMealCard(data,tipo,piatti){
 
   cats.forEach(cat=>{
     const voci=byCat[cat];
-    const totCat=totCategoria(key,cat,piatti);
-    const pct=Math.round(totCat/max*100);
     const sec=document.createElement('div');
     sec.className='cat-section';
-    sec.innerHTML=`
-      <div class="cat-header">
-        <span class="cat-name">${esc(cat)}</span>
-        <span class="cat-quota"><span class="cu" id="cu-${key}-${cat}">${totCat}</span> / ${max}</span>
-      </div>
-      <div class="cat-bar-wrap"><div class="cat-bar ${totCat>=max?'full':''}" id="cb-${key}-${cat}" style="width:${pct}%"></div></div>`;
-    voci.forEach(p=>{
-      const qty=sel.piatti[p.id]||0;
-      const row=document.createElement('div');
-      row.className='piatto-row';
-      row.innerHTML=`
-        <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${p.id}">${esc(p.piatto)}</span>
-        <div class="stepper">
-          <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}','${cat}',-1)" ${qty===0?'disabled':''}>−</button>
-          <span class="step-val ${qty>0?'active':''}" id="sv-${p.id}">${qty}</span>
-          <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}','${cat}',+1)" ${totCat>=max?'disabled':''}>+</button>
-        </div>`;
-      sec.appendChild(row);
-    });
+
+    if(isLocked){
+      // Vista sola lettura
+      const totCat=totCategoria(key,cat,piatti);
+      sec.innerHTML=`<div class="cat-header"><span class="cat-name">${esc(cat)}</span><span class="cat-quota">${totCat} / ${max}</span></div>`;
+      voci.forEach(p=>{
+        const qty=sel.piatti[p.id]||0;
+        if(qty===0) return; // nascondi piatti non ordinati in modalità locked
+        const row=document.createElement('div');
+        row.className='piatto-row-locked';
+        row.innerHTML=`<span class="piatto-nome">${esc(p.piatto)}</span><span class="piatto-qty-locked">${qty}</span>`;
+        sec.appendChild(row);
+      });
+    } else {
+      // Vista interattiva
+      const totCat=totCategoria(key,cat,piatti);
+      const pct=Math.round(totCat/max*100);
+      sec.innerHTML=`
+        <div class="cat-header">
+          <span class="cat-name">${esc(cat)}</span>
+          <span class="cat-quota"><span class="cu" id="cu-${key}-${cat}">${totCat}</span> / ${max}</span>
+        </div>
+        <div class="cat-bar-wrap"><div class="cat-bar ${totCat>=max?'full':''}" id="cb-${key}-${cat}" style="width:${pct}%"></div></div>`;
+      voci.forEach(p=>{
+        const qty=sel.piatti[p.id]||0;
+        const row=document.createElement('div');
+        row.className='piatto-row';
+        row.innerHTML=`
+          <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${p.id}">${esc(p.piatto)}</span>
+          <div class="stepper">
+            <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}','${cat}',-1)" ${qty===0?'disabled':''}>−</button>
+            <span class="step-val ${qty>0?'active':''}" id="sv-${p.id}">${qty}</span>
+            <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}','${cat}',+1)" ${totCat>=max?'disabled':''}>+</button>
+          </div>`;
+        sec.appendChild(row);
+      });
+    }
     pDiv.appendChild(sec);
   });
   return card;
@@ -455,6 +480,8 @@ async function salvaOrdini(){
     const promises=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const [data,tipo]=key.split('_');
+      // Salta ordini di oggi già confermati (bloccati)
+      if(data===OGGI && ordiniEsistenti[key]) continue;
       const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
