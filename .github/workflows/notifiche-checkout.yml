@@ -1,0 +1,21 @@
+name: Notifiche Checkout
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 20:00 CEST (estate) / 19:00 CET (inverno)
+  workflow_dispatch:       # consente test manuali dalla tab Actions su GitHub
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa dipendenze
+        run: pip install google-auth requests
+      - name: Invia notifiche
+        env:
+          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
+        run: python .github/scripts/send_notifiche.py

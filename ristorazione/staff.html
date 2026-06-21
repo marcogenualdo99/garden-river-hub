@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Staff Ristorazione · Garden River</title>
+<title>Ristorazione · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Staff Ristorazione">
+<meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  const firebaseConfig = {
+  const cfg = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
     authDomain: "garden-river-conti-febed.firebaseapp.com",
     projectId: "garden-river-conti-febed",
@@ -28,255 +28,471 @@
     messagingSenderId: "113994721180",
     appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
-
-  const app  = initializeApp(firebaseConfig, "staff-risto");
+  const app  = initializeApp(cfg, "staff-risto");
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fbStaff = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, enableNetwork, disableNetwork };
-  window._fbStaffReady = false;
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion };
 
-  function segnalaPronto() {
-    if (window._fbStaffReady) return;
-    window._fbStaffReady = true;
-    window.dispatchEvent(new Event('firebase-staff-ready'));
+  function ready() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
   }
-  onAuthStateChanged(auth, u => { if (u) segnalaPronto(); });
-  signInAnonymously(auth).catch(() => segnalaPronto());
-  setTimeout(segnalaPronto, 8000);
+  onAuthStateChanged(auth, u => { if (u) ready(); });
+  signInAnonymously(auth).catch(() => ready());
+  setTimeout(ready, 8000);
 </script>
 
 <style>
 :root {
-  --green-900: #0D2B1E; --green-700: #1B4332; --green-500: #2D6A4F;
-  --green-400: #40916C; --green-200: #95D5B2; --green-100: #D8F3DC; --green-50: #F0FAF4;
-  --gray-900: #111827; --gray-700: #374151; --gray-500: #6B7280;
-  --gray-300: #D1D5DB; --gray-100: #F3F4F6; --gray-50: #F9FAFB; --white: #FFFFFF;
-  --blue: #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
-  --amber: #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
-  --red: #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
-  --font: 'Inter', -apple-system, sans-serif;
-  --radius-sm: 12px; --radius: 16px; --radius-lg: 22px; --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07); --shadow: 0 4px 20px rgba(0,0,0,0.10);
+  --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
+  --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
+  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
+  --gray-300:#D1D5DB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
+  --orange:#E07B00; --orange-bg:#FFF8F0;
+  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
+  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+  --green-ok:#16A34A; --green-bg:#F0FAF4; --green-bd:#BBF7D0;
+  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
+  --font:'Inter',-apple-system,sans-serif;
+  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; }
-.hidden { display: none !important; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{font-family:var(--font);background:var(--white);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+@keyframes gr-spin{to{transform:rotate(360deg)}}
 
-/* ── LOGIN ──────────────────────────────────────────────────────────── */
-#login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
-#login-screen.hidden { display: none; }
-.login-logo  { height: 80px; border-radius: 18px; margin-bottom: 16px; }
-.login-title { font-size: 22px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
-.login-sub   { font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 28px; }
-.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 22px 18px; width: 100%; max-width: 320px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-.login-select { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 12px; outline: none; background: var(--white); color: var(--gray-900); }
-.login-btn { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 800; cursor: pointer; font-family: var(--font); }
-.login-err { font-size: 12px; color: var(--red); margin-top: 8px; text-align: center; min-height: 16px; }
+/* ── LOADING ── */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center}
+.gr-spinner{width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite}
 
-/* ── HEADER ──────────────────────────────────────────────────────────── */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 860px; margin: 0 auto; padding: 10px 16px; gap: 8px; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--green-700); color: var(--white); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.header-title { font-size: 15px; font-weight: 800; line-height: 1.2; }
-.header-sub   { font-size: 10px; color: var(--gray-500); }
+/* ── LOGIN ── */
+.login-screen{position:fixed;inset:0;z-index:999;background:var(--green-700);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.login-logo{height:72px;width:auto;max-width:140px;margin-bottom:16px;object-fit:contain}
+.login-title{font-size:24px;font-weight:800;color:#fff;margin-bottom:4px}
+.login-sub{font-size:13px;color:rgba(255,255,255,.6);margin-bottom:32px}
+.login-card{background:#fff;border-radius:var(--radius-lg);padding:24px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
+.login-card p{font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px}
+.btn-primary{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-primary:active{opacity:.85}
 
-/* ── NAV TABS ────────────────────────────────────────────────────────── */
-.nav-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--gray-100); background: var(--white); max-width: 860px; margin: 0 auto; padding: 0 16px; overflow-x: auto; }
-.nav-tab { padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--gray-500); border: none; background: none; cursor: pointer; font-family: var(--font); border-bottom: 2px solid transparent; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
-.nav-tab.active { color: var(--green-700); border-bottom-color: var(--green-700); }
+/* ── TOP BAR ── */
+.top-bar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid var(--gray-100);padding-top:env(safe-area-inset-top)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;max-width:800px;margin:0 auto;padding:10px 16px}
+.header-left{display:flex;align-items:center;gap:10px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--green-700);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;letter-spacing:-.5px;flex-shrink:0}
+.hname{font-size:14px;font-weight:800;line-height:1.2}
+.hrole{font-size:10px;color:var(--gray-500);margin-top:1px}
+.hbtns{display:flex;align-items:center;gap:6px}
+.hbtn{height:32px;padding:0 12px;border:none;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;background:var(--gray-100);color:var(--gray-700)}
+.hbtn.icon{width:32px;padding:0;display:flex;align-items:center;justify-content:center}
+.hbtn:active{opacity:.8}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s}
+.sync-dot.ok{background:#16A34A}
 
-/* ── MAIN ────────────────────────────────────────────────────────────── */
-main { max-width: 860px; margin: 0 auto; padding: 16px 14px 60px; }
-.section { display: none; }
-.section.active { display: block; }
+/* ── TAB NAV ── */
+.tab-bar{background:#fff;border-bottom:1px solid var(--gray-100);display:flex;max-width:800px;margin:0 auto;padding:0 12px;gap:4px}
+.tab-btn{flex:1;height:44px;border:none;background:none;font-family:var(--font);font-size:14px;font-weight:700;color:var(--gray-500);cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent;transition:color .15s}
+.tab-btn.active{color:var(--green-700)}
+.tab-btn.active::after{content:'';position:absolute;bottom:0;left:12px;right:12px;height:2.5px;background:var(--green-700);border-radius:2px}
 
-/* ── FILTRI DATA/TIPO ────────────────────────────────────────────────── */
-.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.pill { height: 32px; padding: 0 14px; border-radius: 30px; border: 1.5px solid var(--gray-200, #E5E7EB); background: var(--white); color: var(--gray-500); font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-.pill.active { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+/* ── MAIN ── */
+main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
+.sec{display:none}
+.sec.active{display:block}
 
-/* ── QUICK VIEW ──────────────────────────────────────────────────────── */
-.qv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 20px; }
-.qv-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 12px; text-align: center; }
-.qv-num  { font-size: 30px; font-weight: 800; color: var(--green-700); line-height: 1; }
-.qv-lbl  { font-size: 12px; color: var(--gray-500); margin-top: 5px; font-weight: 600; }
-.qv-bar-wrap { height: 4px; background: var(--gray-100); border-radius: 2px; margin-top: 8px; overflow: hidden; }
-.qv-bar { height: 100%; background: var(--green-400); border-radius: 2px; }
+/* ── OGGI / DOMANI TOGGLE ── */
+.seg-row{display:flex;background:var(--gray-100);border-radius:var(--radius-xl);padding:3px;margin-bottom:20px;gap:3px}
+.seg-btn{flex:1;height:36px;border:none;border-radius:var(--radius-xl);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--gray-500);background:transparent;transition:all .15s}
+.seg-btn.active{background:#fff;color:var(--gray-900);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
-/* ── DETAIL VIEW ─────────────────────────────────────────────────────── */
-.detail-block { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; }
-.detail-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.detail-head:active { background: var(--gray-50); }
-.detail-piatto { font-size: 15px; font-weight: 800; }
-.detail-count  { font-size: 13px; font-weight: 800; color: var(--white); background: var(--green-500); padding: 4px 12px; border-radius: 20px; }
-.detail-chev   { font-size: 16px; color: var(--gray-400, #9CA3AF); transition: transform .2s; }
-.detail-chev.open { transform: rotate(180deg); }
-.detail-body   { border-top: 1px solid var(--gray-100); display: none; }
-.detail-body.open { display: block; }
-.detail-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--gray-100); }
-.detail-row:last-child { border-bottom: none; }
-.detail-fam  { font-size: 13px; font-weight: 700; color: var(--gray-900); }
-.detail-unita { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
-.detail-note { font-size: 11px; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber-bd); border-radius: 6px; padding: 3px 8px; margin-top: 4px; display: inline-block; }
-.detail-qty  { font-size: 13px; font-weight: 800; color: var(--gray-700); flex-shrink: 0; }
+/* ── REPORT CARDS ── */
+.cat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:18px 0 8px}
+.cat-label:first-child{margin-top:0}
+.dish-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
+.dish-row:active{background:var(--gray-50)}
+.dish-name{font-size:16px;font-weight:700;color:var(--gray-700)}
+.dish-qty{font-size:22px;font-weight:800;color:var(--gray-900)}
+.dish-detail{display:none;background:var(--gray-50);border-top:1px solid var(--gray-100);padding:0}
+.dish-detail.open{display:block}
+.fam-detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--gray-100)}
+.fam-detail-row:last-child{border-bottom:none}
+.fam-detail-nome{font-size:13px;font-weight:700;color:var(--gray-900)}
+.fam-detail-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
+.fam-detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:2px 8px;margin-top:4px;display:inline-block}
+.fam-detail-qty{font-size:15px;font-weight:800;color:var(--green-500)}
+/* ── REPORT ALERT ── */
+.report-alert{border-radius:14px;border:1px solid #FCD34D;background:#FFFBEB;overflow:hidden;margin-bottom:16px}
+.report-alert-head{display:flex;align-items:center;gap:12px;padding:14px 18px 10px}
+.report-alert-icon{width:36px;height:36px;border-radius:50%;background:rgba(217,119,6,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px}
+.report-alert-count{font-size:22px;font-weight:600;color:#B45309;line-height:1}
+.report-alert-label{font-size:13px;font-weight:500;color:#B45309;margin-top:2px}
+.report-alert-divider{height:1px;background:#FCD34D;margin:0 18px}
+.report-alert-list{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px 14px}
+.report-alert-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:#fff;border:1px solid #FCD34D;cursor:pointer;font-size:13px;color:#B45309;font-weight:500;transition:background .15s,border-color .15s}
+.report-alert-chip:hover{background:rgba(217,119,6,0.08);border-color:#B45309}
+.report-alert-chip-name{color:#111827;font-weight:500}
+.report-alert-chip-unit{color:#6B7280;font-weight:400}
 
-/* ── GESTIONE MENU ───────────────────────────────────────────────────── */
-.week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.week-label { font-size: 14px; font-weight: 800; }
-.week-btns  { display: flex; gap: 6px; }
-.icon-btn { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
-.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.day-col   { min-width: 0; }
-.day-head  { text-align: center; font-size: 10px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; margin-bottom: 6px; }
-.day-date  { text-align: center; font-size: 13px; font-weight: 800; color: var(--gray-900); margin-bottom: 6px; }
-.day-date.today { color: var(--green-700); }
-.menu-slot { background: var(--white); border-radius: 8px; box-shadow: var(--shadow-sm); padding: 6px 8px; margin-bottom: 4px; font-size: 11px; display: flex; align-items: flex-start; gap: 4px; }
-.slot-tipo { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 6px; flex-shrink: 0; margin-top: 1px; }
-.slot-tipo.pranzo { background: var(--blue-bg); color: var(--blue); }
-.slot-tipo.cena   { background: var(--green-50); color: var(--green-500); }
-.slot-nome { flex: 1; color: var(--gray-700); line-height: 1.3; }
-.slot-del  { background: none; border: none; color: var(--gray-300); font-size: 14px; cursor: pointer; flex-shrink: 0; padding: 0; line-height: 1; }
-.slot-del:hover { color: var(--red); }
-.add-slot  { border: 1.5px dashed var(--gray-300); border-radius: 8px; padding: 6px; text-align: center; font-size: 18px; color: var(--gray-300); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.add-slot:hover { border-color: var(--green-400); color: var(--green-400); }
+/* ── KDS GRID ── */
+#cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
+@media(min-width:900px){
+  #sec-cucina{margin-left:calc(50% - 50vw + 14px);margin-right:calc(50% - 50vw + 14px)}
+  #cucina-body{grid-template-columns:repeat(3,1fr)}
+}
 
-/* ── MODAL AGGIUNGI PIATTO ───────────────────────────────────────────── */
-#modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end; justify-content: center; }
-#modal-overlay.hidden { display: none; }
-#modal-box { background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); width: 100%; max-width: 500px; }
-.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 14px; }
-.modal-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
-.modal-input { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 12px; outline: none; }
-.modal-input:focus { border-color: var(--green-400); }
-.modal-select { width: 100%; height: 46px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); padding: 0 12px; margin-bottom: 16px; outline: none; background: var(--white); }
-.modal-btns { display: flex; gap: 8px; }
-.modal-btns button { flex: 1; height: 48px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); }
-.btn-cancel { background: var(--gray-100); color: var(--gray-700); }
-.btn-save   { background: var(--green-700); color: var(--white); }
+/* ── KDS CARD ── */
+.kds-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
+.kds-card.servita{opacity:.5}
+.kds-head{padding:12px 16px;background:var(--gray-900);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kds-head.in-progress{background:var(--amber)}
+.kds-head.done{background:var(--green-500)}
+.kds-nome{font-size:15px;font-weight:800;line-height:1.2}
+.kds-unita{font-size:11px;opacity:.75;margin-top:2px}
+.kds-badge{font-size:12px;font-weight:800;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;white-space:nowrap}
 
-/* ── GESTIONE FAMIGLIE ───────────────────────────────────────────────── */
-.fam-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.fam-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--green-100); color: var(--green-700); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.fam-nome  { font-size: 14px; font-weight: 800; }
-.fam-sub   { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
-.fam-codice { font-family: monospace; font-size: 12px; background: var(--green-50); color: var(--green-700); padding: 3px 9px; border-radius: 6px; border: 1px solid var(--green-100); white-space: nowrap; }
-.fam-del   { width: 32px; height: 32px; background: var(--red-bg); border: none; border-radius: 8px; color: var(--red); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.add-fam-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 16px; }
-.add-fam-card h3 { font-size: 13px; font-weight: 800; margin-bottom: 12px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.form-input { height: 44px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); padding: 0 10px; outline: none; width: 100%; }
-.form-input:focus { border-color: var(--green-400); }
-.btn-add-fam { width: 100%; height: 46px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+/* ── KDS BODY ── */
+.kds-body{padding:12px 16px;flex:1}
+.kds-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400,#9CA3AF);margin:12px 0 6px}
+.kds-cat:first-child{margin-top:0}
 
-/* ── TOAST ───────────────────────────────────────────────────────────── */
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* ── KDS DISH ROW ── */
+.kds-dish{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100)}
+.kds-dish:last-child{border-bottom:none}
+.kds-dish.done .kds-dish-name{text-decoration:line-through;color:var(--gray-400,#9CA3AF)}
+.kds-qty-badge{width:28px;height:28px;border-radius:8px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--gray-900);flex-shrink:0}
+.kds-dish.done .kds-qty-badge{background:var(--green-100);color:var(--green-500)}
+.kds-dish-name{font-size:14px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
+.kds-dish-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.kds-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200,#E5E7EB);background:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1}
+.kds-btn:active{background:var(--gray-100)}
+.kds-btn.plus{border-color:var(--green-400);color:var(--green-500)}
+.kds-btn.plus:active{background:var(--green-50)}
+.kds-btn:disabled{opacity:.2;cursor:default}
+.kds-served{font-size:12px;font-weight:800;min-width:32px;text-align:center;color:var(--gray-500)}
+.kds-served.done{color:var(--green-500)}
 
-/* ── SEZIONE LABEL ───────────────────────────────────────────────────── */
-.sec-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin: 18px 0 10px; }
+/* ── KDS NOTE ── */
+.kds-note{margin:10px 16px;padding:8px 10px;background:var(--amber-bg);border-radius:8px;font-size:11px;color:var(--gray-700);line-height:1.5}
+.kds-note strong{color:var(--amber)}
+
+/* ── KDS DONE BTN ── */
+.kds-foot{padding:12px 16px}
+.kds-done-btn{width:100%;height:44px;border:none;border-radius:var(--radius);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;transition:background .15s}
+.kds-done-btn.pending{background:var(--gray-100);color:var(--gray-400,#9CA3AF);cursor:default}
+.kds-done-btn.ready{background:var(--green-700);color:#fff}
+.kds-done-btn.ready:active{opacity:.85}
+.kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
+.kds-edit-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:14px;font-weight:700;letter-spacing:-.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;font-family:var(--font)}
+.kds-edit-btn:active{opacity:.7}
+.kds-del-extra{border:none;background:none;color:#EF4444;font-size:11px;cursor:pointer;padding:0 0 0 4px;vertical-align:middle;line-height:1;opacity:.7}
+.kds-del-extra:hover{opacity:1}
+/* ── CAMPO LIBERO ── */
+.kds-log{padding:8px 16px;border-top:1px solid var(--gray-100);background:var(--gray-50,#F9FAFB)}
+.kds-log-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400,#9CA3AF);margin-bottom:4px}
+.kds-log-row{display:flex;justify-content:space-between;font-size:11px;color:var(--gray-600,#4B5563);padding:2px 0}
+.kds-log-chi{font-weight:600}
+.kds-log-quando{color:var(--gray-400,#9CA3AF)}
+.kds-extra{padding:10px 16px;border-top:1px solid var(--gray-100)}
+.kds-extra-row{display:flex;align-items:center;gap:6px}
+.kds-extra-input{flex:1;height:36px;padding:0 10px;border:1.5px solid var(--gray-200,#E5E7EB);border-radius:10px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
+.kds-extra-input:focus{border-color:var(--green-400)}
+.kds-extra-save{width:36px;height:36px;border-radius:50%;border:none;background:var(--green-700);color:#fff;font-size:20px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.kds-extra-save:active{opacity:.8}
+.empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
+
+/* ── MENU SEZIONE ── */
+.date-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none}
+.date-strip::-webkit-scrollbar{display:none}
+.date-pill{display:flex;flex-direction:column;align-items:center;min-width:44px;padding:8px 4px;border-radius:var(--radius-xl);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.date-pill.active{background:var(--green-700)}
+.date-pill-day{font-size:10px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.03em;line-height:1}
+.date-pill.active .date-pill-day{color:rgba(255,255,255,.7)}
+.date-pill-num{font-size:18px;font-weight:800;color:var(--gray-900);line-height:1.2;margin-top:2px}
+.date-pill.active .date-pill-num{color:#fff}
+.date-pill.today .date-pill-num{color:var(--green-700)}
+.date-pill.active.today .date-pill-num{color:#fff}
+
+.menu-block{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
+.menu-block-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100)}
+.menu-block-cat{font-size:13px;font-weight:800;color:var(--gray-900)}
+.menu-block-count{font-size:12px;color:var(--gray-500)}
+.menu-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-100)}
+.menu-item:last-child{border-bottom:none}
+.menu-item-name{font-size:14px;font-weight:600;color:var(--gray-800,#1F2937)}
+.menu-del{width:30px;height:30px;background:var(--red-bg);border:none;border-radius:8px;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.menu-del:active{opacity:.7}
+.add-dish-btn{width:100%;height:46px;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);background:transparent;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:8px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.add-dish-btn:active{border-color:var(--green-400);color:var(--green-700)}
+.add-cat-btn{width:100%;height:46px;border:1.5px dashed var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);color:var(--green-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:12px}
+
+/* ── SETTINGS ── */
+#top-bar-settings{display:none}
+#top-bar-settings.show{display:block}
+.settings-header{display:flex;align-items:center;gap:10px}
+.settings-header .back-btn{width:32px;height:32px;background:var(--gray-100);border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.stitle{font-size:15px;font-weight:800}
+.ssub{font-size:11px;color:var(--gray-500);margin-top:1px}
+
+.add-fam-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:16px;margin-bottom:20px}
+.add-fam-card h3{font-size:13px;font-weight:800;color:var(--gray-900);margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.form-row.solo{grid-template-columns:1fr}
+.finput{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;color:var(--gray-900);min-width:0}
+input[type="date"].finput{font-size:13px}
+.finput:focus{border-color:var(--green-400)}
+.fselect{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;background:#fff;color:var(--gray-900)}
+.btn-add{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
+.btn-add:active{opacity:.85}
+
+.sec-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin:20px 0 10px}
+.fam-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.fam-av{width:40px;height:40px;border-radius:50%;background:var(--green-100);color:var(--green-700);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-info{flex:1;min-width:0}
+.fam-nome{font-size:14px;font-weight:800;color:var(--gray-900)}
+.fam-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
+.fam-code{font-family:monospace;font-size:11px;background:var(--green-50);color:var(--green-700);padding:3px 8px;border-radius:6px;border:1px solid var(--green-100);margin-top:4px;display:inline-block}
+.fam-del{width:34px;height:34px;background:var(--red-bg);border:none;border-radius:10px;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-edit{width:34px;height:34px;background:var(--gray-100);border:none;border-radius:10px;color:var(--gray-700);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── MODAL ADD DISH ── */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
+#modal.hidden{display:none}
+.modal-box{background:#fff;border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px}
+.modal-title{font-size:16px;font-weight:800;margin-bottom:16px}
+.mlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:5px}
+.minput{width:100%;height:48px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:15px;font-family:var(--font);padding:0 14px;margin-bottom:12px;outline:none;color:var(--gray-900)}
+.minput:focus{border-color:var(--green-400)}
+.mselect{width:100%;height:48px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:15px;font-family:var(--font);padding:0 14px;margin-bottom:18px;outline:none;background:#fff;color:var(--gray-900)}
+.mbtns{display:flex;gap:8px}
+.mbtns button{flex:1;height:50px;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font)}
+.mcancel{background:var(--gray-100);color:var(--gray-700)}
+.msave{background:var(--green-700);color:#fff}
+.msave:active,.mcancel:active{opacity:.8}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:#fff;padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── CHECK SVG ── */
+.check-svg{width:12px;height:12px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div id="login-screen">
-  <img class="login-logo" src="../logo-hub-app.jpg" alt="">
-  <div class="login-title">Staff Ristorazione</div>
-  <div class="login-sub">Accesso riservato allo staff</div>
+<!-- LOADING -->
+<div id="loading-screen"><div class="gr-spinner"></div></div>
+
+<!-- LOGIN (no sessione Hub) -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" src="../logo-login.png" alt="Garden Hub" onerror="this.style.display='none'">
+  <div class="login-title">Ristorazione</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
   <div class="login-card">
-    <div class="login-label">Operatore</div>
-    <select class="login-select" id="sel-op"><option value="">Seleziona…</option></select>
-    <button class="login-btn" onclick="doLogin()">Accedi</button>
-    <div class="login-err" id="login-err"></div>
+    <p>L'accesso è gestito dalla <strong>Hub Garden River</strong>.<br>
+    Accedi da lì e seleziona il tuo profilo per entrare automaticamente.</p>
+    <button class="btn-hub" onclick="location.href='../'">Vai alla Hub</button>
   </div>
 </div>
 
-<!-- HEADER -->
-<div class="hidden" id="app-wrap">
-  <div class="top-bar">
-    <div class="header-inner">
-      <div class="header-left">
-        <div class="header-avatar" id="hdr-av">??</div>
-        <div>
-          <div class="header-title">Staff Ristorazione</div>
-          <div class="header-sub" id="hdr-sub">—</div>
-        </div>
+<!-- TOP BAR PRINCIPALE -->
+<div class="top-bar" id="top-bar-main">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="avatar" id="hdr-avatar"></div>
+      <div>
+        <div class="hname" id="hdr-name"></div>
+        <div class="hrole" id="hdr-role"></div>
       </div>
     </div>
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showSec('ordini', this)">📊 Ordini</button>
-      <button class="nav-tab"        onclick="showSec('menu',   this)">📅 Menu</button>
-      <button class="nav-tab"        onclick="showSec('famiglie', this)">👥 Famiglie</button>
+    <div class="hbtns">
+      <button class="hbtn icon" onclick="location.href='../'" title="Hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span class="sync-dot" id="sync-dot"></span>
+      <button class="hbtn icon" onclick="location.reload()" title="Aggiorna">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <button class="hbtn icon" onclick="openSettings()" title="Impostazioni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="hbtn" onclick="doLogout()">Esci</button>
     </div>
   </div>
+  <!-- TAB BAR -->
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('report')">Report</button>
+    <button class="tab-btn"        onclick="switchTab('cucina')">Cucina</button>
+    <button class="tab-btn"        onclick="switchTab('menu')">Menu</button>
+  </div>
+</div>
 
+<!-- TOP BAR IMPOSTAZIONI -->
+<div class="top-bar" id="top-bar-settings">
+  <div class="header-inner">
+    <div class="settings-header">
+      <button class="back-btn" onclick="closeSettings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <div>
+        <div class="stitle">Impostazioni Ristorante</div>
+        <div class="ssub">Aggiungi, elimina o disattiva</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN ══ -->
+<main id="main-view">
+
+  <!-- REPORT -->
+  <div class="sec active" id="sec-report">
+    <div class="seg-row">
+      <button class="seg-btn active" id="seg-oggi"   onclick="setReportDate('oggi')">Oggi</button>
+      <button class="seg-btn"        id="seg-domani" onclick="setReportDate('domani')">Domani</button>
+    </div>
+    <div id="seg-pasto-row" class="seg-row" style="margin-top:-12px">
+      <button class="seg-btn active" id="seg-pranzo-r" onclick="setReportPasto('pranzo')">Pranzo</button>
+      <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
+    </div>
+    <div id="report-body"></div>
+  </div>
+
+  <!-- CUCINA -->
+  <div class="sec" id="sec-cucina">
+    <div class="seg-row">
+      <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
+      <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
+    </div>
+    <div id="cucina-body"></div>
+  </div>
+
+  <!-- MENU -->
+  <div class="sec" id="sec-menu">
+    <div id="date-strip" class="date-strip"></div>
+    <div class="seg-row">
+      <button class="seg-btn active" id="seg-pranzo-m" onclick="setMenuPasto('pranzo')">Pranzo</button>
+      <button class="seg-btn"        id="seg-cena-m"   onclick="setMenuPasto('cena')">Cena</button>
+    </div>
+    <div id="menu-body"></div>
+  </div>
+
+</main>
+
+<!-- SETTINGS VIEW -->
+<div id="settings-view" class="hidden">
   <main>
-    <!-- ── ORDINI ──────────────────────────────────────────── -->
-    <div class="section active" id="sec-ordini">
-      <div class="filter-row">
-        <button class="pill active" id="fp-oggi"   onclick="setFiltroData('oggi')">Oggi</button>
-        <button class="pill"        id="fp-domani" onclick="setFiltroData('domani')">Domani</button>
-        <button class="pill active" id="fp-pranzo" onclick="setFiltroTipo('pranzo')">Pranzo</button>
-        <button class="pill"        id="fp-cena"   onclick="setFiltroTipo('cena')">Cena</button>
+    <div class="add-fam-card">
+      <h3>Inserisci famiglia</h3>
+      <div class="form-row">
+        <input class="finput" id="f-nome"     type="text"   placeholder="Nome Cognome">
+        <select class="fselect" id="f-alloggio"><option value="">Alloggio</option></select>
       </div>
-
-      <div class="sec-title">Riepilogo porzioni</div>
-      <div class="qv-grid" id="qv-grid"></div>
-
-      <div class="sec-title">Dettaglio per piatto</div>
-      <div id="detail-container"></div>
+      <div class="form-row">
+        <select class="fselect" id="f-trattamento">
+          <option value="">Trattamento</option>
+          <option value="PC">Pensione completa</option>
+          <option value="MP">Mezza pensione</option>
+          <option value="SC">Solo cena</option>
+          <option value="SP">Solo pranzo</option>
+        </select>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
+      </div>
+      <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
     </div>
 
-    <!-- ── MENU ───────────────────────────────────────────── -->
-    <div class="section" id="sec-menu">
-      <div class="week-nav">
-        <span class="week-label" id="week-label">—</span>
-        <div class="week-btns">
-          <button class="icon-btn" onclick="cambiaSettimana(-1)">‹</button>
-          <button class="icon-btn" onclick="cambiaSettimana(+1)">›</button>
-        </div>
-      </div>
-      <div class="week-grid" id="week-grid"></div>
-    </div>
-
-    <!-- ── FAMIGLIE ────────────────────────────────────────── -->
-    <div class="section" id="sec-famiglie">
-      <div class="add-fam-card">
-        <h3>Aggiungi famiglia</h3>
-        <div class="form-row">
-          <input class="form-input" id="f-nome"   placeholder="Nome famiglia" autocomplete="off">
-          <input class="form-input" id="f-unita"  placeholder="Unità (es. B3)" autocomplete="off">
-        </div>
-        <div class="form-row">
-          <input class="form-input" id="f-codice" placeholder="Codice (es. ROSSI42)" autocomplete="off" style="text-transform:uppercase">
-          <input class="form-input" id="f-ospiti" placeholder="N. ospiti" type="number" min="1" max="20">
-        </div>
-        <button class="btn-add-fam" onclick="aggiungiFamiglia()">Aggiungi</button>
-      </div>
-      <div class="sec-title">Famiglie registrate</div>
-      <div id="fam-list"></div>
-    </div>
+    <div class="sec-label">Famiglie inserite</div>
+    <div id="famiglie-list"></div>
   </main>
 </div>
 
 <!-- MODAL AGGIUNGI PIATTO -->
-<div id="modal-overlay" class="hidden" onclick="if(event.target===this)closeModal()">
-  <div id="modal-box">
+<div id="modal" class="hidden">
+  <div class="modal-box">
     <div class="modal-title">Aggiungi piatto</div>
-    <div class="modal-label">Piatto</div>
-    <input class="modal-input" id="m-piatto" placeholder="Es. Spaghetti al pomodoro" autocomplete="off">
-    <div class="modal-label">Pasto</div>
-    <select class="modal-select" id="m-tipo">
-      <option value="pranzo">Pranzo</option>
-      <option value="cena">Cena</option>
+    <div class="mlabel">Nome piatto</div>
+    <input class="minput" id="modal-piatto" type="text" placeholder="es. Spaghetti al pomodoro">
+    <div class="mlabel">Categoria</div>
+    <select class="mselect" id="modal-cat">
+      <option value="Antipasti">Antipasti</option>
+      <option value="Primi" selected>Primi</option>
+      <option value="Secondi">Secondi</option>
+      <option value="Contorni">Contorni</option>
+      <option value="Dessert">Dessert</option>
     </select>
-    <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal()">Annulla</button>
-      <button class="btn-save"   onclick="salvaPiatto()">Salva</button>
+    <div class="mbtns">
+      <button class="mcancel" onclick="closeModal()">Annulla</button>
+      <button class="msave"   onclick="salvaMenuPiatto()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MODIFICA FAMIGLIA -->
+<div id="modal-edit-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box">
+    <div class="modal-title">Modifica famiglia</div>
+    <input type="hidden" id="ef-id">
+    <div class="mlabel">Nome Cognome</div>
+    <input class="minput" id="ef-nome" type="text" placeholder="Nome Cognome">
+    <div class="mlabel">Alloggio</div>
+    <select class="mselect" id="ef-alloggio"></select>
+    <div class="mlabel">Trattamento</div>
+    <select class="mselect" id="ef-trattamento">
+      <option value="">Seleziona</option>
+      <option value="PC">Pensione completa</option>
+      <option value="MP">Mezza pensione</option>
+      <option value="SC">Solo cena</option>
+      <option value="SP">Solo pranzo</option>
+    </select>
+    <div class="mlabel">Data check-out</div>
+    <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
+    <div class="mlabel">Numero pax</div>
+    <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
+      <img id="edit-qr-img" src="" alt="QR" style="width:180px;height:180px;border-radius:10px">
+      <div style="font-family:monospace;font-size:11px;background:var(--gray-50);color:var(--gray-700);padding:6px 10px;border-radius:8px;border:1px solid var(--gray-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
+      <button class="msave" style="width:100%;margin-top:10px" onclick="scaricaQR('edit-qr-img','ef-nome')">Scarica QR</button>
+    </div>
+    <div class="mbtns">
+      <button class="mcancel" onclick="document.getElementById('modal-edit-fam').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="salvaEditFamiglia()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OVERRIDE ORDINE STAFF -->
+<div id="modal-ordine-staff" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title" id="mos-title">Modifica ordine</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px" id="mos-sub"></p>
+    <div id="mos-body"></div>
+    <div class="mbtns" style="margin-top:18px">
+      <button class="mcancel" onclick="document.getElementById('modal-ordine-staff').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="salvaOrdineStaff()">Salva modifica</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL QR CODE -->
+<div id="modal-qr" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="text-align:center">
+    <div class="modal-title" id="qr-title"></div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px" id="qr-sub"></p>
+    <div style="display:flex;justify-content:center;margin-bottom:16px">
+      <img id="qr-img" src="" alt="QR Code" style="width:200px;height:200px;border-radius:12px;display:block">
+    </div>
+    <div style="font-family:monospace;font-size:13px;background:var(--green-50);color:var(--green-700);padding:8px 14px;border-radius:8px;border:1px solid var(--green-100);margin-bottom:18px;word-break:break-all" id="qr-link"></div>
+    <div class="mbtns">
+      <button class="mcancel" onclick="document.getElementById('modal-qr').classList.add('hidden')">Chiudi</button>
+      <button class="msave" onclick="scaricaQR('qr-img','qr-title')">Scarica</button>
     </div>
   </div>
 </div>
@@ -284,392 +500,904 @@ main { max-width: 860px; margin: 0 auto; padding: 16px 14px 60px; }
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STATO ─────────────────────────────────────────────────────────────────
-let currentOp    = null;
-let filtroData   = 'oggi';
-let filtroTipo   = 'pranzo';
-let ordini       = [];
-let menuItems    = [];
-let famiglie     = [];
-let weekOffset   = 0;   // settimane rispetto a questa
-let modalData    = null; // data ISO per il modal
-let unsubOrdini  = null;
-let unsubMenu    = null;
-let unsubFam     = null;
+// ── COSTANTI ────────────────────────────────────────────────────────────────
+const HUB_URL = '../';
+const CAT_ORDER = ['Antipasti','Primi','Secondi','Contorni','Dessert'];
 
-// ── DATE ──────────────────────────────────────────────────────────────────
-function isoDate(offset = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
+// ── STATO ───────────────────────────────────────────────────────────────────
+let currentTab      = 'report';
+let reportDate      = 'oggi';
+let reportPasto     = 'pranzo';
+let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
+let menuDate        = isoToday(0);
+let menuPasto       = 'pranzo';
+let unsubCucina     = null;
+let menuDocs        = [];
+let famiglieDocs    = [];
+let _menuModalData  = null; // {data, tipo}
+
+function isoToday(offset) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
   return d.toISOString().split('T')[0];
 }
-const OGGI   = isoDate(0);
-const DOMANI = isoDate(1);
-function getDataISO() { return filtroData === 'oggi' ? OGGI : DOMANI; }
 
-function lunediSettimana(offset = 0) {
-  const d = new Date();
-  const day = d.getDay() || 7;
-  d.setDate(d.getDate() - day + 1 + offset * 7);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function isoFromDate(d) { return d.toISOString().split('T')[0]; }
-
-// ── FIREBASE ──────────────────────────────────────────────────────────────
-function waitForFirebase() {
+// ── FIREBASE ─────────────────────────────────────────────────────────────────
+function waitFB() {
   return new Promise(r => {
-    if (window._fbStaffReady) return r();
-    window.addEventListener('firebase-staff-ready', () => r(), { once: true });
+    if (window._fbReady) return r();
+    window.addEventListener('firebase-ready', r, {once:true});
   });
 }
 
-// ── AVVIO ─────────────────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  await waitForFirebase();
-  const hub = loadHubSession();
-  if (hub) { currentOp = hub.nome; avviaApp(); }
-  else { await caricaOperatori(); }
+  await waitFB();
+
+  const raw = sessionStorage.getItem('gr_session');
+  if (!raw) {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    return;
+  }
+
+  let sess;
+  try { sess = JSON.parse(raw); } catch(e) { location.href = HUB_URL; return; }
+
+  // Header
+  const iniziali = (sess.nome || '?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('hdr-avatar').textContent = iniziali;
+  document.getElementById('hdr-name').textContent   = sess.nome || '';
+  document.getElementById('hdr-role').textContent   = sess.ruolo === 'admin' ? 'Amministratore' : 'Operatore';
+
+  // Set pasto cucina tab buttons
+  setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
+
+  // Load static data
+  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi()]);
+
+  document.getElementById('loading-screen').classList.add('hidden');
+  document.getElementById('sync-dot').classList.add('ok');
+
+  buildDateStrip();
+  renderReport();
+  renderMenu();
+  startCucina();
 });
 
-function loadHubSession() {
-  try {
-    const raw = sessionStorage.getItem('gr_session');
-    const p = raw ? JSON.parse(raw) : null;
-    return p?.nome ? p : null;
-  } catch { return null; }
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('#tab-bar .tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['report','cucina','menu'][i] === tab);
+  });
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.getElementById('sec-' + tab).classList.add('active');
 }
 
-async function caricaOperatori() {
-  const { db, collection, getDocs } = window._fbStaff;
+function setSeg(idA, idB, aActive) {
+  const a = document.getElementById(idA), b = document.getElementById(idB);
+  if (!a || !b) return;
+  a.classList.toggle('active', aActive);
+  b.classList.toggle('active', !aActive);
+}
+
+// ── REPORT ────────────────────────────────────────────────────────────────────
+function setReportDate(d) {
+  reportDate = d;
+  setSeg('seg-oggi','seg-domani', d==='oggi');
+  renderReport();
+}
+function setReportPasto(p) {
+  reportPasto = p;
+  setSeg('seg-pranzo-r','seg-cena-r', p==='pranzo');
+  renderReport();
+}
+
+async function renderReport() {
+  const el = document.getElementById('report-body');
+  el.innerHTML = '<div class="empty-state">Caricamento...</div>';
+
+  const targetDate = reportDate === 'oggi' ? isoToday(0) : isoToday(1);
+  const { db, collection, query, where, getDocs } = window._fb;
+
+  // Carica ordini per questa data+pasto
+  let ordini = [];
   try {
-    const snap = await getDocs(collection(db, 'operatori'));
-    const sel  = document.getElementById('sel-op');
-    snap.docs.forEach(d => {
-      const o = document.createElement('option');
-      o.value = d.id; o.textContent = d.id;
-      sel.appendChild(o);
-    });
+    const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
+    const famIds = new Set(famiglieDocs.map(f => f.id));
+    ordini = snap.docs.map(d => ({id:d.id, ...d.data()}))
+      .filter(o => famIds.has(o.famiglia_id));
   } catch(e) { console.error(e); }
-  document.getElementById('login-screen').classList.remove('hidden');
-}
 
-function doLogin() {
-  const nome = document.getElementById('sel-op').value;
-  if (!nome) { document.getElementById('login-err').textContent = 'Seleziona un operatore.'; return; }
-  currentOp = nome;
-  document.getElementById('login-screen').classList.add('hidden');
-  avviaApp();
-}
+  // Menu per questa data+pasto
+  const menuItems = menuDocs.filter(m => m.data === targetDate && m.tipo === reportPasto);
 
-// ── APP ───────────────────────────────────────────────────────────────────
-function avviaApp() {
-  document.getElementById('app-wrap').classList.remove('hidden');
-  document.getElementById('hdr-av').textContent  = (currentOp || '?').slice(0, 2).toUpperCase();
-  document.getElementById('hdr-sub').textContent = currentOp || '—';
-  avviaListenerOrdini();
-  avviaListenerMenu();
-  avviaListenerFamiglie();
-}
-
-// ── LISTENER ORDINI ───────────────────────────────────────────────────────
-function avviaListenerOrdini() {
-  if (unsubOrdini) unsubOrdini();
-  const { db, collection, query, where, onSnapshot } = window._fbStaff;
-  const q = query(
-    collection(db, 'ordini_ristorazione'),
-    where('data', '==', getDataISO()),
-    where('tipo', '==', filtroTipo)
-  );
-  unsubOrdini = onSnapshot(q, snap => {
-    ordini = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    renderOrdini();
-  }, e => console.error(e));
-}
-
-// ── LISTENER MENU ─────────────────────────────────────────────────────────
-function avviaListenerMenu() {
-  if (unsubMenu) unsubMenu();
-  const { db, collection, onSnapshot } = window._fbStaff;
-  unsubMenu = onSnapshot(collection(db, 'menu_ristorazione'), snap => {
-    menuItems = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    renderMenu();
-  }, e => console.error(e));
-}
-
-// ── LISTENER FAMIGLIE ─────────────────────────────────────────────────────
-function avviaListenerFamiglie() {
-  if (unsubFam) unsubFam();
-  const { db, collection, onSnapshot } = window._fbStaff;
-  unsubFam = onSnapshot(collection(db, 'famiglie_ristorazione'), snap => {
-    famiglie = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    renderFamiglie();
-  }, e => console.error(e));
-}
-
-// ── RENDER ORDINI ─────────────────────────────────────────────────────────
-function renderOrdini() {
-  renderQuickView();
-  renderDetailView();
-}
-
-function renderQuickView() {
-  // Conta porzioni per piatto (somma quantita di tutti gli ordini)
-  const conteggi = {};
-  ordini.forEach(o => {
-    (o.piatti || []).forEach(p => {
-      if (p.quantita > 0)
-        conteggi[p.piatto] = (conteggi[p.piatto] || 0) + p.quantita;
-    });
-  });
-  const voci   = Object.entries(conteggi).sort((a, b) => b[1] - a[1]);
-  const maxQty = voci[0]?.[1] || 1;
-
-  if (voci.length === 0) {
-    document.getElementById('qv-grid').innerHTML = `<div style="color:var(--gray-500);font-size:13px;grid-column:1/-1">Nessun ordine.</div>`;
-    return;
-  }
-  document.getElementById('qv-grid').innerHTML = voci.map(([piatto, qty]) => `
-    <div class="qv-card">
-      <div class="qv-num">${qty}</div>
-      <div class="qv-lbl">${esc(piatto)}</div>
-      <div class="qv-bar-wrap"><div class="qv-bar" style="width:${Math.round(qty/maxQty*100)}%"></div></div>
-    </div>
-  `).join('');
-}
-
-function renderDetailView() {
-  // Raggruppa per piatto → lista famiglie
-  const gruppi = {};
-  ordini.forEach(o => {
-    (o.piatti || []).forEach(p => {
-      if (p.quantita <= 0) return;
-      if (!gruppi[p.piatto]) gruppi[p.piatto] = [];
-      gruppi[p.piatto].push({ fam: o.famiglia_nome, unita: o.unita, qty: p.quantita, note: o.note });
-    });
-  });
-
-  const voci = Object.entries(gruppi).sort((a, b) => {
-    const ta = a[1].reduce((s, r) => s + r.qty, 0);
-    const tb = b[1].reduce((s, r) => s + r.qty, 0);
-    return tb - ta;
-  });
-
-  if (voci.length === 0) {
-    document.getElementById('detail-container').innerHTML = `<div style="color:var(--gray-500);font-size:13px">Nessun ordine.</div>`;
+  if (!menuItems.length) {
+    el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
     return;
   }
 
-  document.getElementById('detail-container').innerHTML = voci.map(([piatto, righe], i) => {
-    const totale = righe.reduce((s, r) => s + r.qty, 0);
-    const righeHtml = righe.map(r => `
-      <div class="detail-row">
+  // Alert famiglie senza ordine (in soggiorno alla data selezionata)
+  const famiglieSenzaOrdine = famiglieDocs.filter(f => {
+    if (f.checkout && f.checkout < targetDate) return false; // già partite
+    const ordId1 = `${f.id}_${targetDate}_${reportPasto}`;
+    const haOrdine = ordini.some(o => o.famiglia_id === f.id || o.id === ordId1);
+    return !haOrdine;
+  });
+  let alertHtml = '';
+  if (famiglieSenzaOrdine.length) {
+    alertHtml = `<div class="report-alert">
+      <div class="report-alert-head">
+        <div class="report-alert-icon">⚠</div>
         <div>
-          <div class="detail-fam">${esc(r.fam)}</div>
-          <div class="detail-unita">Unità ${esc(r.unita)}</div>
-          ${r.note ? `<span class="detail-note">📝 ${esc(r.note)}</span>` : ''}
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count">${famiglieSenzaOrdine.length}</span>
+            <span class="report-alert-label">famili${famiglieSenzaOrdine.length===1?'a':'e'} senza ordine</span>
+          </div>
         </div>
-        <div class="detail-qty">×${r.qty}</div>
       </div>
-    `).join('');
-    return `
-      <div class="detail-block">
-        <div class="detail-head" onclick="toggleDetail('db-${i}')">
-          <span class="detail-piatto">${esc(piatto)}</span>
-          <span style="display:flex;align-items:center;gap:8px">
-            <span class="detail-count">${totale}</span>
-            <span class="detail-chev" id="chev-db-${i}">▾</span>
-          </span>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
+    </div>`;
+  }
+
+  // Aggrega quantità per menuId — gestisce array e mappa legacy
+  const totali = {};
+  const byFam  = {};
+  for (const ord of ordini) {
+    const raw  = ord.piatti || [];
+    const nota = ord.note || '';
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
+        else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id || k, qty: Number(v.quantita)});
+      });
+    }
+    for (const {mid, qty} of items) {
+      totali[mid] = (totali[mid] || 0) + qty;
+      if (!byFam[mid]) byFam[mid] = [];
+      byFam[mid].push({ famId: ord.famiglia_id || '', nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty, nota });
+    }
+  }
+
+  // Raggruppa menu per categoria
+  const cats = {};
+  for (const m of menuItems) {
+    const cat = m.categoria || 'Piatto';
+    if (!cats[cat]) cats[cat] = [];
+    cats[cat].push(m);
+  }
+
+  let html = '';
+  const catOrd = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))];
+  for (const cat of catOrd) {
+    if (!cats[cat]) continue;
+    html += `<div class="cat-label">${cat}</div>`;
+    for (const m of cats[cat]) {
+      const tot = totali[m.id] || 0;
+      const dettagli = byFam[m.id] || [];
+      html += `
+        <div class="dish-row" onclick="toggleDetail('d-${m.id}')">
+          <div class="dish-name">${esc(m.piatto)}</div>
+          <div class="dish-qty">${tot}</div>
         </div>
-        <div class="detail-body" id="db-${i}">${righeHtml}</div>
-      </div>
-    `;
-  }).join('');
+        <div class="dish-detail" id="d-${m.id}">
+          ${dettagli.length ? dettagli.map(r => `
+            <div class="fam-detail-row">
+              <div>
+                <div class="fam-detail-nome">${esc(r.nome)}</div>
+                <div class="fam-detail-meta">Alloggio ${esc(r.unita)}</div>
+                ${r.nota ? `<span class="fam-detail-note">${esc(r.nota)}</span>` : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="fam-detail-qty">${r.qty}</div>
+                <button class="fam-edit" style="flex-shrink:0" onclick="apriModificaOrdineStaff('${r.famId}','${r.nome}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+                </button>
+              </div>
+            </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta">Nessun ordine</div></div>'}
+        </div>`;
+    }
+  }
+
+  el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 }
 
 function toggleDetail(id) {
-  const body = document.getElementById(id);
-  const chev = document.getElementById('chev-' + id);
-  if (!body) return;
-  const open = body.classList.toggle('open');
-  if (chev) chev.classList.toggle('open', open);
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
 }
 
-// ── RENDER MENU SETTIMANALE ───────────────────────────────────────────────
-function renderMenu() {
-  const lun = lunediSettimana(weekOffset);
-  const giorni = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  const mesi   = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+// ── CUCINA ────────────────────────────────────────────────────────────────────
+function setCucinaPasto(p) {
+  cucinaPasto = p;
+  setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
+  startCucina();
+}
 
-  // Label settimana
-  const fin = new Date(lun); fin.setDate(fin.getDate() + 6);
-  document.getElementById('week-label').textContent =
-    `${lun.getDate()} ${mesi[lun.getMonth()]} – ${fin.getDate()} ${mesi[fin.getMonth()]} ${fin.getFullYear()}`;
+function startCucina() {
+  if (unsubCucina) { unsubCucina(); unsubCucina = null; }
+  const { db, collection, query, where, onSnapshot } = window._fb;
+  const oggi = isoToday(0);
+  document.getElementById('cucina-body').innerHTML = '<div class="empty-state">Caricamento...</div>';
 
-  let html = '';
-  for (let i = 0; i < 7; i++) {
-    const d    = new Date(lun); d.setDate(lun.getDate() + i);
-    const iso  = isoFromDate(d);
-    const isToday = iso === OGGI;
-    const voci = menuItems.filter(m => m.data === iso).sort((a, b) => a.tipo.localeCompare(b.tipo));
+  try {
+    // Due query separate per evitare indici compositi
+    unsubCucina = onSnapshot(
+      query(collection(db,'ordini_ristorazione'), where('data','==',oggi), where('tipo','==',cucinaPasto)),
+      snap => {
+        const oggi2 = isoToday(0);
+        const famMap = {};
+        famiglieDocs.forEach(f => { famMap[f.id] = f; });
+        const ordini = snap.docs
+          .map(d => ({id:d.id, ...d.data()}))
+          .filter(ord => {
+            const fam = famMap[ord.famiglia_id];
+            if (!fam) return false; // famiglia eliminata
+            if (!fam.checkout) return true;
+            return fam.checkout >= oggi2; // escludi se checkout già passato
+          });
+        renderCucina(ordini);
+      },
+      err => console.error('Cucina snapshot:', err)
+    );
+  } catch(e) { console.error(e); }
+}
 
-    const slotsHtml = voci.map(v => `
-      <div class="menu-slot">
-        <span class="slot-tipo ${v.tipo}">${v.tipo === 'pranzo' ? 'P' : 'C'}</span>
-        <span class="slot-nome">${esc(v.piatto)}</span>
-        <button class="slot-del" onclick="eliminaPiatto('${v._id}')" title="Elimina">×</button>
-      </div>
-    `).join('');
-
-    html += `
-      <div class="day-col">
-        <div class="day-head">${giorni[i]}</div>
-        <div class="day-date ${isToday ? 'today' : ''}">${d.getDate()}</div>
-        ${slotsHtml}
-        <div class="add-slot" onclick="openModal('${iso}')" title="Aggiungi piatto">+</div>
-      </div>
-    `;
+function renderCucina(ordini) {
+  const el = document.getElementById('cucina-body');
+  if (!ordini.length) {
+    el.innerHTML = '<div class="empty-state">Nessun ordine per questo pasto.</div>';
+    return;
   }
-  document.getElementById('week-grid').innerHTML = html;
+
+  const menuOggi = menuDocs.filter(m => m.data === isoToday(0) && m.tipo === cucinaPasto);
+  const menuById = {};
+  for (const m of menuOggi) menuById[m.id] = m;
+
+  // Ordina: da servire prima
+  const sorted = [...ordini].sort((a,b) => {
+    const aDone = tuttoServito(a);
+    const bDone = tuttoServito(b);
+    return aDone === bDone ? 0 : aDone ? 1 : -1;
+  });
+
+  el.innerHTML = sorted.map(ord => {
+    const serviti = ord.servito_piatti || {};
+    const isDone  = tuttoServito(ord);
+
+    // Normalizza piatti — gestisce tutti i formati possibili:
+    // 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
+    // 2. Oggetto mappa {menuId: qty}                     (formato legacy)
+    // 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
+    const rawPiatti = ord.piatti || [];
+    const piattiArr = [];
+    if (Array.isArray(rawPiatti)) {
+      rawPiatti.forEach(p => {
+        if (!p || typeof p !== 'object') return;
+        const qty = Number(p.quantita);
+        if (!(qty > 0)) return;
+        const id = p.menu_id;
+        piattiArr.push({
+          mid: id, qty,
+          piatto: p.piatto || menuById[id]?.piatto || id,
+          cat: p.categoria || menuById[id]?.categoria || 'Altro'
+        });
+      });
+    } else if (rawPiatti && typeof rawPiatti === 'object') {
+      Object.entries(rawPiatti).forEach(([k, v]) => {
+        if (typeof v === 'number') {
+          if (v <= 0) return;
+          const m = menuById[k];
+          piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
+        } else if (v && typeof v === 'object') {
+          const qty = Number(v.quantita);
+          if (!(qty > 0)) return;
+          const id = v.menu_id || k;
+          piattiArr.push({
+            mid: id, qty,
+            piatto: v.piatto || menuById[id]?.piatto || id,
+            cat: v.categoria || menuById[id]?.categoria || 'Altro'
+          });
+        }
+      });
+    }
+
+    // Raggruppa per categoria
+    const cats = {};
+    for (const p of piattiArr) {
+      if (!cats[p.cat]) cats[p.cat] = [];
+      cats[p.cat].push(p);
+    }
+
+    const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+
+    const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
+    const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
+    const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
+    const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
+
+    const piattiHtml = catKeys.map(cat => `
+      <div class="kds-cat">${cat}</div>
+      ${cats[cat].map(p => {
+        const served = Math.min(Number(serviti[p.mid]||0), p.qty);
+        const done   = served >= p.qty;
+        const isExtra = p.mid.startsWith('extra_');
+        return `<div class="kds-dish${done?' done':''}">
+          <div class="kds-qty-badge">${p.qty}</div>
+          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${ord.id}','${p.mid}')" title="Elimina">✕</button>`:''}</div>
+          <div class="kds-dish-ctrl">
+            <button class="kds-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
+            <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
+            <button class="kds-btn plus" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
+          </div>
+        </div>`;
+      }).join('')}`
+    ).join('');
+
+    const notaHtml = ord.note
+      ? `<div class="kds-note"><strong>Nota:</strong> ${esc(ord.note)}</div>` : '';
+
+    const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
+    const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
+      <div class="kds-log-title">Modifiche staff</div>
+      ${modifiche.slice().reverse().map(m => {
+        const dt = new Date(m.quando);
+        const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
+      }).join('')}
+    </div>`;
+
+    const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+    const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+
+    return `<div class="kds-card${isDone?' servita':''}">
+      <div class="kds-head ${headCls}">
+        <div>
+          <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
+          <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="kds-badge">${totServiti}/${totPiatti}</div>
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+        </div>
+      </div>
+      <div class="kds-body">${piattiHtml}</div>
+      ${notaHtml}
+      ${logHtml}
+      <div class="kds-extra" id="extra-${ord.id}">
+        <div class="kds-extra-row">
+          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <button class="kds-btn" onclick="kdsExtraStep('${ord.id}',-1)">−</button>
+            <span class="kds-served" id="extra-qty-${ord.id}">1</span>
+            <button class="kds-btn plus" onclick="kdsExtraStep('${ord.id}',+1)">+</button>
+          </div>
+          <button class="kds-extra-save" onclick="salvaExtra('${ord.id}','${ord.famiglia_id}')">+</button>
+        </div>
+      </div>
+      <div class="kds-foot">
+        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${ord.id}',${isDone})">${doneBtnTxt}</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-function cambiaSettimana(delta) {
-  weekOffset += delta;
+// ── CAMPO LIBERO CUCINA ──────────────────────────────────────────────────────
+const _extraQty = {};
+
+function kdsExtraStep(ordId, delta) {
+  _extraQty[ordId] = Math.max(1, (_extraQty[ordId] || 1) + delta);
+  const el = document.getElementById(`extra-qty-${ordId}`);
+  if (el) el.textContent = _extraQty[ordId];
+}
+
+async function eliminaExtra(ordId, mid) {
+  const { db, doc, updateDoc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'ordini_ristorazione', ordId));
+    if (!snap.exists()) return;
+    const raw = snap.data().piatti || [];
+    const piatti = (Array.isArray(raw) ? raw : Object.values(raw)).filter(p => p.menu_id !== mid);
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), { piatti });
+    showToast('Extra eliminato');
+  } catch(e) { showToast('Errore: ' + (e.message || e.code)); console.error(e); }
+}
+
+async function salvaExtra(ordId, famId) {
+  const input = document.getElementById(`extra-txt-${ordId}`);
+  const nome = (input?.value || '').trim();
+  if (!nome) { input?.focus(); return; }
+  const qty = _extraQty[ordId] || 1;
+  const { db, doc, updateDoc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'ordini_ristorazione', ordId));
+    if (!snap.exists()) { showToast('Ordine non trovato'); return; }
+    const raw = snap.data().piatti || [];
+    const piatti = Array.isArray(raw) ? [...raw] : Object.values(raw);
+    piatti.push({ menu_id: `extra_${Date.now()}`, piatto: nome, quantita: qty, categoria: 'Extra' });
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), { piatti });
+    input.value = '';
+    _extraQty[ordId] = 1;
+    const el = document.getElementById(`extra-qty-${ordId}`);
+    if (el) el.textContent = 1;
+    showToast(`"${nome}" aggiunto`);
+  } catch(e) { showToast('Errore: ' + (e.message || e.code)); console.error(e); }
+}
+
+// ── OVERRIDE ORDINE STAFF ────────────────────────────────────────────────────
+let _mosData = null; // {famId, famNome, data, tipo, selezioni: {menuId: qty}}
+
+async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
+  const { db, collection, query, where, getDocs } = window._fb;
+  const ordId = `${famId}_${data}_${tipo}`;
+  const menuItems = menuDocs.filter(m => m.data === data && m.tipo === tipo);
+  const fam = famiglieDocs.find(f => f.id === famId);
+  const max = fam?.max_ospiti || 1;
+
+  // Carica ordine esistente
+  let curPiatti = {};
+  let curNote = '';
+  try {
+    const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('__name__','==',ordId)));
+    if (!snap.empty) {
+      const d = snap.docs[0].data();
+      curNote = d.note || '';
+      const raw = d.piatti || [];
+      if (Array.isArray(raw)) raw.forEach(p => { if (Number(p.quantita)>0) curPiatti[p.menu_id]=Number(p.quantita); });
+      else Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v==='number'&&v>0) curPiatti[k]=v;
+        else if (v&&typeof v==='object'&&Number(v.quantita)>0) curPiatti[v.menu_id||k]=Number(v.quantita);
+      });
+    }
+  } catch(e) { console.error(e); }
+
+  _mosData = { famId, famNome, data, tipo, max, menuItems, selezioni: {...curPiatti}, note: curNote };
+
+  document.getElementById('mos-title').textContent = `Ordine: ${famNome}`;
+  document.getElementById('mos-sub').textContent = `${tipo.charAt(0).toUpperCase()+tipo.slice(1)} del ${data} · max ${max} per categoria`;
+
+  // Costruisci UI per categoria
+  const byCat = {};
+  menuItems.forEach(m => { const c=m.categoria||'Altro'; if(!byCat[c])byCat[c]=[]; byCat[c].push(m); });
+  const cats = [...CAT_ORDER.filter(c=>byCat[c]), ...Object.keys(byCat).filter(c=>!CAT_ORDER.includes(c))];
+
+  const body = document.getElementById('mos-body');
+  body.innerHTML = cats.map(cat => {
+    const voci = byCat[cat];
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">${esc(cat)}</div>
+      ${voci.map(m => {
+        const qty = curPiatti[m.id] || 0;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="font-size:14px;font-weight:600">${esc(m.piatto)}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="mosStep('${m.id}','${cat}',-1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200);background:#fff;font-size:18px;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center">−</button>
+            <span id="mosv-${m.id}" style="min-width:24px;text-align:center;font-size:15px;font-weight:800">${qty}</span>
+            <button onclick="mosStep('${m.id}','${cat}',+1)" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--green-400);background:#fff;font-size:18px;cursor:pointer;font-family:var(--font);color:var(--green-500);display:flex;align-items:center;justify-content:center">+</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('') + `<div style="margin-top:4px"><div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:6px">Note</div>
+    <input id="mos-note" type="text" placeholder="Note…" value="${esc(curNote)}" style="width:100%;height:42px;padding:0 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-family:var(--font);outline:none"></div>`;
+
+  document.getElementById('modal-ordine-staff').classList.remove('hidden');
+}
+
+function mosStep(menuId, cat, delta) {
+  if (!_mosData) return;
+  const cur = _mosData.selezioni[menuId] || 0;
+  const catIds = _mosData.menuItems.filter(m=>(m.categoria||'Altro')===cat).map(m=>m.id);
+  const totCat = catIds.reduce((s,id)=>s+(_mosData.selezioni[id]||0), 0);
+  // nessun limite per lo staff
+  if (delta < 0 && cur <= 0) return;
+  _mosData.selezioni[menuId] = cur + delta;
+  const el = document.getElementById(`mosv-${menuId}`);
+  if (el) el.textContent = _mosData.selezioni[menuId];
+}
+
+async function salvaOrdineStaff() {
+  if (!_mosData) return;
+  const { db, doc, setDoc, arrayUnion } = window._fb;
+  const { famId, famNome, data, tipo, menuItems, selezioni } = _mosData;
+  const fam = famiglieDocs.find(f => f.id === famId);
+  const note = document.getElementById('mos-note')?.value || '';
+  const menuMap = {};
+  menuItems.forEach(m => { menuMap[m.id] = m; });
+  const piatti = Object.entries(selezioni).filter(([,q])=>q>0).map(([mid,q])=>({
+    menu_id: mid, piatto: menuMap[mid]?.piatto||'—', quantita: q, categoria: menuMap[mid]?.categoria||'Altro'
+  }));
+  const ordId = `${famId}_${data}_${tipo}`;
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  const logEntry = { chi: sess.nome || 'Staff', quando: new Date().toISOString() };
+  try {
+    await setDoc(doc(db,'ordini_ristorazione',ordId), {
+      famiglia_id: famId, famiglia_nome: famNome,
+      unita: fam?.unita||'', data, tipo, piatti, note,
+      servito: false, timestamp: new Date().toISOString(),
+      modifiche: arrayUnion(logEntry)
+    }, {merge:true});
+    document.getElementById('modal-ordine-staff').classList.add('hidden');
+    showToast('Ordine aggiornato');
+    renderReport();
+  } catch(e) { showToast('Errore: '+(e.message||e.code)); console.error(e); }
+}
+
+function tuttoServito(ord) {
+  const rawPiatti = ord.piatti || [];
+  const serviti   = ord.servito_piatti || {};
+  const items = [];
+  if (Array.isArray(rawPiatti)) {
+    rawPiatti.forEach(p => { if (Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
+  } else if (typeof rawPiatti === 'object') {
+    Object.entries(rawPiatti).forEach(([k,v]) => {
+      if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
+      else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id||k, qty: Number(v.quantita)});
+    });
+  }
+  return items.length > 0 && items.every(({mid, qty}) => Number(serviti[mid] || 0) >= qty);
+}
+
+// max=-1 significa decremento di 1
+async function incrementServito(ordId, menuId, current, max) {
+  const next = max === -1 ? Math.max(current - 1, 0) : Math.min(current + 1, max);
+  const { db, doc, updateDoc } = window._fb;
+  try {
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), {
+      [`servito_piatti.${menuId}`]: next
+    });
+  } catch(e) { showToast('Errore salvataggio'); console.error(e); }
+}
+
+async function segnaServito(ordId, isAlreadyDone) {
+  const { db, doc, updateDoc, collection, getDocs, query, where } = window._fb;
+  try {
+    if (isAlreadyDone) {
+      // Resetta tutti i piatti a 0
+      const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('__name__','==',ordId)));
+      if (!snap.empty) {
+        const ord = snap.docs[0].data();
+        const raw = ord.piatti || [];
+        const updates = {};
+        const ids = Array.isArray(raw)
+          ? raw.map(p=>p.menu_id)
+          : Object.keys(raw);
+        ids.forEach(id => { updates[`servito_piatti.${id}`] = 0; });
+        await updateDoc(doc(db,'ordini_ristorazione',ordId), updates);
+      }
+    } else {
+      await updateDoc(doc(db,'ordini_ristorazione',ordId), { servito: true });
+    }
+  } catch(e) { showToast('Errore salvataggio'); console.error(e); }
+}
+
+// ── MENU ──────────────────────────────────────────────────────────────────────
+async function loadMenu() {
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'menu_ristorazione'));
+    menuDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  } catch(e) { console.error('loadMenu:', e); }
+}
+
+function setMenuPasto(p) {
+  menuPasto = p;
+  setSeg('seg-pranzo-m','seg-cena-m', p==='pranzo');
   renderMenu();
 }
 
-function openModal(data) {
-  modalData = data;
-  document.getElementById('m-piatto').value = '';
-  document.getElementById('m-tipo').value   = 'pranzo';
-  document.getElementById('modal-overlay').classList.remove('hidden');
-  setTimeout(() => document.getElementById('m-piatto').focus(), 100);
+function buildDateStrip() {
+  const strip = document.getElementById('date-strip');
+  const oggi  = isoToday(0);
+  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+  let html = '';
+  for (let i = 0; i < 14; i++) {
+    const d    = new Date(); d.setDate(d.getDate() + i);
+    const iso  = d.toISOString().split('T')[0];
+    const isT  = iso === oggi;
+    const gio  = giorni[d.getDay()];
+    const num  = d.getDate();
+    html += `<div class="date-pill${isT?' today':''}${iso===menuDate?' active':''}" onclick="setMenuDate('${iso}')">
+      <div class="date-pill-day">${gio}</div>
+      <div class="date-pill-num">${num}</div>
+    </div>`;
+  }
+  strip.innerHTML = html;
+}
+
+function setMenuDate(iso) {
+  menuDate = iso;
+  document.querySelectorAll('.date-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+  });
+  renderMenu();
+}
+
+function renderMenu() {
+  const el = document.getElementById('menu-body');
+  const items = menuDocs.filter(m => m.data === menuDate && m.tipo === menuPasto);
+
+  const cats = {};
+  for (const m of items) {
+    const cat = m.categoria || 'Piatto';
+    if (!cats[cat]) cats[cat] = [];
+    cats[cat].push(m);
+  }
+
+  const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+
+  let html = catKeys.map(cat => `
+    <div class="menu-block">
+      <div class="menu-block-head">
+        <div class="menu-block-cat">${cat}</div>
+        <div class="menu-block-count">${cats[cat].length} piatt${cats[cat].length===1?'o':'i'}</div>
+      </div>
+      ${cats[cat].map(m => `
+        <div class="menu-item">
+          <div class="menu-item-name">${esc(m.piatto)}</div>
+          <button class="menu-del" onclick="eliminaMenuPiatto('${m.id}')" title="Elimina">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+          </button>
+        </div>`).join('')}
+    </div>`).join('');
+
+  html += `<button class="add-dish-btn" onclick="openModal()">+ Aggiungi piatto</button>`;
+  el.innerHTML = html;
+}
+
+function openModal() {
+  _menuModalData = { data: menuDate, tipo: menuPasto };
+  document.getElementById('modal-piatto').value = '';
+  document.getElementById('modal-cat').value = 'Primi';
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-piatto').focus(), 50);
 }
 function closeModal() {
-  document.getElementById('modal-overlay').classList.add('hidden');
-  modalData = null;
+  document.getElementById('modal').classList.add('hidden');
 }
 
-async function salvaPiatto() {
-  const piatto = document.getElementById('m-piatto').value.trim();
-  const tipo   = document.getElementById('m-tipo').value;
-  if (!piatto) { document.getElementById('m-piatto').focus(); return; }
+async function salvaMenuPiatto() {
+  const piatto = document.getElementById('modal-piatto').value.trim();
+  const cat    = document.getElementById('modal-cat').value;
+  if (!piatto) { showToast('Inserisci il nome del piatto'); return; }
 
-  const id  = `menu_${modalData}_${tipo}_${Date.now()}`;
-  const { db, doc, setDoc } = window._fbStaff;
+  const { db, collection, doc, setDoc } = window._fb;
+  const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
+  const docData = {
+    data: _menuModalData.data,
+    tipo: _menuModalData.tipo,
+    piatto,
+    categoria: cat
+  };
+
   try {
-    await setDoc(doc(db, 'menu_ristorazione', id), { data: modalData, tipo, piatto });
-    showToast('Piatto aggiunto');
+    await setDoc(doc(db, 'menu_ristorazione', id), docData);
+    menuDocs.push({id, ...docData});
     closeModal();
-  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+    renderMenu();
+    showToast('Piatto aggiunto');
+  } catch(e) {
+    showToast('Errore: ' + e.message);
+    console.error(e);
+  }
 }
 
-async function eliminaPiatto(id) {
-  if (!confirm('Eliminare questo piatto dal menu?')) return;
-  const { db, doc, deleteDoc } = window._fbStaff;
+async function eliminaMenuPiatto(id) {
+  const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'menu_ristorazione', id));
+    menuDocs = menuDocs.filter(m => m.id !== id);
+    renderMenu();
     showToast('Piatto eliminato');
-  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+  } catch(e) { showToast('Errore eliminazione'); console.error(e); }
 }
 
-// ── RENDER FAMIGLIE ───────────────────────────────────────────────────────
+// ── ALLOGGI ───────────────────────────────────────────────────────────────────
+async function loadAlloggi() {
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'alloggi'));
+    const alloggi = snap.docs.map(d => d.data()).sort((a,b) => (a.nome||a.id).localeCompare(b.nome||b.id));
+    const sel = document.getElementById('f-alloggio');
+    sel.innerHTML = '<option value="">Alloggio</option>' +
+      alloggi.map(a => `<option value="${esc(a.nome||a.id)}">${esc(a.nome||a.id)}</option>`).join('');
+  } catch(e) { console.error('loadAlloggi:', e); }
+}
+
+// ── FAMIGLIE ──────────────────────────────────────────────────────────────────
+async function loadFamiglie() {
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
+    famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  } catch(e) { console.error('loadFamiglie:', e); }
+}
+
 function renderFamiglie() {
-  if (famiglie.length === 0) {
-    document.getElementById('fam-list').innerHTML = `<div style="color:var(--gray-500);font-size:13px">Nessuna famiglia registrata.</div>`;
+  const el = document.getElementById('famiglie-list');
+  if (!famiglieDocs.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--gray-500);font-size:13px">Nessuna famiglia inserita</div>';
     return;
   }
-  document.getElementById('fam-list').innerHTML = famiglie
-    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-    .map(f => `
-      <div class="fam-card">
-        <div class="fam-avatar">${(f.nome || '?').slice(0, 2).toUpperCase()}</div>
-        <div style="flex:1;min-width:0">
-          <div class="fam-nome">${esc(f.nome)}</div>
-          <div class="fam-sub">Unità ${esc(f.unita)} · ${f.max_ospiti} ospiti</div>
-        </div>
-        <span class="fam-codice">${esc(f.codice)}</span>
-        <button class="fam-del" onclick="eliminaFamiglia('${f._id}', '${esc(f.nome)}')" title="Elimina">×</button>
+  el.innerHTML = famiglieDocs.map((f, idx) => {
+    const ini = (f.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="fam-row">
+      <div class="fam-av">${ini}</div>
+      <div class="fam-info">
+        <div class="fam-nome">${esc(f.nome)}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}</div>
+        <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
-    `).join('');
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="fam-edit" onclick="apriEditFamiglia(${idx})" title="Modifica">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+        </button>
+        <button class="fam-del" onclick="eliminaFamiglia(${idx})" title="Elimina">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function aggiungiFamiglia() {
-  const nome   = document.getElementById('f-nome').value.trim();
-  const unita  = document.getElementById('f-unita').value.trim();
-  const codice = document.getElementById('f-codice').value.trim().toUpperCase();
-  const ospiti = parseInt(document.getElementById('f-ospiti').value) || 1;
+  const nome     = document.getElementById('f-nome').value.trim();
+  const alloggio = document.getElementById('f-alloggio').value.trim();
+  const tratt    = document.getElementById('f-trattamento').value;
+  const checkout = document.getElementById('f-checkout').value;
+  const pax      = parseInt(document.getElementById('f-pax').value) || 1;
 
-  if (!nome || !unita || !codice) { showToast('Compila tutti i campi'); return; }
+  if (!nome) { showToast('Inserisci il nome della famiglia'); return; }
 
-  const id = 'famiglia_' + codice.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  const { db, doc, setDoc } = window._fbStaff;
+  const codice = generaCodice();
+  const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
+  const data   = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax, codice };
+
+  const { db, doc, setDoc } = window._fb;
   try {
-    await setDoc(doc(db, 'famiglie_ristorazione', id), { nome, unita, codice, max_ospiti: ospiti });
-    showToast('Famiglia aggiunta');
-    document.getElementById('f-nome').value   = '';
-    document.getElementById('f-unita').value  = '';
-    document.getElementById('f-codice').value = '';
-    document.getElementById('f-ospiti').value = '';
-  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+    await setDoc(doc(db, 'famiglie_ristorazione', id), { id, ...data });
+    famiglieDocs.push({id, ...data});
+    renderFamiglie();
+    document.getElementById('f-nome').value = '';
+    document.getElementById('f-alloggio').value = '';
+    document.getElementById('f-checkout').value = '';
+    document.getElementById('f-pax').value = '';
+    document.getElementById('f-trattamento').value = '';
+    mostraQR(nome, codice);
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
-async function eliminaFamiglia(id, nome) {
-  if (!confirm(`Eliminare ${nome}? Questa azione è irreversibile.`)) return;
-  const { db, doc, deleteDoc } = window._fbStaff;
+function apriEditFamiglia(idx) {
+  const f = famiglieDocs[idx];
+  if (!f) return;
+  const id = f.id;
+  document.getElementById('ef-id').value          = id;
+  document.getElementById('ef-nome').value        = f.nome || '';
+  document.getElementById('ef-trattamento').value = f.trattamento || '';
+  document.getElementById('ef-checkout').value    = f.checkout || '';
+  document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  const src = document.getElementById('f-alloggio');
+  const dst = document.getElementById('ef-alloggio');
+  dst.innerHTML = src.innerHTML;
+  dst.value = f.unita || '';
+  // Mostra QR se il codice esiste
+  const codice = f.codice || '';
+  const wrap = document.getElementById('edit-qr-wrap');
+  if (codice) {
+    const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+    const url  = `${base}?f=${codice}`;
+    document.getElementById('edit-qr-img').src  = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=000000&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
+    document.getElementById('edit-qr-link').textContent = url;
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+  document.getElementById('modal-edit-fam').classList.remove('hidden');
+}
+
+async function salvaEditFamiglia() {
+  const id       = document.getElementById('ef-id').value;
+  const nome     = document.getElementById('ef-nome').value.trim();
+  const alloggio = document.getElementById('ef-alloggio').value;
+  const tratt    = document.getElementById('ef-trattamento').value;
+  const checkout = document.getElementById('ef-checkout').value;
+  const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
+  if (!nome) { showToast('Inserisci il nome'); return; }
+
+  const { db, doc, setDoc } = window._fb;
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax };
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
+    const idx = famiglieDocs.findIndex(f => f.id === id);
+    if (idx !== -1) famiglieDocs[idx] = { ...famiglieDocs[idx], ...updates };
+    document.getElementById('modal-edit-fam').classList.add('hidden');
+    renderFamiglie();
+    showToast('Famiglia aggiornata');
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
+async function eliminaFamiglia(idx) {
+  const f = famiglieDocs[idx];
+  if (!f) return;
+  const id = f.id;
+  if (!confirm(`Eliminare "${f.nome}"?`)) return;
+  const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
+    await loadFamiglie(); // ricarica da Firestore per garantire consistenza
+    renderFamiglie();
     showToast('Famiglia eliminata');
-  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+  } catch(e) {
+    console.error('eliminaFamiglia:', e);
+    if (e.code === 'permission-denied') {
+      showToast('Permesso negato — verifica le regole Firestore');
+    } else {
+      showToast('Errore: ' + (e.message || e.code || 'sconosciuto'));
+    }
+  }
 }
 
-// ── FILTRI ────────────────────────────────────────────────────────────────
-function setFiltroData(d) {
-  filtroData = d;
-  document.getElementById('fp-oggi').classList.toggle('active', d === 'oggi');
-  document.getElementById('fp-domani').classList.toggle('active', d === 'domani');
-  avviaListenerOrdini();
-}
-function setFiltroTipo(t) {
-  filtroTipo = t;
-  document.getElementById('fp-pranzo').classList.toggle('active', t === 'pranzo');
-  document.getElementById('fp-cena').classList.toggle('active', t === 'cena');
-  avviaListenerOrdini();
+function scaricaQR(imgId, nameId) {
+  const img  = document.getElementById(imgId);
+  const nome = (document.getElementById(nameId).textContent || document.getElementById(nameId).value || 'qr').trim();
+  const a    = document.createElement('a');
+  a.href     = img.src;
+  a.download = `QR_${nome.replace(/\s+/g,'_')}.png`;
+  a.target   = '_blank';
+  a.click();
 }
 
-// ── NAV SEZIONI ───────────────────────────────────────────────────────────
-function showSec(id, btn) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
-  btn.classList.add('active');
+function mostraQR(nome, codice) {
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+  const url  = `${base}?f=${codice}`;
+  document.getElementById('qr-title').textContent = nome;
+  document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
+  document.getElementById('qr-link').textContent  = url;
+  document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=000000&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
+  document.getElementById('modal-qr').classList.remove('hidden');
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────
-window.doLogin         = doLogin;
-window.showSec         = showSec;
-window.setFiltroData   = setFiltroData;
-window.setFiltroTipo   = setFiltroTipo;
-window.toggleDetail    = toggleDetail;
-window.cambiaSettimana = cambiaSettimana;
-window.openModal       = openModal;
-window.closeModal      = closeModal;
-window.salvaPiatto     = salvaPiatto;
-window.eliminaPiatto   = eliminaPiatto;
-window.aggiungiFamiglia  = aggiungiFamiglia;
-window.eliminaFamiglia   = eliminaFamiglia;
+function generaCodice() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
 
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('settings-view').classList.remove('hidden');
+  document.getElementById('top-bar-main').style.display = 'none';
+  document.getElementById('top-bar-settings').style.display = 'block';
+  renderFamiglie();
+}
+function closeSettings() {
+  document.getElementById('main-view').classList.remove('hidden');
+  document.getElementById('settings-view').classList.add('hidden');
+  document.getElementById('top-bar-main').style.display = '';
+  document.getElementById('top-bar-settings').style.display = 'none';
+}
+
+// ── AUTH / SESSION ────────────────────────────────────────────────────────────
+function doLogout() {
+  sessionStorage.removeItem('gr_session');
+  location.href = HUB_URL;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-let toastTimer;
+let _toastTimer;
 function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 </script>
 </body>

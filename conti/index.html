@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Conti Aperti · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Conti Aperti">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion, arrayRemove }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+  const messaging = getMessaging(fbApp);
+
+  // 👉 Generata da: Firebase Console → Impostazioni progetto → Cloud Messaging
+  //    → "Web Push certificates" → Generate key pair. Incolla qui la chiave.
+  const VAPID_KEY = "BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg";
+
+  // Richiede il permesso di notifica, registra il service worker dedicato e
+  // salva il token del dispositivo su Firestore, associato all'operatore
+  // che ha eseguito l'azione (può avere più dispositivi: usiamo arrayUnion).
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      return { ok: false, motivo: 'non-supportato' };
+    }
+    try {
+      const permesso = await Notification.requestPermission();
+      if (permesso !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      const vecchioOp = localStorage.getItem('gcm_operatore');
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
+      }
+
+      await setDoc(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrayUnion(token),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      localStorage.setItem('gcm_token', token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
+      return { ok: true };
+    } catch (e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
+
+  // Expose to global scope so the main script (non-module) can use it
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+
+  // Trasferisce automaticamente il token FCM al nuovo operatore quando cambia chi usa il dispositivo
+  window._riallineaTokenFCM = async function(operatoreNome) {
+    const savedToken = localStorage.getItem('gcm_token');
+    const savedOp    = localStorage.getItem('gcm_operatore');
+    if (!savedToken || savedOp === operatoreNome) return;
+    try {
+      if (savedOp) {
+        await updateDoc(doc(db, 'staffTokens', savedOp), { tokens: arrayRemove(savedToken) });
+      }
+      await setDoc(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrayUnion(savedToken),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+      localStorage.setItem('gcm_operatore', operatoreNome);
+    } catch(e) { console.error('Errore riallineamento token FCM:', e); }
+  };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return; // evita doppio dispatch
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+
+  // Login anonimo: non crea nessun "account" reale e non raccoglie dati
+  // personali — serve solo a far sì che Firestore veda request.auth != null,
+  // così possiamo chiudere il database alle richieste esterne mantenendo
+  // intatta la gestione di operatori/PIN già fatta dentro l'app.
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    // Non blocchiamo l'app a tempo indefinito: meglio mostrare un errore
+    // che restare su una schermata che non carica nulla.
+    segnalaPronto();
+  });
+  // Rete di sicurezza in caso onAuthStateChanged non scattasse per qualche motivo
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-300:  #D1D5DB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-lt: #F59E0B;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
+  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
+  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
+.login-screen {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--green-700);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+}
+.login-screen.hidden { display: none; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.login-label { font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px; display: block; }
+.login-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; margin-bottom: 14px; transition: border-color .15s; }
+.login-select:focus { border-color: var(--green-400); }
+.pin-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 16px; display: block; text-align: center; }
+.pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gray-300); background: var(--white); transition: all .15s; }
+.pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
+.pin-dot.error  { background: var(--red); border-color: var(--red); }
+.pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
+.pin-key { height: 56px; border: 1.5px solid var(--gray-200,#E5E7EB); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
+.pin-key:active { background: var(--gray-100); }
+.pin-key.del    { font-size: 18px; color: var(--gray-500); }
+.pin-key.empty  { border: none; background: none; cursor: default; }
+.login-error { font-size: 12px; color: var(--red); font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
+
+/* ══ HEADER ═════════════════════════════════════════════════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); -webkit-transform: translate3d(0,0,0); transform: translate3d(0,0,0); will-change: transform; padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px 0; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+.header-role  { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
+.hbtn.icon    { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.hbtn.orange  { background: var(--orange); color: var(--white); }
+.hbtn.outline { background: var(--gray-100); border: 1.5px solid var(--gray-300); color: var(--gray-700); }
+.hbtn.ghost   { background: var(--gray-100); color: var(--gray-700); border: none; }
+.hbtn:active  { opacity: .8; }
+
+/* ══ NAV TABS ═══════════════════════════════════════════════════════════════ */
+.nav-wrap { background: var(--white); border-bottom: 1px solid var(--gray-100); }
+.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 12px 10px; gap: 6px; justify-content: center; }
+.tab { padding: 8px 20px; border-radius: 24px; font-size: 14px; font-weight: 700; cursor: pointer; color: var(--gray-500); transition: all .15s; -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap; }
+.tab.active { background: var(--orange); color: var(--white); }
+.tab:not(.active):active { background: var(--gray-100); color: var(--gray-700); }
+
+/* ══ MAIN ═══════════════════════════════════════════════════════════════════ */
+main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
+
+/* ══ ALERT GRID ══ (no border, taller, clickable) ═══════════════════════════ */
+.alert-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.alert-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 20px 10px 18px; text-align: center;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.alert-card:active { transform: scale(.97); box-shadow: var(--shadow); }
+.alert-card .icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
+.alert-card .num  { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; }
+.alert-card .lbl  { font-size: 10px; font-weight: 600; color: var(--gray-500); margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.alert-card.red   .num { color: var(--red);      }
+.alert-card.amber .num { color: var(--orange);   }
+.alert-card.green .num { color: var(--green-ok); }
+.alert-card.active-filter { box-shadow: 0 0 0 2.5px var(--orange); }
+
+/* ══ SEARCH ROW ══════════════════════════════════════════════════════════════ */
+.search-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+.search-wrap { position: relative; flex: 1; }
+.search-wrap input { width: 100%; height: 48px; padding: 0 14px 0 44px; border: none; border-radius: var(--radius-xl); font-size: 14px; background: var(--white); color: var(--gray-900); font-family: var(--font); outline: none; box-shadow: var(--shadow-sm); }
+.search-wrap input::placeholder { color: var(--gray-400,#9CA3AF); }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--gray-400,#9CA3AF); font-size: 16px; pointer-events: none; }
+.add-btn { height: 48px; padding: 0 20px; border: none; border-radius: var(--radius-xl); background: var(--green-100); color: var(--green-700); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; box-shadow: var(--shadow-sm); transition: background .15s; }
+.add-btn:active { background: var(--green-200); }
+
+/* ══ FILTER LABEL ════════════════════════════════════════════════════════════ */
+.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.filter-label { font-size: 13px; font-weight: 700; color: var(--gray-700); }
+.filter-clear { font-size: 12px; font-weight: 600; color: var(--orange); cursor: pointer; text-decoration: underline; }
+
+/* ══ OSPITE CARD ═════════════════════════════════════════════════════════════ */
+.ospite-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
+.ospite-header { display: flex; align-items: center; gap: 14px; padding: 18px 18px 12px; cursor: pointer; }
+.ospite-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--green-100); color: var(--green-700); font-size: 15px; font-weight: 800; letter-spacing: -.5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ospite-avatar.urgente { background: #FEF3C7; color: #92400E; }
+.ospite-info { flex: 1; min-width: 0; }
+.ospite-nome { font-size: 17px; font-weight: 800; color: var(--gray-900); }
+.ospite-sub  { font-size: 13px; color: var(--gray-500); margin-top: 3px; }
+.ospite-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.ospite-totale { text-align: right; flex-shrink: 0; }
+.ospite-totale .importo  { font-size: 22px; font-weight: 800; color: var(--green-ok); line-height: 1; }
+.ospite-totale .n-ordini { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
+.ospite-actions { display: flex; gap: 10px; padding: 0 18px 18px; }
+.btn-action { flex: 1; height: 44px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.btn-action:active { opacity: .8; }
+.btn-action.primary { background: var(--green-700); color: var(--white); }
+.btn-action.ghost   { background: var(--gray-100);  color: var(--gray-700); }
+
+/* ══ BADGE ═══════════════════════════════════════════════════════════════════ */
+.badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.badge.green  { background: var(--green-bg);  color: var(--green-ok); border: 1px solid var(--green-bd); }
+.badge.amber  { background: var(--amber-bg);  color: var(--amber);    border: 1px solid var(--amber-bd); }
+.badge.red    { background: var(--red-bg);    color: var(--red);      border: 1px solid var(--red-bd);   }
+.badge.blue   { background: var(--blue-bg);   color: var(--blue);     border: 1px solid var(--blue-bd);  }
+.badge.gray   { background: var(--gray-100);  color: var(--gray-500); border: 1px solid var(--gray-300); }
+.badge.orange { background: var(--orange-bg); color: var(--orange);   border: 1px solid #FFCC80; }
+
+/* ══ ORDINE BLOCK ════════════════════════════════════════════════════════════ */
+.ordine-block { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 10px; }
+.ordine-block-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; background: var(--green-50); border-bottom: 1px solid var(--green-100); }
+.ordine-block-title  { font-size: 12px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .07em; }
+.ordine-block-tot    { font-size: 14px; font-weight: 800; color: var(--green-ok); }
+.ordine-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--gray-100); }
+.ordine-row:last-child { border-bottom: none; }
+.ordine-info { flex: 1; min-width: 0; }
+.ordine-desc    { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+.ordine-meta    { font-size: 11px; color: var(--gray-500); margin-top: 3px; }
+.ordine-destra  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ordine-importo { font-size: 15px; font-weight: 700; color: var(--gray-700); }
+.del-btn { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.del-btn:active { background: var(--red-bd); }
+
+/* ══ CARD ════════════════════════════════════════════════════════════════════ */
+.card { background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 12px; }
+.card h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
+.card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; }
+
+/* ══ FORM ════════════════════════════════════════════════════════════════════ */
+.form-group { margin-bottom: 13px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; transition: border-color .15s; }
+.form-group textarea { height: 76px; padding: 12px 14px; resize: none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green-400); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
+.btn-primary:active   { opacity: .85; }
+.btn-primary:disabled { opacity: .45; pointer-events: none; }
+
+/* ══ SCADENZE HERO ═══════════════════════════════════════════════════════════ */
+.scadenze-hero { background: linear-gradient(135deg,var(--green-700),var(--green-500)); border-radius: var(--radius-lg); padding: 20px; color: var(--white); margin-bottom: 16px; box-shadow: 0 4px 20px rgba(27,67,50,.3); }
+.scadenze-hero .lbl { font-size: 11px; font-weight: 700; opacity: .7; text-transform: uppercase; letter-spacing: .07em; }
+.scadenze-hero .val { font-size: 38px; font-weight: 800; line-height: 1; margin: 4px 0; }
+.scadenze-hero .sub { font-size: 13px; opacity: .8; }
+.scadenza-row { background: var(--white); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 12px; }
+.scadenza-row.urgente { border-left: 4px solid var(--orange); }
+.scadenza-row.oggi    { border-left: 4px solid var(--red);    }
+.scadenza-info  { flex: 1; min-width: 0; }
+.scadenza-nome  { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.scadenza-sub   { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.scadenza-destra { text-align: right; flex-shrink: 0; }
+.scadenza-destra .importo { font-size: 20px; font-weight: 800; color: var(--green-ok); }
+.scadenza-destra .data    { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+
+/* ══ REPORT ══════════════════════════════════════════════════════════════════ */
+.report-header { background: var(--green-700); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 20px; text-align: center; }
+.report-nome { font-size: 22px; font-weight: 800; margin: 6px 0 2px; }
+.report-sub  { font-size: 13px; opacity: .75; }
+.report-body { background: var(--white); border: 1px solid var(--gray-100); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: var(--shadow-sm); padding: 18px; margin-bottom: 12px; }
+.report-cat    { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--gray-500); margin: 12px 0 6px; display: flex; justify-content: space-between; }
+.report-row    { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray-700); padding: 5px 0; border-bottom: 1px solid var(--gray-100); }
+.report-row:last-child { border-bottom: none; }
+.report-totale { display: flex; justify-content: space-between; align-items: center; border-top: 2px solid var(--gray-900); padding-top: 14px; margin-top: 10px; }
+.report-totale .lbl { font-size: 14px; font-weight: 700; }
+.report-totale .val { font-size: 32px; font-weight: 800; color: var(--green-ok); }
+
+/* ══ BACK HEADER ═════════════════════════════════════════════════════════════ */
+.back-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--white); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+.back-title { font-size: 18px; font-weight: 800; }
+.back-sub   { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
+
+/* ══ SETUP ═══════════════════════════════════════════════════════════════════ */
+.setup-step { display: flex; gap: 12px; margin-bottom: 14px; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--green-700); color: var(--white); font-size: 12px; font-weight: 700; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.step-text { font-size: 13px; color: var(--gray-700); line-height: 1.6; padding-top: 3px; }
+.divider { height: 1px; background: var(--gray-100); margin: 14px 0; }
+
+/* ══ EMPTY ════════════════════════════════════════════════════════════════════ */
+.empty { text-align: center; padding: 48px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
+
+/* ══ TOAST ════════════════════════════════════════════════════════════════════ */
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ MISC ═════════════════════════════════════════════════════════════════════ */
+.hidden  { display: none !important; }
+.section { display: none; }
+.section.active { display: block; }
+
+@media print {
+  .top-bar,.nav-wrap,.back-header,.btn-action,.no-print { display: none !important; }
+  .report-header { border-radius: var(--radius-lg); }
+  body { background: white; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Gestione Conti Pensioni</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO (utente loggato ma senza permessi su questo modulo) ══════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Gestione Conti Pensioni</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
+<div class="top-bar">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="hbtn ghost icon" onclick="switchTab('setup')" id="btn-setup" title="Impostazioni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
+        <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
+        <span id="sync-label" style="display:none"></span>
+      </div>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+    </div>
+  </div>
+  <div class="nav-wrap">
+    <div class="nav-inner">
+      <div class="tab active" onclick="switchTab('ospiti')"   id="tab-ospiti">Ospiti</div>
+      <div class="tab"        onclick="switchTab('scadenze')" id="tab-scadenze">Scadenze</div>
+      <div class="tab"        onclick="switchTab('chiusi')"   id="tab-chiusi">Chiusi</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- OSPITI -->
+  <div id="sec-ospiti" class="section active">
+    <div class="alert-grid">
+      <div class="alert-card red"   id="card-oggi"   onclick="filterByCard('oggi')">
+        <div class="num" id="cnt-oggi">–</div>
+        <div class="lbl">Check out oggi</div>
+      </div>
+      <div class="alert-card amber" id="card-breve"  onclick="filterByCard('breve')">
+        <div class="num" id="cnt-breve">–</div>
+        <div class="lbl">Entro 2 giorni</div>
+      </div>
+      <div class="alert-card green" id="card-attivi" onclick="filterByCard('attivi')">
+        <div class="num" id="cnt-attivi">–</div>
+        <div class="lbl">Conti aperti</div>
+      </div>
+    </div>
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">&#9906;</span>
+        <input type="text" id="search-input" placeholder="Cerca per nome o per alloggio" oninput="renderOspiti()">
+      </div>
+      <button class="add-btn" id="btn-add-ospite" onclick="switchTab('nuovo-ospite')">+ Ospite</button>
+    </div>
+    <div id="filter-bar" class="filter-bar hidden">
+      <span class="filter-label" id="filter-label"></span>
+      <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
+    </div>
+    <div id="ospiti-list"></div>
+  </div>
+
+  <!-- SCADENZE -->
+  <div id="sec-scadenze" class="section">
+    <div class="scadenze-hero">
+      <div class="lbl">Totale da incassare</div>
+      <div class="val" id="scad-totale">0,00 €</div>
+      <div class="sub" id="scad-sub">— ospiti in scadenza</div>
+    </div>
+    <div id="scadenze-list"></div>
+  </div>
+
+  <!-- CHIUSI -->
+  <div id="sec-chiusi" class="section">
+    <div id="chiusi-list"></div>
+  </div>
+
+  <!-- DETTAGLIO CONTO CHIUSO -->
+  <div id="sec-dettaglio-chiuso" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('chiusi')">&#8592;</button>
+      <div style="flex:1">
+        <div class="back-title" id="chdet-nome">—</div>
+        <div class="back-sub"   id="chdet-sub">—</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:24px;font-weight:800;color:var(--gray-400);text-decoration:line-through" id="chdet-totale">0,00 €</div>
+        <div style="font-size:10px;color:var(--gray-500)">incassato</div>
+      </div>
+    </div>
+    <!-- Banner stato chiuso -->
+    <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--green-ok)">Conto incassato</div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:2px">Sola lettura — puoi ripristinarlo se necessario</div>
+      </div>
+      <button id="btn-ripristina" onclick="ripristinaConto()" style="height:36px;padding:0 14px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;flex-shrink:0">Ripristina</button>
+    </div>
+    <div id="chdet-ordini-list"></div>
+  </div>
+
+  <!-- DETTAGLIO OSPITE -->
+  <div id="sec-dettaglio" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <div style="flex:1">
+        <div class="back-title" id="det-nome">—</div>
+        <div class="back-sub"   id="det-sub">—</div>
+      </div>
+      <button class="back-btn" id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica">&#9998;</button>
+      <div style="text-align:right">
+        <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
+        <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
+      <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
+      <button class="btn-action ghost" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl)">Chiudi</button>
+    </div>
+    <div id="ordini-list"></div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="sec-report" class="section">
+    <div class="back-header no-print">
+      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <div><div class="back-title">Resoconto conto</div></div>
+      <button onclick="stampaReport()" class="no-print" style="height:36px;padding:0 14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;font-family:var(--font)">Stampa / Condividi</button>
+    </div>
+    <div id="report-content"></div>
+  </div>
+
+  <!-- NUOVO OSPITE -->
+  <div id="sec-nuovo-ospite" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <div><div class="back-title">Nuovo ospite</div></div>
+    </div>
+    <div class="card">
+      <h3>Registra ospite</h3>
+      <p class="subtitle">Compila i dati di check-in</p>
+      <div class="form-row">
+        <div class="form-group"><label>Nome</label><input type="text" id="no-nome" placeholder="Marco"></div>
+        <div class="form-group"><label>Cognome</label><input type="text" id="no-cognome" placeholder="Rossi"></div>
+      </div>
+      <div class="form-group"><label>Alloggio</label><select id="no-alloggio"></select></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Piano pasti</label>
+          <select id="no-piano">
+            <option value="mezza">Mezza pensione</option>
+            <option value="completa">Pensione completa</option>
+            <option value="nessuno">Nessuno (conto libero)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Data checkout</label><input type="date" id="no-checkout"></div>
+      </div>
+      <button class="btn-primary" onclick="addOspite()">Registra ospite</button>
+    </div>
+  </div>
+
+  <!-- MODIFICA OSPITE -->
+  <div id="sec-modifica-ospite" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <div><div class="back-title">Modifica anagrafica</div></div>
+    </div>
+    <div class="card">
+      <h3>Dati ospite</h3>
+      <p class="subtitle">Correggi i dati del conto, se necessario</p>
+      <div class="form-row">
+        <div class="form-group"><label>Nome</label><input type="text" id="mo-nome"></div>
+        <div class="form-group"><label>Cognome</label><input type="text" id="mo-cognome"></div>
+      </div>
+      <div class="form-group"><label>Alloggio</label><select id="mo-alloggio"></select></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Piano pasti</label>
+          <select id="mo-piano">
+            <option value="mezza">Mezza pensione</option>
+            <option value="completa">Pensione completa</option>
+            <option value="nessuno">Nessuno (conto libero)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Data checkout</label><input type="date" id="mo-checkout"></div>
+      </div>
+      <button class="btn-primary" onclick="salvaModificaOspite()">Salva modifiche</button>
+    </div>
+  </div>
+
+  <!-- NUOVO ORDINE -->
+  <div id="sec-nuovo-ordine" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <div>
+        <div class="back-title">Nuovo ordine</div>
+        <div class="back-sub" id="no2-sub">—</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="form-group">
+        <label>Punto ristoro</label>
+        <select id="or-punto">
+          <option value="Bar Piscina">Bar Piscina</option>
+          <option value="Bar Teatro">Bar Teatro</option>
+          <option value="Ristorante">Ristorante</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Operatore</label>
+        <div id="or-operatore-label" style="height:48px;padding:0 14px;border:1.5px solid var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);font-size:15px;font-weight:700;color:var(--green-700);display:flex;align-items:center;">—</div>
+      </div>
+      <div class="form-group"><label>Descrizione</label><textarea id="or-desc" placeholder="es. Cena 2 persone, cocktail x2…"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Importo (€)</label><input type="text" inputmode="decimal" id="or-importo" placeholder="0.00"></div>
+        <div class="form-group"><label>Data e ora</label><input type="datetime-local" id="or-ts"></div>
+      </div>
+      <button class="btn-primary" onclick="addOrdine()">Salva ordine</button>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div id="sec-setup" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <div><div class="back-title">Impostazioni</div></div>
+    </div>
+    <div class="card">
+      <h3>Database</h3>
+      <p class="subtitle">I dati sono sincronizzati in tempo reale su Firebase. L'app si autentica in modo anonimo e automatico — nessuna configurazione richiesta su nessun dispositivo</p>
+      <div style="background:var(--green-50);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+        <span id="fb-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--gray-300);flex-shrink:0"></span>
+        <div>
+          <p id="fb-status-text" style="font-size:13px;font-weight:700;color:var(--gray-700)">Connessione in corso...</p>
+          <p style="font-size:11px;color:var(--gray-500);margin-top:2px">Sincronizzazione automatica e istantanea attiva</p>
+        </div>
+      </div>
+      <button onclick="testConnessione()" style="width:100%;height:44px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Testa connessione</button>
+      <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <h3>Notifiche</h3>
+      <p class="subtitle">Ricevi un avviso quando un conto aperto ha il checkout il giorno dopo.</p>
+      <p id="notifiche-status" style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Verifica in corso...</p>
+      <button id="btn-attiva-notifiche" onclick="attivaNotifiche()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
+    </div>
+    <div class="card">
+      <h3>Utenti e permessi</h3>
+      <p class="subtitle">Operatori, ruoli e permessi di accesso sono gestiti centralmente dalla Hub Garden River — non più da qui.</p>
+      <button onclick="location.href=HUB_URL+'?go=permessi'" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Apri Hub → Utenti e permessi</button>
+    </div>
+  </div>
+
+</main>
+<!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
+  <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
+    <div id="modal-title" style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:8px"></div>
+    <div id="modal-body"  style="font-size:14px;color:var(--gray-500);line-height:1.6;margin-bottom:20px;white-space:pre-line"></div>
+    <div style="display:flex;gap:10px">
+      <button id="modal-cancel" onclick="closeModal()" style="flex:1;height:48px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Annulla</button>
+      <button id="modal-confirm" style="flex:1;height:48px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── COSTANTI ─────────────────────────────────────────────────────────────────
+// 👉 Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
+//    Deve trovarsi sullo STESSO DOMINIO di questa app, altrimenti il login
+//    automatico (single sign-on) non può funzionare (sessionStorage è legato
+//    all'origine — protocollo+dominio+porta).
+const HUB_URL = '../';
+// Identifica questo modulo nella mappa permessi gestita dalla Hub.
+const MODULE_ID = 'conti';
+// Tutte le sezioni di questa app che possono essere abilitate/disabilitate
+// per singolo operatore dalla Hub.
+const SECTION_IDS = ['ospiti','scadenze','chiusi','setup'];
+const PUNTI_RISTORO = ['Bar Piscina', 'Bar Teatro', 'Ristorante'];
+
+let hubSession        = null;              // { nome, ruolo } — impostato dalla Hub al login
+let hubPermessi        = { sezioni: {} };  // permessi di questo operatore per questo modulo
+let allowedSections    = new Set(SECTION_IDS);
+
+// ── STATO ─────────────────────────────────────────────────────────────────────
+let ospiti           = [];
+let ordini           = [];
+let alloggiList       = []; // letta dalla collezione 'alloggi' (app Gestione Alloggi)
+let currentOperatore = null;
+let currentOspiteId  = null;
+let activeFilter     = null; // 'oggi' | 'breve' | 'attivi' | null
+let fbConnected      = false;
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+// ID univoco — sicuro anche con più dispositivi simultanei
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function isAdmin()    { return !!hubSession && hubSession.ruolo === 'admin'; }
+function fmt(n)       { return n.toFixed(2).replace('.',',') + ' €'; }
+function fmtTs(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function oggi()       { return new Date().toISOString().split('T')[0]; }
+function giorniA(d)   { return Math.ceil((new Date(d) - new Date(oggi())) / 86400000); }
+function initials(o)  { return (o.cognome[0]||'') + (o.nome[0]||''); }
+// Stesso ordine di categorie usato nell'app Gestione Alloggi, così il menu
+// a tendina segue la stessa logica (non l'ordine alfabetico).
+const ALLOGGIO_CAT_ORDER = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy'];
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Ricostruisce le opzioni di un menu a tendina "Alloggio" mantenendo
+// selezionato il valore passato — anche se non è (più) nella lista ufficiale,
+// così non si perde mai/sostituisce a sorpresa il dato di un ospite esistente.
+function populateAlloggioSelect(selectEl, currentValue) {
+  if (!selectEl) return;
+  const sorted = [...alloggiList].sort((a,b) => {
+    const oa = ALLOGGIO_CAT_ORDER.indexOf(a.categoriaLabel), ob = ALLOGGIO_CAT_ORDER.indexOf(b.categoriaLabel);
+    if (oa !== ob) return (oa===-1?999:oa) - (ob===-1?999:ob);
+    return (a.numero||0) - (b.numero||0);
+  });
+  let html = '<option value="">— Seleziona alloggio —</option>';
+  let lastCat = null;
+  sorted.forEach(a => {
+    if (a.categoriaLabel !== lastCat) {
+      if (lastCat !== null) html += '</optgroup>';
+      html += '<optgroup label="'+escHtml(a.categoriaLabel||'Altro')+'">';
+      lastCat = a.categoriaLabel;
+    }
+    html += '<option value="'+escHtml(a.nome)+'">'+escHtml(a.nome)+'</option>';
+  });
+  if (lastCat !== null) html += '</optgroup>';
+  const matches = sorted.some(a => a.nome === currentValue);
+  if (currentValue && !matches) {
+    html = '<option value="'+escHtml(currentValue)+'">'+escHtml(currentValue)+' (non in lista)</option>' + html;
+  }
+  selectEl.innerHTML = html;
+  selectEl.value = currentValue || '';
+}
+// Richiamata ogni volta che arriva un aggiornamento della lista alloggi:
+// ricostruisce i menu mantenendo quello che l'utente aveva già scelto.
+function refreshAlloggioSelects() {
+  ['no-alloggio','mo-alloggio'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) populateAlloggioSelect(el, el.value);
+  });
+}
+function totOspite(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
+function pianoLabel(piano) {
+  if (piano === 'completa') return 'Pensione completa';
+  if (piano === 'nessuno')  return 'Conto libero';
+  return 'Mezza pensione';
+}
+function pianoBadgeHtml(piano) {
+  if (piano === 'completa') return `<span class="badge blue">Pensione completa</span>`;
+  if (piano === 'nessuno')  return `<span class="badge amber">Conto libero</span>`;
+  return `<span class="badge gray">Mezza pensione</span>`;
+}
+
+// ── FIREBASE — REALTIME SYNC ─────────────────────────────────────────────────
+// Aspetta che il modulo Firebase (caricato in <head>) sia pronto
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once: true });
+  });
+}
+
+let _unsubOspiti = null;
+let _unsubOrdini = null;
+
+function setSyncStatus(state) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  const fbDot = document.getElementById('fb-status-dot');
+  const fbTxt = document.getElementById('fb-status-text');
+  const map = {
+    connecting: { color:'#60A5FA', text:'Connessione...'   },
+    live:       { color:'#4ADE80', text:'In tempo reale'   },
+    saving:     { color:'#FCD34D', text:'Salvataggio...'   },
+    error:      { color:'#F87171', text:'Errore connessione' },
+    offline:    { color:'rgba(255,255,255,0.3)', text:'Offline' },
+  };
+  const s = map[state] || map.offline;
+  if (dot)   dot.style.background = s.color;
+  if (label) {
+    label.textContent = s.text;
+    label.style.display = state === 'live' ? 'none' : '';
+  }
+  if (fbDot) fbDot.style.background = s.color;
+  if (fbTxt) fbTxt.textContent = state === 'live' ? 'Connesso — sincronizzazione in tempo reale attiva'
+                                : state === 'connecting' ? 'Connessione in corso...'
+                                : state === 'error' ? 'Errore di connessione al database'
+                                : 'Database offline';
+}
+
+// Avvia i listener realtime su Firestore — ogni modifica remota aggiorna subito la UI
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  setSyncStatus('connecting');
+
+  try {
+    // Listener ospiti
+    _unsubOspiti = onSnapshot(collection(db, 'ospiti'), (snap) => {
+      ospiti = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+      fbConnected = true;
+      setSyncStatus('live');
+      _dataReady = true;
+      maybeHideLoading();
+      // Se siamo nel dettaglio di un ospite, aggiorna anche quella vista
+      if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
+    }, (err) => {
+      console.error('Errore listener ospiti:', err);
+      setSyncStatus('error');
+    });
+
+    // Listener ordini
+    _unsubOrdini = onSnapshot(collection(db, 'ordini'), (snap) => {
+      ordini = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+      if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
+    }, (err) => {
+      console.error('Errore listener ordini:', err);
+      setSyncStatus('error');
+    });
+
+    // Listener alloggi (usato per il menu a tendina "Alloggio" nei form ospite)
+    onSnapshot(collection(db, 'alloggi'), (snap) => {
+      alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      refreshAlloggioSelects();
+    }, (err) => {
+      console.error('Errore listener alloggi:', err);
+    });
+
+  } catch(e) {
+    console.error('Errore avvio sync:', e);
+    setSyncStatus('error');
+  }
+}
+
+// Refresh manuale/di sicurezza: rilegge tutto da Firestore con una query diretta.
+// Serve perché su mobile (specialmente iOS/Safari "Aggiungi a Home") il sistema
+// può sospendere la connessione realtime quando l'app va in background o lo
+// schermo si blocca, e talvolta non si riconnette subito da sola al ritorno.
+async function forceRefresh(silent) {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const [snapO, snapOr, snapAl] = await Promise.all([
+      getDocs(collection(db, 'ospiti')),
+      getDocs(collection(db, 'ordini')),
+      getDocs(collection(db, 'alloggi')),
+    ]);
+    ospiti = snapO.docs.map(d => ({ id: d.id, ...d.data() }));
+    ordini = snapOr.docs.map(d => ({ id: d.id, ...d.data() }));
+    alloggiList = snapAl.docs.map(d => ({ id: d.id, ...d.data() }));
+    refreshAlloggioSelects();
+    render();
+    if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
+    fbConnected = true;
+    setSyncStatus('live');
+    if (!silent) showToast('Dati aggiornati');
+  } catch(e) {
+    console.error('Errore refresh manuale:', e);
+    if (!silent) showToast('Errore aggiornamento — controlla la connessione');
+  }
+}
+
+// Quando l'app torna in primo piano, torna online, o la finestra riprende il
+// focus, facciamo un refresh "silenzioso" di sicurezza: se i listener realtime
+// erano ancora attivi non cambia nulla, se invece si erano bloccati questo
+// riallinea subito i dati senza bisogno che l'operatore ricarichi la pagina.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh(true);
+});
+window.addEventListener('online', () => forceRefresh(true));
+window.addEventListener('focus',  () => forceRefresh(true));
+
+// ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia ───
+// A volte (rete instabile, wifi che cambia, ecc.) la connessione realtime
+// resta "agganciata" senza dare né dati né errore: l'app sembra bloccata per
+// sempre finché non si chiude e riapre. Ogni 30s proviamo una piccola lettura
+// con un tempo massimo: se non risponde in tempo, forziamo la riconnessione.
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'ospiti'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    setSyncStatus('error');
+    await kickFirestoreConnection();
+    forceRefresh(true);
+  }
+}
+setInterval(checkConnessione, 30000);
+
+// ── SCRITTURE FIRESTORE ──────────────────────────────────────────────────────
+async function fsSetOspite(ospite) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  const { id, ...data } = ospite;
+  await setDoc(doc(db, 'ospiti', id), data);
+}
+
+async function fsDeleteOspite(id) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'ospiti', id));
+}
+
+async function fsSetOrdine(ordine) {
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  const { id, ...data } = ordine;
+  await setDoc(doc(db, 'ordini', id), data);
+}
+
+async function fsDeleteOrdine(id) {
+  await waitForFirebase();
+  const { db, doc, deleteDoc } = window._fb;
+  await deleteDoc(doc(db, 'ordini', id));
+}
+
+// ── LOGIN / PIN ───────────────────────────────────────────────────────────────
+// ── SESSIONE HUB / PERMESSI SEZIONI ───────────────────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+
+function computeAllowedSections() {
+  const admin = isAdmin();
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = admin || sez[id] !== false; // non specificato = consentito di default
+    if (ok) allowedSections.add(id);
+  });
+}
+
+const TAB_EL_BY_SECTION = {
+  ospiti: 'tab-ospiti', scadenze: 'tab-scadenze', chiusi: 'tab-chiusi', setup: 'btn-setup'
+};
+function applySectionVisibility() {
+  Object.entries(TAB_EL_BY_SECTION).forEach(([sec, elId]) => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = allowedSections.has(sec) ? '' : 'none';
+  });
+}
+
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    maybeHideLoading();
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  if (window._riallineaTokenFCM) window._riallineaTokenFCM(currentOperatore);
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (allowedSections.size === 0) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    maybeHideLoading();
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applySectionVisibility();
+  applyRole();
+  const activeEl = document.querySelector('.section.active');
+  const activeId = activeEl ? activeEl.id.replace('sec-','') : null;
+  if (!activeId || !allowedSections.has(activeId)) {
+    const first = SECTION_IDS.find(id => allowedSections.has(id));
+    if (first) switchTab(first);
+  }
+  maybeHideLoading();
+}
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+// Resta visibile finché non sappiamo cosa mostrare: se non c'è sessione (o
+// non c'è permesso) si nasconde subito, altrimenti aspetta che arrivino
+// davvero i primi dati degli ospiti, così non si vede mai la pagina vuota
+// per un istante prima che Firestore risponda.
+let _dataReady = false;
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+function maybeHideLoading() {
+  const loginVisible = !document.getElementById('login-screen').classList.contains('hidden');
+  const noAccessVisible = !document.getElementById('no-access-screen').classList.contains('hidden');
+  if (loginVisible || noAccessVisible || _dataReady) hideLoadingScreen();
+}
+// Se dopo 8s i dati non sono ancora arrivati, prima di mostrare una schermata
+// vuota proviamo a forzare attivamente la riconnessione; solo se anche questo
+// non basta, dopo 18s in totale mostriamo comunque la pagina (rete di sicurezza).
+setTimeout(async () => {
+  if (_dataReady || _loadingHidden) return;
+  console.warn('Caricamento lento, provo a forzare la riconnessione...');
+  await kickFirestoreConnection();
+  forceRefresh(true);
+}, 8000);
+setTimeout(hideLoadingScreen, 18000);
+
+function doLogout() {
+  showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
+    'Esci', 'var(--red)', () => {
+      sessionStorage.removeItem('gr_session');
+      sessionStorage.removeItem('gr_permessi');
+      location.href = HUB_URL;
+    });
+}
+
+function applyRole() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent      = confirmLabel || 'Conferma';
+  btn.style.background = confirmColor || 'var(--green-700)';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  const overlay = document.getElementById('modal-overlay');
+  overlay.style.display = 'flex';
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  render();
+  initLogin();
+}
+
+// ── FILTER BOX ────────────────────────────────────────────────────────────────
+function filterByCard(type) {
+  if (activeFilter === type) { clearFilter(); return; }
+  activeFilter = type;
+  ['oggi','breve','attivi'].forEach(k => {
+    document.getElementById('card-'+k).classList.toggle('active-filter', k === type);
+  });
+  const labels = { oggi:'Checkout oggi', breve:'Checkout entro 2 giorni', attivi:'Tutti i conti aperti' };
+  document.getElementById('filter-label').textContent = labels[type];
+  document.getElementById('filter-bar').classList.remove('hidden');
+  renderOspiti();
+}
+
+function clearFilter() {
+  activeFilter = null;
+  ['oggi','breve','attivi'].forEach(k => document.getElementById('card-'+k).classList.remove('active-filter'));
+  document.getElementById('filter-bar').classList.add('hidden');
+  renderOspiti();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render() { renderAlerts(); renderOspiti(); renderScadenze(); renderChiusi(); }
+
+function renderAlerts() {
+  const attivi = ospiti.filter(o=>!o.chiuso);
+  document.getElementById('cnt-oggi').textContent   = attivi.filter(o=>giorniA(o.checkout)===0).length;
+  document.getElementById('cnt-breve').textContent  = attivi.filter(o=>{const g=giorniA(o.checkout);return g>0&&g<=2;}).length;
+  document.getElementById('cnt-attivi').textContent = attivi.length;
+}
+
+function renderOspiti() {
+  const searchEl = document.getElementById('search-input');
+  const q = (searchEl ? searchEl.value : '').toLowerCase();
+  let lista = ospiti.filter(o=>!o.chiuso);
+
+  if (activeFilter === 'oggi')  lista = lista.filter(o => giorniA(o.checkout) === 0);
+  if (activeFilter === 'breve') lista = lista.filter(o => { const g=giorniA(o.checkout); return g>0&&g<=2; });
+
+  if (q) lista = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+  lista.sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
+
+  if (!lista.length) {
+    document.getElementById('ospiti-list').innerHTML =
+      `<div class="empty">Nessun ospite trovato.${!activeFilter?'<br>Premi "+ Ospite" per aggiungerne uno.':''}</div>`;
+    return;
+  }
+
+  document.getElementById('ospiti-list').innerHTML = lista.map(o => {
+    const g = giorniA(o.checkout); const tot = totOspite(o.id);
+    const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
+    const urgente = g>=0&&g<=2; const isOggi = g===0;
+    const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
+    const badgeChk = isOggi
+      ? `<span class="badge red">Checkout oggi</span>`
+      : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
+      : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
+    const badgePiano = pianoBadgeHtml(o.piano);
+    return `<div class="ospite-card" style="border-left:${borderLeft}">
+      <div class="ospite-header" onclick="goDettaglio('${o.id}')">
+        <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
+        <div class="ospite-info">
+          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+          <div class="ospite-sub">${o.alloggio}</div>
+          <div class="ospite-badges">${badgeChk}${badgePiano}</div>
+        </div>
+        <div class="ospite-totale">
+          <div class="importo">${fmt(tot)}</div>
+          <div class="n-ordini">${nOrd} ordini</div>
+        </div>
+      </div>
+      <div class="ospite-actions">
+        <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
+        <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderScadenze() {
+  const attivi = ospiti.filter(o=>!o.chiuso&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
+    .sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
+  document.getElementById('scad-totale').textContent = fmt(attivi.reduce((s,o)=>s+totOspite(o.id),0));
+  document.getElementById('scad-sub').textContent    = `${attivi.length} ospiti in scadenza`;
+  if (!attivi.length) {
+    document.getElementById('scadenze-list').innerHTML = '<div class="empty">Nessun checkout nei prossimi 7 giorni.</div>';
+    return;
+  }
+  document.getElementById('scadenze-list').innerHTML = attivi.map(o=>{
+    const g=giorniA(o.checkout); const tot=totOspite(o.id);
+    const cls=g===0?'oggi':g<=2?'urgente':'';
+    const badge=g===0?`<span class="badge red">Checkout oggi</span>`:g<=2?`<span class="badge orange">Tra ${g} giorni</span>`:`<span class="badge gray">Tra ${g} giorni</span>`;
+    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${o.id}')" style="cursor:pointer">
+      <div class="ospite-avatar ${cls?'urgente':''}">${initials(o)}</div>
+      <div class="scadenza-info"><div class="scadenza-nome">${o.cognome} ${o.nome}</div><div class="scadenza-sub">${o.alloggio}</div><div style="margin-top:5px">${badge}</div></div>
+      <div class="scadenza-destra"><div class="importo">${fmt(tot)}</div><div class="data">${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderChiusi() {
+  const chiusi = ospiti.filter(o=>o.chiuso).sort((a,b)=>new Date(b.checkout)-new Date(a.checkout));
+  if (!chiusi.length) {
+    document.getElementById('chiusi-list').innerHTML='<div class="empty">Nessun conto chiuso ancora.</div>';
+    return;
+  }
+  document.getElementById('chiusi-list').innerHTML =
+    `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conti incassati — tocca per vedere gli ordini</p>` +
+    chiusi.map(o=>{
+      const tot = totOspite(o.id);
+      const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
+      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${o.id}')">
+        <div class="ospite-header">
+          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio}</div>
+            <div class="ospite-badges"><span class="badge gray">Incassato</span></div>
+          </div>
+          <div class="ospite-totale">
+            <div class="importo" style="color:var(--gray-400);text-decoration:line-through">${fmt(tot)}</div>
+            <div class="n-ordini">${nOrd} ordini</div>
+          </div>
+          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${o.id}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+function eliminaContoChiuso(id) {
+  if (!isAdmin()) { showToast("Solo l'amministratore può eliminare i conti chiusi"); return; }
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const suoiOrdini = ordini.filter(x => x.ospiteId === id);
+  showModal(
+    'Elimina conto',
+    `Eliminare definitivamente il conto di ${o.cognome} ${o.nome}? Verranno eliminati anche i ${suoiOrdini.length} ordini collegati. L'operazione non è reversibile.`,
+    'Elimina', 'var(--red)',
+    async () => {
+      try {
+        for (const ord of suoiOrdini) await fsDeleteOrdine(ord.id);
+        await fsDeleteOspite(id);
+        showToast(`${o.cognome} ${o.nome} eliminato`);
+      } catch (e) {
+        console.error(e);
+        showToast("Errore durante l'eliminazione");
+      }
+    }
+  );
+}
+
+function goDettaglioChiuso(id) {
+  currentOspiteId = id;
+  const o = ospiti.find(x=>x.id===id); if (!o) return;
+  document.getElementById('chdet-nome').textContent   = `${o.cognome} ${o.nome}`;
+  document.getElementById('chdet-sub').textContent    = o.alloggio;
+  document.getElementById('chdet-totale').textContent = fmt(totOspite(o.id));
+  document.getElementById('btn-ripristina').style.display = '';
+  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  if (!miei.length) {
+    document.getElementById('chdet-ordini-list').innerHTML = '<div class="empty">Nessun ordine registrato per questo conto.</div>';
+  } else {
+    document.getElementById('chdet-ordini-list').innerHTML = PUNTI_RISTORO.map(p=>{
+      const po = miei.filter(x=>x.punto===p);
+      if (!po.length) return '';
+      const ptot = po.reduce((s,x)=>s+x.importo,0);
+      return `<div class="ordine-block">
+        <div class="ordine-block-header">
+          <span class="ordine-block-title">${p}</span>
+          <span class="ordine-block-tot">${fmt(ptot)}</span>
+        </div>
+        ${po.map(ord=>`<div class="ordine-row">
+          <div class="ordine-info">
+            <div class="ordine-desc">${ord.desc}</div>
+            <div class="ordine-meta">${fmtTs(ord.ts)} · ${ord.operatore}</div>
+          </div>
+          <div class="ordine-destra"><span class="ordine-importo">${fmt(ord.importo)}</span></div>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-dettaglio-chiuso').classList.add('active');
+}
+
+async function ripristinaConto() {
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
+  showModal(
+    'Ripristina conto',
+    `Riaprire il conto di ${o.cognome} ${o.nome}? Tornerà tra i conti attivi.`,
+    'Ripristina', 'var(--amber)',
+    async () => {
+      o.chiuso = false;
+      await fsSetOspite(o);
+      showToast(`Conto di ${o.cognome} ${o.nome} ripristinato!`);
+      switchTab('ospiti');
+    }
+  );
+}
+
+function renderDettaglio() {
+  const o = ospiti.find(x=>x.id===currentOspiteId);
+  if (!o) return;
+  document.getElementById('det-nome').textContent   = `${o.cognome} ${o.nome}`;
+  document.getElementById('det-sub').textContent    = o.alloggio;
+  document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
+  document.getElementById('btn-chiudi-conto').style.display = '';
+  document.getElementById('btn-edit-ospite').style.display  = '';
+  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  if (!miei.length) {
+    document.getElementById('ordini-list').innerHTML = '<div class="empty">Nessun ordine ancora.<br>Premi "Aggiungi ordine" per iniziare.</div>';
+    return;
+  }
+  document.getElementById('ordini-list').innerHTML = PUNTI_RISTORO.map(p=>{
+    const po = miei.filter(x=>x.punto===p);
+    if (!po.length) return '';
+    const ptot = po.reduce((s,x)=>s+x.importo,0);
+    return `<div class="ordine-block">
+      <div class="ordine-block-header">
+        <span class="ordine-block-title">${p}</span>
+        <span class="ordine-block-tot">${fmt(ptot)}</span>
+      </div>
+      ${po.map(ord=>`<div class="ordine-row">
+        <div class="ordine-info">
+          <div class="ordine-desc">${ord.desc}</div>
+          <div class="ordine-meta">${fmtTs(ord.ts)} · ${ord.operatore}</div>
+        </div>
+        <div class="ordine-destra">
+          <span class="ordine-importo">${fmt(ord.importo)}</span>
+          <button class="del-btn" onclick="deleteOrdine('${ord.id}')">&#10005;</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function _buildReportData(ospiteId) {
+  const o = ospiti.find(x=>x.id===ospiteId); if (!o) return null;
+  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  const tot  = miei.reduce((s,x)=>s+x.importo, 0);
+  const now  = new Date().toLocaleString('it-IT');
+  const rows = PUNTI_RISTORO.map(p=>{
+    const po = miei.filter(x=>x.punto===p); if (!po.length) return '';
+    const ptot = po.reduce((s,x)=>s+x.importo, 0);
+    return `<div class="report-cat"><span>${p}</span><span>${fmt(ptot)}</span></div>` +
+      po.map(ord=>`<div class="report-row"><span>${fmtTs(ord.ts)} — ${ord.desc}</span><span class="report-imp">${fmt(ord.importo)}</span></div>`).join('');
+  }).join('');
+  return { rows, tot, now, o };
+}
+
+function renderReport(ospiteId) {
+  const r = _buildReportData(ospiteId); if (!r) return;
+  const { rows, tot, now, o } = r;
+  document.getElementById('report-content').innerHTML=`
+    <div class="report-header">
+      <div style="font-size:11px;opacity:.65;text-transform:uppercase;letter-spacing:.06em">Centro Vacanze Garden River</div>
+      <div class="report-nome">${o.cognome} ${o.nome}</div>
+      <div class="report-sub">${o.alloggio} · ${pianoLabel(o.piano)}</div>
+      <div style="font-size:11px;opacity:.55;margin-top:6px">Generato il ${now}</div>
+    </div>
+    <div class="report-body">
+      ${rows||'<p style="color:#6B7280;font-size:13px;text-align:center;padding:16px 0">Nessun ordine registrato</p>'}
+      <div class="report-totale"><span class="lbl">TOTALE DA INCASSARE</span><span class="val">${fmt(tot)}</span></div>
+    </div>`;
+}
+
+function stampaReport() {
+  const r = _buildReportData(currentOspiteId); if (!r) return;
+  const { rows, tot, now, o } = r;
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conto ${o.cognome} ${o.nome}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',sans-serif; background:#F9FAFB; color:#111827; padding:20px 16px 60px; max-width:480px; margin:0 auto; -webkit-font-smoothing:antialiased; }
+  .header { background:#1B4332; color:white; border-radius:16px; padding:20px; text-align:center; }
+  .header .brand { font-size:11px; opacity:.65; text-transform:uppercase; letter-spacing:.06em; }
+  .header .nome  { font-size:22px; font-weight:800; margin:6px 0 2px; }
+  .header .sub   { font-size:13px; opacity:.75; }
+  .header .data  { font-size:11px; opacity:.5; margin-top:6px; }
+  .body { background:white; border:1px solid #F3F4F6; border-top:none; border-radius:0 0 16px 16px; padding:18px; margin-bottom:16px; }
+  .cat  { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#6B7280; margin:12px 0 6px; display:flex; justify-content:space-between; }
+  .row  { display:flex; justify-content:space-between; font-size:13px; color:#374151; padding:5px 0; border-bottom:1px solid #F3F4F6; }
+  .row:last-child { border-bottom:none; }
+  .imp  { font-weight:700; margin-left:8px; flex-shrink:0; }
+  .totale { display:flex; justify-content:space-between; align-items:center; border-top:2px solid #111827; padding-top:14px; margin-top:10px; }
+  .totale .lbl { font-size:14px; font-weight:700; }
+  .totale .val { font-size:32px; font-weight:800; color:#16A34A; }
+  .print-btn { display:block; width:100%; padding:16px; background:#1B4332; color:white; border:none; border-radius:28px; font-size:16px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:8px; }
+  @media print { .print-btn { display:none; } body { padding:0; background:white; } }
+</style></head><body>
+  <div class="header">
+    <div class="brand">Centro Vacanze Garden River</div>
+    <div class="nome">${o.cognome} ${o.nome}</div>
+    <div class="sub">${o.alloggio} · ${pianoLabel(o.piano)}</div>
+    <div class="data">Generato il ${now}</div>
+  </div>
+  <div class="body">
+    ${rows||'<p style="color:#6B7280;font-size:13px;text-align:center;padding:16px 0">Nessun ordine registrato</p>'}
+    <div class="totale"><span class="lbl">TOTALE DA INCASSARE</span><span class="val">${fmt(tot)}</span></div>
+  </div>
+  <button class="print-btn" onclick="window.print()">Stampa</button>
+</body></html>`;
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); }
+  else {
+    const blob = new Blob([html], { type:'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `conto-${o.cognome}-${o.nome}.html`.replace(/\s+/g,'-');
+    a.click(); URL.revokeObjectURL(url);
+  }
+}
+
+// ── NAVIGAZIONE ───────────────────────────────────────────────────────────────
+function switchTab(id) {
+  if (SECTION_IDS.includes(id) && !allowedSections.has(id)) {
+    const fallback = SECTION_IDS.find(s => allowedSections.has(s));
+    if (!fallback) return; // nessuna sezione consentita: resta dove sei
+    id = fallback;
+  }
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  const tm={ospiti:'tab-ospiti',scadenze:'tab-scadenze',chiusi:'tab-chiusi'};
+  if (tm[id]) document.getElementById(tm[id]).classList.add('active');
+  if (id==='dettaglio-chiuso') document.getElementById('tab-chiusi').classList.add('active');
+  if (id==='scadenze') renderScadenze();
+  if (id==='chiusi')   renderChiusi();
+  if (id==='setup')    aggiornaStatoNotifiche();
+}
+
+// ── NOTIFICHE PUSH ──────────────────────────────────────────────────────────
+function aggiornaStatoNotifiche() {
+  const el = document.getElementById('notifiche-status');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser';
+    return;
+  }
+  el.textContent = Notification.permission === 'granted'
+    ? 'Attive su questo dispositivo'
+    : 'Non attive su questo dispositivo';
+}
+
+async function attivaNotifiche() {
+  const btn = document.getElementById('btn-attiva-notifiche');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso...'; }
+  const res = await window._abilitaNotifichePush(currentOperatore);
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const messaggi = {
+      'negato': 'Permesso negato — abilitalo nelle impostazioni di Safari per questa app',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token': 'Impossibile registrare il dispositivo, riprova'
+    };
+    showToast(messaggi[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
+}
+
+function goDettaglio(id) {
+  currentOspiteId = id;
+  renderDettaglio();
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-dettaglio').classList.add('active');
+}
+
+function goNuovoOrdine() {
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
+  document.getElementById('no2-sub').textContent = `${o.cognome} ${o.nome} · ${o.alloggio}`;
+  const now = new Date();
+  document.getElementById('or-ts').value = new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('or-desc').value = ''; document.getElementById('or-importo').value = '';
+  document.getElementById('or-operatore-label').textContent = currentOperatore || '—';
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-nuovo-ordine').classList.add('active');
+}
+
+function goReport()    { renderReport(currentOspiteId); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('sec-report').classList.add('active'); }
+function goReportDa(id){ currentOspiteId=id; renderReport(id); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('sec-report').classList.add('active'); }
+
+// ── AZIONI ────────────────────────────────────────────────────────────────────
+async function addOspite() {
+  const nome     = document.getElementById('no-nome').value.trim();
+  const cognome  = document.getElementById('no-cognome').value.trim();
+  const alloggio = document.getElementById('no-alloggio').value.trim();
+  const piano    = document.getElementById('no-piano').value;
+  const checkout = document.getElementById('no-checkout').value;
+  if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
+  const nuovoId = uid();
+  const ospite = { id: nuovoId, nome, cognome, alloggio, piano, checkout, chiuso: false };
+  try {
+    await fsSetOspite(ospite);
+    ['no-nome','no-cognome','no-alloggio','no-checkout'].forEach(id=>document.getElementById(id).value='');
+    showToast(`${cognome} ${nome} registrato!`);
+    switchTab('ospiti');
+  } catch(e) {
+    console.error(e);
+    showToast('Errore salvataggio — riprova');
+  }
+}
+
+// ── MODIFICA ANAGRAFICA OSPITE ────────────────────────────────────────────────
+function goModificaOspite() {
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
+  document.getElementById('mo-nome').value     = o.nome;
+  document.getElementById('mo-cognome').value  = o.cognome;
+  populateAlloggioSelect(document.getElementById('mo-alloggio'), o.alloggio);
+  document.getElementById('mo-piano').value    = o.piano || 'mezza';
+  document.getElementById('mo-checkout').value = o.checkout;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-modifica-ospite').classList.add('active');
+}
+
+async function salvaModificaOspite() {
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o) return;
+  const nome     = document.getElementById('mo-nome').value.trim();
+  const cognome  = document.getElementById('mo-cognome').value.trim();
+  const alloggio = document.getElementById('mo-alloggio').value.trim();
+  const piano    = document.getElementById('mo-piano').value;
+  const checkout = document.getElementById('mo-checkout').value;
+  if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
+  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout };
+  try {
+    await fsSetOspite(aggiornato);
+    showToast('Anagrafica aggiornata!');
+    goDettaglio(o.id);
+  } catch(e) {
+    console.error(e);
+    showToast('Errore salvataggio — riprova');
+  }
+}
+
+async function addOrdine() {
+  const punto     = document.getElementById('or-punto').value;
+  const operatore = currentOperatore || 'N/D';
+  const desc      = document.getElementById('or-desc').value.trim();
+  const importoS  = document.getElementById('or-importo').value;
+  const ts        = document.getElementById('or-ts').value;
+  if (!desc||!importoS||!ts) { showToast('Compila tutti i campi'); return; }
+  const importo = parseFloat(importoS.replace(',','.'));
+  if (isNaN(importo)||importo<=0) { showToast('Importo non valido'); return; }
+  const nuovoId = uid();
+  const ordine = { id: nuovoId, ospiteId: currentOspiteId, punto, desc, importo, operatore, ts };
+  try {
+    await fsSetOrdine(ordine);
+    showToast('Ordine salvato!');
+    switchTab('dettaglio');
+  } catch(e) {
+    console.error(e);
+    showToast('Errore salvataggio — riprova');
+  }
+}
+
+function deleteOrdine(id) {
+  const o = ordini.find(x => x.id === id);
+  if (!o) return;
+  showModal(
+    'Elimina ordine', `Eliminare "${o.desc}" (${fmt(o.importo)})?`, 'Elimina', 'var(--red)',
+    async () => {
+      try {
+        await fsDeleteOrdine(id);
+        showToast('Ordine eliminato');
+      } catch(e) { showToast('Errore eliminazione'); }
+    }
+  );
+}
+
+function chiudiConto() {
+  const o = ospiti.find(x => x.id === currentOspiteId);
+  if (!o) return;
+  const tot = totOspite(o.id);
+  showModal(
+    'Chiudi conto', `Segna come incassato il conto di ${o.cognome} ${o.nome}?\nTotale: ${fmt(tot)}`,
+    'Chiudi e incassa', 'var(--green-700)',
+    async () => {
+      o.chiuso = true;
+      await fsSetOspite(o);
+      showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
+      switchTab('ospiti');
+    }
+  );
+}
+
+// ── DEBUG / TEST ──────────────────────────────────────────────────────────────
+function _dbg(msg, color) {
+  const panel = document.getElementById('debug-panel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  const ts = new Date().toLocaleTimeString('it-IT');
+  panel.innerHTML += `<div style="color:${color||'#cdd6f4'}">[${ts}] ${msg}</div>`;
+  panel.scrollTop = panel.scrollHeight;
+}
+
+async function testConnessione() {
+  const panel = document.getElementById('debug-panel');
+  if (panel) { panel.style.display = 'block'; panel.innerHTML = ''; }
+  _dbg('=== TEST CONNESSIONE FIREBASE ===', '#89b4fa');
+
+  await waitForFirebase();
+  _dbg('SDK Firebase caricato', '#a6e3a1');
+
+  const { db, collection, getDocs, doc, setDoc, deleteDoc } = window._fb;
+
+  try {
+    _dbg('Test lettura collection ospiti...', '#89dceb');
+    const snap = await getDocs(collection(db, 'ospiti'));
+    _dbg(`OK — trovati ${snap.size} ospiti nel database`, '#a6e3a1');
+  } catch(e) {
+    _dbg(`ERRORE lettura: ${e.message}`, '#f38ba8');
+    return;
+  }
+
+  try {
+    _dbg('Test scrittura...', '#89dceb');
+    await setDoc(doc(db, '_test', 'connessione'), { ts: Date.now() });
+    _dbg('OK — scrittura riuscita', '#a6e3a1');
+    await deleteDoc(doc(db, '_test', 'connessione'));
+    _dbg('Pulizia completata', '#a6e3a1');
+  } catch(e) {
+    _dbg(`ERRORE scrittura: ${e.message}`, '#f38ba8');
+    _dbg('Controlla le regole di sicurezza Firestore (modalità test scaduta?)', '#fab387');
+    return;
+  }
+
+  _dbg('=== TUTTO OK — database funzionante ===', '#a6e3a1');
+  showToast('Connessione Firebase funzionante!');
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── SWIPE PER TORNARE INDIETRO (come su iOS, dal bordo sinistro) ─────────────
+function initSwipeBack(onNoBack) {
+  let touchStartX = 0, touchStartY = 0, touching = false;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    if (e.target.closest('.top-bar')) return; // non interferire con lo scroll dei tab
+    const t = e.touches[0];
+    if (t.clientX > 30) return; // solo se parte dal margine sinistro
+    touchStartX = t.clientX; touchStartY = t.clientY; touching = true;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (!touching) return;
+    touching = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = Math.abs(t.clientY - touchStartY);
+    if (dx > 80 && dy < 60) {
+      const activeSection = document.querySelector('.section.active');
+      const backBtn = activeSection && activeSection.querySelector('.back-btn');
+      if (backBtn) backBtn.click();
+      else if (onNoBack) onNoBack();
+    }
+  }, { passive: true });
+}
+initSwipeBack(() => location.href = HUB_URL);
+
+// ── START ─────────────────────────────────────────────────────────────────────
+async function start() {
+  init();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    setSyncStatus('error');
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  await startRealtimeSync();
+}
+
+start();
+</script>
+</body>
+</html>

@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDocs, query, where }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -33,7 +33,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fbRisto = { db, collection, doc, setDoc, getDoc, getDocs, query, where, orderBy, onSnapshot, enableNetwork, disableNetwork };
+  window._fbRisto = { db, collection, doc, setDoc, getDocs, query, where };
   window._fbRistoReady = false;
 
   function segnalaPronto() {
@@ -41,219 +41,173 @@
     window._fbRistoReady = true;
     window.dispatchEvent(new Event('firebase-risto-ready'));
   }
-  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  onAuthStateChanged(auth, u => { if (u) segnalaPronto(); });
   signInAnonymously(auth).catch(() => segnalaPronto());
   setTimeout(segnalaPronto, 8000);
 </script>
 
 <style>
 :root {
-  --green-900: #0D2B1E;
-  --green-700: #1B4332;
-  --green-500: #2D6A4F;
-  --green-400: #40916C;
-  --green-200: #95D5B2;
-  --green-100: #D8F3DC;
-  --green-50:  #F0FAF4;
-  --gray-900:  #111827;
-  --gray-700:  #374151;
-  --gray-500:  #6B7280;
-  --gray-300:  #D1D5DB;
-  --gray-100:  #F3F4F6;
-  --gray-50:   #F9FAFB;
-  --white:     #FFFFFF;
-  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
-  --red:       #DC2626; --red-bg: #FEF2F2;
-  --amber:     #D97706; --amber-bg: #FFFBEB;
-  --radius-sm: 12px;
-  --radius:    16px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
-  --shadow:    0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
-  --font: 'Inter', -apple-system, sans-serif;
+  --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
+  --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
+  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
+  --gray-300:#D1D5DB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
+  --orange:#E07B00; --orange-bg:#FFF8F0;
+  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
+  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
+  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+  --green-ok:#16A34A; --green-bg:#F0FAF4; --green-bd:#BBF7D0;
+  --font:'Inter',-apple-system,sans-serif;
+  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
-.hidden { display: none !important; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{font-family:var(--font);background:var(--white);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+.hidden{display:none!important}
+@keyframes gr-spin{to{transform:rotate(360deg)}}
 
-/* ── LOADING ─────────────────────────────────────────────────────────── */
-#loading-screen {
-  position: fixed; inset: 0; z-index: 9999;
-  background: var(--green-700);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-}
-.loading-logo { width: 80px; height: 80px; border-radius: 22px; object-fit: cover; }
-.loading-spinner {
-  width: 28px; height: 28px;
-  border: 3px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+/* ── LOADING ── */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s}
+.gr-spinner{width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite}
 
-/* ── ERROR SCREEN ────────────────────────────────────────────────────── */
-#error-screen {
-  position: fixed; inset: 0; z-index: 999;
-  background: var(--green-700);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 32px 24px; text-align: center;
-}
-.error-icon { font-size: 48px; margin-bottom: 16px; }
-.error-title { font-size: 20px; font-weight: 800; color: var(--white); margin-bottom: 8px; }
-.error-sub   { font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+/* ── ERRORE CODICE ── */
+#error-screen{position:fixed;inset:0;z-index:999;background:var(--green-700);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.error-icon{font-size:48px;margin-bottom:16px}
+.error-title{font-size:20px;font-weight:800;color:var(--white);margin-bottom:8px}
+.error-sub{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6}
 
-/* ── HEADER ──────────────────────────────────────────────────────────── */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 600px; margin: 0 auto; padding: 10px 16px; }
-.header-left  { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-nome  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
-.header-unita { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
-.hbtn { height: 32px; width: 32px; border: none; border-radius: 50%; background: var(--gray-100); color: var(--gray-700); font-size: 17px; cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
-.hbtn:active { opacity: .75; }
+/* ── HEADER ── */
+.top-bar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--gray-100);padding-top:env(safe-area-inset-top)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;padding:10px 16px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-700);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--white);flex-shrink:0}
+.header-nome{font-size:14px;font-weight:800;color:var(--gray-900);line-height:1.2}
+.header-sub{font-size:10px;color:var(--gray-500);margin-top:1px}
+.hbtn{height:32px;width:32px;border:none;border-radius:50%;background:var(--gray-100);color:var(--gray-700);cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.hbtn:active{opacity:.75}
 
-/* ── MAIN ────────────────────────────────────────────────────────────── */
-main { max-width: 600px; margin: 0 auto; padding: 16px 14px 80px; }
+/* ── MAIN ── */
+main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
+.day-label{font-size:13px;font-weight:800;color:var(--gray-900);text-transform:uppercase;letter-spacing:.05em;margin:28px 0 12px;display:flex;align-items:center;gap:10px}
+.day-label:first-child{margin-top:8px}
+.day-label::before{content:'';flex:none;display:block;width:4px;height:18px;background:var(--green-700);border-radius:2px}
 
-/* ── DAY SECTION ─────────────────────────────────────────────────────── */
-.day-label { font-size: 13px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 10px; display: flex; align-items: center; gap: 6px; }
-.day-label:first-child { margin-top: 4px; }
+/* ── MEAL CARD ── */
+.meal-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px 18px 14px;margin-bottom:10px}
+.meal-card-header{margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.meal-badge{display:inline-block;font-size:13px;font-weight:800;padding:6px 16px;border-radius:30px;letter-spacing:.02em}
+.meal-badge.pranzo{background:var(--green-700);color:#fff}
+.meal-badge.cena{background:var(--gray-900);color:#fff}
+.lock-badge{font-size:11px;font-weight:700;color:var(--green-500);background:var(--green-50);border:1px solid var(--green-100);border-radius:20px;padding:4px 10px}
+/* locked card */
+.meal-card.locked{opacity:.85}
+.piatto-row-locked{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--gray-100)}
+.piatto-row-locked:last-child{border-bottom:none}
+.piatto-qty-locked{font-size:17px;font-weight:800;color:var(--gray-400,#9CA3AF);min-width:32px;text-align:right}
 
-/* ── MEAL CARD ───────────────────────────────────────────────────────── */
-.meal-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px 16px 14px; margin-bottom: 10px; }
-.meal-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.meal-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; letter-spacing: .03em; }
-.meal-badge.pranzo { background: var(--blue-bg);  color: var(--blue); }
-.meal-badge.cena   { background: var(--green-50); color: var(--green-500); }
-.meal-quota { font-size: 12px; color: var(--gray-500); display: flex; align-items: center; gap: 5px; }
-.quota-used { font-weight: 800; color: var(--gray-900); }
-.quota-bar-wrap { height: 3px; background: var(--gray-100); border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
-.quota-bar { height: 100%; border-radius: 2px; background: var(--blue); transition: width .2s; }
-.quota-bar.full { background: var(--red); }
+/* ── CATEGORIA ── */
+.cat-section{margin-bottom:6px}
+.cat-header{display:flex;align-items:baseline;justify-content:space-between;padding-top:14px}
+.cat-name{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-500)}
+.cat-quota{font-size:11px;font-weight:600;color:var(--gray-500)}
+.cat-quota .cu{font-weight:800;color:var(--gray-900)}
+.cat-bar-wrap{height:3px;background:var(--gray-100);border-radius:2px;margin:6px 0 2px;overflow:hidden}
+.cat-bar{height:100%;border-radius:2px;background:var(--green-400);transition:width .25s}
+.cat-bar.full{background:var(--red)}
 
-/* ── PIATTO ROW ──────────────────────────────────────────────────────── */
-.piatto-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
-.piatto-row:last-of-type { border-bottom: none; }
-.piatto-nome { font-size: 15px; font-weight: 600; color: var(--gray-900); flex: 1; line-height: 1.3; }
-.piatto-nome.zero { color: var(--gray-400, #9CA3AF); font-weight: 500; }
+/* ── PIATTO ROW ── */
+.piatto-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--gray-100)}
+.piatto-row:last-child{border-bottom:none}
+.piatto-nome{font-size:17px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
+.piatto-nome.zero{color:var(--gray-400,#9CA3AF);font-weight:500}
 
-/* ── STEPPER ─────────────────────────────────────────────────────────── */
-.stepper { display: flex; align-items: center; border: 1.5px solid var(--gray-200, #E5E7EB); border-radius: 30px; overflow: hidden; flex-shrink: 0; }
-.step-btn { width: 36px; height: 36px; border: none; background: transparent; font-size: 20px; font-weight: 700; cursor: pointer; color: var(--gray-700); font-family: var(--font); display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; transition: background .15s; }
-.step-btn:not(:disabled):active { background: var(--gray-100); }
-.step-btn:disabled { opacity: .3; cursor: not-allowed; }
-.step-val { min-width: 28px; text-align: center; font-size: 15px; font-weight: 800; color: var(--gray-900); }
-.step-val.active { color: var(--blue); }
+/* ── STEPPER ── */
+.stepper{display:flex;align-items:center;background:var(--white);border-radius:40px;overflow:hidden;flex-shrink:0;border:1.5px solid var(--gray-200,#E5E7EB)}
+.step-btn{width:40px;height:44px;border:none;background:transparent;font-size:22px;font-weight:400;cursor:pointer;color:var(--gray-500);font-family:var(--font);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1}
+.step-btn:not(:disabled):active{background:var(--gray-100)}
+.step-btn:disabled{opacity:.25;cursor:not-allowed}
+.step-val{min-width:28px;text-align:center;font-size:17px;font-weight:800;color:var(--gray-900)}
+.step-val.active{color:var(--gray-900)}
 
-/* ── NOTE ────────────────────────────────────────────────────────────── */
-.note-wrap { margin-top: 12px; position: relative; }
-.note-wrap input {
-  width: 100%; height: 44px; padding: 0 14px 0 36px;
-  border: 1.5px solid var(--gray-200, #E5E7EB); border-radius: var(--radius-sm);
-  font-size: 13px; font-family: var(--font); color: var(--gray-900); background: var(--gray-50);
-  outline: none; transition: border-color .15s;
-}
-.note-wrap input:focus { border-color: var(--blue); background: var(--white); }
-.note-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--gray-400, #9CA3AF); pointer-events: none; }
+/* ── NOTE ── */
+.note-wrap{margin-top:16px}
+.note-wrap input{width:100%;height:48px;padding:0 16px;border:1.5px solid var(--gray-200,#E5E7EB);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);background:var(--gray-50);outline:none;transition:border-color .15s}
+.note-wrap input:focus{border-color:var(--green-400);background:var(--white)}
+.note-wrap input::placeholder{color:var(--gray-400,#9CA3AF)}
 
-/* ── VUOTO (nessun menu) ─────────────────────────────────────────────── */
-.empty-day { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 24px 16px; text-align: center; color: var(--gray-500); font-size: 13px; margin-bottom: 10px; }
+/* ── EMPTY DAY ── */
+.empty-day{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:24px 16px;text-align:center;color:var(--gray-500);font-size:13px;margin-bottom:10px}
 
-/* ── BOTTONE CONFERMA ────────────────────────────────────────────────── */
-.confirm-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--white); border-top: 1px solid var(--gray-100); z-index: 50; }
-.confirm-bar-inner { max-width: 600px; margin: 0 auto; }
-.btn-confirm { width: 100%; height: 52px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 16px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; transition: opacity .15s; }
-.btn-confirm:active { opacity: .85; }
-.btn-confirm:disabled { background: var(--gray-300); cursor: not-allowed; }
+/* ── CONFIRM BAR ── */
+.confirm-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--white);border-top:1px solid var(--gray-100);z-index:50}
+.confirm-bar-inner{max-width:600px;margin:0 auto}
+.btn-confirm{width:100%;height:52px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:16px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.btn-confirm:active{opacity:.85}
+.btn-confirm:disabled{background:var(--gray-300);cursor:not-allowed}
 
-/* ── SETTINGS PANEL ──────────────────────────────────────────────────── */
-#settings-overlay {
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.4);
-  opacity: 0; pointer-events: none;
-  transition: opacity .25s;
-}
-#settings-overlay.open { opacity: 1; pointer-events: all; }
-#settings-panel {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 201;
-  width: min(320px, 90vw);
-  background: var(--white);
-  padding: env(safe-area-inset-top) 0 0;
-  transform: translateX(100%);
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
-  display: flex; flex-direction: column;
-  box-shadow: var(--shadow-lg);
-}
-#settings-panel.open { transform: translateX(0); }
-.settings-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--gray-100); }
-.settings-header h2 { font-size: 16px; font-weight: 800; }
-.settings-close { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--gray-100); cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
-.settings-body { flex: 1; overflow-y: auto; padding: 18px; }
-.settings-section { margin-bottom: 22px; }
-.settings-section h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-500); margin-bottom: 10px; }
-.info-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--gray-100); font-size: 14px; }
-.info-row:last-child { border-bottom: none; }
-.info-label { color: var(--gray-500); font-size: 13px; }
-.info-value { font-weight: 700; color: var(--gray-900); }
-.guest-stepper { display: flex; align-items: center; gap: 12px; }
-.guest-stepper .step-btn { border: 1.5px solid var(--gray-200, #E5E7EB); border-radius: 50%; width: 34px; height: 34px; font-size: 18px; }
-.settings-divider { height: 1px; background: var(--gray-100); margin: 4px 0 16px; }
-.btn-reset { width: 100%; height: 44px; background: var(--red-bg); color: var(--red); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); }
-.btn-reset:active { opacity: .8; }
+/* ── SETTINGS PANEL ── */
+#settings-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.4);opacity:0;pointer-events:none;transition:opacity .25s}
+#settings-overlay.open{opacity:1;pointer-events:all}
+#settings-panel{position:fixed;top:0;right:0;bottom:0;z-index:201;width:min(320px,90vw);background:var(--white);padding:env(safe-area-inset-top) 0 0;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
+#settings-panel.open{transform:translateX(0)}
+.settings-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--gray-100)}
+.settings-header h2{font-size:16px;font-weight:800}
+.settings-close{width:32px;height:32px;border:none;border-radius:50%;background:var(--gray-100);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;font-family:var(--font)}
+.settings-body{flex:1;overflow-y:auto;padding:18px}
+.settings-section{margin-bottom:22px}
+.settings-section h3{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:10px}
+.info-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--gray-100);font-size:14px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--gray-500);font-size:13px}
+.info-value{font-weight:700;color:var(--gray-900)}
+.guest-stepper{display:flex;align-items:center;gap:12px}
+.guest-stepper .step-btn{border:1.5px solid var(--gray-200,#E5E7EB);border-radius:50%;width:34px;height:34px;font-size:18px}
+.btn-reset{width:100%;height:44px;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font)}
 
-/* ── TOAST ───────────────────────────────────────────────────────────── */
-.toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* ── TOAST ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:var(--white);padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
-<div id="loading-screen">
-  <img class="loading-logo" src="../logo-hub-app.jpg" alt="Garden River">
-  <div class="loading-spinner"></div>
-</div>
+<div id="loading-screen"><div class="gr-spinner"></div></div>
 
-<!-- ERRORE CODICE NON VALIDO -->
 <div id="error-screen" class="hidden">
   <div class="error-icon">🍽️</div>
   <div class="error-title">Accesso non valido</div>
-  <div class="error-sub">Il link utilizzato non è valido o è scaduto.<br>Contatta lo staff per ricevere un nuovo link.</div>
+  <div class="error-sub">Il link non è valido o è scaduto.<br>Contatta lo staff per ricevere un nuovo link.</div>
 </div>
 
-<!-- HEADER -->
 <div class="top-bar hidden" id="app-header">
   <div class="header-inner">
     <div class="header-left">
       <div class="header-avatar" id="hdr-avatar">??</div>
       <div>
-        <div class="header-nome"  id="hdr-nome">—</div>
-        <div class="header-unita" id="hdr-unita">—</div>
+        <div class="header-nome" id="hdr-nome">—</div>
+        <div class="header-sub"  id="hdr-sub">—</div>
       </div>
     </div>
-    <button class="hbtn" id="btn-settings" onclick="openSettings()" aria-label="Impostazioni">⚙️</button>
+    <button class="hbtn" onclick="openSettings()" aria-label="Impostazioni">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
 </div>
 
-<!-- MAIN -->
 <main class="hidden" id="app-main">
-  <div id="menu-container">
-    <!-- generato da JS -->
+  <div class="page-title">
+    <h1>Cosa<br>Mangiamo oggi?</h1>
   </div>
+  <div id="menu-container"></div>
 </main>
 
-<!-- CONFERMA ORDINI -->
 <div class="confirm-bar hidden" id="confirm-bar">
   <div class="confirm-bar-inner">
-    <button class="btn-confirm" id="btn-confirm" onclick="salvaOrdini()">Conferma ordini</button>
+    <button class="btn-confirm" onclick="salvaOrdini()">Conferma ordini</button>
   </div>
 </div>
 
-<!-- SETTINGS PANEL -->
 <div id="settings-overlay" onclick="closeSettings()"></div>
 <div id="settings-panel" role="dialog" aria-label="Impostazioni famiglia">
   <div class="settings-header">
@@ -269,456 +223,311 @@ main { max-width: 600px; margin: 0 auto; padding: 16px 14px 80px; }
     </div>
     <div class="settings-section">
       <h3>Ospiti presenti</h3>
-      <div class="info-row" style="border:none;padding:6px 0">
-        <span class="info-label" style="font-size:13px">Quante persone mangiano?</span>
-        <div class="guest-stepper">
-          <button class="step-btn" id="gs-minus" onclick="changeGuests(-1)">−</button>
-          <span class="info-value" id="gs-val">—</span>
-          <button class="step-btn" id="gs-plus"  onclick="changeGuests(+1)">+</button>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--gray-500);margin-top:4px;line-height:1.5">
-        Puoi ordinare al massimo questo numero di porzioni per pasto.
-      </div>
+      <div class="info-row"><span class="info-label">Numero pax</span><span class="info-value" id="gs-val">—</span></div>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:4px;line-height:1.5">Puoi ordinare al massimo questo numero di porzioni per pasto. Per modificarlo contatta lo staff.</p>
     </div>
-    <div class="settings-divider"></div>
+    <div style="height:1px;background:var(--gray-100);margin:4px 0 16px"></div>
     <div class="settings-section">
       <h3>Cambio dispositivo</h3>
-      <div style="font-size:13px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">
-        Vuoi accedere da un altro dispositivo? Scansiona di nuovo il QR code. Per disconnettere questo dispositivo:
-      </div>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Per disconnettere questo dispositivo e accedere da un altro, scansiona di nuovo il QR code dopo aver premuto il pulsante.</p>
       <button class="btn-reset" onclick="resetAccesso()">Disconnetti questo dispositivo</button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STATO GLOBALE ───────────────────────────────────────────────────────
-let famiglia   = null;   // { id, nome, codice, unita, max_ospiti }
-let menuOggi   = [];     // [{ id, data, tipo, piatto }]
-let menuDomani = [];
-let ordiniEsistenti = {}; // key: `${data}_${tipo}` → { piatti, note }
-
-// valori UI correnti: { [`${data}_${tipo}`]: { piatti: {menuId: qty}, note: '' } }
+const HUB_URL = '../';
+let famiglia = null;
+let menuOggi = [], menuDomani = [];
+let ordiniEsistenti = {};
 let selezioni = {};
 
-// ── DATE ────────────────────────────────────────────────────────────────
-function getDate(offsetDays = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split('T')[0];
-}
-const OGGI   = getDate(0);
-const DOMANI = getDate(1);
+function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
+const OGGI=isoDate(0), DOMANI=isoDate(1);
 
-function labelData(iso) {
-  const [y, m, g] = iso.split('-').map(Number);
-  const d = new Date(y, m - 1, g);
-  const giorni = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
-  const mesi   = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  const prefix = iso === OGGI ? 'Oggi' : 'Domani';
-  return `${prefix} — ${giorni[d.getDay()]} ${g} ${mesi[m - 1]}`;
+function labelData(iso){
+  const [y,m,g]=iso.split('-').map(Number);
+  const d=new Date(y,m-1,g);
+  const GG=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const MM=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const prefix=iso===OGGI?'Oggi':'Domani';
+  return `${prefix} — ${GG[d.getDay()]} ${g} ${MM[m-1]}`;
 }
 
-// ── FIREBASE READY ──────────────────────────────────────────────────────
-function waitForFirebase() {
-  return new Promise(resolve => {
-    if (window._fbRistoReady) return resolve();
-    window.addEventListener('firebase-risto-ready', () => resolve(), { once: true });
-  });
-}
+function waitForFirebase(){ return new Promise(r=>{ if(window._fbRistoReady)return r(); window.addEventListener('firebase-risto-ready',()=>r(),{once:true}); }); }
 
-// ── AVVIO ────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', avvio);
-
-async function avvio() {
+window.addEventListener('DOMContentLoaded', async()=>{
   await waitForFirebase();
-
-  const codice = leggiCodice();
-  if (!codice) { mostraErrore(); return; }
-
-  try {
+  const codice=leggiCodice();
+  if(!codice){ mostraErrore(); return; }
+  try{
     await caricaFamiglia(codice);
-    await caricaMenu();
-    await caricaOrdiniEsistenti();
+    await Promise.all([caricaMenu(), caricaOrdiniEsistenti()]);
+    buildMenuCatMap();
     inizializzaSelezioni();
     renderApp();
     nascondiLoading();
-  } catch(e) {
-    console.error('Errore avvio:', e);
-    mostraErrore();
-  }
+  }catch(e){ console.error(e); mostraErrore(); }
+});
+
+function leggiCodice(){
+  const p=new URLSearchParams(window.location.search).get('f');
+  if(p){ localStorage.setItem('gr_risto_codice',p.toUpperCase()); history.replaceState(null,'',window.location.pathname); return p.toUpperCase(); }
+  return localStorage.getItem('gr_risto_codice')||null;
 }
 
-// ── CODICE ACCESSO ───────────────────────────────────────────────────────
-function leggiCodice() {
-  // Prima controlla URL ?f=CODICE
-  const params = new URLSearchParams(window.location.search);
-  const daUrl  = params.get('f');
-  if (daUrl) {
-    localStorage.setItem('gr_risto_codice', daUrl.toUpperCase());
-    // Pulisce l'URL senza ricaricare
-    history.replaceState(null, '', window.location.pathname);
-    return daUrl.toUpperCase();
-  }
-  // Poi localStorage
-  return localStorage.getItem('gr_risto_codice') || null;
+async function caricaFamiglia(codice){
+  const {db,collection,query,where,getDocs}=window._fbRisto;
+  const snap=await getDocs(query(collection(db,'famiglie_ristorazione'),where('codice','==',codice)));
+  if(snap.empty) throw new Error('Famiglia non trovata');
+  famiglia={id:snap.docs[0].id,...snap.docs[0].data()};
 }
 
-// ── CARICA FAMIGLIA ──────────────────────────────────────────────────────
-async function caricaFamiglia(codice) {
-  const { db, collection, query, where, getDocs } = window._fbRisto;
-  const snap = await getDocs(query(
-    collection(db, 'famiglie_ristorazione'),
-    where('codice', '==', codice)
-  ));
-  if (snap.empty) throw new Error('Famiglia non trovata');
-  const docRef = snap.docs[0];
-  famiglia = { id: docRef.id, ...docRef.data() };
+async function caricaMenu(){
+  const {db,collection,query,where,getDocs}=window._fbRisto;
+  // Query separata per oggi e domani — evita indice composito con orderBy
+  const [snapO,snapD]=await Promise.all([
+    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',OGGI))),
+    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',DOMANI)))
+  ]);
+  menuOggi  =snapO.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
+  menuDomani=snapD.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
 }
 
-// ── CARICA MENU ──────────────────────────────────────────────────────────
-async function caricaMenu() {
-  const { db, collection, query, where, orderBy, getDocs } = window._fbRisto;
-  const snap = await getDocs(query(
-    collection(db, 'menu_ristorazione'),
-    where('data', 'in', [OGGI, DOMANI]),
-    orderBy('data'),
-    orderBy('tipo')
-  ));
-
-  menuOggi   = [];
-  menuDomani = [];
-  snap.docs.forEach(d => {
-    const item = { id: d.id, ...d.data() };
-    if (item.data === OGGI)   menuOggi.push(item);
-    else                      menuDomani.push(item);
-  });
+async function caricaOrdiniEsistenti(){
+  const {db,collection,query,where,getDocs}=window._fbRisto;
+  // Due query separate per evitare indice composito su famiglia_id + data
+  const [snapO,snapD]=await Promise.all([
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',OGGI))),
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',DOMANI)))
+  ]);
+  ordiniEsistenti={};
+  [...snapO.docs,...snapD.docs].forEach(d=>{ const x=d.data(); ordiniEsistenti[`${x.data}_${x.tipo}`]=x; });
 }
 
-// ── CARICA ORDINI ESISTENTI ──────────────────────────────────────────────
-async function caricaOrdiniEsistenti() {
-  const { db, collection, query, where, getDocs } = window._fbRisto;
-  const snap = await getDocs(query(
-    collection(db, 'ordini_ristorazione'),
-    where('famiglia_id', '==', famiglia.id),
-    where('data', 'in', [OGGI, DOMANI])
-  ));
-  ordiniEsistenti = {};
-  snap.docs.forEach(d => {
-    const data = d.data();
-    ordiniEsistenti[`${data.data}_${data.tipo}`] = data;
-  });
-}
-
-// ── INIZIALIZZA SELEZIONI ────────────────────────────────────────────────
-function inizializzaSelezioni() {
-  const pasti = [
-    ...menuOggi.map(m => ({ data: OGGI,   tipo: m.tipo })),
-    ...menuDomani.map(m => ({ data: DOMANI, tipo: m.tipo }))
-  ];
-  const chiavi = [...new Set(pasti.map(p => `${p.data}_${p.tipo}`))];
-
-  chiavi.forEach(key => {
-    const esistente = ordiniEsistenti[key];
-    selezioni[key] = {
-      piatti: {},
-      note: esistente ? (esistente.note || '') : ''
-    };
-    if (esistente && esistente.piatti) {
-      esistente.piatti.forEach(p => {
-        selezioni[key].piatti[p.menu_id] = p.quantita;
-      });
+function inizializzaSelezioni(){
+  const chiavi=[...new Set([...menuOggi,...menuDomani].map(m=>`${m.data}_${m.tipo}`))];
+  chiavi.forEach(key=>{
+    const e=ordiniEsistenti[key];
+    selezioni[key]={piatti:{},note:e?(e.note||''):''};
+    if(e&&e.piatti){
+      if(Array.isArray(e.piatti)){
+        // formato array [{menu_id, quantita}]
+        e.piatti.forEach(p=>{ if(p.quantita>0) selezioni[key].piatti[p.menu_id]=p.quantita; });
+      } else {
+        // formato mappa legacy {menuId: qty}
+        Object.entries(e.piatti).forEach(([mid,qty])=>{ if(qty>0) selezioni[key].piatti[mid]=qty; });
+      }
     }
   });
 }
 
-// ── RENDER ───────────────────────────────────────────────────────────────
-function renderApp() {
-  document.getElementById('hdr-avatar').textContent = famiglia.nome.slice(0, 2).toUpperCase();
-  document.getElementById('hdr-nome').textContent   = famiglia.nome;
-  document.getElementById('hdr-unita').textContent  = `Unità ${famiglia.unita} · ${famiglia.max_ospiti} ospiti`;
-
-  document.getElementById('set-nome').textContent   = famiglia.nome;
-  document.getElementById('set-unita').textContent  = famiglia.unita;
-  document.getElementById('set-codice').textContent = famiglia.codice;
-  document.getElementById('gs-val').textContent     = famiglia.max_ospiti;
-
+function renderApp(){
+  document.getElementById('hdr-avatar').textContent=famiglia.nome.slice(0,2).toUpperCase();
+  document.getElementById('hdr-nome').textContent=famiglia.nome;
+  document.getElementById('hdr-sub').textContent=`Unità ${famiglia.unita} · ${famiglia.max_ospiti} ospiti`;
+  document.getElementById('set-nome').textContent=famiglia.nome;
+  document.getElementById('set-unita').textContent=famiglia.unita;
+  document.getElementById('set-codice').textContent=famiglia.codice;
+  document.getElementById('gs-val').textContent=famiglia.max_ospiti;
   renderMenu();
 }
 
-function renderMenu() {
-  const container = document.getElementById('menu-container');
-  container.innerHTML = '';
-
-  renderGiorno(container, OGGI,   menuOggi);
-  renderGiorno(container, DOMANI, menuDomani);
+function renderMenu(){
+  const c=document.getElementById('menu-container');
+  c.innerHTML='';
+  renderGiorno(c,OGGI,menuOggi);
+  renderGiorno(c,DOMANI,menuDomani);
 }
 
-function renderGiorno(container, data, voci) {
-  const label = document.createElement('div');
-  label.className = 'day-label';
-  label.textContent = labelData(data);
-  container.appendChild(label);
-
-  if (voci.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'empty-day';
-    empty.textContent = 'Nessun menu disponibile per questo giorno.';
-    container.appendChild(empty);
-    return;
-  }
-
-  // Raggruppa per tipo (pranzo / cena)
-  const tipi = {};
-  voci.forEach(v => {
-    if (!tipi[v.tipo]) tipi[v.tipo] = [];
-    tipi[v.tipo].push(v);
-  });
-
-  ['pranzo', 'cena'].forEach(tipo => {
-    if (!tipi[tipo]) return;
-    container.appendChild(buildMealCard(data, tipo, tipi[tipo]));
-  });
+function renderGiorno(c,data,voci){
+  const lbl=document.createElement('div');
+  lbl.className='day-label';
+  lbl.textContent=labelData(data);
+  c.appendChild(lbl);
+  if(!voci.length){ const e=document.createElement('div'); e.className='empty-day'; e.textContent='Nessun menu disponibile per questo giorno.'; c.appendChild(e); return; }
+  const tipi={};
+  voci.forEach(v=>{ if(!tipi[v.tipo])tipi[v.tipo]=[]; tipi[v.tipo].push(v); });
+  ['pranzo','cena'].forEach(t=>{ if(tipi[t]) c.appendChild(buildMealCard(data,t,tipi[t])); });
 }
 
-function buildMealCard(data, tipo, piatti) {
-  const key = `${data}_${tipo}`;
-  if (!selezioni[key]) selezioni[key] = { piatti: {}, note: '' };
-  const sel = selezioni[key];
+const CAT_ORDER=['Antipasti','Primi','Secondi','Contorni','Dessert'];
 
-  const card = document.createElement('div');
-  card.className = 'meal-card';
-  card.dataset.key = key;
+function buildMealCard(data,tipo,piatti){
+  const key=`${data}_${tipo}`;
+  if(!selezioni[key]) selezioni[key]={piatti:{},note:''};
+  const sel=selezioni[key];
+  const max=famiglia.max_ospiti;
 
-  const totale = totPasto(key);
-  const max    = famiglia.max_ospiti;
+  // Blocca ordini di OGGI già confermati (solo DOMANI è modificabile)
+  const isLocked = data===OGGI && !!ordiniEsistenti[key];
 
-  card.innerHTML = `
+  const card=document.createElement('div');
+  card.className='meal-card'+(isLocked?' locked':'');
+  card.innerHTML=`
     <div class="meal-card-header">
-      <span class="meal-badge ${tipo}">${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</span>
-      <span class="meal-quota"><span class="quota-used" id="used-${key}">${totale}</span> / ${max} porzioni</span>
-    </div>
-    <div class="quota-bar-wrap">
-      <div class="quota-bar ${totale >= max ? 'full' : ''}" id="bar-${key}" style="width:${Math.round(totale/max*100)}%"></div>
+      <span class="meal-badge ${tipo}">${tipo.charAt(0).toUpperCase()+tipo.slice(1)}</span>
+      ${isLocked?'<span class="lock-badge">✓ Confermato</span>':''}
     </div>
     <div id="piatti-${key}"></div>
-    <div class="note-wrap">
-      <span class="note-icon">📝</span>
-      <input type="text" placeholder="Note (allergie, preferenze…)"
-             value="${escHtml(sel.note)}"
-             oninput="aggiornaNota('${key}', this.value)"
-             autocomplete="off" autocorrect="off">
-    </div>
-  `;
+    ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}`;
+  const pDiv=card.querySelector(`#piatti-${key}`);
 
-  const piattiDiv = card.querySelector(`#piatti-${key}`);
-  piatti.forEach(p => {
-    const qty = sel.piatti[p.id] || 0;
-    const row = document.createElement('div');
-    row.className = 'piatto-row';
-    row.innerHTML = `
-      <span class="piatto-nome ${qty === 0 ? 'zero' : ''}" id="pn-${p.id}">${escHtml(p.piatto)}</span>
-      <div class="stepper">
-        <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}',-1)" ${qty === 0 ? 'disabled' : ''}>−</button>
-        <span class="step-val ${qty > 0 ? 'active' : ''}" id="sv-${p.id}">${qty}</span>
-        <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}',+1)" ${totale >= max ? 'disabled' : ''}>+</button>
-      </div>
-    `;
-    piattiDiv.appendChild(row);
+  // raggruppa per categoria
+  const byCat={};
+  piatti.forEach(p=>{
+    const cat=p.categoria||'Altro';
+    if(!byCat[cat]) byCat[cat]=[];
+    byCat[cat].push(p);
   });
+  const cats=[...CAT_ORDER.filter(c=>byCat[c]),...Object.keys(byCat).filter(c=>!CAT_ORDER.includes(c))];
 
+  cats.forEach(cat=>{
+    const voci=byCat[cat];
+    const sec=document.createElement('div');
+    sec.className='cat-section';
+
+    if(isLocked){
+      // Vista sola lettura
+      const totCat=totCategoria(key,cat,piatti);
+      sec.innerHTML=`<div class="cat-header"><span class="cat-name">${esc(cat)}</span><span class="cat-quota">${totCat} / ${max}</span></div>`;
+      voci.forEach(p=>{
+        const qty=sel.piatti[p.id]||0;
+        if(qty===0) return; // nascondi piatti non ordinati in modalità locked
+        const row=document.createElement('div');
+        row.className='piatto-row-locked';
+        row.innerHTML=`<span class="piatto-nome">${esc(p.piatto)}</span><span class="piatto-qty-locked">${qty}</span>`;
+        sec.appendChild(row);
+      });
+    } else {
+      // Vista interattiva
+      const totCat=totCategoria(key,cat,piatti);
+      const pct=Math.round(totCat/max*100);
+      sec.innerHTML=`
+        <div class="cat-header">
+          <span class="cat-name">${esc(cat)}</span>
+          <span class="cat-quota"><span class="cu" id="cu-${key}-${cat}">${totCat}</span> / ${max}</span>
+        </div>
+        <div class="cat-bar-wrap"><div class="cat-bar ${totCat>=max?'full':''}" id="cb-${key}-${cat}" style="width:${pct}%"></div></div>`;
+      voci.forEach(p=>{
+        const qty=sel.piatti[p.id]||0;
+        const row=document.createElement('div');
+        row.className='piatto-row';
+        row.innerHTML=`
+          <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${p.id}">${esc(p.piatto)}</span>
+          <div class="stepper">
+            <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}','${cat}',-1)" ${qty===0?'disabled':''}>−</button>
+            <span class="step-val ${qty>0?'active':''}" id="sv-${p.id}">${qty}</span>
+            <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}','${cat}',+1)" ${totCat>=max?'disabled':''}>+</button>
+          </div>`;
+        sec.appendChild(row);
+      });
+    }
+    pDiv.appendChild(sec);
+  });
   return card;
 }
 
-// ── STEPPER LOGIC ────────────────────────────────────────────────────────
-function step(key, menuId, delta) {
-  const sel = selezioni[key];
-  const cur = sel.piatti[menuId] || 0;
-  const tot = totPasto(key);
-  const max = famiglia.max_ospiti;
-
-  if (delta < 0 && cur <= 0) return;
-  if (delta > 0 && tot >= max) return;
-
-  sel.piatti[menuId] = cur + delta;
-  aggiornaRigaPiatto(key, menuId);
-  aggiornaQuota(key);
+// menuItems: array di piatti del pasto (serve la categoria per identificare il gruppo)
+// Teniamo una mappa globale menuCat per lookup rapido
+let menuCatMap={};
+function buildMenuCatMap(){
+  menuCatMap={};
+  [...menuOggi,...menuDomani].forEach(p=>{ menuCatMap[p.id]={piatto:p.piatto,categoria:p.categoria||'Altro'}; });
 }
 
-function aggiornaRigaPiatto(key, menuId) {
-  const qty = selezioni[key].piatti[menuId] || 0;
-  const sv  = document.getElementById(`sv-${menuId}`);
-  const sm  = document.getElementById(`sm-${menuId}`);
-  const sp  = document.getElementById(`sp-${menuId}`);
-  const pn  = document.getElementById(`pn-${menuId}`);
-  if (!sv) return;
+function totCategoria(key,cat,piatti){
+  const sel=selezioni[key]; if(!sel)return 0;
+  const ids=new Set((piatti||[]).filter(p=>(p.categoria||'Altro')===cat).map(p=>p.id));
+  return Object.entries(sel.piatti).filter(([mid,q])=>ids.has(mid)&&q>0).reduce((s,[,q])=>s+q,0);
+}
 
-  sv.textContent = qty;
-  sv.className   = `step-val ${qty > 0 ? 'active' : ''}`;
-  if (sm) sm.disabled = qty <= 0;
-  if (pn) pn.className = `piatto-nome ${qty === 0 ? 'zero' : ''}`;
-
-  // aggiorna tutti i bottoni + della stessa card
-  const max = famiglia.max_ospiti;
-  const tot = totPasto(key);
-  document.querySelectorAll(`[id^="sp-"]`).forEach(btn => {
-    const mid = btn.id.replace('sp-', '');
-    // applica solo ai piatti di questa card
-    if (document.getElementById(`sv-${mid}`) &&
-        selezioni[key].piatti !== undefined) {
-      btn.disabled = tot >= max;
-    }
+function step(key,menuId,cat,delta){
+  const sel=selezioni[key], cur=sel.piatti[menuId]||0, max=famiglia.max_ospiti;
+  // trova i piatti del pasto per calcolare il totale di categoria
+  const [data,tipo]=key.split('_');
+  const piatti=[...(data===OGGI?menuOggi:menuDomani)].filter(p=>p.tipo===tipo);
+  const totCat=totCategoria(key,cat,piatti);
+  if(delta<0&&cur<=0)return;
+  if(delta>0&&totCat>=max)return;
+  sel.piatti[menuId]=cur+delta;
+  const qty=sel.piatti[menuId];
+  const sv=document.getElementById(`sv-${menuId}`);
+  const sm=document.getElementById(`sm-${menuId}`);
+  const pn=document.getElementById(`pn-${menuId}`);
+  if(sv){sv.textContent=qty;sv.className=`step-val ${qty>0?'active':''}`;}
+  if(sm) sm.disabled=qty<=0;
+  if(pn) pn.className=`piatto-nome ${qty===0?'zero':''}`;
+  // aggiorna barra categoria
+  const newTot=totCategoria(key,cat,piatti);
+  const cu=document.getElementById(`cu-${key}-${cat}`);
+  const cb=document.getElementById(`cb-${key}-${cat}`);
+  if(cu) cu.textContent=newTot;
+  if(cb){cb.style.width=Math.round(newTot/max*100)+'%';cb.className=`cat-bar ${newTot>=max?'full':''}`;}
+  // disabilita/abilita tutti i + di questa categoria
+  piatti.filter(p=>(p.categoria||'Altro')===cat).forEach(p=>{
+    const btn=document.getElementById(`sp-${p.id}`);
+    if(btn) btn.disabled=newTot>=max;
   });
 }
 
-function aggiornaQuota(key) {
-  const tot = totPasto(key);
-  const max = famiglia.max_ospiti;
-  const used = document.getElementById(`used-${key}`);
-  const bar  = document.getElementById(`bar-${key}`);
-  if (used) used.textContent = tot;
-  if (bar) {
-    bar.style.width    = Math.round(tot / max * 100) + '%';
-    bar.className      = `quota-bar ${tot >= max ? 'full' : ''}`;
-  }
-}
+function aggiornaNota(key,val){ if(selezioni[key]) selezioni[key].note=val; }
 
-function totPasto(key) {
-  const sel = selezioni[key];
-  if (!sel) return 0;
-  return Object.values(sel.piatti).reduce((s, v) => s + v, 0);
-}
-
-function aggiornaNota(key, val) {
-  if (selezioni[key]) selezioni[key].note = val;
-}
-
-// ── SALVA ORDINI ─────────────────────────────────────────────────────────
-async function salvaOrdini() {
-  const btn = document.getElementById('btn-confirm');
-  btn.disabled = true;
-  btn.textContent = 'Salvataggio…';
-
-  try {
-    const { db, collection, doc, setDoc } = window._fbRisto;
-    const menuMap = buildMenuMap();
-    const promises = [];
-
-    for (const [key, sel] of Object.entries(selezioni)) {
-      const [data, tipo] = key.split('_');
-      const piattiSelezionati = Object.entries(sel.piatti)
-        .filter(([, qty]) => qty > 0)
-        .map(([menuId, qty]) => ({
-          menu_id:  menuId,
-          piatto:   menuMap[menuId] || '—',
-          quantita: qty
-        }));
-
-      const docId  = `${famiglia.id}_${data}_${tipo}`;
-      const ordine = {
-        famiglia_id:   famiglia.id,
-        famiglia_nome: famiglia.nome,
-        unita:         famiglia.unita,
-        data,
-        tipo,
-        piatti:        piattiSelezionati,
-        note:          sel.note || '',
-        servito:       false,
-        timestamp:     new Date().toISOString()
-      };
-
-      promises.push(setDoc(doc(db, 'ordini_ristorazione', docId), ordine));
+async function salvaOrdini(){
+  const btn=document.querySelector('.btn-confirm');
+  btn.disabled=true; btn.textContent='Salvataggio…';
+  try{
+    const {db,collection,doc,setDoc}=window._fbRisto;
+    const promises=[];
+    for(const [key,sel] of Object.entries(selezioni)){
+      const [data,tipo]=key.split('_');
+      // Salta ordini di oggi già confermati (bloccati)
+      if(data===OGGI && ordiniEsistenti[key]) continue;
+      const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
+        const m=menuCatMap[mid]||{};
+        return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
+      });
+      const docId=`${famiglia.id}_${data}_${tipo}`;
+      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,timestamp:new Date().toISOString()},{merge:true}));
     }
-
     await Promise.all(promises);
     showToast('Ordini salvati ✓');
-  } catch(e) {
-    console.error('Errore salvataggio:', e);
-    showToast('Errore di salvataggio — riprova');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Conferma ordini';
-  }
+    setTimeout(()=>location.reload(), 1200);
+  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); btn.disabled=false; btn.textContent='Conferma ordini'; }
 }
 
-function buildMenuMap() {
-  const map = {};
-  [...menuOggi, ...menuDomani].forEach(m => { map[m.id] = m.piatto; });
-  return map;
+function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); }
+function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); document.getElementById('settings-panel').classList.remove('open'); }
+
+function changeGuests(delta){
+  const v=(famiglia.max_ospiti||1)+delta;
+  if(v<1)return;
+  famiglia.max_ospiti=v;
+  document.getElementById('gs-val').textContent=v;
+  document.getElementById('hdr-sub').textContent=`Unità ${famiglia.unita} · ${v} ospiti`;
+  salvaMaxOspiti(v);
 }
 
-// ── SETTINGS ─────────────────────────────────────────────────────────────
-function openSettings() {
-  document.getElementById('settings-overlay').classList.add('open');
-  document.getElementById('settings-panel').classList.add('open');
-  document.getElementById('gs-val').textContent = famiglia.max_ospiti;
-  document.getElementById('gs-minus').disabled  = famiglia.max_ospiti <= 1;
-}
-function closeSettings() {
-  document.getElementById('settings-overlay').classList.remove('open');
-  document.getElementById('settings-panel').classList.remove('open');
+async function salvaMaxOspiti(val){
+  try{ const {db,doc,setDoc}=window._fbRisto; await setDoc(doc(db,'famiglie_ristorazione',famiglia.id),{max_ospiti:val},{merge:true}); }
+  catch(e){ console.error(e); }
 }
 
-function changeGuests(delta) {
-  const newVal = (famiglia.max_ospiti || 1) + delta;
-  if (newVal < 1) return;
-  famiglia.max_ospiti = newVal;
-  document.getElementById('gs-val').textContent    = newVal;
-  document.getElementById('gs-minus').disabled     = newVal <= 1;
-  document.getElementById('hdr-unita').textContent = `Unità ${famiglia.unita} · ${newVal} ospiti`;
-  // Aggiorna tutte le quote visibili
-  Object.keys(selezioni).forEach(key => aggiornaQuota(key));
-  // Salva su Firestore
-  salvaMaxOspiti(newVal);
-}
+function resetAccesso(){ if(!confirm('Disconnettere questo dispositivo?'))return; localStorage.removeItem('gr_risto_codice'); location.reload(); }
 
-async function salvaMaxOspiti(val) {
-  try {
-    const { db, doc, setDoc, getDoc } = window._fbRisto;
-    const ref = doc(window._fbRisto.db, 'famiglie_ristorazione', famiglia.id);
-    // Usa merge per non sovrascrivere altri campi
-    await setDoc(ref, { max_ospiti: val }, { merge: true });
-  } catch(e) { console.error('Errore salvataggio ospiti:', e); }
-}
-
-function resetAccesso() {
-  if (!confirm('Disconnettere questo dispositivo? Sarà necessario riscansionare il QR code.')) return;
-  localStorage.removeItem('gr_risto_codice');
-  location.reload();
-}
-
-// ── UI HELPERS ────────────────────────────────────────────────────────────
-function nascondiLoading() {
-  document.getElementById('loading-screen').classList.add('hidden');
+function nascondiLoading(){
+  const el=document.getElementById('loading-screen');
+  el.style.opacity='0'; setTimeout(()=>el.style.display='none',250);
   document.getElementById('app-header').classList.remove('hidden');
   document.getElementById('app-main').classList.remove('hidden');
   document.getElementById('confirm-bar').classList.remove('hidden');
 }
-function mostraErrore() {
-  document.getElementById('loading-screen').classList.add('hidden');
-  document.getElementById('error-screen').classList.remove('hidden');
-}
-function escHtml(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function mostraErrore(){ document.getElementById('loading-screen').style.display='none'; document.getElementById('error-screen').classList.remove('hidden'); }
 
-let toastTimer;
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
-}
-
-// Import merge per setDoc
-// (il setDoc con { merge: true } richiede di passare l'opzione come terzo argomento)
-// Firebase modular SDK: setDoc(ref, data, { merge: true })
-// già importato sopra nel modulo — accessibile via window._fbRisto
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let _tt; function showToast(m){ const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),2800); }
 </script>
 </body>
 </html>
