@@ -184,7 +184,8 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .add-fam-card h3{font-size:13px;font-weight:800;color:var(--gray-900);margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .form-row.solo{grid-template-columns:1fr}
-.finput{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;color:var(--gray-900)}
+.finput{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;color:var(--gray-900);min-width:0}
+input[type="date"].finput{font-size:13px}
 .finput:focus{border-color:var(--green-400)}
 .fselect{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;background:#fff;color:var(--gray-900)}
 .btn-add{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
@@ -198,6 +199,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
 .fam-code{font-family:monospace;font-size:11px;background:var(--green-50);color:var(--green-700);padding:3px 8px;border-radius:6px;border:1px solid var(--green-100);margin-top:4px;display:inline-block}
 .fam-del{width:34px;height:34px;background:var(--red-bg);border:none;border-radius:10px;color:var(--red);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-edit{width:34px;height:34px;background:var(--gray-100);border:none;border-radius:10px;color:var(--gray-700);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* ── MODAL ADD DISH ── */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
@@ -370,6 +372,34 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
     <div class="mbtns">
       <button class="mcancel" onclick="closeModal()">Annulla</button>
       <button class="msave"   onclick="salvaMenuPiatto()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MODIFICA FAMIGLIA -->
+<div id="modal-edit-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box">
+    <div class="modal-title">Modifica famiglia</div>
+    <input type="hidden" id="ef-id">
+    <div class="mlabel">Nome Cognome</div>
+    <input class="minput" id="ef-nome" type="text" placeholder="Nome Cognome">
+    <div class="mlabel">Alloggio</div>
+    <select class="mselect" id="ef-alloggio"></select>
+    <div class="mlabel">Trattamento</div>
+    <select class="mselect" id="ef-trattamento">
+      <option value="">Seleziona</option>
+      <option value="PC">Pensione completa</option>
+      <option value="MP">Mezza pensione</option>
+      <option value="SC">Solo cena</option>
+      <option value="SP">Solo pranzo</option>
+    </select>
+    <div class="mlabel">Data check-out</div>
+    <input class="minput" id="ef-checkout" type="date">
+    <div class="mlabel">Numero pax</div>
+    <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div class="mbtns">
+      <button class="mcancel" onclick="document.getElementById('modal-edit-fam').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="salvaEditFamiglia()">Salva</button>
     </div>
   </div>
 </div>
@@ -834,9 +864,14 @@ function renderFamiglie() {
         <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}</div>
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
-      <button class="fam-del" onclick="eliminaFamiglia('${f.id}')" title="Elimina">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
-      </button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="fam-edit" onclick="apriEditFamiglia('${f.id}')" title="Modifica">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+        </button>
+        <button class="fam-del" onclick="eliminaFamiglia('${f.id}')" title="Elimina">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -868,6 +903,43 @@ async function aggiungiFamiglia() {
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
+function apriEditFamiglia(id) {
+  const f = famiglieDocs.find(f => f.id === id);
+  if (!f) return;
+  document.getElementById('ef-id').value          = id;
+  document.getElementById('ef-nome').value        = f.nome || '';
+  document.getElementById('ef-trattamento').value = f.trattamento || '';
+  document.getElementById('ef-checkout').value    = f.checkout || '';
+  document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  // Popola select alloggi copiando le opzioni dal select principale
+  const src = document.getElementById('f-alloggio');
+  const dst = document.getElementById('ef-alloggio');
+  dst.innerHTML = src.innerHTML;
+  dst.value = f.unita || '';
+  document.getElementById('modal-edit-fam').classList.remove('hidden');
+}
+
+async function salvaEditFamiglia() {
+  const id       = document.getElementById('ef-id').value;
+  const nome     = document.getElementById('ef-nome').value.trim();
+  const alloggio = document.getElementById('ef-alloggio').value;
+  const tratt    = document.getElementById('ef-trattamento').value;
+  const checkout = document.getElementById('ef-checkout').value;
+  const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
+  if (!nome) { showToast('Inserisci il nome'); return; }
+
+  const { db, doc, setDoc } = window._fb;
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax };
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
+    const idx = famiglieDocs.findIndex(f => f.id === id);
+    if (idx !== -1) famiglieDocs[idx] = { ...famiglieDocs[idx], ...updates };
+    document.getElementById('modal-edit-fam').classList.add('hidden');
+    renderFamiglie();
+    showToast('Famiglia aggiornata');
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
 async function eliminaFamiglia(id) {
   if (!confirm('Eliminare questa famiglia e tutti i suoi dati?')) return;
   const { db, doc, deleteDoc } = window._fb;
@@ -885,9 +957,13 @@ function mostraQR(nome, codice) {
   document.getElementById('qr-title').textContent = nome;
   document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
   document.getElementById('qr-link').textContent  = url;
+  // Mostra il modal PRIMA di generare il QR (canvas deve essere visibile)
   document.getElementById('modal-qr').classList.remove('hidden');
-  const canvas = document.getElementById('qr-canvas');
-  QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1B4332', light: '#F0FAF4' } });
+  setTimeout(() => {
+    const canvas = document.getElementById('qr-canvas');
+    QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1B4332', light: '#F0FAF4' } },
+      err => { if (err) console.error('QR error:', err); });
+  }, 50);
 }
 
 function generaCodice() {
