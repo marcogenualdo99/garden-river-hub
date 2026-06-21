@@ -123,37 +123,51 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fam-detail-qty{font-size:15px;font-weight:800;color:var(--green-500)}
 
-/* ── CUCINA CARDS ── */
-.fam-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:16px;margin-bottom:12px;transition:opacity .2s}
-.fam-card.servita{opacity:.45}
-.fam-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.fam-card-nome{font-size:15px;font-weight:800;color:var(--green-700)}
-.fam-card-unita{font-size:11px;color:var(--gray-500);margin-top:2px}
-.fam-pax{font-size:12px;font-weight:700;background:var(--green-50);color:var(--green-500);padding:4px 10px;border-radius:20px}
-.cucina-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:14px 0 6px}
-.cucina-cat:first-child{margin-top:0}
+/* ── KDS GRID ── */
+#cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
 
-/* ── KITCHEN DISH ROW ── */
-.cucina-dish{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--gray-100);-webkit-tap-highlight-color:transparent}
-.cucina-dish:last-child{border-bottom:none}
-.cucina-dish.done .cucina-dish-name{color:var(--green-400);text-decoration:line-through}
-.cucina-dish-name{font-size:15px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
+/* ── KDS CARD ── */
+.kds-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
+.kds-card.servita{opacity:.5}
+.kds-head{padding:12px 16px;background:var(--gray-900);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kds-head.in-progress{background:var(--amber)}
+.kds-head.done{background:var(--green-500)}
+.kds-nome{font-size:15px;font-weight:800;line-height:1.2}
+.kds-unita{font-size:11px;opacity:.75;margin-top:2px}
+.kds-badge{font-size:12px;font-weight:800;background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;white-space:nowrap}
 
-/* ── PORZIONE COUNTER ── */
-.k-counter{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.k-dots{display:flex;gap:4px;align-items:center}
-.k-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--gray-300);background:transparent;transition:all .15s;flex-shrink:0}
-.k-dot.filled{background:var(--green-400);border-color:var(--green-400)}
-.k-dot.filled.last{background:var(--green-700);border-color:var(--green-700)}
-.k-tap-btn{min-width:44px;height:44px;border-radius:22px;border:none;background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:4px;padding:0 12px;-webkit-tap-highlight-color:transparent;transition:opacity .1s}
-.k-tap-btn:active{opacity:.7}
-.k-tap-btn.done-btn{background:var(--green-50);color:var(--green-500)}
-.k-tap-btn.done-btn:active{opacity:.7}
-.k-num{font-size:13px;font-weight:800;color:var(--gray-500);min-width:28px;text-align:center}
-.k-num.done{color:var(--green-400)}
+/* ── KDS BODY ── */
+.kds-body{padding:12px 16px;flex:1}
+.kds-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-400,#9CA3AF);margin:12px 0 6px}
+.kds-cat:first-child{margin-top:0}
 
-.cucina-note{font-size:11px;color:var(--gray-500);margin-top:10px;padding:8px 10px;background:var(--amber-bg);border-radius:8px;line-height:1.5}
-.cucina-note span{color:var(--amber);font-weight:700}
+/* ── KDS DISH ROW ── */
+.kds-dish{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100)}
+.kds-dish:last-child{border-bottom:none}
+.kds-dish.done .kds-dish-name{text-decoration:line-through;color:var(--gray-400,#9CA3AF)}
+.kds-qty-badge{width:28px;height:28px;border-radius:8px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--gray-900);flex-shrink:0}
+.kds-dish.done .kds-qty-badge{background:var(--green-100);color:var(--green-500)}
+.kds-dish-name{font-size:14px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
+.kds-dish-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.kds-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200,#E5E7EB);background:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1}
+.kds-btn:active{background:var(--gray-100)}
+.kds-btn.plus{border-color:var(--green-400);color:var(--green-500)}
+.kds-btn.plus:active{background:var(--green-50)}
+.kds-btn:disabled{opacity:.2;cursor:default}
+.kds-served{font-size:12px;font-weight:800;min-width:32px;text-align:center;color:var(--gray-500)}
+.kds-served.done{color:var(--green-500)}
+
+/* ── KDS NOTE ── */
+.kds-note{margin:10px 16px;padding:8px 10px;background:var(--amber-bg);border-radius:8px;font-size:11px;color:var(--gray-700);line-height:1.5}
+.kds-note strong{color:var(--amber)}
+
+/* ── KDS DONE BTN ── */
+.kds-foot{padding:12px 16px}
+.kds-done-btn{width:100%;height:44px;border:none;border-radius:var(--radius);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;transition:background .15s}
+.kds-done-btn.pending{background:var(--gray-100);color:var(--gray-400,#9CA3AF);cursor:default}
+.kds-done-btn.ready{background:var(--green-700);color:#fff}
+.kds-done-btn.ready:active{opacity:.85}
+.kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
 .empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
 /* ── MENU SEZIONE ── */
@@ -713,38 +727,47 @@ function renderCucina(ordini) {
 
     const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
 
-    let piattiHtml = catKeys.map(cat => `
-      <div class="cucina-cat">${cat}</div>
+    const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
+    const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
+    const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
+    const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
+
+    const piattiHtml = catKeys.map(cat => `
+      <div class="kds-cat">${cat}</div>
       ${cats[cat].map(p => {
-        const served = Math.min(Number(serviti[p.mid] || 0), p.qty);
+        const served = Math.min(Number(serviti[p.mid]||0), p.qty);
         const done   = served >= p.qty;
-        // Dots (max 8, oltre mostriamo solo numero)
-        const useDots = p.qty <= 8;
-        const dotsHtml = useDots
-          ? `<div class="k-dots">${Array.from({length:p.qty},(_,i)=>`<div class="k-dot${i<served?' filled'+(i===served-1?' last':''):''}"></div>`).join('')}</div>`
-          : `<span class="k-num${done?' done':''}">${served}/${p.qty}</span>`;
-        const btnHtml = done
-          ? `<button class="k-tap-btn done-btn" onclick="resetServito('${ord.id}','${p.mid}')" title="Annulla">✓</button>`
-          : `<button class="k-tap-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})">${p.qty>1?`+1`:'+1'}</button>`;
-        return `<div class="cucina-dish${done?' done':''}">
-          <div class="cucina-dish-name">${esc(p.piatto)}</div>
-          <div class="k-counter">${dotsHtml}${btnHtml}</div>
+        return `<div class="kds-dish${done?' done':''}">
+          <div class="kds-qty-badge">${p.qty}</div>
+          <div class="kds-dish-name">${esc(p.piatto)}</div>
+          <div class="kds-dish-ctrl">
+            <button class="kds-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
+            <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
+            <button class="kds-btn plus" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
+          </div>
         </div>`;
       }).join('')}`
     ).join('');
 
-    const notaHtml = ord.note ? `<div class="cucina-note"><span>Nota:</span> ${esc(ord.note)}</div>` : '';
+    const notaHtml = ord.note
+      ? `<div class="kds-note"><strong>Nota:</strong> ${esc(ord.note)}</div>` : '';
 
-    return `<div class="fam-card${isDone?' servita':''}">
-      <div class="fam-card-head">
+    const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+    const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+
+    return `<div class="kds-card${isDone?' servita':''}">
+      <div class="kds-head ${headCls}">
         <div>
-          <div class="fam-card-nome">${esc(ord.famiglia_nome || '—')}</div>
-          <div class="fam-card-unita">Alloggio ${esc(ord.unita || '—')}</div>
+          <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
+          <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
         </div>
-        <div class="fam-pax">${piattiArr.reduce((s,p)=>s+p.qty,0)} piatti</div>
+        <div class="kds-badge">${totServiti}/${totPiatti}</div>
       </div>
-      ${piattiHtml}
+      <div class="kds-body">${piattiHtml}</div>
       ${notaHtml}
+      <div class="kds-foot">
+        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${ord.id}',${isDone})">${doneBtnTxt}</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -764,8 +787,9 @@ function tuttoServito(ord) {
   return items.length > 0 && items.every(({mid, qty}) => Number(serviti[mid] || 0) >= qty);
 }
 
+// max=-1 significa decremento di 1
 async function incrementServito(ordId, menuId, current, max) {
-  const next = Math.min(current + 1, max);
+  const next = max === -1 ? Math.max(current - 1, 0) : Math.min(current + 1, max);
   const { db, doc, updateDoc } = window._fb;
   try {
     await updateDoc(doc(db, 'ordini_ristorazione', ordId), {
@@ -774,12 +798,25 @@ async function incrementServito(ordId, menuId, current, max) {
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
 }
 
-async function resetServito(ordId, menuId) {
-  const { db, doc, updateDoc } = window._fb;
+async function segnaServito(ordId, isAlreadyDone) {
+  const { db, doc, updateDoc, collection, getDocs, query, where } = window._fb;
   try {
-    await updateDoc(doc(db, 'ordini_ristorazione', ordId), {
-      [`servito_piatti.${menuId}`]: 0
-    });
+    if (isAlreadyDone) {
+      // Resetta tutti i piatti a 0
+      const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('__name__','==',ordId)));
+      if (!snap.empty) {
+        const ord = snap.docs[0].data();
+        const raw = ord.piatti || [];
+        const updates = {};
+        const ids = Array.isArray(raw)
+          ? raw.map(p=>p.menu_id)
+          : Object.keys(raw);
+        ids.forEach(id => { updates[`servito_piatti.${id}`] = 0; });
+        await updateDoc(doc(db,'ordini_ristorazione',ordId), updates);
+      }
+    } else {
+      await updateDoc(doc(db,'ordini_ristorazione',ordId), { servito: true });
+    }
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
 }
 
