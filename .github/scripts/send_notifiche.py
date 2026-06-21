@@ -69,7 +69,6 @@ for tok in fcm_tokens:
     payload = {
         'message': {
             'token': tok,
-            'notification': {'title': title, 'body': body},
             'webpush': {
                 'notification': {
                     'title': title,
