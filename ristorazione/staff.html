@@ -8,7 +8,6 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
@@ -412,7 +411,7 @@ input[type="date"].finput{font-size:13px}
     <div class="modal-title" id="qr-title"></div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:16px" id="qr-sub"></p>
     <div style="display:flex;justify-content:center;margin-bottom:16px">
-      <canvas id="qr-canvas" style="border-radius:12px"></canvas>
+      <img id="qr-img" src="" alt="QR Code" style="width:200px;height:200px;border-radius:12px;display:block">
     </div>
     <div style="font-family:monospace;font-size:13px;background:var(--green-50);color:var(--green-700);padding:8px 14px;border-radius:8px;border:1px solid var(--green-100);margin-bottom:18px;word-break:break-all" id="qr-link"></div>
     <div class="mbtns">
@@ -959,18 +958,8 @@ function mostraQR(nome, codice) {
   document.getElementById('qr-title').textContent = nome;
   document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
   document.getElementById('qr-link').textContent  = url;
+  document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1B4332&bgcolor=F0FAF4&data=${encodeURIComponent(url)}`;
   document.getElementById('modal-qr').classList.remove('hidden');
-  setTimeout(() => {
-    const wrap = document.getElementById('qr-canvas');
-    wrap.innerHTML = '';
-    new QRCode(wrap, {
-      text: url,
-      width: 200, height: 200,
-      colorDark: '#1B4332',
-      colorLight: '#F0FAF4',
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  }, 50);
 }
 
 function generaCodice() {
