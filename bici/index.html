@@ -714,8 +714,12 @@ function renderBikeBody(b) {
       '<div class="bike-cost-row" style="margin-bottom:18px">'+
         '<div>'+
           '<div class="bike-cost-label">Costo</div>'+
-          '<div style="display:flex;align-items:center;gap:4px">'+
-            '<input type="number" min="0" step="0.5" value="'+costo.toFixed(2)+'" oninput="formTemp[\''+id+'\'].costoManuale=parseFloat(this.value)||0" style="width:80px;height:38px;font-size:22px;font-weight:800;border:1.5px solid var(--gray-300);border-radius:10px;padding:0 8px;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield">'+
+          '<div style="display:flex;align-items:center;gap:6px">'+
+            '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
+              '<button onclick="stepCosto(\''+id+'\',-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
+              '<input type="number" min="0" step="0.5" value="'+costo.toFixed(2)+'" oninput="formTemp[\''+id+'\'].costoManuale=parseFloat(this.value)||0" id="costo-input-'+id+'" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
+              '<button onclick="stepCosto(\''+id+'\',0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
+            '</div>'+
             '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
           '</div>'+
         '</div>'+
@@ -894,6 +898,15 @@ async function riscuoti(id) {
     console.error('Errore riscossione:', e);
     showToast('Errore di salvataggio — riprova');
   }
+}
+
+function stepCosto(id, delta) {
+  const t = formTemp[id] || (formTemp[id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null });
+  const r = calcolaSelezioneDurata(t);
+  const base = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  t.costoManuale = Math.max(0, Math.round((base + delta) * 2) / 2);
+  const el = document.getElementById('costo-input-' + id);
+  if (el) el.value = t.costoManuale.toFixed(2);
 }
 
 function cambiaOre(id, delta) {
