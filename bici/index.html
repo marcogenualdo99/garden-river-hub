@@ -82,17 +82,19 @@
   --radius-lg: 22px;
   --radius-xl: 32px;
   --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
   --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --red-bd: #FECACA; --amber-bd: #FDE68A; --green-bd: #BBF7D0; --blue-bd: #BFDBFE;
   --font: 'Inter', -apple-system, sans-serif;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
 /* ══ LOGIN (stesso stile delle altre app della suite) ════════════════════════ */
 .login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
 .login-screen.hidden { display: none; }
-.login-logo { height: 84px; width: auto; margin-bottom: 16px; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
 .login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
 .login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
 .login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
