@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
@@ -342,7 +342,9 @@ input[type="date"].finput{font-size:13px}
           <option value="SC">Solo cena</option>
           <option value="SP">Solo pranzo</option>
         </select>
-        <input class="finput" id="f-checkout" type="date"   placeholder="Check-out">
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
@@ -394,7 +396,7 @@ input[type="date"].finput{font-size:13px}
       <option value="SP">Solo pranzo</option>
     </select>
     <div class="mlabel">Data check-out</div>
-    <input class="minput" id="ef-checkout" type="date">
+    <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Numero pax</div>
     <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
     <div class="mbtns">
@@ -957,12 +959,17 @@ function mostraQR(nome, codice) {
   document.getElementById('qr-title').textContent = nome;
   document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
   document.getElementById('qr-link').textContent  = url;
-  // Mostra il modal PRIMA di generare il QR (canvas deve essere visibile)
   document.getElementById('modal-qr').classList.remove('hidden');
   setTimeout(() => {
-    const canvas = document.getElementById('qr-canvas');
-    QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1B4332', light: '#F0FAF4' } },
-      err => { if (err) console.error('QR error:', err); });
+    const wrap = document.getElementById('qr-canvas');
+    wrap.innerHTML = '';
+    new QRCode(wrap, {
+      text: url,
+      width: 200, height: 200,
+      colorDark: '#1B4332',
+      colorLight: '#F0FAF4',
+      correctLevel: QRCode.CorrectLevel.M
+    });
   }, 50);
 }
 
