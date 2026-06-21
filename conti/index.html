@@ -126,7 +126,7 @@
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
 /* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
 .login-screen {
@@ -137,7 +137,7 @@ body { font-family: var(--font); background: var(--gray-50); color: var(--gray-9
   padding: 32px 24px;
 }
 .login-screen.hidden { display: none; }
-.login-logo { height: 84px; width: auto; margin-bottom: 16px; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
 .login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
 .login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
 .login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
