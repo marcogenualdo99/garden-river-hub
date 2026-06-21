@@ -614,27 +614,31 @@ function renderAlerts() {
   const now = Date.now();
   const bikes = Object.values(bikesMap);
 
-  // Bici con tempo pagato scaduto (occupata_pagata + rientroPrevistoTs < now)
-  const scadute = bikes.filter(b => effectiveStato(b) === 'occupata_pagata' && b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now);
-
+  // Bici già pagate e non ancora restituite (tutte)
+  const giaPagate = bikes.filter(b => effectiveStato(b) === 'occupata_pagata');
   // Bici da riscuotere (occupata = "Da pagare")
   const daRiscuotere = bikes.filter(b => effectiveStato(b) === 'occupata');
 
   let html = '';
 
-  if (scadute.length) {
-    const collapsed = !!alertsCollapsed['scadute'];
+  if (giaPagate.length) {
+    const collapsed = !!alertsCollapsed['giaPagate'];
+    const scaduteCount = giaPagate.filter(b => b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now).length;
+    const titolo = scaduteCount
+      ? giaPagate.length+' bici già pagate fuori · '+scaduteCount+' in ritardo'
+      : giaPagate.length+' bici già pagate fuori';
     html += '<div class="alert-banner orange">'+
-      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'scadute\']=!alertsCollapsed[\'scadute\'];renderAlerts()">'+
-        '<span>'+scadute.length+' bici rientrata'+(scadute.length>1?'e':'')+' in ritardo</span>'+
-        '<span style="font-size:13px;transition:transform .2s;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
+      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'giaPagate\']=!alertsCollapsed[\'giaPagate\'];renderAlerts()">'+
+        '<span>'+titolo+'</span>'+
+        '<span style="font-size:13px;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
       '</div>'+
-      (!collapsed ? scadute.map(b =>
-        '<div class="alert-bike-row">'+
-          '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
-          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
-        '</div>'
-      ).join('') : '')+
+      (!collapsed ? giaPagate.map(b => {
+        const inRitardo = b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now;
+        return '<div class="alert-bike-row">'+
+          '<span class="alert-bike-num" style="'+(inRitardo?'color:var(--red)':'')+'">Bici N°'+b.numero+(inRitardo?' ⚠':'')+'</span>'+
+          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'<br><span style="font-size:11px;color:var(--gray-500)">Rientro '+fmtTs(b.rientroPrevistoTs)+'</span></span>'+
+        '</div>';
+      }).join('') : '')+
     '</div>';
   }
 
@@ -643,7 +647,7 @@ function renderAlerts() {
     html += '<div class="alert-banner red">'+
       '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'daRiscuotere\']=!alertsCollapsed[\'daRiscuotere\'];renderAlerts()">'+
         '<span>'+daRiscuotere.length+' bici da restituire e pagare</span>'+
-        '<span style="font-size:13px;transition:transform .2s;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
+        '<span style="font-size:13px;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
       '</div>'+
       (!collapsed ? daRiscuotere.map(b =>
         '<div class="alert-bike-row">'+
