@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -32,7 +32,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where, arrayUnion };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion };
 
   function ready() {
     if (window._fbReady) return;
@@ -180,7 +180,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-done-btn.ready{background:var(--green-700);color:#fff}
 .kds-done-btn.ready:active{opacity:.85}
 .kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
-.kds-edit-btn{width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.kds-edit-btn{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
 .kds-edit-btn:active{opacity:.7}
 /* ── CAMPO LIBERO ── */
 .kds-log{padding:8px 16px;border-top:1px solid var(--gray-100);background:var(--gray-50,#F9FAFB)}
@@ -972,7 +972,7 @@ function mosStep(menuId, cat, delta) {
   const cur = _mosData.selezioni[menuId] || 0;
   const catIds = _mosData.menuItems.filter(m=>(m.categoria||'Altro')===cat).map(m=>m.id);
   const totCat = catIds.reduce((s,id)=>s+(_mosData.selezioni[id]||0), 0);
-  if (delta > 0 && totCat >= _mosData.max) return;
+  // nessun limite per lo staff
   if (delta < 0 && cur <= 0) return;
   _mosData.selezioni[menuId] = cur + delta;
   const el = document.getElementById(`mosv-${menuId}`);
