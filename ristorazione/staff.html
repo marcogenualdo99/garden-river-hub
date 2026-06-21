@@ -137,7 +137,10 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
-@media(min-width:900px){#cucina-body{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:900px){
+  #sec-cucina{margin-left:calc(50% - 50vw + 14px);margin-right:calc(50% - 50vw + 14px)}
+  #cucina-body{grid-template-columns:repeat(3,1fr)}
+}
 
 /* ── KDS CARD ── */
 .kds-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
