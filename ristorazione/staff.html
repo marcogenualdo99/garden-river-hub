@@ -575,7 +575,9 @@ async function renderReport() {
   let ordini = [];
   try {
     const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
-    ordini = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    const famIds = new Set(famiglieDocs.map(f => f.id));
+    ordini = snap.docs.map(d => ({id:d.id, ...d.data()}))
+      .filter(o => famIds.has(o.famiglia_id));
   } catch(e) { console.error(e); }
 
   // Menu per questa data+pasto
@@ -690,14 +692,14 @@ function startCucina() {
       query(collection(db,'ordini_ristorazione'), where('data','==',oggi), where('tipo','==',cucinaPasto)),
       snap => {
         const oggi2 = isoToday(0);
-        // Costruisce mappa checkout per filtrare famiglie partite
         const famMap = {};
         famiglieDocs.forEach(f => { famMap[f.id] = f; });
         const ordini = snap.docs
           .map(d => ({id:d.id, ...d.data()}))
           .filter(ord => {
             const fam = famMap[ord.famiglia_id];
-            if (!fam || !fam.checkout) return true;
+            if (!fam) return false; // famiglia eliminata
+            if (!fam.checkout) return true;
             return fam.checkout >= oggi2; // escludi se checkout già passato
           });
         renderCucina(ordini);
