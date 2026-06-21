@@ -130,19 +130,29 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-card-nome{font-size:15px;font-weight:800;color:var(--green-700)}
 .fam-card-unita{font-size:11px;color:var(--gray-500);margin-top:2px}
 .fam-pax{font-size:12px;font-weight:700;background:var(--green-50);color:var(--green-500);padding:4px 10px;border-radius:20px}
-.cucina-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:10px 0 6px}
+.cucina-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:14px 0 6px}
 .cucina-cat:first-child{margin-top:0}
-.cucina-dish{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:var(--radius-sm);margin-bottom:4px;background:var(--gray-50);transition:background .15s,opacity .15s;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.cucina-dish.done{background:var(--green-50)}
-.cucina-dish:active{opacity:.7}
-.cucina-dish-name{font-size:14px;font-weight:700;color:var(--gray-700);text-decoration:none}
-.cucina-dish.done .cucina-dish-name{text-decoration:line-through;color:var(--green-400)}
-.cucina-dish-right{display:flex;align-items:center;gap:8px}
-.cucina-qty{font-size:15px;font-weight:800;color:var(--gray-900)}
-.cucina-dish.done .cucina-qty{color:var(--green-400)}
-.cucina-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--gray-300);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.cucina-dish.done .cucina-check{background:var(--green-400);border-color:var(--green-400)}
-.cucina-note{font-size:11px;color:var(--gray-500);margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100);line-height:1.5}
+
+/* ── KITCHEN DISH ROW ── */
+.cucina-dish{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--gray-100);-webkit-tap-highlight-color:transparent}
+.cucina-dish:last-child{border-bottom:none}
+.cucina-dish.done .cucina-dish-name{color:var(--green-400);text-decoration:line-through}
+.cucina-dish-name{font-size:15px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
+
+/* ── PORZIONE COUNTER ── */
+.k-counter{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.k-dots{display:flex;gap:4px;align-items:center}
+.k-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--gray-300);background:transparent;transition:all .15s;flex-shrink:0}
+.k-dot.filled{background:var(--green-400);border-color:var(--green-400)}
+.k-dot.filled.last{background:var(--green-700);border-color:var(--green-700)}
+.k-tap-btn{min-width:44px;height:44px;border-radius:22px;border:none;background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:4px;padding:0 12px;-webkit-tap-highlight-color:transparent;transition:opacity .1s}
+.k-tap-btn:active{opacity:.7}
+.k-tap-btn.done-btn{background:var(--green-50);color:var(--green-500)}
+.k-tap-btn.done-btn:active{opacity:.7}
+.k-num{font-size:13px;font-weight:800;color:var(--gray-500);min-width:28px;text-align:center}
+.k-num.done{color:var(--green-400)}
+
+.cucina-note{font-size:11px;color:var(--gray-500);margin-top:10px;padding:8px 10px;background:var(--amber-bg);border-radius:8px;line-height:1.5}
 .cucina-note span{color:var(--amber);font-weight:700}
 .empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
@@ -544,14 +554,22 @@ async function renderReport() {
     return;
   }
 
-  // Aggrega quantità per menuId
-  const totali = {}; // {menuId: qty}
-  const byFam  = {}; // {menuId: [{fam_nome, unita, qty, note}]}
+  // Aggrega quantità per menuId — gestisce array e mappa legacy
+  const totali = {};
+  const byFam  = {};
   for (const ord of ordini) {
-    const piatti = ord.piatti || {};
-    const nota   = ord.note || '';
-    for (const [mid, qty] of Object.entries(piatti)) {
-      if (!qty) continue;
+    const raw  = ord.piatti || [];
+    const nota = ord.note || '';
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
+        else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id || k, qty: Number(v.quantita)});
+      });
+    }
+    for (const {mid, qty} of items) {
       totali[mid] = (totali[mid] || 0) + qty;
       if (!byFam[mid]) byFam[mid] = [];
       byFam[mid].push({ nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty, nota });
@@ -698,15 +716,19 @@ function renderCucina(ordini) {
     let piattiHtml = catKeys.map(cat => `
       <div class="cucina-cat">${cat}</div>
       ${cats[cat].map(p => {
-        const done = !!serviti[p.mid];
-        return `<div class="cucina-dish${done?' done':''}" onclick="toggleServito('${ord.id}','${p.mid}',${done})">
+        const served = Math.min(Number(serviti[p.mid] || 0), p.qty);
+        const done   = served >= p.qty;
+        // Dots (max 8, oltre mostriamo solo numero)
+        const useDots = p.qty <= 8;
+        const dotsHtml = useDots
+          ? `<div class="k-dots">${Array.from({length:p.qty},(_,i)=>`<div class="k-dot${i<served?' filled'+(i===served-1?' last':''):''}"></div>`).join('')}</div>`
+          : `<span class="k-num${done?' done':''}">${served}/${p.qty}</span>`;
+        const btnHtml = done
+          ? `<button class="k-tap-btn done-btn" onclick="resetServito('${ord.id}','${p.mid}')" title="Annulla">✓</button>`
+          : `<button class="k-tap-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})">${p.qty>1?`+1`:'+1'}</button>`;
+        return `<div class="cucina-dish${done?' done':''}">
           <div class="cucina-dish-name">${esc(p.piatto)}</div>
-          <div class="cucina-dish-right">
-            <div class="cucina-qty">${p.qty}</div>
-            <div class="cucina-check">
-              ${done ? `<svg class="check-svg" viewBox="0 0 12 12"><polyline points="2 6 5 9 10 3"/></svg>` : ''}
-            </div>
-          </div>
+          <div class="k-counter">${dotsHtml}${btnHtml}</div>
         </div>`;
       }).join('')}`
     ).join('');
@@ -730,20 +752,33 @@ function renderCucina(ordini) {
 function tuttoServito(ord) {
   const rawPiatti = ord.piatti || [];
   const serviti   = ord.servito_piatti || {};
-  let ids;
+  const items = [];
   if (Array.isArray(rawPiatti)) {
-    ids = rawPiatti.filter(p => p.quantita > 0).map(p => p.menu_id);
-  } else {
-    ids = Object.entries(rawPiatti).filter(([,q])=>q>0).map(([id])=>id);
+    rawPiatti.forEach(p => { if (Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
+  } else if (typeof rawPiatti === 'object') {
+    Object.entries(rawPiatti).forEach(([k,v]) => {
+      if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
+      else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id||k, qty: Number(v.quantita)});
+    });
   }
-  return ids.length > 0 && ids.every(id => serviti[id]);
+  return items.length > 0 && items.every(({mid, qty}) => Number(serviti[mid] || 0) >= qty);
 }
 
-async function toggleServito(ordId, menuId, wasDone) {
+async function incrementServito(ordId, menuId, current, max) {
+  const next = Math.min(current + 1, max);
   const { db, doc, updateDoc } = window._fb;
   try {
     await updateDoc(doc(db, 'ordini_ristorazione', ordId), {
-      [`servito_piatti.${menuId}`]: !wasDone
+      [`servito_piatti.${menuId}`]: next
+    });
+  } catch(e) { showToast('Errore salvataggio'); console.error(e); }
+}
+
+async function resetServito(ordId, menuId) {
+  const { db, doc, updateDoc } = window._fb;
+  try {
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), {
+      [`servito_piatti.${menuId}`]: 0
     });
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
 }
@@ -993,14 +1028,21 @@ async function salvaEditFamiglia() {
 }
 
 async function eliminaFamiglia(id) {
-  if (!confirm('Eliminare questa famiglia e tutti i suoi dati?')) return;
+  if (!confirm('Eliminare questa famiglia?')) return;
   const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
     famiglieDocs = famiglieDocs.filter(f => f.id !== id);
     renderFamiglie();
     showToast('Famiglia eliminata');
-  } catch(e) { showToast('Errore eliminazione'); console.error(e); }
+  } catch(e) {
+    console.error('eliminaFamiglia:', e);
+    if (e.code === 'permission-denied') {
+      showToast('Permesso negato — verifica le regole Firestore');
+    } else {
+      showToast('Errore: ' + (e.message || e.code || 'sconosciuto'));
+    }
+  }
 }
 
 function scaricaQR(imgId, nameId) {
