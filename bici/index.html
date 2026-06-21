@@ -174,6 +174,17 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 
 .disabled-note { margin-top: 4px; background: var(--gray-100); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
 
+/* ══ ALERT BANNER ════════════════════════════════════════════════════════ */
+.alert-banner { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+.alert-banner.orange { background: var(--orange-bg); border-left: 4px solid var(--orange); }
+.alert-banner.red    { background: var(--red-bg);    border-left: 4px solid var(--red); }
+.alert-banner-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.alert-banner.orange .alert-banner-title { color: var(--orange); }
+.alert-banner.red    .alert-banner-title { color: var(--red); }
+.alert-bike-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-top: 1px solid rgba(0,0,0,0.06); }
+.alert-bike-num { font-size: 13px; font-weight: 800; color: var(--gray-900); }
+.alert-bike-info { font-size: 12px; color: var(--gray-700); text-align: right; line-height: 1.4; }
+
 .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
@@ -278,6 +289,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 </div>
 
 <main id="main-view">
+  <div id="alerts-container"></div>
   <div class="stats-row" id="stats-row"></div>
   <div id="bikes-container"></div>
 </main>
@@ -585,7 +597,48 @@ function doLogout() {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────
-function render() { renderStats(); renderList(); if (settingsOpen) renderSettings(); }
+function render() { renderAlerts(); renderStats(); renderList(); if (settingsOpen) renderSettings(); }
+
+function renderAlerts() {
+  const container = document.getElementById('alerts-container');
+  if (!container) return;
+  const now = Date.now();
+  const bikes = Object.values(bikesMap);
+
+  // Bici con tempo pagato scaduto (occupata_pagata + rientroPrevistoTs < now)
+  const scadute = bikes.filter(b => effectiveStato(b) === 'occupata_pagata' && b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now);
+
+  // Bici da riscuotere (occupata = "Da pagare")
+  const daRiscuotere = bikes.filter(b => effectiveStato(b) === 'occupata');
+
+  let html = '';
+
+  if (scadute.length) {
+    html += '<div class="alert-banner orange">'+
+      '<div class="alert-banner-title">⏰ '+scadute.length+' bici rientrata'+(scadute.length>1?'e':'')+' in ritardo</div>'+
+      scadute.map(b =>
+        '<div class="alert-bike-row">'+
+          '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
+          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
+        '</div>'
+      ).join('')+
+    '</div>';
+  }
+
+  if (daRiscuotere.length) {
+    html += '<div class="alert-banner red">'+
+      '<div class="alert-banner-title">💳 '+daRiscuotere.length+' bici da restituire e pagare</div>'+
+      daRiscuotere.map(b =>
+        '<div class="alert-bike-row">'+
+          '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
+          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
+        '</div>'
+      ).join('')+
+    '</div>';
+  }
+
+  container.innerHTML = html;
+}
 
 function renderStats() {
   const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
@@ -693,10 +746,6 @@ function renderBikeCard(b) {
   const open = !!expanded[b.id];
   const locked = stato === 'non_disponibile';
   let rightHtml = '<span class="bike-status" style="color:'+m.color+'">'+m.label+'</span>';
-  if (stato === 'libera') {
-    rightHtml = '<span class="bike-status" style="color:'+m.color+'">'+m.label+'</span>'+
-      '<button class="pill-assign" onclick="event.stopPropagation();forceOpenBike(\''+b.id+'\')">Assegna a cliente</button>';
-  }
   if (!locked) rightHtml += '<span class="bike-chev'+(open?' open':'')+'">&#9660;</span>';
   return '<div class="bike-card">'+
     '<div class="bike-header'+(locked?' locked':'')+'" role="button" tabindex="0" '+(locked?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
