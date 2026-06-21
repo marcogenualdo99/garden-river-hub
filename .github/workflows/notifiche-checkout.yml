@@ -2,7 +2,7 @@ name: Notifiche Checkout
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 20:00 CEST (estate) / 19:00 CET (inverno)
+    - cron: '0 17 * * *'  # 19:00 CEST (estate) / 18:00 CET (inverno)
   workflow_dispatch:       # consente test manuali dalla tab Actions su GitHub
 
 jobs:
@@ -18,4 +18,4 @@ jobs:
       - name: Invia notifiche
         env:
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-        run: python .github/scripts/send_notifiche.py
+        run: python scripts/send_notifiche.py
