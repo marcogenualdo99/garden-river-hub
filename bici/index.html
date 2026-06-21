@@ -386,7 +386,9 @@ function bikesForCat(catKey) {
   return Object.values(bikesMap).filter(b => effCat(b) === catKey).sort((a,b) => a.numero - b.numero);
 }
 function toggleCat(key) { catExpanded[key] = !catExpanded[key]; render(); }
-let alertsCollapsed  = {};   // 'scadute' | 'daRiscuotere' -> bool
+let alertsCollapsed  = {};
+let editingBike      = {};   // id -> bool
+let editingTemp      = {};   // id -> { nome, alloggio, costo?, rientroPrevistoTs? }
 let settingsOpen     = false;
 let activeFilter     = null; // null oppure una delle chiavi di STATUS_META
 // Valori digitati nel form "Assegna a cliente", per non perderli se arriva
@@ -737,6 +739,24 @@ function renderBikeBody(b) {
   }
   if (stato === 'occupata') {
     const r = calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
+    if (editingBike[b.id]) {
+      const e = editingTemp[b.id] || {};
+      return '<div class="bike-body">'+
+        '<div class="bike-divider"></div>'+
+        '<div class="form-row-2">'+
+          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value">'+
+          '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
+        '</div>'+
+        '<div class="bike-info-row" style="margin-bottom:18px">'+
+          '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
+          '<div class="bike-info-col"><div class="bike-info-label">Costo attuale</div><div class="bike-info-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+        '</div>'+
+        '<div class="form-row-2" style="margin-bottom:0">'+
+          '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
+          '<button class="btn-block green" onclick="salvaDatiNoleggio(\''+b.id+'\')">Salva</button>'+
+        '</div>'+
+      '</div>';
+    }
     return '<div class="bike-body">'+
       '<div class="bike-divider"></div>'+
       '<div class="bike-info-row">'+
@@ -750,10 +770,49 @@ function renderBikeBody(b) {
         '<div><div class="bike-cost-label">Costo calcolato</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
         '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
       '</div>'+
-      '<button class="btn-block red" onclick="confermaRiscuoti(\''+b.id+'\')">Riscuoti</button>'+
+      '<div class="form-row-2" style="margin-bottom:0">'+
+        '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700);font-size:14px" onclick="attivaModificaBici(\''+b.id+'\')">Modifica dati</button>'+
+        '<button class="btn-block red" onclick="confermaRiscuoti(\''+b.id+'\')">Riscuoti</button>'+
+      '</div>'+
     '</div>';
   }
   if (stato === 'occupata_pagata') {
+    if (editingBike[b.id]) {
+      const e = editingTemp[b.id] || {};
+      const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+      const rientroLocal = e.rientroPrevistoTs ? new Date(new Date(e.rientroPrevistoTs).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : '';
+      return '<div class="bike-body">'+
+        '<div class="bike-divider"></div>'+
+        '<div class="form-row-2">'+
+          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value">'+
+          '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
+        '</div>'+
+        '<div class="form-row-2">'+
+          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);background:var(--gray-50)">'+
+            '<div style="font-size:10px;color:var(--gray-500);font-weight:600;margin-bottom:2px">Ora ritiro</div>'+
+            '<div style="font-size:13px;font-weight:700;color:var(--gray-900)">'+fmtTs(b.ritiroTs)+'</div>'+
+          '</div>'+
+          '<input type="datetime-local" value="'+rientroLocal+'" min="'+nowLocal+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
+        '</div>'+
+        '<div class="bike-cost-row" style="margin-top:14px;margin-bottom:18px">'+
+          '<div>'+
+            '<div class="bike-cost-label">Importo pagato</div>'+
+            '<div style="display:flex;align-items:center;gap:6px">'+
+              '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
+                '<button onclick="stepCostoEdit(\''+b.id+'\',-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
+                '<input type="number" min="0" step="0.5" value="'+((e.costo||0).toFixed(2))+'" id="costo-edit-'+b.id+'" oninput="editingTemp[\''+b.id+'\'].costo=parseFloat(this.value)||0" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
+                '<button onclick="stepCostoEdit(\''+b.id+'\',0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
+              '</div>'+
+              '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="form-row-2" style="margin-bottom:0">'+
+          '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
+          '<button class="btn-block green" onclick="salvaDatiNoleggio(\''+b.id+'\')">Salva</button>'+
+        '</div>'+
+      '</div>';
+    }
     return '<div class="bike-body">'+
       '<div class="bike-divider"></div>'+
       '<div class="bike-info-row">'+
@@ -767,8 +826,10 @@ function renderBikeBody(b) {
         '<div><div class="bike-cost-label">Pagato al ritiro</div><div class="bike-cost-value">'+((b.costoAnticipato||0).toFixed(2).replace('.',','))+'€</div></div>'+
         '<div class="bike-cost-detail">'+(b.fasciaAnticipata||'')+'<br>'+(b.dettaglioAnticipato||'')+'</div>'+
       '</div>'+
-      '<button onclick="modificaCostoAnticipato(\''+b.id+'\')" style="background:none;border:none;font-size:12px;font-weight:700;color:var(--gray-500);cursor:pointer;font-family:var(--font);text-decoration:underline;padding:0;display:block;margin-bottom:14px">Modifica importo</button>'+
-      '<button class="btn-block green" onclick="confermaRientro(\''+b.id+'\')">Segna rientro</button>'+
+      '<div class="form-row-2" style="margin-bottom:0">'+
+        '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700);font-size:14px" onclick="attivaModificaBici(\''+b.id+'\')">Modifica dati</button>'+
+        '<button class="btn-block green" onclick="confermaRientro(\''+b.id+'\')">Segna rientro</button>'+
+      '</div>'+
     '</div>';
   }
   return '';
@@ -1020,6 +1081,66 @@ async function segnalaRientro(id) {
     console.error('Errore segnalazione rientro:', e);
     showToast('Errore di salvataggio — riprova');
   }
+}
+
+function attivaModificaBici(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  editingBike[id] = true;
+  editingTemp[id] = {
+    nome: b.clienteNome || '',
+    alloggio: b.clienteAlloggio || '',
+    costo: b.costoAnticipato || 0,
+    rientroPrevistoTs: b.rientroPrevistoTs || '',
+  };
+  render();
+}
+
+function annullaModificaBici(id) {
+  delete editingBike[id];
+  delete editingTemp[id];
+  render();
+}
+
+async function salvaDatiNoleggio(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const e = editingTemp[id] || {};
+  const nome = (e.nome || '').trim();
+  const alloggio = (e.alloggio || '').trim();
+  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
+  const updates = { clienteNome: nome, clienteAlloggio: alloggio };
+  b.clienteNome = nome;
+  b.clienteAlloggio = alloggio;
+  if (effectiveStato(b) === 'occupata_pagata') {
+    updates.costoAnticipato = e.costo || 0;
+    b.costoAnticipato = e.costo || 0;
+    if (e.rientroPrevistoTs) {
+      const rientroIso = new Date(e.rientroPrevistoTs).toISOString();
+      updates.rientroPrevistoTs = rientroIso;
+      b.rientroPrevistoTs = rientroIso;
+    }
+  }
+  delete editingBike[id];
+  delete editingTemp[id];
+  render();
+  showToast('Dati aggiornati');
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), updates);
+  } catch(e) {
+    console.error('Errore salvataggio modifica:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+
+function stepCostoEdit(id, delta) {
+  const e = editingTemp[id];
+  if (!e) return;
+  e.costo = Math.max(0, Math.round(((e.costo || 0) + delta) * 2) / 2);
+  const el = document.getElementById('costo-edit-' + id);
+  if (el) el.value = e.costo.toFixed(2);
 }
 
 function modificaCostoAnticipato(id) {
