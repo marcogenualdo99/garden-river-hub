@@ -279,9 +279,13 @@ async function caricaMenu(){
 
 async function caricaOrdiniEsistenti(){
   const {db,collection,query,where,getDocs}=window._fbRisto;
-  const snap=await getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','in',[OGGI,DOMANI])));
+  // Due query separate per evitare indice composito su famiglia_id + data
+  const [snapO,snapD]=await Promise.all([
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',OGGI))),
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',DOMANI)))
+  ]);
   ordiniEsistenti={};
-  snap.docs.forEach(d=>{ const x=d.data(); ordiniEsistenti[`${x.data}_${x.tipo}`]=x; });
+  [...snapO.docs,...snapD.docs].forEach(d=>{ const x=d.data(); ordiniEsistenti[`${x.data}_${x.tipo}`]=x; });
 }
 
 function inizializzaSelezioni(){
@@ -289,7 +293,10 @@ function inizializzaSelezioni(){
   chiavi.forEach(key=>{
     const e=ordiniEsistenti[key];
     selezioni[key]={piatti:{},note:e?(e.note||''):''};
-    if(e&&e.piatti) e.piatti.forEach(p=>{ selezioni[key].piatti[p.menu_id]=p.quantita; });
+    // piatti è salvato come mappa {menuId: qty}
+    if(e&&e.piatti&&typeof e.piatti==='object') {
+      Object.entries(e.piatti).forEach(([mid,qty])=>{ selezioni[key].piatti[mid]=qty; });
+    }
   });
 }
 
@@ -409,7 +416,7 @@ async function salvaOrdini(){
   finally{ btn.disabled=false; btn.textContent='Conferma ordini'; }
 }
 
-function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); document.getElementById('gs-minus').disabled=famiglia.max_ospiti<=1; }
+function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); }
 function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); document.getElementById('settings-panel').classList.remove('open'); }
 
 function changeGuests(delta){
