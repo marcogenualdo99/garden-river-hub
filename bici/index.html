@@ -341,9 +341,10 @@ function calcolaCostoBici(ms) {
 }
 
 const STATUS_META = {
-  libera:          { label: 'Libera',          color: '#92BA7F' },
-  occupata:        { label: 'Da pagare',       color: '#FF6E6E' },
-  non_disponibile: { label: 'Non disponibile', color: 'var(--gray-500)' },
+  libera:           { label: 'Libera',          color: '#92BA7F' },
+  occupata:         { label: 'Da pagare',       color: '#FF6E6E' },
+  occupata_pagata:  { label: 'Già pagata',      color: 'var(--blue)' },
+  non_disponibile:  { label: 'Non disponibile', color: 'var(--gray-500)' },
 };
 const STATUS_KEYS = Object.keys(STATUS_META);
 const TIPOLOGIE_BICI = { grande: 'Grande', piccola: 'Piccola', media: 'Media' };
@@ -400,7 +401,7 @@ function fmtTs(iso) {
          d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
 }
 function effectiveStato(b) {
-  if (b.stato === 'occupata') return 'occupata';
+  if (b.stato === 'occupata') return b.pagamentoAnticipato ? 'occupata_pagata' : 'occupata';
   return b.attiva === false ? 'non_disponibile' : 'libera';
 }
 
@@ -613,17 +614,39 @@ function forceOpenBike(id) {
 function renderBikeBody(b) {
   const stato = effectiveStato(b);
   if (stato === 'libera') {
-    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'' });
+    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'', rientroTs:'' });
+    const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+    let previewHtml = '';
+    if (t.rientroTs) {
+      const ms = new Date(t.rientroTs).getTime() - Date.now();
+      if (ms <= 0) {
+        previewHtml = '<div style="color:var(--red);font-size:12px;margin-bottom:14px;padding:0 2px">Ora di rientro nel passato</div>';
+      } else {
+        const r = calcolaCostoBici(ms);
+        previewHtml = '<div class="bike-cost-row">'+
+          '<div><div class="bike-cost-label">Costo calcolato</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+          '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
+        '</div>';
+      }
+    }
     return '<div class="bike-body">'+
       '<div class="bike-divider"></div>'+
       '<div class="form-row-2">'+
         '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+b.id+'\'].nome=this.value">'+
         '<select onchange="formTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(t.alloggio)+'</select>'+
       '</div>'+
-      '<div class="bike-info-row" style="margin-bottom:18px">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Data e ora attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
+      '<div class="form-row-2">'+
+        '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);background:var(--gray-50)">'+
+          '<div style="font-size:10px;color:var(--gray-500);font-weight:600;margin-bottom:2px">Ora ritiro</div>'+
+          '<div style="font-size:13px;font-weight:700;color:var(--gray-900)">'+fmtTs(new Date().toISOString())+'</div>'+
+        '</div>'+
+        '<input type="datetime-local" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" min="'+nowLocal+'" value="'+(t.rientroTs||'')+'" oninput="formTemp[\''+b.id+'\'].rientroTs=this.value;aggiornaPreview(\''+b.id+'\')" title="Data e ora rientro previsto">'+
       '</div>'+
-      '<button class="btn-block green" onclick="segnalaRitiro(\''+b.id+'\')">Segnala Ritiro</button>'+
+      '<div id="preview-costo-'+b.id+'">'+previewHtml+'</div>'+
+      '<div class="form-row-2" style="margin-top:4px;margin-bottom:0">'+
+        '<button class="btn-block green" style="font-size:14px" onclick="segnalaRitiro(\''+b.id+'\')">Da riscuotere</button>'+
+        '<button class="btn-block green" style="background:var(--green-700);font-size:14px" onclick="segnalaRitiroPagato(\''+b.id+'\')">Ritiro Pagato</button>'+
+      '</div>'+
     '</div>';
   }
   if (stato === 'occupata') {
@@ -642,6 +665,23 @@ function renderBikeBody(b) {
         '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
       '</div>'+
       '<button class="btn-block red" onclick="confermaRiscuoti(\''+b.id+'\')">Riscuoti</button>'+
+    '</div>';
+  }
+  if (stato === 'occupata_pagata') {
+    return '<div class="bike-body">'+
+      '<div class="bike-divider"></div>'+
+      '<div class="bike-info-row">'+
+        '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
+        '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+fmtTs(b.rientroPrevistoTs)+'</div></div>'+
+      '</div>'+
+      '<div class="bike-info-row">'+
+        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div><div class="bike-sub">'+(b.clienteAlloggio||'')+'</div></div>'+
+      '</div>'+
+      '<div class="bike-cost-row">'+
+        '<div><div class="bike-cost-label">Pagato al ritiro</div><div class="bike-cost-value">'+((b.costoAnticipato||0).toFixed(2).replace('.',','))+'€</div></div>'+
+        '<div class="bike-cost-detail">'+(b.fasciaAnticipata||'')+'<br>'+(b.dettaglioAnticipato||'')+'</div>'+
+      '</div>'+
+      '<button class="btn-block green" onclick="confermaRientro(\''+b.id+'\')">Segna rientro</button>'+
     '</div>';
   }
   return '';
@@ -777,6 +817,119 @@ async function riscuoti(id) {
     });
   } catch(e) {
     console.error('Errore riscossione:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+
+function aggiornaPreview(id) {
+  const el = document.getElementById('preview-costo-' + id);
+  if (!el) return;
+  const t = formTemp[id] || {};
+  if (!t.rientroTs) { el.innerHTML = ''; return; }
+  const ms = new Date(t.rientroTs).getTime() - Date.now();
+  if (ms <= 0) {
+    el.innerHTML = '<div style="color:var(--red);font-size:12px;margin-bottom:14px;padding:0 2px">Ora di rientro nel passato</div>';
+    return;
+  }
+  const r = calcolaCostoBici(ms);
+  el.innerHTML = '<div class="bike-cost-row">'+
+    '<div><div class="bike-cost-label">Costo calcolato</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+    '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
+  '</div>';
+}
+
+function segnalaRitiroPagato(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const t = formTemp[id] || {};
+  const nome = (t.nome || '').trim();
+  const alloggio = (t.alloggio || '').trim();
+  const rientroTs = t.rientroTs || '';
+  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
+  if (!rientroTs) { showToast('Inserisci l\'ora di rientro prevista'); return; }
+  const ms = new Date(rientroTs).getTime() - Date.now();
+  if (ms <= 0) { showToast('L\'ora di rientro deve essere nel futuro'); return; }
+  const r = calcolaCostoBici(ms);
+  showModal(
+    'Ritiro pagato — ' + r.costo.toFixed(2).replace('.',',') + '€',
+    'Bici N°'+b.numero+' — '+nome+'. '+r.fascia+': '+r.dettaglio+'. Confermi di aver incassato il pagamento?',
+    'Conferma pagamento',
+    () => eseguiRitiroPagato(id, nome, alloggio, rientroTs, r)
+  );
+}
+
+async function eseguiRitiroPagato(id, nome, alloggio, rientroTs, r) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const nowIso = new Date().toISOString();
+  b.stato = 'occupata';
+  b.clienteNome = nome;
+  b.clienteAlloggio = alloggio;
+  b.ritiroTs = nowIso;
+  b.ritiroOp = currentOperatore || 'Operatore';
+  b.pagamentoAnticipato = true;
+  b.costoAnticipato = r.costo;
+  b.fasciaAnticipata = r.fascia;
+  b.dettaglioAnticipato = r.dettaglio;
+  b.rientroPrevistoTs = rientroTs;
+  delete formTemp[id];
+  render();
+  showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'occupata', clienteNome: nome, clienteAlloggio: alloggio,
+      ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
+      pagamentoAnticipato: true, costoAnticipato: r.costo,
+      fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio, rientroPrevistoTs: rientroTs,
+    });
+  } catch(e) {
+    console.error('Errore ritiro pagato:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
+}
+
+function confermaRientro(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  showModal(
+    'Segna rientro Bici N°' + b.numero,
+    'Confermi il rientro della bici? Il pagamento è già stato incassato al ritiro.',
+    'Segna rientro',
+    () => segnalaRientro(id)
+  );
+}
+
+async function segnalaRientro(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const nowIso = new Date().toISOString();
+  const entry = {
+    clienteNome: b.clienteNome || '', clienteAlloggio: b.clienteAlloggio || '',
+    ritiroTs: b.ritiroTs, rientroTs: nowIso,
+    fascia: b.fasciaAnticipata || '', dettaglio: b.dettaglioAnticipato || '', costo: b.costoAnticipato || 0,
+    opRitiro: b.ritiroOp || '', opRiscossione: currentOperatore || 'Operatore',
+    pagamentoAnticipato: true,
+  };
+  const newLog = [entry].concat(b.log || []).slice(0, 30);
+  b.stato = 'libera';
+  b.clienteNome = null; b.clienteAlloggio = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.pagamentoAnticipato = false; b.costoAnticipato = null; b.fasciaAnticipata = null;
+  b.dettaglioAnticipato = null; b.rientroPrevistoTs = null;
+  b.log = newLog;
+  render();
+  showToast('Rientro segnato per Bici N°' + b.numero);
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'libera', clienteNome: null, clienteAlloggio: null, ritiroTs: null, ritiroOp: null,
+      pagamentoAnticipato: false, costoAnticipato: null, fasciaAnticipata: null,
+      dettaglioAnticipato: null, rientroPrevistoTs: null, log: newLog,
+    });
+  } catch(e) {
+    console.error('Errore segnalazione rientro:', e);
     showToast('Errore di salvataggio — riprova');
   }
 }
