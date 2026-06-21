@@ -492,8 +492,8 @@ async function salvaOrdini(){
     }
     await Promise.all(promises);
     showToast('Ordini salvati ✓');
-  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); }
-  finally{ btn.disabled=false; btn.textContent='Conferma ordini'; }
+    setTimeout(()=>location.reload(), 1200);
+  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); btn.disabled=false; btn.textContent='Conferma ordini'; }
 }
 
 function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); }
@@ -529,3 +529,4 @@ let _tt; function showToast(m){ const e=document.getElementById('toast'); e.text
 </script>
 </body>
 </html>
+
