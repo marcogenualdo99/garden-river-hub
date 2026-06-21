@@ -646,18 +646,51 @@ function renderCucina(ordini) {
   });
 
   el.innerHTML = sorted.map(ord => {
-    const piatti = ord.piatti || {};
     const serviti = ord.servito_piatti || {};
     const isDone  = tuttoServito(ord);
 
-    // Raggruppa piatti per categoria
+    // Normalizza piatti — gestisce tutti i formati possibili:
+    // 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
+    // 2. Oggetto mappa {menuId: qty}                     (formato legacy)
+    // 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
+    const rawPiatti = ord.piatti || [];
+    const piattiArr = [];
+    if (Array.isArray(rawPiatti)) {
+      rawPiatti.forEach(p => {
+        if (!p || typeof p !== 'object') return;
+        const qty = Number(p.quantita);
+        if (!(qty > 0)) return;
+        const id = p.menu_id;
+        piattiArr.push({
+          mid: id, qty,
+          piatto: p.piatto || menuById[id]?.piatto || id,
+          cat: p.categoria || menuById[id]?.categoria || 'Altro'
+        });
+      });
+    } else if (rawPiatti && typeof rawPiatti === 'object') {
+      Object.entries(rawPiatti).forEach(([k, v]) => {
+        if (typeof v === 'number') {
+          if (v <= 0) return;
+          const m = menuById[k];
+          piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
+        } else if (v && typeof v === 'object') {
+          const qty = Number(v.quantita);
+          if (!(qty > 0)) return;
+          const id = v.menu_id || k;
+          piattiArr.push({
+            mid: id, qty,
+            piatto: v.piatto || menuById[id]?.piatto || id,
+            cat: v.categoria || menuById[id]?.categoria || 'Altro'
+          });
+        }
+      });
+    }
+
+    // Raggruppa per categoria
     const cats = {};
-    for (const [mid, qty] of Object.entries(piatti)) {
-      if (!qty) continue;
-      const m = menuById[mid];
-      const cat = m ? (m.categoria || 'Piatto') : 'Altro';
-      if (!cats[cat]) cats[cat] = [];
-      cats[cat].push({mid, qty, piatto: m ? m.piatto : mid});
+    for (const p of piattiArr) {
+      if (!cats[p.cat]) cats[p.cat] = [];
+      cats[p.cat].push(p);
     }
 
     const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
@@ -686,7 +719,7 @@ function renderCucina(ordini) {
           <div class="fam-card-nome">${esc(ord.famiglia_nome || '—')}</div>
           <div class="fam-card-unita">Alloggio ${esc(ord.unita || '—')}</div>
         </div>
-        <div class="fam-pax">${totPiatti(piatti)} piatti</div>
+        <div class="fam-pax">${piattiArr.reduce((s,p)=>s+p.qty,0)} piatti</div>
       </div>
       ${piattiHtml}
       ${notaHtml}
@@ -695,14 +728,15 @@ function renderCucina(ordini) {
 }
 
 function tuttoServito(ord) {
-  const piatti  = ord.piatti || {};
-  const serviti = ord.servito_piatti || {};
-  const ids = Object.entries(piatti).filter(([,q])=>q>0).map(([id])=>id);
+  const rawPiatti = ord.piatti || [];
+  const serviti   = ord.servito_piatti || {};
+  let ids;
+  if (Array.isArray(rawPiatti)) {
+    ids = rawPiatti.filter(p => p.quantita > 0).map(p => p.menu_id);
+  } else {
+    ids = Object.entries(rawPiatti).filter(([,q])=>q>0).map(([id])=>id);
+  }
   return ids.length > 0 && ids.every(id => serviti[id]);
-}
-
-function totPiatti(piatti) {
-  return Object.values(piatti||{}).reduce((s,q)=>s+(q||0), 0);
 }
 
 async function toggleServito(ordId, menuId, wasDone) {
