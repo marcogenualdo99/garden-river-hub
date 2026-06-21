@@ -173,6 +173,15 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-done-btn.ready{background:var(--green-700);color:#fff}
 .kds-done-btn.ready:active{opacity:.85}
 .kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
+.kds-edit-btn{width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.kds-edit-btn:active{opacity:.7}
+/* ── CAMPO LIBERO ── */
+.kds-extra{padding:10px 16px;border-top:1px solid var(--gray-100)}
+.kds-extra-row{display:flex;align-items:center;gap:6px}
+.kds-extra-input{flex:1;height:36px;padding:0 10px;border:1.5px solid var(--gray-200,#E5E7EB);border-radius:10px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
+.kds-extra-input:focus{border-color:var(--green-400)}
+.kds-extra-save{width:36px;height:36px;border-radius:50%;border:none;background:var(--green-700);color:#fff;font-size:20px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.kds-extra-save:active{opacity:.8}
 .empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
 /* ── MENU SEZIONE ── */
@@ -811,15 +820,59 @@ function renderCucina(ordini) {
           <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
           <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
         </div>
-        <div class="kds-badge">${totServiti}/${totPiatti}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="kds-badge">${totServiti}/${totPiatti}</div>
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">✏</button>
+        </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
       ${notaHtml}
+      <div class="kds-extra" id="extra-${ord.id}">
+        <div class="kds-extra-row">
+          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <button class="kds-btn" onclick="kdsExtraStep('${ord.id}',-1)">−</button>
+            <span class="kds-served" id="extra-qty-${ord.id}">1</span>
+            <button class="kds-btn plus" onclick="kdsExtraStep('${ord.id}',+1)">+</button>
+          </div>
+          <button class="kds-extra-save" onclick="salvaExtra('${ord.id}','${ord.famiglia_id}')">+</button>
+        </div>
+      </div>
       <div class="kds-foot">
         <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${ord.id}',${isDone})">${doneBtnTxt}</button>
       </div>
     </div>`;
   }).join('');
+}
+
+// ── CAMPO LIBERO CUCINA ──────────────────────────────────────────────────────
+const _extraQty = {};
+
+function kdsExtraStep(ordId, delta) {
+  _extraQty[ordId] = Math.max(1, (_extraQty[ordId] || 1) + delta);
+  const el = document.getElementById(`extra-qty-${ordId}`);
+  if (el) el.textContent = _extraQty[ordId];
+}
+
+async function salvaExtra(ordId, famId) {
+  const input = document.getElementById(`extra-txt-${ordId}`);
+  const nome = (input?.value || '').trim();
+  if (!nome) { input?.focus(); return; }
+  const qty = _extraQty[ordId] || 1;
+  const { db, doc, updateDoc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'ordini_ristorazione', ordId));
+    if (!snap.exists()) { showToast('Ordine non trovato'); return; }
+    const raw = snap.data().piatti || [];
+    const piatti = Array.isArray(raw) ? [...raw] : Object.values(raw);
+    piatti.push({ menu_id: `extra_${Date.now()}`, piatto: nome, quantita: qty, categoria: 'Extra' });
+    await updateDoc(doc(db, 'ordini_ristorazione', ordId), { piatti });
+    input.value = '';
+    _extraQty[ordId] = 1;
+    const el = document.getElementById(`extra-qty-${ordId}`);
+    if (el) el.textContent = 1;
+    showToast(`"${nome}" aggiunto`);
+  } catch(e) { showToast('Errore: ' + (e.message || e.code)); console.error(e); }
 }
 
 // ── OVERRIDE ORDINE STAFF ────────────────────────────────────────────────────
