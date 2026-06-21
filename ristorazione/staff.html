@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -32,7 +32,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, updateDoc, query, where, arrayUnion };
 
   function ready() {
     if (window._fbReady) return;
@@ -123,10 +123,17 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fam-detail-qty{font-size:15px;font-weight:800;color:var(--green-500)}
 /* ── REPORT ALERT ── */
-.report-alert{background:#FEF9C3;border:1.5px solid #FDE047;border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
-.report-alert-title{font-size:13px;font-weight:800;color:#854D0E;margin-bottom:8px}
-.report-alert-list{display:flex;flex-wrap:wrap;gap:6px}
-.report-alert-chip{font-size:12px;font-weight:600;background:#fff;border:1px solid #FDE047;border-radius:20px;padding:3px 10px;color:#713F12}
+.report-alert{border-radius:14px;border:1px solid #FCD34D;background:#FFFBEB;overflow:hidden;margin-bottom:16px}
+.report-alert-head{display:flex;align-items:center;gap:12px;padding:14px 18px 10px}
+.report-alert-icon{width:36px;height:36px;border-radius:50%;background:rgba(217,119,6,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px}
+.report-alert-count{font-size:22px;font-weight:600;color:#B45309;line-height:1}
+.report-alert-label{font-size:13px;font-weight:500;color:#B45309;margin-top:2px}
+.report-alert-divider{height:1px;background:#FCD34D;margin:0 18px}
+.report-alert-list{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px 14px}
+.report-alert-chip{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;background:#fff;border:1px solid #FCD34D;cursor:pointer;font-size:13px;color:#B45309;font-weight:500;transition:background .15s,border-color .15s}
+.report-alert-chip:hover{background:rgba(217,119,6,0.08);border-color:#B45309}
+.report-alert-chip-name{color:#111827;font-weight:500}
+.report-alert-chip-unit{color:#6B7280;font-weight:400}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
@@ -176,6 +183,11 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-edit-btn{width:28px;height:28px;border-radius:50%;border:none;background:rgba(255,255,255,.25);color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
 .kds-edit-btn:active{opacity:.7}
 /* ── CAMPO LIBERO ── */
+.kds-log{padding:8px 16px;border-top:1px solid var(--gray-100);background:var(--gray-50,#F9FAFB)}
+.kds-log-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400,#9CA3AF);margin-bottom:4px}
+.kds-log-row{display:flex;justify-content:space-between;font-size:11px;color:var(--gray-600,#4B5563);padding:2px 0}
+.kds-log-chi{font-weight:600}
+.kds-log-quando{color:var(--gray-400,#9CA3AF)}
 .kds-extra{padding:10px 16px;border-top:1px solid var(--gray-100)}
 .kds-extra-row{display:flex;align-items:center;gap:6px}
 .kds-extra-input{flex:1;height:36px;padding:0 10px;border:1.5px solid var(--gray-200,#E5E7EB);border-radius:10px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
@@ -607,8 +619,17 @@ async function renderReport() {
   let alertHtml = '';
   if (famiglieSenzaOrdine.length) {
     alertHtml = `<div class="report-alert">
-      <div class="report-alert-title">⚠ ${famiglieSenzaOrdine.length} famili${famiglieSenzaOrdine.length===1?'a':'e'} senza ordine</div>
-      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<span class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')" style="cursor:pointer">${esc(f.nome)} · ${esc(f.unita||'—')} ✏</span>`).join('')}</div>
+      <div class="report-alert-head">
+        <div class="report-alert-icon">⚠</div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count">${famiglieSenzaOrdine.length}</span>
+            <span class="report-alert-label">famili${famiglieSenzaOrdine.length===1?'a':'e'} senza ordine</span>
+          </div>
+        </div>
+      </div>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
     </div>`;
   }
 
@@ -811,6 +832,16 @@ function renderCucina(ordini) {
     const notaHtml = ord.note
       ? `<div class="kds-note"><strong>Nota:</strong> ${esc(ord.note)}</div>` : '';
 
+    const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
+    const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
+      <div class="kds-log-title">Modifiche staff</div>
+      ${modifiche.slice().reverse().map(m => {
+        const dt = new Date(m.quando);
+        const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
+      }).join('')}
+    </div>`;
+
     const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
     const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
 
@@ -827,6 +858,7 @@ function renderCucina(ordini) {
       </div>
       <div class="kds-body">${piattiHtml}</div>
       ${notaHtml}
+      ${logHtml}
       <div class="kds-extra" id="extra-${ord.id}">
         <div class="kds-extra-row">
           <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
@@ -949,7 +981,7 @@ function mosStep(menuId, cat, delta) {
 
 async function salvaOrdineStaff() {
   if (!_mosData) return;
-  const { db, doc, setDoc } = window._fb;
+  const { db, doc, setDoc, arrayUnion } = window._fb;
   const { famId, famNome, data, tipo, menuItems, selezioni } = _mosData;
   const fam = famiglieDocs.find(f => f.id === famId);
   const note = document.getElementById('mos-note')?.value || '';
@@ -959,11 +991,14 @@ async function salvaOrdineStaff() {
     menu_id: mid, piatto: menuMap[mid]?.piatto||'—', quantita: q, categoria: menuMap[mid]?.categoria||'Altro'
   }));
   const ordId = `${famId}_${data}_${tipo}`;
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  const logEntry = { chi: sess.nome || 'Staff', quando: new Date().toISOString() };
   try {
     await setDoc(doc(db,'ordini_ristorazione',ordId), {
       famiglia_id: famId, famiglia_nome: famNome,
       unita: fam?.unita||'', data, tipo, piatti, note,
-      servito: false, timestamp: new Date().toISOString()
+      servito: false, timestamp: new Date().toISOString(),
+      modifiche: arrayUnion(logEntry)
     }, {merge:true});
     document.getElementById('modal-ordine-staff').classList.add('hidden');
     showToast('Ordine aggiornato');
