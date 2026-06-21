@@ -400,7 +400,8 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
       <img id="edit-qr-img" src="" alt="QR" style="width:180px;height:180px;border-radius:10px">
-      <div style="font-family:monospace;font-size:11px;background:var(--green-50);color:var(--green-700);padding:6px 10px;border-radius:8px;border:1px solid var(--green-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
+      <div style="font-family:monospace;font-size:11px;background:var(--gray-50);color:var(--gray-700);padding:6px 10px;border-radius:8px;border:1px solid var(--gray-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
+      <button class="msave" style="width:100%;margin-top:10px" onclick="scaricaQR('edit-qr-img','ef-nome')">Scarica QR</button>
     </div>
     <div class="mbtns">
       <button class="mcancel" onclick="document.getElementById('modal-edit-fam').classList.add('hidden')">Annulla</button>
@@ -420,6 +421,7 @@ input[type="date"].finput{font-size:13px}
     <div style="font-family:monospace;font-size:13px;background:var(--green-50);color:var(--green-700);padding:8px 14px;border-radius:8px;border:1px solid var(--green-100);margin-bottom:18px;word-break:break-all" id="qr-link"></div>
     <div class="mbtns">
       <button class="mcancel" onclick="document.getElementById('modal-qr').classList.add('hidden')">Chiudi</button>
+      <button class="msave" onclick="scaricaQR('qr-img','qr-title')">Scarica</button>
     </div>
   </div>
 </div>
@@ -926,7 +928,7 @@ function apriEditFamiglia(id) {
   if (codice) {
     const base = location.origin + location.pathname.replace('staff.html', 'index.html');
     const url  = `${base}?f=${codice}`;
-    document.getElementById('edit-qr-img').src  = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&color=1B4332&bgcolor=F0FAF4&data=${encodeURIComponent(url)}`;
+    document.getElementById('edit-qr-img').src  = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=000000&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
     document.getElementById('edit-qr-link').textContent = url;
     wrap.style.display = 'block';
   } else {
@@ -967,13 +969,23 @@ async function eliminaFamiglia(id) {
   } catch(e) { showToast('Errore eliminazione'); console.error(e); }
 }
 
+function scaricaQR(imgId, nameId) {
+  const img  = document.getElementById(imgId);
+  const nome = (document.getElementById(nameId).textContent || document.getElementById(nameId).value || 'qr').trim();
+  const a    = document.createElement('a');
+  a.href     = img.src;
+  a.download = `QR_${nome.replace(/\s+/g,'_')}.png`;
+  a.target   = '_blank';
+  a.click();
+}
+
 function mostraQR(nome, codice) {
   const base = location.origin + location.pathname.replace('staff.html', 'index.html');
   const url  = `${base}?f=${codice}`;
   document.getElementById('qr-title').textContent = nome;
   document.getElementById('qr-sub').textContent   = 'Codice: ' + codice;
   document.getElementById('qr-link').textContent  = url;
-  document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=1B4332&bgcolor=F0FAF4&data=${encodeURIComponent(url)}`;
+  document.getElementById('qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=000000&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
   document.getElementById('modal-qr').classList.remove('hidden');
 }
 
