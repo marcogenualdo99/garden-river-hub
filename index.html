@@ -57,14 +57,12 @@
   });
   setTimeout(segnalaPronto, 8000);
 </script>
-<!-- Secondo collegamento Firebase: serve a leggere (in sola lettura) i dati
-     di Conti / Alloggi / Bici per mostrare i numeri live nelle card della
-     home. È il progetto "garden-river-conti-febed", condiviso da quelle tre
-     app — diverso dal progetto della Hub, quindi serve una seconda istanza
-     separata dell'app Firebase. -->
+<!-- Secondo collegamento Firebase: serve a leggere i dati di Conti / Alloggi / Bici
+     per mostrare i numeri live nelle card della home, e a gestire le preferenze
+     di notifica degli operatori (staffTokens). -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -82,7 +80,7 @@
   const dataDb   = getFirestore(dataApp);
   const dataAuth = getAuth(dataApp);
 
-  window._fbData = { db: dataDb, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork };
+  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
   window._fbDataReady = false;
 
   function segnalaDatiPronti() {
@@ -608,9 +606,10 @@ const PIN_LENGTH = 6;
 // retrocesso, così non si rischia di restare bloccati fuori dalla Hub.
 const SUPER_ADMIN_NAME = 'Marco';
 
-let operatori        = [];   // [{ nome, ruolo, pin }]
-let permessi          = {};  // { [nome]: { moduli: {...} } }
-let currentOperatore  = null;
+let operatori               = [];   // [{ nome, ruolo, pin }]
+let permessi                = {};   // { [nome]: { moduli: {...} } }
+let staffTokensNotifiche    = {};   // { [nome]: boolean }
+let currentOperatore        = null;
 let currentRuolo      = null;
 let loginTargetOp     = null;
 let pinBuffer         = '';
@@ -818,6 +817,11 @@ async function startHomeStatsSync() {
       homeStats.ristorazione = { ordiniOggi };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche ristorazione:', err));
+    onSnapshot(collection(db, 'staffTokens'), (snap) => {
+      staffTokensNotifiche = {};
+      snap.docs.forEach(d => { staffTokensNotifiche[d.id] = !!d.data().notifiche; });
+      renderOperatoriList();
+    }, (err) => console.error('Errore listener staffTokens:', err));
   } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
 }
 
@@ -1156,9 +1160,23 @@ function renderOperatoriList() {
            </select>`}
       <span class="op-pin-status" style="color:${hasPIN?'var(--green-ok)':'var(--amber)'}">${hasPIN?'PIN ok':'Nessun PIN'}</span>
       ${hasPIN?`<button class="op-btn reset" onclick="resetPin('${o.nome}')">Reset PIN</button>`:''}
+      <button onclick="toggleNotificheOp('${o.nome}')" title="${staffTokensNotifiche[o.nome]?'Disattiva notifiche':'Attiva notifiche'}"
+        style="width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;font-size:14px;flex-shrink:0;
+               background:${staffTokensNotifiche[o.nome]?'var(--green-bg)':'var(--gray-100)'};
+               color:${staffTokensNotifiche[o.nome]?'var(--green-ok)':'var(--gray-400)'}">🔔</button>
       ${!isSuper?`<button class="op-del" onclick="deleteOperatore('${o.nome}')" title="Rimuovi">&#10005;</button>`:''}
     </div>`;
   }).join('') || `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px 0">Nessun operatore.</p>`;
+}
+
+async function toggleNotificheOp(nome) {
+  const { db, doc, updateDoc } = window._fbData;
+  const attuale = !!staffTokensNotifiche[nome];
+  try {
+    await updateDoc(doc(db, 'staffTokens', nome), { notifiche: !attuale });
+  } catch(e) {
+    showToast(attuale ? 'Notifiche disattivate' : 'Token non trovato — l\'operatore deve attivare le notifiche da Conti');
+  }
 }
 
 async function addOperatore() {
