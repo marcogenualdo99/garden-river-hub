@@ -50,11 +50,19 @@
       const permesso = await Notification.requestPermission();
       if (permesso !== 'granted') return { ok: false, motivo: 'negato' };
 
-      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
       if (!token) return { ok: false, motivo: 'nessun-token' };
 
-      const vecchioOp = localStorage.getItem('gcm_operatore');
+      const vecchioToken = localStorage.getItem('gcm_token');
+      const vecchioOp    = localStorage.getItem('gcm_operatore');
+
+      // Rimuovi il vecchio token di questo dispositivo (operatore cambiato o token rinnovato)
+      if (vecchioToken && vecchioToken !== token) {
+        const opDaRipulire = vecchioOp || operatoreNome;
+        try { await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
+      }
+      // Rimuovi il token corrente dall'operatore precedente se è cambiato
       if (vecchioOp && vecchioOp !== operatoreNome) {
         try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
       }
@@ -1405,15 +1413,17 @@ function switchTab(id) {
 
 // ── NOTIFICHE PUSH ──────────────────────────────────────────────────────────
 function aggiornaStatoNotifiche() {
-  const el = document.getElementById('notifiche-status');
+  const el  = document.getElementById('notifiche-status');
+  const btn = document.getElementById('btn-attiva-notifiche');
   if (!el) return;
   if (!('Notification' in window)) {
     el.textContent = 'Non supportate su questo browser';
     return;
   }
-  el.textContent = Notification.permission === 'granted'
-    ? 'Attive su questo dispositivo'
-    : 'Non attive su questo dispositivo';
+  const giàAttive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
+  el.textContent   = giàAttive ? 'Attive su questo dispositivo ✓' : 'Non attive su questo dispositivo';
+  el.style.color   = giàAttive ? 'var(--green-ok)' : 'var(--gray-500)';
+  if (btn) btn.style.display = giàAttive ? 'none' : '';
 }
 
 async function attivaNotifiche() {
