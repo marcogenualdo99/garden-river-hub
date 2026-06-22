@@ -841,7 +841,7 @@ async function startHomeStatsSync() {
 
   // Conti, Alloggi e Bici condividono invece il progetto garden-river-conti-febed.
   await waitForFirebaseData();
-  const { db, collection, onSnapshot } = window._fbData;
+  const { db, collection, onSnapshot, query, limit } = window._fbData;
   try {
     onSnapshot(collection(db, 'ospiti'), (snap) => {
       const ospiti = snap.docs.map(d => d.data());
@@ -877,34 +877,24 @@ async function startHomeStatsSync() {
     }, (err) => console.error('Errore listener staffTokens:', err));
 
     // ── Manutenzione: badge aperti + notifica in-app per admin/gestione ──
-    let _manutenzioneFirstSnap = true;
+    let _manutenzioneSeenIds = null; // null = prima snapshot non ancora ricevuta
     onSnapshot(collection(db, 'maintenance_tickets'), (snap) => {
       const tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const aperti  = tickets.filter(t => !t.status).length;
       homeStats.manutenzione = { aperti };
       if (currentOperatore) renderHome();
 
-      // Trova il timestamp più recente tra tutti i ticket
-      let maxTs = 0;
-      tickets.forEach(t => {
-        const ms = t.created_at && t.created_at.toMillis ? t.created_at.toMillis() : 0;
-        if (ms > maxTs) maxTs = ms;
-      });
-
-      if (_manutenzioneFirstSnap) {
-        // Al primo caricamento memorizziamo il timestamp più recente senza notificare
-        _manutenzioneFirstSnap = false;
-        _manutenzioneLatestTs = maxTs;
+      if (_manutenzioneSeenIds === null) {
+        // Prima snapshot: memorizza tutti gli ID esistenti senza notificare.
+        // Usiamo un Set così sui successivi snapshot riconosciamo solo i veri nuovi.
+        _manutenzioneSeenIds = new Set(tickets.map(t => t.id));
         return;
       }
 
-      // Sui successivi aggiornamenti: cerca ticket nuovi arrivati dopo l'ultimo visto
-      const nuovi = tickets.filter(t => {
-        const ms = t.created_at && t.created_at.toMillis ? t.created_at.toMillis() : 0;
-        return ms > _manutenzioneLatestTs;
-      });
+      // Snapshot successivi: cerca ticket il cui ID non era presente al primo caricamento
+      const nuovi = tickets.filter(t => !_manutenzioneSeenIds.has(t.id));
       if (nuovi.length === 0) return;
-      _manutenzioneLatestTs = maxTs;
+      nuovi.forEach(t => _manutenzioneSeenIds.add(t.id));
 
       // Mostra la notifica solo a chi può gestire i ticket (admin o perm gestione)
       const canSeeNotif = isAdmin() || (() => {
@@ -1159,7 +1149,6 @@ function clearSearch() {
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
 let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null };
-let _manutenzioneLatestTs = 0; // timestamp dell'ultimo ticket visto, per le notifiche in-app
 
 function statoModulo(mod) {
   const s = homeStats[mod.statKey];
