@@ -749,9 +749,8 @@ function renderBikeBody(b) {
           '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value">'+
           '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
         '</div>'+
-        '<div class="bike-info-row" style="margin-bottom:18px">'+
-          '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
-          '<div class="bike-info-col"><div class="bike-info-label">Costo attuale</div><div class="bike-info-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+        '<div class="form-row-2" style="margin-bottom:14px">'+
+          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
         '</div>'+
         '<div class="form-row-2" style="margin-bottom:0">'+
           '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
@@ -781,8 +780,7 @@ function renderBikeBody(b) {
   if (stato === 'occupata_pagata') {
     if (editingBike[b.id]) {
       const e = editingTemp[b.id] || {};
-      const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
-      const rientroLocal = e.rientroPrevistoTs ? new Date(new Date(e.rientroPrevistoTs).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : '';
+      const rientroLocal = e.rientroPrevistoTs || '';
       return '<div class="bike-body">'+
         '<div class="bike-divider"></div>'+
         '<div class="form-row-2">'+
@@ -790,11 +788,8 @@ function renderBikeBody(b) {
           '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
         '</div>'+
         '<div class="form-row-2">'+
-          '<div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);background:var(--gray-50)">'+
-            '<div style="font-size:10px;color:var(--gray-500);font-weight:600;margin-bottom:2px">Ora ritiro</div>'+
-            '<div style="font-size:13px;font-weight:700;color:var(--gray-900)">'+fmtTs(b.ritiroTs)+'</div>'+
-          '</div>'+
-          '<input type="datetime-local" value="'+rientroLocal+'" min="'+nowLocal+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
+          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
+          '<input type="datetime-local" value="'+rientroLocal+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
         '</div>'+
         '<div class="bike-cost-row" style="margin-top:14px;margin-bottom:18px">'+
           '<div>'+
@@ -1089,11 +1084,17 @@ function attivaModificaBici(id) {
   const b = bikesMap[id];
   if (!b) return;
   editingBike[id] = true;
+  function toLocal(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  }
   editingTemp[id] = {
     nome: b.clienteNome || '',
     alloggio: b.clienteAlloggio || '',
     costo: b.costoAnticipato || 0,
-    rientroPrevistoTs: b.rientroPrevistoTs || '',
+    ritiroTs: toLocal(b.ritiroTs),
+    rientroPrevistoTs: toLocal(b.rientroPrevistoTs),
   };
   render();
 }
@@ -1114,6 +1115,11 @@ async function salvaDatiNoleggio(id) {
   const updates = { clienteNome: nome, clienteAlloggio: alloggio };
   b.clienteNome = nome;
   b.clienteAlloggio = alloggio;
+  if (e.ritiroTs) {
+    const ritiroIso = new Date(e.ritiroTs).toISOString();
+    updates.ritiroTs = ritiroIso;
+    b.ritiroTs = ritiroIso;
+  }
   if (effectiveStato(b) === 'occupata_pagata') {
     updates.costoAnticipato = e.costo || 0;
     b.costoAnticipato = e.costo || 0;
