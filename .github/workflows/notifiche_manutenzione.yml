@@ -18,4 +18,4 @@ jobs:
       - name: Invia notifiche ticket manutenzione
         env:
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-        run: python scripts/send_notifiche_manutenzione.py
+        run: python .github/scripts/send_notifiche_manutenzione.py
