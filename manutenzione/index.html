@@ -59,7 +59,7 @@
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') return { ok: false, motivo: 'negato' };
 
-      const reg   = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
       if (!token) return { ok: false, motivo: 'nessun-token' };
 
@@ -549,6 +549,10 @@ main { max-width: 750px; margin: 0 auto; padding: 20px 16px 100px; }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       Attiva notifiche
     </button>
+    <button id="btn-disattiva-notif" onclick="disattivaNotifiche()" class="btn-submit" style="margin-top:8px;background:var(--gray-200);color:var(--gray-700);display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M17.73 17.73A10 10 0 0 1 6.27 6.27M6 8a6 6 0 0 0-.27 2c0 7-3 9-3 9h14"/><path d="M9.9 4.24A6 6 0 0 1 18 8c0 4.67 1.5 7.11 2.53 8.27M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Disattiva notifiche
+    </button>
   </div>
 </div>
 
@@ -1003,9 +1007,15 @@ async function changeStatus(id, solved) {
   showModal(label, body, solved ? 'Segna risolto' : 'Riapri', solved ? 'var(--green-ok)' : 'var(--amber)', async () => {
     try {
       const { db, doc, updateDoc } = window._fb;
+      const t = allTickets.find(x => x.id === id);
+      if (t) { t.status = solved; renderTickets(); }
       await updateDoc(doc(db, 'maintenance_tickets', id), { status: solved });
       showToast(solved ? '✓ Ticket risolto' : '↩ Ticket riaperto');
-    } catch(e) { showToast('Errore aggiornamento stato'); }
+    } catch(e) {
+      const t = allTickets.find(x => x.id === id);
+      if (t) { t.status = !solved; renderTickets(); }
+      showToast('Errore aggiornamento stato');
+    }
   });
 }
 
@@ -1023,6 +1033,8 @@ function aggiornaStatoNotifiche() {
   el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
   el.style.color = attive ? 'var(--green-ok)' : 'var(--gray-500)';
   if (btn) btn.style.display = attive ? 'none' : '';
+  const btnDis = document.getElementById('btn-disattiva-notif');
+  if (btnDis) btnDis.style.display = attive ? '' : 'none';
 }
 
 async function attivaNotifiche() {
@@ -1041,6 +1053,20 @@ async function attivaNotifiche() {
   }
   aggiornaStatoNotifiche();
   if (btn) { btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Attiva notifiche`; }
+}
+
+async function disattivaNotifiche() {
+  const token = localStorage.getItem('gcm_token');
+  if (token && currentOperatore) {
+    try {
+      const { db, doc, updateDoc } = window._fb;
+      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await updateDoc(doc(db, 'staffTokens', currentOperatore), { tokens: arrayRemove(token) });
+    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
+  }
+  localStorage.removeItem('gcm_token');
+  showToast('Notifiche disattivate');
+  aggiornaStatoNotifiche();
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
