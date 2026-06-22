@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Manutenzione · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Manutenzione">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, query, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  // VAPID key pubblica del progetto garden-river-conti-febed
+  // (stessa usata in conti/index.html — stesso progetto Firebase)
+  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
+
+  const fbApp    = initializeApp(firebaseConfig);
+  const db       = getFirestore(fbApp);
+  const auth     = getAuth(fbApp);
+  const messaging = getMessaging(fbApp);
+
+  window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, query, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
+  window._fbReady = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch(() => { window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); });
+  setTimeout(segnalaPronto, 8000);
+
+  // ── Attiva notifiche FCM (stesso pattern di conti/index.html) ───────────
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    try {
+      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg   = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      const vecchioToken = localStorage.getItem('gcm_token');
+      const vecchioOp    = localStorage.getItem('gcm_operatore');
+
+      // Rimuovi token obsoleto dall'operatore precedente
+      if (vecchioToken && vecchioToken !== token) {
+        const opDaRipulire = vecchioOp || operatoreNome;
+        try {
+          const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) });
+        } catch(e) {}
+      }
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try {
+          const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+          await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) });
+        } catch(e) {}
+      }
+
+      const { arrayUnion, setDoc: setDocFn } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await setDocFn(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrayUnion(token),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      localStorage.setItem('gcm_token',     token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
+      return { ok: true };
+    } catch(e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
+</script>
+
+<style>
+:root {
+  --green-900: #0D2B1E;
+  --green-700: #1B4332;
+  --green-500: #2D6A4F;
+  --green-400: #40916C;
+  --green-200: #95D5B2;
+  --green-100: #D8F3DC;
+  --green-50:  #F0FAF4;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6B7280;
+  --gray-400:  #9CA3AF;
+  --gray-300:  #D1D5DB;
+  --gray-200:  #E5E7EB;
+  --gray-100:  #F3F4F6;
+  --gray-50:   #F9FAFB;
+  --white:     #FFFFFF;
+  --orange:    #E07B00;
+  --orange-bg: #FFF8F0;
+  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
+  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
+  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
+  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
+  --purple:    #7C3AED; --purple-bg: #F5F3FF;
+  --teal:      #0D9488; --teal-bg: #F0FDFA;
+  --radius-sm: 12px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
+  --shadow:    0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
+  --font: 'Inter', -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOADING ════════════════════════════════════════════════════════════════ */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--white); display: flex; align-items: center; justify-content: center;
+  transition: opacity .25s;
+}
+.loading-spinner {
+  width: 40px; height: 40px; border: 3px solid var(--green-100);
+  border-top-color: var(--green-700); border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══ NO ACCESS ══════════════════════════════════════════════════════════════ */
+#no-access-screen {
+  position: fixed; inset: 0; z-index: 999; background: var(--white);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; text-align: center; gap: 16px;
+}
+#no-access-screen svg { opacity: .3; }
+#no-access-screen h2 { font-size: 20px; font-weight: 800; color: var(--gray-900); }
+#no-access-screen p  { font-size: 14px; color: var(--gray-500); line-height: 1.6; max-width: 280px; }
+#no-access-screen a  { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 12px 24px; background: var(--green-700); color: var(--white); border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; text-decoration: none; }
+
+/* ══ LOGIN REDIRECT ══════════════════════════════════════════════════════════ */
+#login-screen {
+  position: fixed; inset: 0; z-index: 999; background: var(--green-700);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; text-align: center; gap: 16px;
+}
+#login-screen h2 { font-size: 22px; font-weight: 800; color: var(--white); }
+#login-screen p  { font-size: 14px; color: rgba(255,255,255,.7); line-height: 1.6; max-width: 280px; }
+#login-screen a  { display: inline-flex; align-items: center; gap: 6px; padding: 14px 28px; background: var(--white); color: var(--green-700); border-radius: var(--radius-xl); font-size: 15px; font-weight: 800; text-decoration: none; }
+.hidden { display: none !important; }
+
+/* ══ TOP BAR ════════════════════════════════════════════════════════════════ */
+.top-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--white); border-bottom: 1px solid var(--gray-100);
+  padding-top: env(safe-area-inset-top);
+}
+.header-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  max-width: 750px; margin: 0 auto; padding: 14px 16px; gap: 12px;
+}
+.header-left  { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.back-btn {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--gray-100);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--gray-700); -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
+}
+.back-btn:active { background: var(--gray-200); }
+.back-btn svg { width: 18px; height: 18px; }
+.header-titles { min-width: 0; }
+.header-name { font-size: 16px; font-weight: 800; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-role { font-size: 11px; color: var(--gray-500); margin-top: 1px; }
+.header-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--green-700);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--white); flex-shrink: 0;
+}
+
+/* ══ MAIN ════════════════════════════════════════════════════════════════════ */
+main { max-width: 750px; margin: 0 auto; padding: 20px 16px 100px; }
+
+/* ══ FILTER PILLS ═══════════════════════════════════════════════════════════ */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-pill {
+  flex-shrink: 0; height: 36px; padding: 0 16px;
+  border: 1.5px solid var(--gray-200); border-radius: 18px;
+  background: var(--white); font-size: 13px; font-weight: 600;
+  color: var(--gray-600); cursor: pointer; font-family: var(--font);
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  transition: all .15s; -webkit-tap-highlight-color: transparent;
+}
+.filter-pill .pill-count {
+  background: var(--gray-100); color: var(--gray-500);
+  font-size: 11px; font-weight: 700; padding: 2px 7px;
+  border-radius: 10px; min-width: 22px; text-align: center;
+}
+.filter-pill.active { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+.filter-pill.active .pill-count { background: rgba(255,255,255,.2); color: var(--white); }
+.filter-pill:active { opacity: .8; }
+
+/* ══ SECTION TITLE ══════════════════════════════════════════════════════════ */
+.section-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--green-700); margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--green-100);
+}
+
+/* ══ FORM CARD ══════════════════════════════════════════════════════════════ */
+.form-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); margin-bottom: 24px; overflow: hidden;
+}
+.form-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 18px 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.form-card-header h2 { font-size: 17px; font-weight: 800; color: var(--gray-900); }
+.form-toggle-icon {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--gray-100);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gray-500); transition: transform .2s, background .15s; flex-shrink: 0;
+}
+.form-toggle-icon svg { width: 16px; height: 16px; }
+.form-toggle-icon.open { transform: rotate(180deg); background: var(--green-50); color: var(--green-700); }
+
+.form-body { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.form-body.collapsed { display: none; }
+
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 12px; font-weight: 700; color: var(--gray-700); text-transform: uppercase; letter-spacing: .04em; }
+.field-label span { color: var(--red); margin-left: 2px; }
+
+.field-select, .field-textarea {
+  width: 100%; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+  font-size: 15px; font-family: var(--font); color: var(--gray-900);
+  background: var(--white); outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.field-select { height: 50px; padding: 0 14px; appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px; }
+.field-textarea { padding: 12px 14px; resize: none; min-height: 90px; line-height: 1.5; }
+.field-select:focus, .field-textarea:focus { border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(64,145,108,.12); }
+
+/* ══ TOGGLE SWITCH ══════════════════════════════════════════════════════════ */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 0; border-top: 1px solid var(--gray-100);
+}
+.toggle-label-wrap { flex: 1; }
+.toggle-label { font-size: 14px; font-weight: 700; color: var(--gray-900); }
+.toggle-sub   { font-size: 12px; color: var(--gray-500); margin-top: 2px; line-height: 1.4; }
+.toggle-switch {
+  position: relative; width: 50px; height: 28px;
+  background: var(--gray-300); border-radius: 14px; cursor: pointer;
+  transition: background .2s; flex-shrink: 0; border: none; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.toggle-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%; background: var(--white);
+  box-shadow: 0 1px 4px rgba(0,0,0,.2); transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.toggle-switch.on { background: var(--green-400); }
+.toggle-switch.on::after { transform: translateX(22px); }
+
+/* ══ SUBMIT BTN ══════════════════════════════════════════════════════════════ */
+.btn-submit {
+  width: 100%; height: 52px; background: var(--green-700); color: var(--white);
+  border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: var(--font); display: flex; align-items: center;
+  justify-content: center; gap: 8px; transition: opacity .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent; margin-top: 4px;
+}
+.btn-submit:active { opacity: .85; transform: scale(.98); }
+.btn-submit:disabled { opacity: .45; pointer-events: none; }
+.btn-submit svg { width: 18px; height: 18px; }
+
+/* ══ TICKET LIST ════════════════════════════════════════════════════════════ */
+.tickets-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+.ticket-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden;
+  transition: transform .15s; -webkit-tap-highlight-color: transparent;
+}
+.ticket-card:active { transform: scale(.99); }
+
+.ticket-header {
+  display: flex; align-items: flex-start; gap: 12px; padding: 16px 16px 12px;
+  cursor: pointer;
+}
+.ticket-cat-icon {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.ticket-cat-icon svg { width: 20px; height: 20px; }
+
+.ticket-meta { flex: 1; min-width: 0; }
+.ticket-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.ticket-unit { font-size: 15px; font-weight: 800; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 10px; flex-shrink: 0; white-space: nowrap;
+}
+.status-badge.open   { background: var(--amber-bg); color: var(--amber); }
+.status-badge.solved { background: var(--green-bg); color: var(--green-ok); }
+.status-badge svg { width: 9px; height: 9px; }
+
+.ticket-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cat-chip {
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 10px; white-space: nowrap;
+}
+.ticket-date { font-size: 11px; color: var(--gray-400); }
+.ticket-op   { font-size: 11px; color: var(--gray-500); font-weight: 600; }
+
+.access-indicator {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--green-400); font-weight: 600;
+}
+.access-indicator svg { width: 11px; height: 11px; }
+
+.ticket-chevron { color: var(--gray-400); flex-shrink: 0; margin-top: 3px; transition: transform .2s; }
+.ticket-chevron svg { width: 16px; height: 16px; }
+.ticket-card.expanded .ticket-chevron { transform: rotate(180deg); }
+
+.ticket-body {
+  padding: 0 16px 16px; display: none; border-top: 1px solid var(--gray-100);
+  animation: fadeIn .15s ease;
+}
+.ticket-card.expanded .ticket-body { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.ticket-desc {
+  font-size: 14px; color: var(--gray-700); line-height: 1.6;
+  padding: 12px 0 14px; border-bottom: 1px solid var(--gray-100);
+}
+
+.ticket-actions { padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.access-full-label {
+  font-size: 12px; color: var(--gray-500); line-height: 1.5;
+  display: flex; align-items: center; gap: 6px;
+}
+.access-full-label svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--green-400); }
+.access-full-label.no svg { color: var(--gray-400); }
+
+.btn-block {
+  width: 100%; height: 50px; border: none; border-radius: var(--radius-xl);
+  font-size: 15px; font-weight: 800; cursor: pointer; font-family: var(--font);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  -webkit-tap-highlight-color: transparent; transition: opacity .15s;
+}
+.btn-block:active   { opacity: .88; }
+.btn-block:disabled { opacity: .4; pointer-events: none; }
+.btn-block.green { background: var(--green-ok); color: var(--white); }
+.btn-block.amber { background: var(--amber);    color: var(--white); }
+.btn-block svg { width: 16px; height: 16px; }
+
+/* ══ EMPTY STATE ═══════════════════════════════════════════════════════════ */
+.empty-state {
+  text-align: center; padding: 48px 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.empty-state-icon {
+  width: 72px; height: 72px; border-radius: 22px; background: var(--green-50);
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-state-icon svg { width: 36px; height: 36px; color: var(--green-200); }
+.empty-state h3 { font-size: 17px; font-weight: 800; color: var(--gray-900); }
+.empty-state p  { font-size: 14px; color: var(--gray-500); line-height: 1.6; max-width: 260px; }
+
+/* ══ SHIMMER ════════════════════════════════════════════════════════════════ */
+.shimmer-card {
+  background: var(--white); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); padding: 16px; display: flex; gap: 12px;
+}
+.shimmer-box {
+  background: var(--gray-100); border-radius: 8px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+/* ══ TOAST ══════════════════════════════════════════════════════════════════ */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px);
+  background: var(--gray-900); color: var(--white); padding: 11px 20px;
+  border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0;
+  transition: all .25s; pointer-events: none; white-space: nowrap;
+  z-index: 999; box-shadow: var(--shadow-lg); max-width: calc(100vw - 32px); text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ MODAL ══════════════════════════════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 998;
+  background: rgba(0,0,0,0.45); align-items: flex-end; justify-content: center; padding-bottom: 24px;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--white); border-radius: var(--radius-lg);
+  padding: 24px 20px; width: calc(100% - 28px); max-width: 400px;
+  box-shadow: var(--shadow-lg); animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+.modal-body  { font-size: 14px; color: var(--gray-500); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-actions button {
+  flex: 1; height: 48px; border: none; border-radius: var(--radius-xl);
+  font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font);
+}
+.modal-cancel  { background: var(--gray-100); color: var(--gray-700); }
+.modal-confirm { background: var(--green-700); color: var(--white); }
+
+/* ══ CAT COLORS ═════════════════════════════════════════════════════════════ */
+.cat-elettrico   { background: var(--amber-bg); color: var(--amber); }
+.cat-idraulico   { background: var(--blue-bg);  color: var(--blue); }
+.cat-clima       { background: var(--teal-bg);  color: var(--teal); }
+.cat-altro       { background: var(--purple-bg);color: var(--purple); }
+
+/* ══ RESPONSIVE ═════════════════════════════════════════════════════════════ */
+@media (min-width: 600px) {
+  .tickets-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ticket-card { align-self: start; }
+}
+@media (min-width: 860px) {
+  .tickets-wrap { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-screen">
+  <div class="loading-spinner"></div>
+</div>
+
+<!-- Login redirect -->
+<div id="login-screen" class="hidden">
+  <h2>Accesso richiesto</h2>
+  <p>Effettua il login dalla Hub per accedere alla gestione manutenzione.</p>
+  <a href="../index.html">← Torna alla Hub</a>
+</div>
+
+<!-- No access -->
+<div id="no-access-screen" class="hidden">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+  <h2>Accesso non autorizzato</h2>
+  <p>Il tuo profilo non ha i permessi per questa sezione. Chiedi all'amministratore.</p>
+  <a href="../index.html">← Torna alla Hub</a>
+</div>
+
+<!-- Top Bar -->
+<div class="top-bar" id="top-bar">
+  <div class="header-inner">
+    <div class="header-left">
+      <a href="../index.html" class="back-btn" aria-label="Torna alla Hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <div class="header-titles">
+        <div class="header-name">Manutenzione</div>
+        <div class="header-role" id="header-role">Operatore</div>
+      </div>
+    </div>
+    <div class="header-avatar" id="header-avatar">??</div>
+  </div>
+</div>
+
+<main>
+
+  <!-- Form segnalazione -->
+  <div class="form-card" id="form-card">
+    <div class="form-card-header" onclick="toggleForm()" aria-expanded="true" aria-controls="form-body">
+      <h2>Segnala un problema</h2>
+      <div class="form-toggle-icon open" id="form-toggle-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+    </div>
+    <div class="form-body" id="form-body">
+
+      <div class="field-group">
+        <label class="field-label" for="sel-unit">Alloggio <span>*</span></label>
+        <select class="field-select" id="sel-unit">
+          <option value="">— Seleziona alloggio —</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="sel-cat">Categoria <span>*</span></label>
+        <select class="field-select" id="sel-cat">
+          <option value="">— Seleziona categoria —</option>
+          <option value="Elettrico">⚡ Elettrico</option>
+          <option value="Idraulico">💧 Idraulico</option>
+          <option value="Climatizzazione">❄️ Climatizzazione</option>
+          <option value="Altro">🔧 Altro</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="txt-desc">Descrizione del problema <span>*</span></label>
+        <textarea class="field-textarea" id="txt-desc" rows="3" placeholder="Descrivi brevemente il problema…"></textarea>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="toggle-label">Posso entrare in mia assenza</div>
+          <div class="toggle-sub">Il tecnico può accedere all'alloggio senza che io sia presente</div>
+        </div>
+        <button class="toggle-switch" id="access-toggle" role="switch" aria-checked="false" onclick="toggleAccess()" aria-label="Permesso di accesso"></button>
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="submitTicket()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Invia segnalazione
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Filtri ticket -->
+  <div class="section-title" id="tickets-section-title" style="display:none">Ticket segnalati</div>
+  <div class="filter-bar" id="filter-bar" style="display:none">
+    <button class="filter-pill active" data-filter="tutti" onclick="setFilter('tutti')">
+      Tutti <span class="pill-count" id="cnt-tutti">0</span>
+    </button>
+    <button class="filter-pill" data-filter="aperti" onclick="setFilter('aperti')">
+      Aperti <span class="pill-count" id="cnt-aperti">0</span>
+    </button>
+    <button class="filter-pill" data-filter="risolti" onclick="setFilter('risolti')">
+      Risolti <span class="pill-count" id="cnt-risolti">0</span>
+    </button>
+  </div>
+
+  <!-- Shimmer placeholders -->
+  <div id="shimmer-wrap">
+    <div class="shimmer-card"><div class="shimmer-box" style="width:42px;height:42px;border-radius:12px;flex-shrink:0"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="shimmer-box" style="height:14px;width:60%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:40%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:80%;border-radius:6px"></div></div></div>
+    <div class="shimmer-card" style="margin-top:12px"><div class="shimmer-box" style="width:42px;height:42px;border-radius:12px;flex-shrink:0"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="shimmer-box" style="height:14px;width:70%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:35%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:55%;border-radius:6px"></div></div></div>
+  </div>
+
+  <!-- Lista ticket -->
+  <div class="tickets-wrap" id="tickets-wrap" style="display:none"></div>
+
+  <!-- Card attivazione notifiche push -->
+  <div id="notif-card" style="margin-top:28px;display:none">
+    <div class="section-title">Notifiche push</div>
+    <div style="background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:40px;height:40px;border-radius:12px;background:var(--orange-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:var(--gray-900)">Ricevi notifiche push</div>
+          <div style="font-size:12px;color:var(--gray-500);margin-top:2px">Vieni avvisato immediatamente quando arriva un nuovo ticket</div>
+        </div>
+      </div>
+      <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
+      <button id="btn-notif" onclick="attivaNotifiche()" class="btn-submit" style="margin-top:0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Attiva notifiche
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body"  id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel"  onclick="closeModal()">Annulla</button>
+      <button class="modal-confirm" id="modal-confirm">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const HUB_URL      = '../index.html';
+const MODULE_ID    = 'manutenzione';
+const SECTION_IDS  = ['tickets', 'gestione'];
+
+let hubSession     = null;
+let hubPermessi    = { sezioni: {} };
+let allowedSections = new Set();
+let currentOperatore = null;
+let canManage      = false; // può vedere tutti i ticket e cambiare stato
+let accessToggleOn = false;
+let allTickets     = [];
+let alloggiList    = [];
+let currentFilter  = 'tutti';
+let _firstDataLoad = true;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return 'Oggi ' + d.toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 1) return 'Ieri ' + d.toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('it', { day: '2-digit', month: 'short' }) + ' ' +
+         d.toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' });
+}
+
+function catInfo(cat) {
+  const map = {
+    'Elettrico':       { cls: 'cat-elettrico', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>` },
+    'Idraulico':       { cls: 'cat-idraulico', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>` },
+    'Climatizzazione': { cls: 'cat-clima',     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>` },
+    'Altro':           { cls: 'cat-altro',     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>` },
+  };
+  return map[cat] || map['Altro'];
+}
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once: true });
+  });
+}
+
+async function loadAlloggi() {
+  try {
+    const { db, collection, getDocs } = window._fb;
+    const snap = await getDocs(collection(db, 'alloggi'));
+    alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ca = (a.categoriaLabel || '').localeCompare(b.categoriaLabel || '');
+        return ca !== 0 ? ca : (a.numero || 0) - (b.numero || 0);
+      });
+    const sel = document.getElementById('sel-unit');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— Seleziona alloggio —</option>' +
+      alloggiList.map(a => `<option value="${escHtml(a.nome)}">${escHtml(a.nome)}</option>`).join('');
+    if (prev && alloggiList.some(a => a.nome === prev)) sel.value = prev;
+  } catch(e) { console.error('Errore caricamento alloggi:', e); }
+}
+
+async function startTicketsSync() {
+  const { db, collection, onSnapshot, query, orderBy } = window._fb;
+  try {
+    onSnapshot(query(collection(db, 'maintenance_tickets'), orderBy('created_at', 'desc')), (snap) => {
+      allTickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (_firstDataLoad) {
+        _firstDataLoad = false;
+        document.getElementById('shimmer-wrap').style.display = 'none';
+        document.getElementById('tickets-wrap').style.display = '';
+        document.getElementById('tickets-section-title').style.display = '';
+        document.getElementById('filter-bar').style.display = '';
+      }
+      renderTickets();
+    }, (err) => {
+      console.error('Errore listener tickets:', err);
+      document.getElementById('shimmer-wrap').style.display = 'none';
+      document.getElementById('tickets-wrap').style.display = '';
+      document.getElementById('tickets-section-title').style.display = '';
+      document.getElementById('filter-bar').style.display = '';
+      renderTickets();
+    });
+  } catch(e) { console.error('Errore avvio sync tickets:', e); }
+}
+
+// ── SESSIONE ───────────────────────────────────────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+
+function computeAllowedSections() {
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = isAdmin() || sez[id] !== false;
+    if (ok) allowedSections.add(id);
+  });
+  canManage = isAdmin() || allowedSections.has('gestione');
+}
+
+function applyRole() {
+  document.getElementById('header-avatar').textContent = (currentOperatore || '?').slice(0, 2).toUpperCase();
+  document.getElementById('header-role').textContent = isAdmin() ? 'Amministratore' : 'Operatore';
+  // Il card notifiche push è visibile solo a chi gestisce i ticket
+  if (canManage) {
+    const card = document.getElementById('notif-card');
+    if (card) card.style.display = '';
+    aggiornaStatoNotifiche();
+  }
+}
+
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    hideLoadingScreen();
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  computeAllowedSections();
+  if (!isAdmin() && !allowedSections.has('tickets') && !allowedSections.has('gestione')) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    hideLoadingScreen();
+    return;
+  }
+  applyRole();
+  hideLoadingScreen();
+}
+
+// ── LOADING ────────────────────────────────────────────────────────────────
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+setTimeout(hideLoadingScreen, 12000);
+
+// ── FORM ───────────────────────────────────────────────────────────────────
+let _formOpen = true;
+function toggleForm() {
+  _formOpen = !_formOpen;
+  document.getElementById('form-body').classList.toggle('collapsed', !_formOpen);
+  document.getElementById('form-toggle-icon').classList.toggle('open', _formOpen);
+}
+
+function toggleAccess() {
+  accessToggleOn = !accessToggleOn;
+  const btn = document.getElementById('access-toggle');
+  btn.classList.toggle('on', accessToggleOn);
+  btn.setAttribute('aria-checked', String(accessToggleOn));
+}
+
+async function submitTicket() {
+  const unit = document.getElementById('sel-unit').value.trim();
+  const cat  = document.getElementById('sel-cat').value.trim();
+  const desc = document.getElementById('txt-desc').value.trim();
+
+  if (!unit) { showToast('Seleziona un alloggio'); shakeField('sel-unit'); return; }
+  if (!cat)  { showToast('Seleziona una categoria'); shakeField('sel-cat'); return; }
+  if (!desc) { showToast('Aggiungi una descrizione'); shakeField('txt-desc'); return; }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = `<div class="loading-spinner" style="width:20px;height:20px;border-width:2px"></div> Invio in corso…`;
+
+  try {
+    const { db, collection, addDoc, serverTimestamp } = window._fb;
+    await addDoc(collection(db, 'maintenance_tickets'), {
+      housing_unit:      unit,
+      category:          cat,
+      issue_description: desc,
+      access_permission: accessToggleOn,
+      status:            false,
+      notified:          false,
+      user_id:           currentOperatore,
+      created_at:        serverTimestamp(),
+    });
+    showToast('✓ Segnalazione inviata!');
+    // Reset form
+    document.getElementById('sel-unit').value = '';
+    document.getElementById('sel-cat').value  = '';
+    document.getElementById('txt-desc').value  = '';
+    accessToggleOn = false;
+    document.getElementById('access-toggle').classList.remove('on');
+    document.getElementById('access-toggle').setAttribute('aria-checked', 'false');
+    // Chiudi il form
+    if (_formOpen) toggleForm();
+  } catch(e) {
+    console.error('Errore invio ticket:', e);
+    showToast('Errore durante l\'invio. Riprova.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Invia segnalazione`;
+  }
+}
+
+function shakeField(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.borderColor = 'var(--red)';
+  el.style.animation = 'none';
+  requestAnimationFrame(() => {
+    el.style.animation = 'shake .3s ease';
+    setTimeout(() => { el.style.borderColor = ''; el.style.animation = ''; }, 600);
+  });
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.filter === f);
+  });
+  renderTickets();
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderTickets() {
+  // Filtro: se non è admin/gestione vede solo i propri
+  let visible = canManage
+    ? allTickets
+    : allTickets.filter(t => t.user_id === currentOperatore);
+
+  const total   = visible.length;
+  const aperti  = visible.filter(t => !t.status).length;
+  const risolti = visible.filter(t =>  t.status).length;
+  document.getElementById('cnt-tutti').textContent   = total;
+  document.getElementById('cnt-aperti').textContent  = aperti;
+  document.getElementById('cnt-risolti').textContent = risolti;
+
+  if (currentFilter === 'aperti')  visible = visible.filter(t => !t.status);
+  if (currentFilter === 'risolti') visible = visible.filter(t =>  t.status);
+
+  const wrap = document.getElementById('tickets-wrap');
+  if (!visible.length) {
+    wrap.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <h3>${currentFilter === 'aperti' ? 'Nessun ticket aperto' : currentFilter === 'risolti' ? 'Nessun ticket risolto' : 'Nessuna segnalazione'}</h3>
+        <p>${total === 0 ? 'Usa il form qui sopra per segnalare un problema.' : 'Nessun ticket corrisponde al filtro selezionato.'}</p>
+      </div>`;
+    return;
+  }
+
+  wrap.innerHTML = visible.map(t => ticketCardHtml(t)).join('');
+}
+
+function ticketCardHtml(t) {
+  const solved  = !!t.status;
+  const ci      = catInfo(t.category);
+  const dateStr = fmtDate(t.created_at);
+
+  const statusBadge = solved
+    ? `<span class="status-badge solved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Risolto</span>`
+    : `<span class="status-badge open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Aperto</span>`;
+
+  const actionBtn = canManage
+    ? (solved
+        ? `<button class="btn-block amber" onclick="event.stopPropagation();changeStatus('${t.id}', false)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Riapri ticket</button>`
+        : `<button class="btn-block green" onclick="event.stopPropagation();changeStatus('${t.id}', true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Segna come risolto</button>`)
+    : '';
+
+  const accessIcon = t.access_permission
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>`;
+
+  const opLabel = canManage && t.user_id ? `<span class="ticket-op">${escHtml(t.user_id)}</span>` : '';
+
+  return `
+<div class="ticket-card" id="card-${t.id}" onclick="toggleCard('${t.id}')">
+  <div class="ticket-header">
+    <div class="ticket-cat-icon ${ci.cls}">${ci.icon}</div>
+    <div class="ticket-meta">
+      <div class="ticket-top">
+        <span class="ticket-unit">${escHtml(t.housing_unit || '—')}</span>
+        ${statusBadge}
+      </div>
+      <div class="ticket-bottom">
+        <span class="cat-chip ${ci.cls}">${escHtml(t.category || '')}</span>
+        ${opLabel}
+        <span class="ticket-date">${dateStr}</span>
+        ${t.access_permission ? `<span class="access-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Accesso ok</span>` : ''}
+      </div>
+    </div>
+    <div class="ticket-chevron">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </div>
+  <div class="ticket-body">
+    <div class="ticket-desc">${escHtml(t.issue_description || '—')}</div>
+    <div class="ticket-actions">
+      <div class="access-full-label ${t.access_permission ? '' : 'no'}">
+        ${accessIcon}
+        ${t.access_permission ? 'Il tecnico può entrare in assenza del residente' : 'Il residente deve essere presente'}
+      </div>
+      ${actionBtn}
+    </div>
+  </div>
+</div>`;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  card.classList.toggle('expanded');
+}
+
+// ── STATUS CHANGE ──────────────────────────────────────────────────────────
+async function changeStatus(id, solved) {
+  if (!canManage) return;
+  const label = solved ? 'Segna come risolto' : 'Riapri il ticket';
+  const body  = solved ? 'Il ticket verrà marcato come risolto.' : 'Il ticket verrà rimarcato come aperto.';
+  showModal(label, body, solved ? 'Segna risolto' : 'Riapri', solved ? 'var(--green-ok)' : 'var(--amber)', async () => {
+    try {
+      const { db, doc, updateDoc } = window._fb;
+      await updateDoc(doc(db, 'maintenance_tickets', id), { status: solved });
+      showToast(solved ? '✓ Ticket risolto' : '↩ Ticket riaperto');
+    } catch(e) { showToast('Errore aggiornamento stato'); }
+  });
+}
+
+// ── NOTIFICHE PUSH ────────────────────────────────────────────────────────
+function aggiornaStatoNotifiche() {
+  const el  = document.getElementById('notif-status-txt');
+  const btn = document.getElementById('btn-notif');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser.';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
+  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  el.style.color = attive ? 'var(--green-ok)' : 'var(--gray-500)';
+  if (btn) btn.style.display = attive ? 'none' : '';
+}
+
+async function attivaNotifiche() {
+  const btn = document.getElementById('btn-notif');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
+  const res = await window._abilitaNotifichePush(currentOperatore);
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const msg = {
+      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
+    };
+    showToast(msg[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Attiva notifiche`; }
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent      = confirmLabel || 'Conferma';
+  btn.style.background = confirmColor || 'var(--green-700)';
+  btn.onclick = () => { closeModal(); onConfirm(); };
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('open');
+  overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ── SWIPE BACK ─────────────────────────────────────────────────────────────
+(function initSwipeBack() {
+  let startX = 0, startY = 0, active = false;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX > 30) return;
+    startX = t.clientX; startY = t.clientY; active = true;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!active) return; active = false;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > 80 && dy < 60) location.href = HUB_URL;
+  }, { passive: true });
+})();
+
+// ── SHAKE ANIMATION ────────────────────────────────────────────────────────
+const style = document.createElement('style');
+style.textContent = '@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}';
+document.head.appendChild(style);
+
+// ── START ──────────────────────────────────────────────────────────────────
+async function start() {
+  initLogin();
+  if (document.getElementById('login-screen').classList.contains('hidden') &&
+      document.getElementById('no-access-screen').classList.contains('hidden')) {
+    await waitForFirebase();
+    await loadAlloggi();
+    await startTicketsSync();
+  }
+}
+
+start();
+</script>
+</body>
+</html>
