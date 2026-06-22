@@ -302,6 +302,28 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
 
+/* ══ NOTIFICA IN-APP MANUTENZIONE ═══════════════════════════════════════════ */
+.notif-banner {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%;
+  transform: translateX(-50%) translateY(-120%);
+  z-index: 1000; max-width: 360px; width: calc(100% - 32px);
+  background: var(--white); border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18); border: 1.5px solid var(--orange-bg);
+  display: flex; align-items: center; gap: 12px; padding: 13px 16px;
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1); pointer-events: none;
+}
+.notif-banner.show { transform: translateX(-50%) translateY(0); pointer-events: auto; }
+.notif-icon {
+  width: 38px; height: 38px; border-radius: 11px; background: var(--orange-bg);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.notif-icon svg { width: 18px; height: 18px; color: var(--orange); }
+.notif-text { flex: 1; min-width: 0; }
+.notif-label { font-size: 11px; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: .04em; }
+.notif-msg   { font-size: 13px; font-weight: 600; color: var(--gray-900); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notif-close { width: 26px; height: 26px; border-radius: 50%; background: var(--gray-100); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--gray-500); flex-shrink: 0; font-size: 14px; line-height: 1; -webkit-tap-highlight-color: transparent; }
+.notif-close:active { background: var(--gray-200); }
+
 /* ══ SHIMMER LOADING ═════════════════════════════════════════════════════════ */
 @keyframes gr-shimmer { 0%,100% { opacity:.15 } 50% { opacity:.38 } }
 .stat-loading {
@@ -481,6 +503,18 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 
 <div class="toast" id="toast"></div>
 
+<!-- Banner notifica in-app per nuovi ticket manutenzione -->
+<div class="notif-banner" id="notif-banner" role="alert" aria-live="polite">
+  <div class="notif-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+  </div>
+  <div class="notif-text">
+    <div class="notif-label">Manutenzione</div>
+    <div class="notif-msg" id="notif-msg">Nuovo ticket ricevuto</div>
+  </div>
+  <button class="notif-close" onclick="hideNotifBanner()" aria-label="Chiudi notifica">&#10005;</button>
+</div>
+
 <script>
 // ── ICONE MODULI (line icon stile arancione, coerenti col mockup) ────────────
 const ICON_WAREHOUSE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
@@ -521,6 +555,12 @@ const ICON_RISTORAZIONE = `<svg viewBox="0 0 100 100" fill="none" stroke="curren
   <path d="M35 62 L35 85"/>
   <path d="M25 85 L75 85"/>
   <path d="M65 62 L65 85"/>
+</svg>`;
+
+const ICON_WRENCH = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/>
+  <circle cx="26" cy="76" r="6"/>
+  <path d="M62 32 L76 46"/>
 </svg>`;
 
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
@@ -596,6 +636,19 @@ const MODULES = [
       { id: 'ordini',   nome: 'Ordini' },
       { id: 'menu',     nome: 'Menu settimanale' },
       { id: 'famiglie', nome: 'Famiglie' },
+    ],
+  },
+  {
+    id: 'manutenzione',
+    nome: 'Gestione Ticket Manutenzione',
+    titolo: 'Manutenzione',
+    url: 'manutenzione/',
+    icon: ICON_WRENCH,
+    tile: 'amber',
+    statKey: 'manutenzione',
+    sezioni: [
+      { id: 'tickets',  nome: 'Segnala ticket' },
+      { id: 'gestione', nome: 'Gestione ticket (cambia stato)' },
     ],
   },
 ];
@@ -822,6 +875,52 @@ async function startHomeStatsSync() {
       snap.docs.forEach(d => { staffTokensNotifiche[d.id] = !!d.data().notifiche; });
       renderOperatoriList();
     }, (err) => console.error('Errore listener staffTokens:', err));
+
+    // ── Manutenzione: badge aperti + notifica in-app per admin/gestione ──
+    let _manutenzioneFirstSnap = true;
+    onSnapshot(collection(db, 'maintenance_tickets'), (snap) => {
+      const tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const aperti  = tickets.filter(t => !t.status).length;
+      homeStats.manutenzione = { aperti };
+      if (currentOperatore) renderHome();
+
+      // Trova il timestamp più recente tra tutti i ticket
+      let maxTs = 0;
+      tickets.forEach(t => {
+        const ms = t.created_at && t.created_at.toMillis ? t.created_at.toMillis() : 0;
+        if (ms > maxTs) maxTs = ms;
+      });
+
+      if (_manutenzioneFirstSnap) {
+        // Al primo caricamento memorizziamo il timestamp più recente senza notificare
+        _manutenzioneFirstSnap = false;
+        _manutenzioneLatestTs = maxTs;
+        return;
+      }
+
+      // Sui successivi aggiornamenti: cerca ticket nuovi arrivati dopo l'ultimo visto
+      const nuovi = tickets.filter(t => {
+        const ms = t.created_at && t.created_at.toMillis ? t.created_at.toMillis() : 0;
+        return ms > _manutenzioneLatestTs;
+      });
+      if (nuovi.length === 0) return;
+      _manutenzioneLatestTs = maxTs;
+
+      // Mostra la notifica solo a chi può gestire i ticket (admin o perm gestione)
+      const canSeeNotif = isAdmin() || (() => {
+        if (!currentOperatore) return false;
+        const p = (permessi[currentOperatore] && permessi[currentOperatore].moduli && permessi[currentOperatore].moduli.manutenzione) || {};
+        const sez = p.sezioni || {};
+        return sez.gestione !== false;
+      })();
+      if (!canSeeNotif) return;
+
+      const t0 = nuovi[0];
+      const msg = nuovi.length === 1
+        ? `🔧 Nuovo ticket: ${t0.category || ''} — ${t0.housing_unit || ''}`
+        : `🔧 ${nuovi.length} nuovi ticket di manutenzione`;
+      showNotifBanner(msg);
+    }, (err) => console.error('Errore listener manutenzione:', err));
   } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
 }
 
@@ -1059,7 +1158,8 @@ function clearSearch() {
 // Calcolate dai dati reali delle altre app (lette in sola lettura dalle
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
-let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null };
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null };
+let _manutenzioneLatestTs = 0; // timestamp dell'ultimo ticket visto, per le notifiche in-app
 
 function statoModulo(mod) {
   const s = homeStats[mod.statKey];
@@ -1088,6 +1188,11 @@ function statoModulo(mod) {
     return s.ordiniOggi > 0
       ? { sub: `${s.ordiniOggi} ordin${s.ordiniOggi===1?'e':'i'} oggi`, badge: null }
       : { sub: 'Nessun ordine oggi', badge: null };
+  }
+  if (mod.statKey === 'manutenzione') {
+    return s.aperti > 0
+      ? { sub: `${s.aperti} ticket apert${s.aperti===1?'o':'i'}`, badge: String(s.aperti) }
+      : { sub: 'Nessun ticket aperto', badge: null };
   }
   return { sub: '', badge: null };
 }
@@ -1274,6 +1379,23 @@ function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── BANNER NOTIFICA IN-APP MANUTENZIONE ──────────────────────────────────
+let _notifBannerTimer = null;
+function showNotifBanner(msg) {
+  const banner = document.getElementById('notif-banner');
+  const msgEl  = document.getElementById('notif-msg');
+  if (!banner || !msgEl) return;
+  msgEl.textContent = msg;
+  banner.classList.add('show');
+  clearTimeout(_notifBannerTimer);
+  _notifBannerTimer = setTimeout(hideNotifBanner, 5500);
+}
+function hideNotifBanner() {
+  const banner = document.getElementById('notif-banner');
+  if (banner) banner.classList.remove('show');
+  clearTimeout(_notifBannerTimer);
 }
 
 // ── SWIPE PER TORNARE INDIETRO (come su iOS, dal bordo sinistro) ─────────────
