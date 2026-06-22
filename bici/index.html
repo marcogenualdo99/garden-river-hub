@@ -692,10 +692,14 @@ function forceOpenBike(id) {
 function renderBikeBody(b) {
   const stato = effectiveStato(b);
   if (stato === 'libera') {
-    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null });
+    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' });
+    if (!t.rientroTs) {
+      const r0 = calcolaSelezioneDurata(t);
+      const s = new Date(Date.now() + r0.ms);
+      t.rientroTs = new Date(s.getTime() - s.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    }
     const r = calcolaSelezioneDurata(t);
     const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
-    const rientroTs = new Date(Date.now() + r.ms).toISOString();
     const id = b.id;
     const oreOn = !t.fasciaKey;
     function cs(active) {
@@ -731,7 +735,11 @@ function renderBikeBody(b) {
             '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
           '</div>'+
         '</div>'+
-        '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'<br><span style="color:var(--green-ok);font-weight:700">Rientro '+fmtTs(rientroTs)+'</span></div>'+
+        '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
+      '</div>'+
+      '<div style="margin-bottom:14px">'+
+        '<div style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:6px">Rientro previsto</div>'+
+        '<input type="datetime-local" value="'+(t.rientroTs||'')+'" oninput="formTemp[\''+id+'\'].rientroTs=this.value" style="width:100%;height:44px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
       '</div>'+
       '<div class="form-row-2" style="margin-bottom:0">'+
         '<button class="btn-block green" style="font-size:14px" onclick="segnalaRitiro(\''+id+'\')">Da riscuotere</button>'+
@@ -995,7 +1003,7 @@ function segnalaRitiroPagato(id) {
   if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
   const r = calcolaSelezioneDurata(t);
   const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
-  const rientroTs = new Date(Date.now() + r.ms).toISOString();
+  const rientroTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : new Date(Date.now() + r.ms).toISOString();
   showModal(
     'Ritiro pagato — ' + costo.toFixed(2).replace('.',',') + '€',
     'Bici N°'+b.numero+' — '+nome+'. '+r.fascia+': '+r.dettaglio+'. Confermi di aver incassato il pagamento?',
