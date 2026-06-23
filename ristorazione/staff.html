@@ -251,6 +251,8 @@ input[type="date"].finput{font-size:13px}
 .btn-add:active{opacity:.85}
 .btn-stampa{width:100%;height:48px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-stampa:active{opacity:.8}
+.btn-duplica{width:100%;height:48px;background:#fff;color:var(--gray-600,#4B5563);border:1.5px solid var(--gray-200,#E5E7EB);border-radius:var(--radius-xl);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-duplica:active{opacity:.8}
 
 /* ── STAMPA ──────────────────────────────────────────────────────── */
 @media print {
@@ -415,6 +417,7 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn"        id="seg-cena-m"   onclick="setMenuPasto('cena')">Cena</button>
     </div>
     <div id="menu-body"></div>
+    <button class="btn-duplica" id="btn-duplica" onclick="duplicaMenu()"></button>
   </div>
 
 </main>
@@ -437,7 +440,8 @@ input[type="date"].finput{font-size:13px}
           <option value="SP">Solo pranzo</option>
         </select>
       </div>
-      <div class="form-row" style="grid-template-columns:1fr">
+      <div class="form-row">
+        <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
         <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
@@ -491,6 +495,8 @@ input[type="date"].finput{font-size:13px}
       <option value="SC">Solo cena</option>
       <option value="SP">Solo pranzo</option>
     </select>
+    <div class="mlabel">Data check-in</div>
+    <input class="minput" id="ef-checkin" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Data check-out</div>
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Numero pax</div>
@@ -1197,6 +1203,10 @@ function renderMenu() {
 
   html += `<button class="add-dish-btn" onclick="openModal()">+ Aggiungi piatto</button>`;
   el.innerHTML = html;
+
+  const dest = menuPasto === 'pranzo' ? 'Cena' : 'Pranzo';
+  const btn = document.getElementById('btn-duplica');
+  if (btn) btn.textContent = `⎘ Copia questo menu nella ${dest}`;
 }
 
 let _menuEditId = null;
@@ -1263,6 +1273,30 @@ async function salvaMenuPiatto() {
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
+async function duplicaMenu() {
+  const destinazione = menuPasto === 'pranzo' ? 'cena' : 'pranzo';
+  const sorgente = menuPasto;
+  const itemsSorgente = menuDocs.filter(m => m.data === menuDate && m.tipo === sorgente);
+  if (!itemsSorgente.length) { showToast('Nessun piatto da copiare'); return; }
+
+  const itemsDest = menuDocs.filter(m => m.data === menuDate && m.tipo === destinazione);
+  if (itemsDest.length) {
+    if (!confirm(`La ${destinazione} ha già ${itemsDest.length} piatt${itemsDest.length===1?'o':'i'}. Vuoi aggiungere comunque i piatti del ${sorgente}?`)) return;
+  }
+
+  const { db, doc, setDoc } = window._fb;
+  const label = destinazione.charAt(0).toUpperCase() + destinazione.slice(1);
+  try {
+    for (const m of itemsSorgente) {
+      const id = `menu_${menuDate}_${destinazione}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+      const docData = { data: menuDate, tipo: destinazione, piatto: m.piatto, categoria: m.categoria };
+      await setDoc(doc(db, 'menu_ristorazione', id), docData);
+      menuDocs.push({ id, ...docData });
+    }
+    showToast(`${itemsSorgente.length} piatt${itemsSorgente.length===1?'o':'i'} copiati nella ${label}`);
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
 async function eliminaMenuPiatto(id) {
   const { db, doc, deleteDoc } = window._fb;
   try {
@@ -1325,6 +1359,7 @@ async function aggiungiFamiglia() {
   const nome     = document.getElementById('f-nome').value.trim();
   const alloggio = document.getElementById('f-alloggio').value.trim();
   const tratt    = document.getElementById('f-trattamento').value;
+  const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
   const pax      = parseInt(document.getElementById('f-pax').value) || 1;
 
@@ -1332,7 +1367,7 @@ async function aggiungiFamiglia() {
 
   const codice = generaCodice();
   const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
-  const data   = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax, codice };
+  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1341,6 +1376,7 @@ async function aggiungiFamiglia() {
     renderFamiglie();
     document.getElementById('f-nome').value = '';
     document.getElementById('f-alloggio').value = '';
+    document.getElementById('f-checkin').value = '';
     document.getElementById('f-checkout').value = '';
     document.getElementById('f-pax').value = '';
     document.getElementById('f-trattamento').value = '';
@@ -1355,6 +1391,7 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-id').value          = id;
   document.getElementById('ef-nome').value        = f.nome || '';
   document.getElementById('ef-trattamento').value = f.trattamento || '';
+  document.getElementById('ef-checkin').value     = f.checkin  || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-pax').value         = f.max_ospiti || 1;
   const src = document.getElementById('f-alloggio');
@@ -1381,12 +1418,13 @@ async function salvaEditFamiglia() {
   const nome     = document.getElementById('ef-nome').value.trim();
   const alloggio = document.getElementById('ef-alloggio').value;
   const tratt    = document.getElementById('ef-trattamento').value;
+  const checkin  = document.getElementById('ef-checkin').value;
   const checkout = document.getElementById('ef-checkout').value;
   const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
   if (!nome) { showToast('Inserisci il nome'); return; }
 
   const { db, doc, setDoc } = window._fb;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax };
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
