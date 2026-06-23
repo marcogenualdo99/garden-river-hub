@@ -373,8 +373,15 @@ function buildMealCard(data,tipo,piatti){
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
-  // Blocca ordini del primo giorno già confermati (solo il secondo giorno è modificabile)
-  const isLocked = data===PRIMO_GIORNO && !!ordiniEsistenti[key];
+  // Blocca se: ordine già confermato, OPPURE la data è oggi o passata (scadenza entro le 23:00 del giorno prima)
+  const oraAttuale = new Date().getHours();
+  function scaduto(iso) {
+    if (iso < OGGI) return true;                       // data passata
+    if (iso === OGGI) return true;                     // oggi: deadline era ieri alle 23
+    if (iso === DOMANI && oraAttuale >= 23) return true; // domani ma già passate le 23
+    return false;
+  }
+  const isLocked = !!ordiniEsistenti[key] || scaduto(data);
 
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
@@ -382,7 +389,7 @@ function buildMealCard(data,tipo,piatti){
   card.innerHTML=`
     <div class="meal-card-header ${tipo}">
       <span class="meal-badge">${tipoLabel}</span>
-      ${isLocked?'<span class="lock-badge">✓ Confermato</span>':''}
+      ${isLocked?(ordiniEsistenti[key]?'<span class="lock-badge">✓ Confermato</span>':'<span class="lock-badge" style="background:var(--gray-100);color:var(--gray-500);border-color:var(--gray-200)">⏱ Scaduto</span>'):''}
     </div>
     <div class="meal-card-body">
       <div id="piatti-${key}"></div>
@@ -498,8 +505,10 @@ async function salvaOrdini(){
     const promises=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const [data,tipo]=key.split('_');
-      // Salta ordini del primo giorno già confermati (bloccati)
-      if(data===PRIMO_GIORNO && ordiniEsistenti[key]) continue;
+      // Salta slot già confermati o scaduti
+      const _ora=new Date().getHours();
+      const _scaduto=data<DOMANI||(data===DOMANI&&_ora>=23);
+      if(ordiniEsistenti[key]||_scaduto) continue;
       const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
