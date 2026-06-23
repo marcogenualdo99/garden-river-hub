@@ -94,11 +94,13 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 .day-label::before{content:'';flex:none;display:block;width:4px;height:18px;background:var(--green-700);border-radius:2px}
 
 /* ── MEAL CARD ── */
-.meal-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px 18px 14px;margin-bottom:10px}
-.meal-card-header{margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.meal-badge{display:inline-block;font-size:13px;font-weight:800;padding:6px 16px;border-radius:30px;letter-spacing:.02em}
-.meal-badge.pranzo{background:var(--green-700);color:#fff}
-.meal-badge.cena{background:var(--gray-900);color:#fff}
+.meal-card{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px}
+.meal-card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;border-bottom:2px solid transparent}
+.meal-card-header.pranzo{background:var(--green-700);border-color:var(--green-700)}
+.meal-card-header.cena{background:var(--gray-900);border-color:var(--gray-900)}
+.meal-card-body{padding:0 18px 14px}
+.meal-badge{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
+.meal-badge::before{content:'';display:block;width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5)}
 .lock-badge{font-size:11px;font-weight:700;color:var(--green-500);background:var(--green-50);border:1px solid var(--green-100);border-radius:20px;padding:4px 10px}
 /* locked card */
 .meal-card.locked{opacity:.85}
@@ -284,7 +286,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
 
 function leggiCodice(){
   const p=new URLSearchParams(window.location.search).get('f');
-  if(p){ localStorage.setItem('gr_risto_codice',p.toUpperCase()); history.replaceState(null,'',window.location.pathname); return p.toUpperCase(); }
+  if(p){ localStorage.setItem('gr_risto_codice',p.toUpperCase()); return p.toUpperCase(); }
   return localStorage.getItem('gr_risto_codice')||null;
 }
 
@@ -376,13 +378,16 @@ function buildMealCard(data,tipo,piatti){
 
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
+  const tipoLabel=tipo==='pranzo'?'☀ Pranzo':'🌙 Cena';
   card.innerHTML=`
-    <div class="meal-card-header">
-      <span class="meal-badge ${tipo}">${tipo.charAt(0).toUpperCase()+tipo.slice(1)}</span>
+    <div class="meal-card-header ${tipo}">
+      <span class="meal-badge">${tipoLabel}</span>
       ${isLocked?'<span class="lock-badge">✓ Confermato</span>':''}
     </div>
-    <div id="piatti-${key}"></div>
-    ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}`;
+    <div class="meal-card-body">
+      <div id="piatti-${key}"></div>
+      ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}
+    </div>`;
   const pDiv=card.querySelector(`#piatti-${key}`);
 
   // raggruppa per categoria
