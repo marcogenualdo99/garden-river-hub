@@ -406,7 +406,7 @@ input[type="date"].finput{font-size:13px}
     </div>
     <div id="report-body"></div>
     <div id="report-print-bar" style="display:none;margin-top:16px">
-      <button class="btn-stampa" onclick="stampaReport()">⎙ Stampa comande</button>
+      <button class="btn-stampa" onclick="scaricaReport()">⬇ Scarica report</button>
     </div>
   </div>
 
@@ -656,7 +656,7 @@ async function renderReport() {
   el.innerHTML = '<div class="empty-state">Caricamento...</div>';
 
   const targetDate = reportDate === 'oggi' ? isoToday(0) : isoToday(1);
-  const { db, collection, query, where, getDocs } = window._fb;
+  const { db, collection, query, where, getDocs, getDocsFromServer } = window._fb;
 
   // Carica ordini per entrambi i pasti (serve per l'alert MP)
   const famIds = new Set(famiglieDocs.map(f => f.id));
@@ -1590,7 +1590,7 @@ function showToast(msg) {
 // ── STAMPA REPORT ─────────────────────────────────────────────────────────────
 let _printData = null;
 
-function stampaReport() {
+function scaricaReport() {
   if (!_printData) return;
   const { targetDate, pasto, ordini, menuItems, famiglieSenzaOrdine } = _printData;
 
@@ -1670,23 +1670,49 @@ function stampaReport() {
     <div class="print-senza-list">${famiglieSenzaOrdine.map(f=>`${esc(f.nome)} · ${esc(f.unita||'—')}`).join(' &nbsp;|&nbsp; ')}</div>
   </div>` : '';
 
-  let area = document.getElementById('print-area');
-  if (!area) { area = document.createElement('div'); area.id = 'print-area'; document.body.appendChild(area); }
-  area.innerHTML = `<div class="print-page">
-    <div class="print-header">
-      <h1>Garden River &mdash; ${pastoLabel}</h1>
-      <p>${dtLabel.charAt(0).toUpperCase()+dtLabel.slice(1)}</p>
-    </div>
-    <div class="print-riepilogo">
-      <h2>Riepilogo piatti</h2>
-      ${riepilogoHtml || '<div style="font-size:13px;color:#999">Nessun piatto</div>'}
-    </div>
-    <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:12px">Comande</h2>
-    <div class="print-comande">${comandeHtml}</div>
-    ${senzaHtml}
-  </div>`;
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>Report ${pastoLabel} — ${targetDate}</title>
+  <style>
+    body{font-family:Georgia,serif;color:#000;padding:24px;max-width:900px;margin:0 auto}
+    h1{font-size:20px;margin:0 0 2px}p{font-size:13px;color:#444;margin:0}
+    .header{text-align:center;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:16px}
+    .riepilogo{margin-bottom:20px}
+    .riepilogo h2,.comande-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:8px}
+    .riepilogo-row{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;border-bottom:1px dotted #ddd}
+    .riepilogo-row span:last-child{font-weight:700;min-width:32px;text-align:right}
+    .cat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#666;padding:6px 0 2px}
+    .comande{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .comanda{border:1.5px solid #000;border-radius:6px;overflow:hidden;break-inside:avoid}
+    .comanda-head{background:#111;color:#fff;padding:8px 12px}
+    .comanda-nome{font-size:15px;font-weight:700}
+    .comanda-unita{font-size:11px;opacity:.75;margin-top:1px}
+    .dish-row{display:flex;align-items:center;gap:8px;padding:4px 12px;border-top:1px solid #eee}
+    .dish-qty{width:24px;height:24px;background:#111;color:#fff;border-radius:4px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .dish-name{font-size:13px;flex:1}
+    .dish-check{width:18px;height:18px;border:1.5px solid #aaa;border-radius:3px;flex-shrink:0}
+    .nota{font-size:11px;font-style:italic;color:#555;padding:4px 12px 6px}
+    .senza{margin-top:16px;border:1.5px solid #F59E0B;border-radius:6px;padding:10px 14px}
+    .senza-title{font-size:12px;font-weight:700;text-transform:uppercase;color:#B45309;margin-bottom:6px}
+    .senza-list{font-size:13px;color:#333}
+    .riepilogo-cat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-top:10px;margin-bottom:4px}
+    @media print{body{padding:0}}
+  </style></head><body>
+  <div class="header"><h1>Garden River &mdash; ${pastoLabel}</h1><p>${dtLabel.charAt(0).toUpperCase()+dtLabel.slice(1)}</p></div>
+  <div class="riepilogo"><h2>Riepilogo piatti</h2>${riepilogoHtml || '<div style="font-size:13px;color:#999">Nessun piatto</div>'}</div>
+  <div class="comande-title">Comande</div>
+  <div class="comande">${comandeHtml}</div>
+  ${senzaHtml}
+  </body></html>`;
 
-  setTimeout(() => window.print(), 150);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `report-${pasto}-${targetDate}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 </script>
 </body>
