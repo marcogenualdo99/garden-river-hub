@@ -225,6 +225,8 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .menu-item-name{font-size:14px;font-weight:600;color:var(--gray-800,#1F2937)}
 .menu-del{width:30px;height:30px;background:var(--red-bg);border:none;border-radius:8px;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .menu-del:active{opacity:.7}
+.menu-edit{width:30px;height:30px;background:var(--gray-100,#F3F4F6);border:none;border-radius:8px;color:var(--gray-600,#4B5563);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.menu-edit:active{opacity:.7}
 .add-dish-btn{width:100%;height:46px;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);background:transparent;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:8px;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .add-dish-btn:active{border-color:var(--green-400);color:var(--green-700)}
 .add-cat-btn{width:100%;height:46px;border:1.5px dashed var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);color:var(--green-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:12px}
@@ -452,20 +454,22 @@ input[type="date"].finput{font-size:13px}
 <!-- MODAL AGGIUNGI PIATTO -->
 <div id="modal" class="hidden">
   <div class="modal-box">
-    <div class="modal-title">Aggiungi piatto</div>
+    <div class="modal-title" id="modal-title">Aggiungi piatto</div>
     <div class="mlabel">Nome piatto</div>
     <input class="minput" id="modal-piatto" type="text" placeholder="es. Spaghetti al pomodoro">
     <div class="mlabel">Categoria</div>
     <select class="mselect" id="modal-cat">
       <option value="Antipasti">Antipasti</option>
-      <option value="Primi" selected>Primi</option>
-      <option value="Secondi">Secondi</option>
+      <option value="Primi Carne" selected>Primi Carne</option>
+      <option value="Primi Pesce">Primi Pesce</option>
+      <option value="Secondi Carne">Secondi Carne</option>
+      <option value="Secondi Pesce">Secondi Pesce</option>
       <option value="Contorni">Contorni</option>
       <option value="Dessert">Dessert</option>
     </select>
     <div class="mbtns">
       <button class="mcancel" onclick="closeModal()">Annulla</button>
-      <button class="msave"   onclick="salvaMenuPiatto()">Aggiungi</button>
+      <button class="msave"   id="modal-save-btn" onclick="salvaMenuPiatto()">Aggiungi</button>
     </div>
   </div>
 </div>
@@ -537,7 +541,7 @@ input[type="date"].finput{font-size:13px}
 <script>
 // ── COSTANTI ────────────────────────────────────────────────────────────────
 const HUB_URL = '../';
-const CAT_ORDER = ['Antipasti','Primi','Secondi','Contorni','Dessert'];
+const CAT_ORDER = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'report';
@@ -1175,28 +1179,55 @@ function renderMenu() {
         <div class="menu-block-cat">${cat}</div>
         <div class="menu-block-count">${cats[cat].length} piatt${cats[cat].length===1?'o':'i'}</div>
       </div>
-      ${cats[cat].map(m => `
-        <div class="menu-item">
+      ${cats[cat].map((m,i) => {
+        const idx = menuDocs.indexOf(m);
+        return `<div class="menu-item">
           <div class="menu-item-name">${esc(m.piatto)}</div>
-          <button class="menu-del" onclick="eliminaMenuPiatto('${m.id}')" title="Elimina">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
-          </button>
-        </div>`).join('')}
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="menu-edit" onclick="apriModificaMenuPiatto(${idx})" title="Modifica">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+            </button>
+            <button class="menu-del" onclick="eliminaMenuPiatto('${m.id}')" title="Elimina">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>`).join('');
 
   html += `<button class="add-dish-btn" onclick="openModal()">+ Aggiungi piatto</button>`;
   el.innerHTML = html;
 }
 
+let _menuEditId = null;
+
 function openModal() {
+  _menuEditId = null;
   _menuModalData = { data: menuDate, tipo: menuPasto };
   document.getElementById('modal-piatto').value = '';
-  document.getElementById('modal-cat').value = 'Primi';
+  document.getElementById('modal-cat').value = 'Primi Carne';
+  document.getElementById('modal-title').textContent = 'Aggiungi piatto';
+  document.getElementById('modal-save-btn').textContent = 'Aggiungi';
   document.getElementById('modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('modal-piatto').focus(), 50);
 }
+
+function apriModificaMenuPiatto(idx) {
+  const m = menuDocs[idx];
+  if (!m) return;
+  _menuEditId = m.id;
+  _menuModalData = { data: m.data, tipo: m.tipo };
+  document.getElementById('modal-piatto').value = m.piatto;
+  document.getElementById('modal-cat').value = m.categoria || 'Primi Carne';
+  document.getElementById('modal-title').textContent = 'Modifica piatto';
+  document.getElementById('modal-save-btn').textContent = 'Salva';
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-piatto').focus(), 50);
+}
+
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
+  _menuEditId = null;
 }
 
 async function salvaMenuPiatto() {
@@ -1205,24 +1236,31 @@ async function salvaMenuPiatto() {
   if (!piatto) { showToast('Inserisci il nome del piatto'); return; }
 
   const { db, collection, doc, setDoc } = window._fb;
-  const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
-  const docData = {
-    data: _menuModalData.data,
-    tipo: _menuModalData.tipo,
-    piatto,
-    categoria: cat
-  };
 
+  if (_menuEditId) {
+    // Modalità modifica
+    const docData = { piatto, categoria: cat };
+    try {
+      await setDoc(doc(db, 'menu_ristorazione', _menuEditId), docData, { merge: true });
+      const idx = menuDocs.findIndex(m => m.id === _menuEditId);
+      if (idx >= 0) menuDocs[idx] = { ...menuDocs[idx], piatto, categoria: cat };
+      closeModal();
+      renderMenu();
+      showToast('Piatto aggiornato');
+    } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+    return;
+  }
+
+  // Modalità aggiunta
+  const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
+  const docData = { data: _menuModalData.data, tipo: _menuModalData.tipo, piatto, categoria: cat };
   try {
     await setDoc(doc(db, 'menu_ristorazione', id), docData);
     menuDocs.push({id, ...docData});
     closeModal();
     renderMenu();
     showToast('Piatto aggiunto');
-  } catch(e) {
-    showToast('Errore: ' + e.message);
-    console.error(e);
-  }
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 async function eliminaMenuPiatto(id) {
