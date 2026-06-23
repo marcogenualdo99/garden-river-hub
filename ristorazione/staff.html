@@ -396,11 +396,8 @@ input[type="date"].finput{font-size:13px}
 
   <!-- REPORT -->
   <div class="sec active" id="sec-report">
-    <div class="seg-row">
-      <button class="seg-btn active" id="seg-oggi"   onclick="setReportDate('oggi')">Oggi</button>
-      <button class="seg-btn"        id="seg-domani" onclick="setReportDate('domani')">Domani</button>
-    </div>
-    <div id="seg-pasto-row" class="seg-row" style="margin-top:-12px">
+    <div id="report-date-strip" class="date-strip"></div>
+    <div id="seg-pasto-row" class="seg-row" style="margin-top:-4px">
       <button class="seg-btn active" id="seg-pranzo-r" onclick="setReportPasto('pranzo')">Pranzo</button>
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
@@ -561,7 +558,7 @@ const CAT_ORDER = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Seco
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'report';
-let reportDate      = 'oggi';
+let reportDate      = isoToday(0);
 let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
 let menuDate        = isoToday(0);
@@ -614,6 +611,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sync-dot').classList.add('ok');
 
   buildDateStrip();
+  buildReportDateStrip();
   renderReport();
   renderMenu();
   startCucina();
@@ -640,9 +638,33 @@ function setSeg(idA, idB, aActive) {
 }
 
 // ── REPORT ────────────────────────────────────────────────────────────────────
-function setReportDate(d) {
-  reportDate = d;
-  setSeg('seg-oggi','seg-domani', d==='oggi');
+function buildReportDateStrip() {
+  const strip = document.getElementById('report-date-strip');
+  const oggi  = isoToday(0);
+  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+  let html = '';
+  for (let i = -3; i < 14; i++) {
+    const d   = new Date(); d.setDate(d.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const isT = iso === oggi;
+    const gio = giorni[d.getDay()];
+    const num = d.getDate();
+    html += `<div class="date-pill report-date-pill${isT?' today':''}${iso===reportDate?' active':''}" onclick="setReportDate('${iso}')">
+      <div class="date-pill-day">${gio}</div>
+      <div class="date-pill-num">${num}</div>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  // Scrolla fino alla data attiva
+  const active = strip.querySelector('.active');
+  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+function setReportDate(iso) {
+  reportDate = iso;
+  document.querySelectorAll('.report-date-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+  });
   renderReport();
 }
 function setReportPasto(p) {
@@ -655,7 +677,7 @@ async function renderReport() {
   const el = document.getElementById('report-body');
   el.innerHTML = '<div class="empty-state">Caricamento...</div>';
 
-  const targetDate = reportDate === 'oggi' ? isoToday(0) : isoToday(1);
+  const targetDate = reportDate;
   const { db, collection, query, where, getDocs, getDocsFromServer } = window._fb;
 
   // Carica ordini per entrambi i pasti (serve per l'alert MP)
@@ -1732,3 +1754,4 @@ function scaricaReport() {
 </script>
 </body>
 </html>
+
