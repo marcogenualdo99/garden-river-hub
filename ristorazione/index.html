@@ -367,7 +367,14 @@ function renderGiorno(c,data,voci){
   ['pranzo','cena'].forEach(t=>{ if(tipi[t]) c.appendChild(buildMealCard(data,t,tipi[t])); });
 }
 
-const CAT_ORDER=['Antipasti','Primi','Secondi','Contorni','Dessert'];
+const CAT_ORDER=['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
+// Categorie che condividono quota tra loro
+const GRUPPI_CAT={
+  'Primi Carne':'Primi','Primi Pesce':'Primi',
+  'Secondi Carne':'Secondi','Secondi Pesce':'Secondi'
+};
+const MEMBRO_GRUPPO={'Primi':['Primi Carne','Primi Pesce'],'Secondi':['Secondi Carne','Secondi Pesce']};
+function gruppoLabel(cat){ return GRUPPI_CAT[cat]||null; }
 
 function buildMealCard(data,tipo,piatti){
   const key=`${data}_${tipo}`;
@@ -422,6 +429,7 @@ function buildMealCard(data,tipo,piatti){
     if(isLocked){
       // Vista sola lettura
       const totCat=totCategoria(key,cat,piatti);
+      const totQ=totGruppo(key,cat,piatti);
       sec.innerHTML=`<div class="cat-header"><span class="cat-name">${esc(cat)}</span><span class="cat-quota">${totCat} / ${max}</span></div>`;
       voci.forEach(p=>{
         const qty=sel.piatti[p.id]||0;
@@ -432,15 +440,17 @@ function buildMealCard(data,tipo,piatti){
         sec.appendChild(row);
       });
     } else {
-      // Vista interattiva
-      const totCat=totCategoria(key,cat,piatti);
-      const pct=Math.round(totCat/max*100);
+      // Vista interattiva — quota calcolata sul gruppo (Primi C+P, Secondi C+P)
+      const totQ=totGruppo(key,cat,piatti);
+      const pct=Math.round(totQ/max*100);
+      const gLabel=gruppoLabel(cat);
+      const quotaLabel=gLabel?`${gLabel} ${totQ}/${max}`:`${totQ}/${max}`;
       sec.innerHTML=`
         <div class="cat-header">
           <span class="cat-name">${esc(cat)}</span>
-          <span class="cat-quota"><span class="cu" id="cu-${key}-${cat}">${totCat}</span> / ${max}</span>
+          <span class="cat-quota"><span class="cu" id="cu-${key}-${cat}">${totQ}</span> / ${max}</span>
         </div>
-        <div class="cat-bar-wrap"><div class="cat-bar ${totCat>=max?'full':''}" id="cb-${key}-${cat}" style="width:${pct}%"></div></div>`;
+        <div class="cat-bar-wrap"><div class="cat-bar ${totQ>=max?'full':''}" id="cb-${key}-${cat}" style="width:${pct}%"></div></div>`;
       voci.forEach(p=>{
         const qty=sel.piatti[p.id]||0;
         const row=document.createElement('div');
@@ -450,7 +460,7 @@ function buildMealCard(data,tipo,piatti){
           <div class="stepper">
             <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}','${cat}',-1)" ${qty===0?'disabled':''}>−</button>
             <span class="step-val ${qty>0?'active':''}" id="sv-${p.id}">${qty}</span>
-            <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}','${cat}',+1)" ${totCat>=max?'disabled':''}>+</button>
+            <button class="step-btn" id="sp-${p.id}" onclick="step('${key}','${p.id}','${cat}',+1)" ${totQ>=max?'disabled':''}>+</button>
           </div>`;
         sec.appendChild(row);
       });
@@ -472,6 +482,11 @@ function totCategoria(key,cat,piatti){
   const sel=selezioni[key]; if(!sel)return 0;
   const ids=new Set((piatti||[]).filter(p=>(p.categoria||'Altro')===cat).map(p=>p.id));
   return Object.entries(sel.piatti).filter(([mid,q])=>ids.has(mid)&&q>0).reduce((s,[,q])=>s+q,0);
+}
+function totGruppo(key,cat,piatti){
+  const g=gruppoLabel(cat);
+  if(!g) return totCategoria(key,cat,piatti);
+  return MEMBRO_GRUPPO[g].reduce((s,c)=>s+totCategoria(key,c,piatti),0);
 }
 
 function totaleKeyPiatti(key){
@@ -499,9 +514,8 @@ function step(key,menuId,cat,delta){
   const sel=selezioni[key], cur=sel.piatti[menuId]||0, max=famiglia.max_ospiti;
   const [data,tipo]=key.split('_');
   const piatti=[...(data===PRIMO_GIORNO?menuOggi:menuDomani)].filter(p=>p.tipo===tipo);
-  const totCat=totCategoria(key,cat,piatti);
   if(delta<0&&cur<=0)return;
-  if(delta>0&&totCat>=max)return;
+  if(delta>0&&totGruppo(key,cat,piatti)>=max)return;
   sel.piatti[menuId]=cur+delta;
   const qty=sel.piatti[menuId];
   const sv=document.getElementById(`sv-${menuId}`);
@@ -510,16 +524,20 @@ function step(key,menuId,cat,delta){
   if(sv){sv.textContent=qty;sv.className=`step-val ${qty>0?'active':''}`;}
   if(sm) sm.disabled=qty<=0;
   if(pn) pn.className=`piatto-nome ${qty===0?'zero':''}`;
-  const newTot=totCategoria(key,cat,piatti);
-  const cu=document.getElementById(`cu-${key}-${cat}`);
-  const cb=document.getElementById(`cb-${key}-${cat}`);
-  if(cu) cu.textContent=newTot;
-  if(cb){cb.style.width=Math.round(newTot/max*100)+'%';cb.className=`cat-bar ${newTot>=max?'full':''}`;}
-  piatti.filter(p=>(p.categoria||'Altro')===cat).forEach(p=>{
-    const btn=document.getElementById(`sp-${p.id}`);
-    if(btn) btn.disabled=newTot>=max;
+  // Aggiorna UI di tutte le categorie del gruppo (o solo la corrente se non è in gruppo)
+  const g=gruppoLabel(cat);
+  const catsToUpdate=g?MEMBRO_GRUPPO[g]:[cat];
+  catsToUpdate.forEach(c=>{
+    const newTot=totGruppo(key,c,piatti); // uguale per tutte le cat del gruppo
+    const cu=document.getElementById(`cu-${key}-${c}`);
+    const cb=document.getElementById(`cb-${key}-${c}`);
+    if(cu) cu.textContent=newTot;
+    if(cb){cb.style.width=Math.round(newTot/max*100)+'%';cb.className=`cat-bar ${newTot>=max?'full':''}`;}
+    piatti.filter(p=>(p.categoria||'Altro')===c).forEach(p=>{
+      const btn=document.getElementById(`sp-${p.id}`);
+      if(btn) btn.disabled=newTot>=max;
+    });
   });
-  // aggiorna lock MP in tempo reale
   aggiornaMPLock(data);
 }
 
