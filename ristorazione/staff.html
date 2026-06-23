@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -32,7 +32,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion };
 
   function ready() {
     if (window._fbReady) return;
@@ -110,14 +110,20 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .seg-btn.active{background:#fff;color:var(--gray-900);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
 /* ── REPORT CARDS ── */
-.cat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:18px 0 8px}
-.cat-label:first-child{margin-top:0}
-.dish-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
+.report-cat-block{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:12px}
+.report-cat-head{padding:10px 16px;background:var(--gray-900);display:flex;align-items:center;justify-content:space-between}
+.report-cat-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#fff}
+.report-cat-tot{font-size:13px;font-weight:700;color:rgba(255,255,255,.6)}
+.dish-row{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;border-bottom:1px solid var(--gray-100);-webkit-tap-highlight-color:transparent}
+.dish-row:last-of-type{border-bottom:none}
 .dish-row:active{background:var(--gray-50)}
-.dish-name{font-size:16px;font-weight:700;color:var(--gray-700)}
-.dish-qty{font-size:22px;font-weight:800;color:var(--gray-900)}
-.dish-detail{display:none;background:var(--gray-50);border-top:1px solid var(--gray-100);padding:0}
+.dish-name{font-size:14px;font-weight:600;color:var(--gray-800)}
+.dish-right{display:flex;align-items:center;gap:10px}
+.dish-qty{min-width:32px;height:32px;background:var(--green-700);color:#fff;border-radius:8px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 8px}
+.dish-chevron{font-size:11px;color:var(--gray-400);transition:transform .2s}
+.dish-detail{display:none;background:var(--gray-50);border-top:1px solid var(--gray-100)}
 .dish-detail.open{display:block}
+.dish-detail .fam-detail-row:last-child{border-bottom:none}
 .fam-detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--gray-100)}
 .fam-detail-row:last-child{border-bottom:none}
 .fam-detail-nome{font-size:13px;font-weight:700;color:var(--gray-900)}
@@ -621,6 +627,9 @@ function switchTab(tab) {
   });
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
+  // Rimuovi print-area se esiste
+  const pa = document.getElementById('print-area');
+  if (pa) pa.remove();
 }
 
 function setSeg(idA, idB, aActive) {
@@ -652,7 +661,7 @@ async function renderReport() {
   // Carica ordini per questa data+pasto
   let ordini = [];
   try {
-    const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
+    const snap = await getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
     const famIds = new Set(famiglieDocs.map(f => f.id));
     ordini = snap.docs.map(d => ({id:d.id, ...d.data()}))
       .filter(o => famIds.has(o.famiglia_id));
@@ -725,14 +734,18 @@ async function renderReport() {
   const catOrd = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))];
   for (const cat of catOrd) {
     if (!cats[cat]) continue;
-    html += `<div class="cat-label">${cat}</div>`;
+    const totCat = cats[cat].reduce((s, m) => s + (totali[m.id] || 0), 0);
+    let righe = '';
     for (const m of cats[cat]) {
       const tot = totali[m.id] || 0;
       const dettagli = byFam[m.id] || [];
-      html += `
+      righe += `
         <div class="dish-row" onclick="toggleDetail('d-${m.id}')">
           <div class="dish-name">${esc(m.piatto)}</div>
-          <div class="dish-qty">${tot}</div>
+          <div class="dish-right">
+            <div class="dish-qty">${tot}</div>
+            <span class="dish-chevron" id="chev-${m.id}">▼</span>
+          </div>
         </div>
         <div class="dish-detail" id="d-${m.id}">
           ${dettagli.length ? dettagli.map(r => `
@@ -744,13 +757,20 @@ async function renderReport() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="fam-detail-qty">${r.qty}</div>
-                <button class="fam-edit" style="flex-shrink:0" onclick="apriModificaOrdineStaff('${r.famId}','${r.nome}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${esc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
                 </button>
               </div>
-            </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta">Nessun ordine</div></div>'}
+            </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta" style="padding:12px 0">Nessun ordine</div></div>'}
         </div>`;
     }
+    html += `<div class="report-cat-block">
+      <div class="report-cat-head">
+        <span class="report-cat-title">${cat}</span>
+        <span class="report-cat-tot">Totale: ${totCat}</span>
+      </div>
+      ${righe}
+    </div>`;
   }
 
   el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
@@ -762,8 +782,16 @@ async function renderReport() {
 
 function toggleDetail(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
+  if (!el) return;
+  el.classList.toggle('open');
+  const chev = document.getElementById('chev-' + id.replace('d-',''));
+  if (chev) chev.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
 }
+
+window.addEventListener('afterprint', () => {
+  const pa = document.getElementById('print-area');
+  if (pa) pa.remove();
+});
 
 // ── CUCINA ────────────────────────────────────────────────────────────────────
 function setCucinaPasto(p) {
