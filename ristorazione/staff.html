@@ -287,6 +287,10 @@ input[type="date"].finput{font-size:13px}
 .sec-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin:20px 0 10px}
 .fam-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
 .fam-av{width:40px;height:40px;border-radius:50%;background:var(--green-100);color:var(--green-700);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-av.partita{background:var(--gray-100);color:var(--gray-400)}
+.fam-av.arrivo{background:#EFF6FF;color:#3B82F6}
+.fam-group-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:6px 0 8px;margin-top:8px;display:flex;align-items:center;gap:8px}
+.fam-group-label::after{content:'';flex:1;height:1px;background:var(--gray-100)}
 .fam-info{flex:1;min-width:0}
 .fam-nome{font-size:14px;font-weight:800;color:var(--gray-900)}
 .fam-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
@@ -664,6 +668,7 @@ async function renderReport() {
 
   // Alert famiglie senza ordine (in soggiorno alla data selezionata)
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
+    if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
     if (f.checkout && f.checkout < targetDate) return false; // già partite
     const ordId1 = `${f.id}_${targetDate}_${reportPasto}`;
     const haOrdine = ordini.some(o => o.famiglia_id === f.id || o.id === ordId1);
@@ -1334,13 +1339,25 @@ function renderFamiglie() {
     el.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--gray-500);font-size:13px">Nessuna famiglia inserita</div>';
     return;
   }
-  el.innerHTML = famiglieDocs.map((f, idx) => {
+
+  const oggi = isoToday(0);
+  const soggiornanti = [], inArrivo = [], partite = [];
+  famiglieDocs.forEach((f, idx) => {
+    const ci = f.checkin  || '';
+    const co = f.checkout || '';
+    if (co && co < oggi) partite.push([f, idx]);
+    else if (ci && ci > oggi) inArrivo.push([f, idx]);
+    else soggiornanti.push([f, idx]);
+  });
+
+  function rigaFam(f, idx, avatarClass) {
     const ini = (f.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    const dateInfo = [f.checkin ? `in: ${f.checkin.slice(5).replace('-','/')}` : '', f.checkout ? `out: ${f.checkout.slice(5).replace('-','/')}` : ''].filter(Boolean).join(' · ');
     return `<div class="fam-row">
-      <div class="fam-av">${ini}</div>
+      <div class="fam-av ${avatarClass}">${ini}</div>
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
-        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
@@ -1352,7 +1369,24 @@ function renderFamiglie() {
         </button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  let html = '';
+
+  if (soggiornanti.length) {
+    html += `<div class="fam-group-label" style="color:var(--green-700)">🏕 In struttura (${soggiornanti.length})</div>`;
+    html += soggiornanti.map(([f,idx]) => rigaFam(f, idx, '')).join('');
+  }
+  if (inArrivo.length) {
+    html += `<div class="fam-group-label" style="color:#3B82F6">✈ In arrivo (${inArrivo.length})</div>`;
+    html += inArrivo.map(([f,idx]) => rigaFam(f, idx, 'arrivo')).join('');
+  }
+  if (partite.length) {
+    html += `<div class="fam-group-label" style="color:var(--gray-400)">↩ Partite (${partite.length})</div>`;
+    html += partite.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
+  }
+
+  el.innerHTML = html;
 }
 
 async function aggiungiFamiglia() {
@@ -1614,7 +1648,7 @@ function stampaReport() {
     ${senzaHtml}
   </div>`;
 
-  window.print();
+  setTimeout(() => window.print(), 150);
 }
 </script>
 </body>
