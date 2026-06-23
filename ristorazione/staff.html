@@ -658,13 +658,17 @@ async function renderReport() {
   const targetDate = reportDate === 'oggi' ? isoToday(0) : isoToday(1);
   const { db, collection, query, where, getDocs } = window._fb;
 
-  // Carica ordini per questa data+pasto
-  let ordini = [];
+  // Carica ordini per entrambi i pasti (serve per l'alert MP)
+  const famIds = new Set(famiglieDocs.map(f => f.id));
+  let ordini = [], ordiniAltro = [];
+  const altroPasto = reportPasto === 'pranzo' ? 'cena' : 'pranzo';
   try {
-    const snap = await getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
-    const famIds = new Set(famiglieDocs.map(f => f.id));
-    ordini = snap.docs.map(d => ({id:d.id, ...d.data()}))
-      .filter(o => famIds.has(o.famiglia_id));
+    const [snapQ, snapA] = await Promise.all([
+      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto))),
+      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',altroPasto)))
+    ]);
+    ordini      = snapQ.docs.map(d=>({id:d.id,...d.data()})).filter(o=>famIds.has(o.famiglia_id));
+    ordiniAltro = snapA.docs.map(d=>({id:d.id,...d.data()})).filter(o=>famIds.has(o.famiglia_id));
   } catch(e) { console.error(e); }
 
   // Menu per questa data+pasto
@@ -672,16 +676,22 @@ async function renderReport() {
 
   if (!menuItems.length) {
     el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
+    document.getElementById('report-print-bar').style.display = 'none';
     return;
   }
 
-  // Alert famiglie senza ordine (in soggiorno alla data selezionata)
+  // Alert famiglie senza ordine — considera trattamento
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
     if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
     if (f.checkout && f.checkout < targetDate) return false; // già partite
-    const ordId1 = `${f.id}_${targetDate}_${reportPasto}`;
-    const haOrdine = ordini.some(o => o.famiglia_id === f.id || o.id === ordId1);
-    return !haOrdine;
+    const haPastoCorrente = ordini.some(o => o.famiglia_id === f.id);
+    if (f.trattamento === 'MP') {
+      // MP: ok se ha compilato almeno uno tra pranzo e cena
+      const haAltro = ordiniAltro.some(o => o.famiglia_id === f.id);
+      return !haPastoCorrente && !haAltro;
+    }
+    // PC (o senza trattamento): deve avere questo specifico pasto
+    return !haPastoCorrente;
   });
   let alertHtml = '';
   if (famiglieSenzaOrdine.length) {
@@ -775,9 +785,9 @@ async function renderReport() {
 
   el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 
-  // Salva dati per la stampa e mostra pulsante
+  // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
   _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
-  document.getElementById('report-print-bar').style.display = ordini.length ? 'block' : 'none';
+  document.getElementById('report-print-bar').style.display = 'block';
 }
 
 function toggleDetail(id) {
