@@ -99,6 +99,8 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 .meal-card-header.pranzo{background:var(--green-700);border-color:var(--green-700)}
 .meal-card-header.cena{background:var(--gray-900);border-color:var(--gray-900)}
 .meal-card-body{padding:0 18px 14px}
+.meal-card-body.mp-locked{pointer-events:none;opacity:.4;position:relative}
+.mp-lock-msg{text-align:center;font-size:12px;font-weight:600;color:var(--gray-500);padding:12px 18px;border-top:1px solid var(--gray-100)}
 .meal-badge{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
 .meal-badge::before{content:'';display:block;width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5)}
 .lock-badge{font-size:11px;font-weight:700;color:var(--green-500);background:var(--green-50);border:1px solid var(--green-100);border-radius:20px;padding:4px 10px}
@@ -386,15 +388,21 @@ function buildMealCard(data,tipo,piatti){
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
   const tipoLabel=tipo==='pranzo'?'☀ Pranzo':'🌙 Cena';
+  // Calcola lock MP iniziale
+  const oppTipo = tipo==='pranzo'?'cena':'pranzo';
+  const oppKey  = `${data}_${oppTipo}`;
+  const isMPLocked = !isLocked && famiglia.trattamento==='MP' && totaleKeyPiatti(oppKey)>0 && totaleKeyPiatti(key)===0;
+
   card.innerHTML=`
     <div class="meal-card-header ${tipo}">
       <span class="meal-badge">${tipoLabel}</span>
       ${isLocked?(ordiniEsistenti[key]?'<span class="lock-badge">✓ Confermato</span>':'<span class="lock-badge" style="background:var(--gray-100);color:var(--gray-500);border-color:var(--gray-200)">⏱ Scaduto</span>'):''}
     </div>
-    <div class="meal-card-body">
+    <div class="meal-card-body${isMPLocked?' mp-locked':''}" id="meal-body-${key}">
       <div id="piatti-${key}"></div>
       ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}
-    </div>`;
+    </div>
+    <div class="mp-lock-msg" id="mp-msg-${key}" style="display:${isMPLocked?'block':'none'}">Hai già scelto il ${oppTipo} — mezza pensione</div>`;
   const pDiv=card.querySelector(`#piatti-${key}`);
 
   // raggruppa per categoria
@@ -466,9 +474,29 @@ function totCategoria(key,cat,piatti){
   return Object.entries(sel.piatti).filter(([mid,q])=>ids.has(mid)&&q>0).reduce((s,[,q])=>s+q,0);
 }
 
+function totaleKeyPiatti(key){
+  const sel=selezioni[key];
+  if(!sel) return 0;
+  return Object.values(sel.piatti).reduce((s,v)=>s+(v||0),0);
+}
+
+function aggiornaMPLock(data){
+  if(famiglia.trattamento!=='MP') return;
+  const keyP=`${data}_pranzo`, keyC=`${data}_cena`;
+  const totP=totaleKeyPiatti(keyP), totC=totaleKeyPiatti(keyC);
+  // se pranzo ha quantità → blocca cena e viceversa
+  const bodyP=document.getElementById(`meal-body-${keyP}`);
+  const bodyC=document.getElementById(`meal-body-${keyC}`);
+  const msgP=document.getElementById(`mp-msg-${keyP}`);
+  const msgC=document.getElementById(`mp-msg-${keyC}`);
+  if(bodyP){ bodyP.classList.toggle('mp-locked', totC>0&&totP===0); }
+  if(bodyC){ bodyC.classList.toggle('mp-locked', totP>0&&totC===0); }
+  if(msgP){ msgP.style.display = (totC>0&&totP===0)?'block':'none'; }
+  if(msgC){ msgC.style.display = (totP>0&&totC===0)?'block':'none'; }
+}
+
 function step(key,menuId,cat,delta){
   const sel=selezioni[key], cur=sel.piatti[menuId]||0, max=famiglia.max_ospiti;
-  // trova i piatti del pasto per calcolare il totale di categoria
   const [data,tipo]=key.split('_');
   const piatti=[...(data===PRIMO_GIORNO?menuOggi:menuDomani)].filter(p=>p.tipo===tipo);
   const totCat=totCategoria(key,cat,piatti);
@@ -482,17 +510,17 @@ function step(key,menuId,cat,delta){
   if(sv){sv.textContent=qty;sv.className=`step-val ${qty>0?'active':''}`;}
   if(sm) sm.disabled=qty<=0;
   if(pn) pn.className=`piatto-nome ${qty===0?'zero':''}`;
-  // aggiorna barra categoria
   const newTot=totCategoria(key,cat,piatti);
   const cu=document.getElementById(`cu-${key}-${cat}`);
   const cb=document.getElementById(`cb-${key}-${cat}`);
   if(cu) cu.textContent=newTot;
   if(cb){cb.style.width=Math.round(newTot/max*100)+'%';cb.className=`cat-bar ${newTot>=max?'full':''}`;}
-  // disabilita/abilita tutti i + di questa categoria
   piatti.filter(p=>(p.categoria||'Altro')===cat).forEach(p=>{
     const btn=document.getElementById(`sp-${p.id}`);
     if(btn) btn.disabled=newTot>=max;
   });
+  // aggiorna lock MP in tempo reale
+  aggiornaMPLock(data);
 }
 
 function aggiornaNota(key,val){ if(selezioni[key]) selezioni[key].note=val; }
@@ -509,6 +537,11 @@ async function salvaOrdini(){
       const _ora=new Date().getHours();
       const _scaduto=data<DOMANI||(data===DOMANI&&_ora>=23);
       if(ordiniEsistenti[key]||_scaduto) continue;
+      // Salta pasto MP bloccato (l'altro pasto ha già quantità)
+      if(famiglia.trattamento==='MP'){
+        const oppKey=`${data}_${tipo==='pranzo'?'cena':'pranzo'}`;
+        if(totaleKeyPiatti(oppKey)>0&&totaleKeyPiatti(key)===0) continue;
+      }
       const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
