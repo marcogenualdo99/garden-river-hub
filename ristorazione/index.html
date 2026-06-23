@@ -246,13 +246,15 @@ let selezioni = {};
 
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
 const OGGI=isoDate(0), DOMANI=isoDate(1);
+// PRIMO_GIORNO e SECONDO_GIORNO vengono calcolati dopo il caricamento famiglia
+let PRIMO_GIORNO=OGGI, SECONDO_GIORNO=DOMANI;
 
 function labelData(iso){
   const [y,m,g]=iso.split('-').map(Number);
   const d=new Date(y,m-1,g);
   const GG=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
   const MM=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
-  const prefix=iso===OGGI?'Oggi':'Domani';
+  const prefix=iso===PRIMO_GIORNO?(PRIMO_GIORNO===OGGI?'Oggi':'Arrivo'):(SECONDO_GIORNO===DOMANI?'Domani':'Giorno dopo');
   return `${prefix} — ${GG[d.getDay()]} ${g} ${MM[m-1]}`;
 }
 
@@ -264,6 +266,14 @@ window.addEventListener('DOMContentLoaded', async()=>{
   if(!codice){ mostraErrore(); return; }
   try{
     await caricaFamiglia(codice);
+    // Calcola primo giorno visibile: max(oggi, checkin)
+    if(famiglia.checkin && famiglia.checkin > OGGI){
+      PRIMO_GIORNO  = famiglia.checkin;
+      SECONDO_GIORNO = isoDate(0); // ricalcola come checkin+1
+      const d = new Date(famiglia.checkin + 'T12:00:00');
+      d.setDate(d.getDate()+1);
+      SECONDO_GIORNO = d.toISOString().split('T')[0];
+    }
     await Promise.all([caricaMenu(), caricaOrdiniEsistenti()]);
     buildMenuCatMap();
     inizializzaSelezioni();
@@ -289,8 +299,8 @@ async function caricaMenu(){
   const {db,collection,query,where,getDocs}=window._fbRisto;
   // Query separata per oggi e domani — evita indice composito con orderBy
   const [snapO,snapD]=await Promise.all([
-    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',OGGI))),
-    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',DOMANI)))
+    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',PRIMO_GIORNO))),
+    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',SECONDO_GIORNO)))
   ]);
   menuOggi  =snapO.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
   menuDomani=snapD.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
@@ -300,8 +310,8 @@ async function caricaOrdiniEsistenti(){
   const {db,collection,query,where,getDocs}=window._fbRisto;
   // Due query separate per evitare indice composito su famiglia_id + data
   const [snapO,snapD]=await Promise.all([
-    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',OGGI))),
-    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',DOMANI)))
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',PRIMO_GIORNO))),
+    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',SECONDO_GIORNO)))
   ]);
   ordiniEsistenti={};
   [...snapO.docs,...snapD.docs].forEach(d=>{ const x=d.data(); ordiniEsistenti[`${x.data}_${x.tipo}`]=x; });
@@ -338,8 +348,8 @@ function renderApp(){
 function renderMenu(){
   const c=document.getElementById('menu-container');
   c.innerHTML='';
-  renderGiorno(c,OGGI,menuOggi);
-  renderGiorno(c,DOMANI,menuDomani);
+  renderGiorno(c,PRIMO_GIORNO,menuOggi);
+  renderGiorno(c,SECONDO_GIORNO,menuDomani);
 }
 
 function renderGiorno(c,data,voci){
@@ -361,8 +371,8 @@ function buildMealCard(data,tipo,piatti){
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
-  // Blocca ordini di OGGI già confermati (solo DOMANI è modificabile)
-  const isLocked = data===OGGI && !!ordiniEsistenti[key];
+  // Blocca ordini del primo giorno già confermati (solo il secondo giorno è modificabile)
+  const isLocked = data===PRIMO_GIORNO && !!ordiniEsistenti[key];
 
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
@@ -448,7 +458,7 @@ function step(key,menuId,cat,delta){
   const sel=selezioni[key], cur=sel.piatti[menuId]||0, max=famiglia.max_ospiti;
   // trova i piatti del pasto per calcolare il totale di categoria
   const [data,tipo]=key.split('_');
-  const piatti=[...(data===OGGI?menuOggi:menuDomani)].filter(p=>p.tipo===tipo);
+  const piatti=[...(data===PRIMO_GIORNO?menuOggi:menuDomani)].filter(p=>p.tipo===tipo);
   const totCat=totCategoria(key,cat,piatti);
   if(delta<0&&cur<=0)return;
   if(delta>0&&totCat>=max)return;
@@ -483,8 +493,8 @@ async function salvaOrdini(){
     const promises=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const [data,tipo]=key.split('_');
-      // Salta ordini di oggi già confermati (bloccati)
-      if(data===OGGI && ordiniEsistenti[key]) continue;
+      // Salta ordini del primo giorno già confermati (bloccati)
+      if(data===PRIMO_GIORNO && ordiniEsistenti[key]) continue;
       const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
