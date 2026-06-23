@@ -247,6 +247,38 @@ input[type="date"].finput{font-size:13px}
 .fselect{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;background:#fff;color:var(--gray-900)}
 .btn-add{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
 .btn-add:active{opacity:.85}
+.btn-stampa{width:100%;height:48px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-stampa:active{opacity:.8}
+
+/* ── STAMPA ──────────────────────────────────────────────────────── */
+@media print {
+  body * { visibility: hidden }
+  #print-area, #print-area * { visibility: visible }
+  #print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 0; }
+  @page { margin: 12mm 14mm; size: A4; }
+}
+.print-page { font-family: 'Georgia', serif; color: #000; }
+.print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 16px; }
+.print-header h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: .5px; }
+.print-header p { font-size: 13px; margin: 0; color: #444; }
+.print-riepilogo { margin-bottom: 20px; }
+.print-riepilogo h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 0 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+.print-riepilogo-row { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; border-bottom: 1px dotted #ddd; }
+.print-riepilogo-row span:last-child { font-weight: 700; min-width: 32px; text-align: right; }
+.print-comande { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.print-comanda { border: 1.5px solid #000; border-radius: 6px; overflow: hidden; break-inside: avoid; }
+.print-comanda-head { background: #111; color: #fff; padding: 8px 12px; }
+.print-comanda-nome { font-size: 15px; font-weight: 700; }
+.print-comanda-unita { font-size: 11px; opacity: .75; margin-top: 1px; }
+.print-cat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #666; padding: 6px 12px 2px; }
+.print-dish-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-top: 1px solid #eee; }
+.print-dish-qty { width: 24px; height: 24px; background: #111; color: #fff; border-radius: 4px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.print-dish-name { font-size: 13px; flex: 1; }
+.print-dish-check { width: 18px; height: 18px; border: 1.5px solid #aaa; border-radius: 3px; flex-shrink: 0; }
+.print-nota { font-size: 11px; font-style: italic; color: #555; padding: 4px 12px 6px; }
+.print-senza { margin-top: 16px; border: 1.5px solid #F59E0B; border-radius: 6px; padding: 10px 14px; }
+.print-senza-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #B45309; margin-bottom: 6px; }
+.print-senza-list { font-size: 13px; color: #333; }
 
 .sec-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin:20px 0 10px}
 .fam-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
@@ -359,6 +391,9 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
     <div id="report-body"></div>
+    <div id="report-print-bar" style="display:none;margin-top:16px">
+      <button class="btn-stampa" onclick="stampaReport()">⎙ Stampa comande</button>
+    </div>
   </div>
 
   <!-- CUCINA -->
@@ -704,6 +739,10 @@ async function renderReport() {
   }
 
   el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
+
+  // Salva dati per la stampa e mostra pulsante
+  _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
+  document.getElementById('report-print-bar').style.display = ordini.length ? 'block' : 'none';
 }
 
 function toggleDetail(id) {
@@ -1398,6 +1437,108 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── STAMPA REPORT ─────────────────────────────────────────────────────────────
+let _printData = null;
+
+function stampaReport() {
+  if (!_printData) return;
+  const { targetDate, pasto, ordini, menuItems, famiglieSenzaOrdine } = _printData;
+
+  const dtLabel = new Date(targetDate + 'T12:00:00').toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const pastoLabel = pasto.charAt(0).toUpperCase() + pasto.slice(1);
+
+  // Riepilogo totali per piatto
+  const totali = {};
+  const ordiniMap = {}; // famId → {nome, unita, piatti:[{piatto,qty,cat}], nota}
+
+  for (const ord of ordini) {
+    const raw = ord.piatti || [];
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({ mid: p.menu_id, qty: Number(p.quantita), piatto: p.piatto, cat: p.categoria }); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v === 'number' && v > 0) { const m = menuItems.find(x=>x.id===k); items.push({mid:k,qty:v,piatto:m?.piatto||k,cat:m?.categoria||'Altro'}); }
+        else if (v && typeof v === 'object' && Number(v.quantita)>0) items.push({mid:v.menu_id||k,qty:Number(v.quantita),piatto:v.piatto||k,cat:v.categoria||'Altro'});
+      });
+    }
+    for (const it of items) totali[it.mid] = (totali[it.mid]||0) + it.qty;
+    ordiniMap[ord.famiglia_id] = { nome: ord.famiglia_nome||'—', unita: ord.unita||'', piatti: items, nota: ord.note||'' };
+  }
+
+  // Riepilogo HTML
+  const catOrd = [...CAT_ORDER, ...Object.keys(
+    Object.fromEntries(menuItems.map(m=>[m.categoria||'Altro',1]))
+  ).filter(c=>!CAT_ORDER.includes(c))];
+
+  let riepilogoHtml = '';
+  for (const cat of catOrd) {
+    const mCat = menuItems.filter(m=>(m.categoria||'Altro')===cat);
+    if (!mCat.length) continue;
+    riepilogoHtml += `<div style="margin-bottom:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-top:10px">${cat}</div>`;
+    for (const m of mCat) {
+      const tot = totali[m.id] || 0;
+      if (!tot) continue;
+      riepilogoHtml += `<div class="print-riepilogo-row"><span>${m.piatto}</span><span>${tot}</span></div>`;
+    }
+  }
+
+  // Comande KDS per famiglia
+  let comandeHtml = '';
+  for (const [famId, ord] of Object.entries(ordiniMap)) {
+    if (!ord.piatti.length) continue;
+    const catMap = {};
+    for (const p of ord.piatti) {
+      const c = p.cat || 'Altro';
+      if (!catMap[c]) catMap[c] = [];
+      catMap[c].push(p);
+    }
+    const allCats = [...catOrd, ...Object.keys(catMap).filter(c=>!catOrd.includes(c))].filter(c=>catMap[c]);
+    let bodyHtml = '';
+    for (const cat of allCats) {
+      bodyHtml += `<div class="print-cat-label">${cat}</div>`;
+      for (const p of catMap[cat]) {
+        bodyHtml += `<div class="print-dish-row">
+          <div class="print-dish-qty">${p.qty}</div>
+          <div class="print-dish-name">${esc(p.piatto)}</div>
+          <div class="print-dish-check"></div>
+        </div>`;
+      }
+    }
+    const notaHtml = ord.nota ? `<div class="print-nota">Nota: ${esc(ord.nota)}</div>` : '';
+    comandeHtml += `<div class="print-comanda">
+      <div class="print-comanda-head">
+        <div class="print-comanda-nome">${esc(ord.nome)}</div>
+        <div class="print-comanda-unita">Alloggio ${esc(ord.unita||'—')}</div>
+      </div>
+      ${bodyHtml}${notaHtml}
+    </div>`;
+  }
+
+  const senzaHtml = famiglieSenzaOrdine.length ? `<div class="print-senza">
+    <div class="print-senza-title">⚠ Senza ordine</div>
+    <div class="print-senza-list">${famiglieSenzaOrdine.map(f=>`${esc(f.nome)} · ${esc(f.unita||'—')}`).join(' &nbsp;|&nbsp; ')}</div>
+  </div>` : '';
+
+  let area = document.getElementById('print-area');
+  if (!area) { area = document.createElement('div'); area.id = 'print-area'; document.body.appendChild(area); }
+  area.innerHTML = `<div class="print-page">
+    <div class="print-header">
+      <h1>Garden River &mdash; ${pastoLabel}</h1>
+      <p>${dtLabel.charAt(0).toUpperCase()+dtLabel.slice(1)}</p>
+    </div>
+    <div class="print-riepilogo">
+      <h2>Riepilogo piatti</h2>
+      ${riepilogoHtml || '<div style="font-size:13px;color:#999">Nessun piatto</div>'}
+    </div>
+    <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:12px">Comande</h2>
+    <div class="print-comande">${comandeHtml}</div>
+    ${senzaHtml}
+  </div>`;
+
+  window.print();
 }
 </script>
 </body>
