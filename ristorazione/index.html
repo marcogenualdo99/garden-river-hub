@@ -456,7 +456,10 @@ function buildMealCard(data,tipo,piatti){
         const row=document.createElement('div');
         row.className='piatto-row';
         row.innerHTML=`
-          <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${p.id}">${esc(p.piatto)}</span>
+          <div>
+            <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${p.id}">${esc(p.piatto)}</span>
+            ${p.descrizione?`<div style="font-size:11px;color:var(--gray-500,#6B7280);margin-top:1px">${esc(p.descrizione)}</div>`:''}
+          </div>
           <div class="stepper">
             <button class="step-btn" id="sm-${p.id}" onclick="step('${key}','${p.id}','${cat}',-1)" ${qty===0?'disabled':''}>−</button>
             <span class="step-val ${qty>0?'active':''}" id="sv-${p.id}">${qty}</span>
