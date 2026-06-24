@@ -452,6 +452,9 @@ input[type="date"].finput{font-size:13px}
       <div class="form-row" style="grid-template-columns:1fr">
         <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
       </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
+      </div>
       <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
     </div>
 
@@ -466,6 +469,8 @@ input[type="date"].finput{font-size:13px}
     <div class="modal-title" id="modal-title">Aggiungi piatto</div>
     <div class="mlabel">Nome piatto</div>
     <input class="minput" id="modal-piatto" type="text" placeholder="es. Spaghetti al pomodoro">
+    <div class="mlabel">Descrizione (opzionale)</div>
+    <textarea class="minput" id="modal-desc" placeholder="es. con salsa al tartufo, senza glutine…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div class="mlabel">Categoria</div>
     <select class="mselect" id="modal-cat">
       <option value="Antipasti">Antipasti</option>
@@ -504,6 +509,8 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Numero pax</div>
     <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div class="mlabel">Note</div>
+    <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
       <img id="edit-qr-img" src="" alt="QR" style="width:180px;height:180px;border-radius:10px">
       <div style="font-family:monospace;font-size:11px;background:var(--gray-50);color:var(--gray-700);padding:6px 10px;border-radius:8px;border:1px solid var(--gray-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
@@ -948,8 +955,10 @@ function renderCucina(ordini) {
       }).join('')}`
     ).join('');
 
+    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
     const notaHtml = ord.note
-      ? `<div class="kds-note"><strong>Nota:</strong> ${esc(ord.note)}</div>` : '';
+      ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
 
     const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
     const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
@@ -976,7 +985,7 @@ function renderCucina(ordini) {
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
-      ${notaHtml}
+      ${famNote}${notaHtml}
       ${logHtml}
       <div class="kds-extra" id="extra-${ord.id}">
         <div class="kds-extra-row">
@@ -1249,7 +1258,10 @@ function renderMenu() {
       ${cats[cat].map((m,i) => {
         const idx = menuDocs.indexOf(m);
         return `<div class="menu-item">
-          <div class="menu-item-name">${esc(m.piatto)}</div>
+          <div>
+            <div class="menu-item-name">${esc(m.piatto)}</div>
+            ${m.descrizione ? `<div style="font-size:11px;color:var(--gray-500);margin-top:2px">${esc(m.descrizione)}</div>` : ''}
+          </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="menu-edit" onclick="apriModificaMenuPiatto(${idx})" title="Modifica">
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
@@ -1289,6 +1301,7 @@ function apriModificaMenuPiatto(idx) {
   _menuEditId = m.id;
   _menuModalData = { data: m.data, tipo: m.tipo };
   document.getElementById('modal-piatto').value = m.piatto;
+  document.getElementById('modal-desc').value = m.descrizione || '';
   document.getElementById('modal-cat').value = m.categoria || 'Primi Carne';
   document.getElementById('modal-title').textContent = 'Modifica piatto';
   document.getElementById('modal-save-btn').textContent = 'Salva';
@@ -1298,23 +1311,26 @@ function apriModificaMenuPiatto(idx) {
 
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
+  document.getElementById('modal-piatto').value = '';
+  document.getElementById('modal-desc').value = '';
   _menuEditId = null;
 }
 
 async function salvaMenuPiatto() {
-  const piatto = document.getElementById('modal-piatto').value.trim();
-  const cat    = document.getElementById('modal-cat').value;
+  const piatto     = document.getElementById('modal-piatto').value.trim();
+  const descrizione = document.getElementById('modal-desc').value.trim();
+  const cat        = document.getElementById('modal-cat').value;
   if (!piatto) { showToast('Inserisci il nome del piatto'); return; }
 
   const { db, collection, doc, setDoc } = window._fb;
 
   if (_menuEditId) {
     // Modalità modifica
-    const docData = { piatto, categoria: cat };
+    const docData = { piatto, descrizione, categoria: cat };
     try {
       await setDoc(doc(db, 'menu_ristorazione', _menuEditId), docData, { merge: true });
       const idx = menuDocs.findIndex(m => m.id === _menuEditId);
-      if (idx >= 0) menuDocs[idx] = { ...menuDocs[idx], piatto, categoria: cat };
+      if (idx >= 0) menuDocs[idx] = { ...menuDocs[idx], piatto, descrizione, categoria: cat };
       closeModal();
       renderMenu();
       showToast('Piatto aggiornato');
@@ -1324,7 +1340,7 @@ async function salvaMenuPiatto() {
 
   // Modalità aggiunta
   const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
-  const docData = { data: _menuModalData.data, tipo: _menuModalData.tipo, piatto, categoria: cat };
+  const docData = { data: _menuModalData.data, tipo: _menuModalData.tipo, piatto, descrizione, categoria: cat };
   try {
     await setDoc(doc(db, 'menu_ristorazione', id), docData);
     menuDocs.push({id, ...docData});
@@ -1414,6 +1430,7 @@ function renderFamiglie() {
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
         <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+        ${f.note?`<div style="font-size:11px;color:#DC2626;margin-top:2px">⚠ ${esc(f.note)}</div>`:''}
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
@@ -1457,7 +1474,8 @@ async function aggiungiFamiglia() {
 
   const codice = generaCodice();
   const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
-  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice };
+  const note   = document.getElementById('f-note').value.trim();
+  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1470,6 +1488,7 @@ async function aggiungiFamiglia() {
     document.getElementById('f-checkout').value = '';
     document.getElementById('f-pax').value = '';
     document.getElementById('f-trattamento').value = '';
+    document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
@@ -1484,6 +1503,7 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-checkin').value     = f.checkin  || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  document.getElementById('ef-note').value        = f.note || '';
   const src = document.getElementById('f-alloggio');
   const dst = document.getElementById('ef-alloggio');
   dst.innerHTML = src.innerHTML;
@@ -1514,7 +1534,8 @@ async function salvaEditFamiglia() {
   if (!nome) { showToast('Inserisci il nome'); return; }
 
   const { db, doc, setDoc } = window._fb;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax };
+  const note     = document.getElementById('ef-note').value.trim();
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -1631,7 +1652,8 @@ function scaricaReport() {
       });
     }
     for (const it of items) totali[it.mid] = (totali[it.mid]||0) + it.qty;
-    ordiniMap[ord.famiglia_id] = { nome: ord.famiglia_nome||'—', unita: ord.unita||'', piatti: items, nota: ord.note||'' };
+    const famD = famiglieDocs.find(f => f.id === ord.famiglia_id);
+  ordiniMap[ord.famiglia_id] = { nome: ord.famiglia_nome||'—', unita: ord.unita||'', piatti: items, nota: ord.note||'', famNote: famD?.note||'' };
   }
 
   // Riepilogo HTML
@@ -1673,13 +1695,14 @@ function scaricaReport() {
         </div>`;
       }
     }
-    const notaHtml = ord.nota ? `<div class="print-nota">Nota: ${esc(ord.nota)}</div>` : '';
+    const famNoteHtml = ord.famNote ? `<div class="print-fam-note">⚠ ${esc(ord.famNote)}</div>` : '';
+    const notaHtml = ord.nota ? `<div class="print-nota">Nota ordine: ${esc(ord.nota)}</div>` : '';
     comandeHtml += `<div class="print-comanda">
       <div class="print-comanda-head">
         <div class="print-comanda-nome">${esc(ord.nome)}</div>
         <div class="print-comanda-unita">Alloggio ${esc(ord.unita||'—')}</div>
       </div>
-      ${bodyHtml}${notaHtml}
+      ${famNoteHtml}${bodyHtml}${notaHtml}
     </div>`;
   }
 
@@ -1717,6 +1740,7 @@ function scaricaReport() {
     .print-dish-name{font-size:13px;flex:1;line-height:1.3}
     .print-dish-check{width:18px;height:18px;border:1.5px solid #ccc;border-radius:3px;flex-shrink:0}
     .print-nota{font-size:11px;font-style:italic;color:#777;padding:4px 14px 8px;border-top:1px solid #eee;background:#fffbf0}
+    .print-fam-note{font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;padding:5px 14px;border-left:3px solid #EF4444}
     /* Senza ordine */
     .print-senza{margin-top:20px;border:2px solid #F59E0B;border-radius:8px;padding:12px 16px;background:#FFFBEB}
     .print-senza-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#B45309;margin-bottom:6px}
