@@ -1443,10 +1443,11 @@ function stampaRiepilogoConti() {
   .page-header .right { text-align:right; flex-shrink:0; }
   .page-header .gt-lbl { font-size:9px; opacity:.65; text-transform:uppercase; letter-spacing:.05em; }
   .page-header .gt-val { font-size:22px; font-weight:800; line-height:1.1; }
-  /* ── griglia 2 colonne ── */
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  /* ── 2 colonne con flusso naturale ── */
+  .grid { columns:2; column-gap:10px; }
   /* ── singolo conto ── */
-  .conto { break-inside:avoid; page-break-inside:avoid; border:1px solid #D1D5DB; border-radius:8px; overflow:hidden; }
+  .conto { break-inside:avoid; page-break-inside:avoid; display:inline-block; width:100%;
+           border:1px solid #D1D5DB; border-radius:8px; overflow:hidden; margin-bottom:10px; }
   .conto-header { background:#1B4332; color:white; padding:8px 11px;
     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .conto-nome { font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
