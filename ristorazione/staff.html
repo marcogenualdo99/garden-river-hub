@@ -409,7 +409,8 @@ input[type="date"].finput{font-size:13px}
 
   <!-- CUCINA -->
   <div class="sec" id="sec-cucina">
-    <div class="seg-row">
+    <div id="cucina-date-strip" class="date-strip"></div>
+    <div class="seg-row" style="margin-top:-4px">
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
     </div>
@@ -567,6 +568,7 @@ let currentTab      = 'report';
 let reportDate      = isoToday(0);
 let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
+let cucinaDate      = isoToday(0);
 let menuDate        = isoToday(0);
 let menuPasto       = 'pranzo';
 let unsubCucina     = null;
@@ -618,6 +620,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   buildDateStrip();
   buildReportDateStrip();
+  buildCucinaDateStrip();
   renderReport();
   renderMenu();
   startCucina();
@@ -832,6 +835,35 @@ window.addEventListener('afterprint', () => {
 });
 
 // ── CUCINA ────────────────────────────────────────────────────────────────────
+function buildCucinaDateStrip() {
+  const strip = document.getElementById('cucina-date-strip');
+  const oggi  = isoToday(0);
+  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+  let html = '';
+  for (let i = -3; i < 14; i++) {
+    const d   = new Date(); d.setDate(d.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const isT = iso === oggi;
+    const gio = giorni[d.getDay()];
+    const num = d.getDate();
+    html += `<div class="date-pill cucina-date-pill${isT?' today':''}${iso===cucinaDate?' active':''}" onclick="setCucinaDate('${iso}')">
+      <div class="date-pill-day">${gio}</div>
+      <div class="date-pill-num">${num}</div>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  const active = strip.querySelector('.active');
+  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+function setCucinaDate(iso) {
+  cucinaDate = iso;
+  document.querySelectorAll('.cucina-date-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+  });
+  startCucina();
+}
+
 function setCucinaPasto(p) {
   cucinaPasto = p;
   setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
@@ -841,7 +873,7 @@ function setCucinaPasto(p) {
 function startCucina() {
   if (unsubCucina) { unsubCucina(); unsubCucina = null; }
   const { db, collection, query, where, onSnapshot } = window._fb;
-  const oggi = isoToday(0);
+  const oggi = cucinaDate;
   document.getElementById('cucina-body').innerHTML = '<div class="empty-state">Caricamento...</div>';
 
   try {
@@ -874,7 +906,7 @@ function renderCucina(ordini) {
     return;
   }
 
-  const menuOggi = menuDocs.filter(m => m.data === isoToday(0) && m.tipo === cucinaPasto);
+  const menuOggi = menuDocs.filter(m => m.data === cucinaDate && m.tipo === cucinaPasto);
   const menuById = {};
   for (const m of menuOggi) menuById[m.id] = m;
 
