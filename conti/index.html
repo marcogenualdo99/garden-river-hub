@@ -1470,7 +1470,10 @@ function stampaRiepilogoConti() {
     @page { size: A4 portrait; margin: 1cm 1.2cm; }
     html, body { background:white !important; padding:0 !important; }
     .print-btn { display:none !important; }
-    .conto { break-inside:avoid; page-break-inside:avoid; }
+    .grid { columns:2 !important; column-gap:10px !important; width:100% !important; }
+    .conto { break-inside:avoid !important; page-break-inside:avoid !important; display:inline-block !important; width:100% !important; }
+    .conto-header { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .page-header  { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   }
 </style></head><body>
   <div class="page-header">
