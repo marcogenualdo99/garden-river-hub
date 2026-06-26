@@ -1430,51 +1430,60 @@ function stampaRiepilogoConti() {
 <title>Riepilogo Conti Aperti — Garden River</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page { size: A4 portrait; margin: 1.5cm 1.8cm; }
+  @page { size: A4 portrait; margin: 1cm 1.2cm; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Inter',sans-serif; background:#F9FAFB; color:#111827; padding:24px 20px 60px; max-width:680px; margin:0 auto; -webkit-font-smoothing:antialiased; }
-  .page-header { background:#1B4332; color:white; border-radius:14px; padding:20px; text-align:center; margin-bottom:22px;
+  body { font-family:'Inter',sans-serif; background:#F9FAFB; color:#111827; padding:16px 16px 60px; -webkit-font-smoothing:antialiased; }
+  /* ── intestazione pagina ── */
+  .page-header { background:#1B4332; color:white; border-radius:10px; padding:12px 16px; text-align:center; margin-bottom:14px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .page-header .left  { text-align:left; }
+  .page-header .brand { font-size:9px; opacity:.6; text-transform:uppercase; letter-spacing:.07em; }
+  .page-header .title { font-size:15px; font-weight:800; margin-top:2px; }
+  .page-header .meta  { font-size:9px; opacity:.55; margin-top:2px; }
+  .page-header .right { text-align:right; flex-shrink:0; }
+  .page-header .gt-lbl { font-size:9px; opacity:.65; text-transform:uppercase; letter-spacing:.05em; }
+  .page-header .gt-val { font-size:22px; font-weight:800; line-height:1.1; }
+  /* ── griglia 2 colonne ── */
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  /* ── singolo conto ── */
+  .conto { break-inside:avoid; page-break-inside:avoid; border:1px solid #D1D5DB; border-radius:8px; overflow:hidden; }
+  .conto-header { background:#1B4332; color:white; padding:8px 11px;
     -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .page-header .brand { font-size:10px; opacity:.65; text-transform:uppercase; letter-spacing:.07em; }
-  .page-header .title { font-size:20px; font-weight:800; margin:5px 0 3px; }
-  .page-header .meta  { font-size:11px; opacity:.6; }
-  .page-header .grand-total { margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,.25); }
-  .page-header .grand-total .lbl { font-size:10px; opacity:.7; text-transform:uppercase; letter-spacing:.05em; }
-  .page-header .grand-total .val { font-size:28px; font-weight:800; }
-  .conto { margin-bottom:16px; break-inside:avoid; page-break-inside:avoid; }
-  .conto-header { background:#1B4332; color:white; border-radius:10px 10px 0 0; padding:11px 16px;
-    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  .conto-nome { font-size:15px; font-weight:800; }
-  .conto-sub  { font-size:11px; opacity:.7; margin-top:2px; }
-  .conto-body { background:white; border:1px solid #E5E7EB; border-top:none; border-radius:0 0 10px 10px; padding:12px 16px; }
-  .cat  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#6B7280; margin:9px 0 3px; display:flex; justify-content:space-between; }
+  .conto-nome { font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conto-sub  { font-size:9px; opacity:.7; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conto-body { background:white; padding:8px 11px; }
+  .cat  { font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6B7280;
+          margin:7px 0 2px; display:flex; justify-content:space-between; }
   .cat:first-child { margin-top:0; }
-  .row  { display:flex; justify-content:space-between; font-size:11.5px; color:#374151; padding:3.5px 0; border-bottom:1px solid #F3F4F6; orphans:2; widows:2; }
+  .row  { display:flex; justify-content:space-between; font-size:9.5px; color:#374151; padding:2.5px 0; border-bottom:1px solid #F3F4F6; }
   .row:last-of-type { border-bottom:none; }
-  .imp  { font-weight:700; margin-left:8px; flex-shrink:0; }
-  .totale { display:flex; justify-content:space-between; align-items:center; border-top:2px solid #111827; padding-top:10px; margin-top:10px; break-before:avoid; page-break-before:avoid; }
-  .totale .lbl { font-size:11px; font-weight:700; }
-  .totale .val { font-size:22px; font-weight:800; color:#16A34A; }
-  .vuoto { color:#9CA3AF; font-size:11px; text-align:center; padding:10px 0; }
-  .print-btn { display:block; width:100%; padding:14px; background:#1B4332; color:white; border:none; border-radius:28px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:12px; }
+  .imp  { font-weight:700; margin-left:6px; flex-shrink:0; }
+  .totale { display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid #111827; padding-top:7px; margin-top:7px; }
+  .totale .lbl { font-size:8.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.04em; }
+  .totale .val { font-size:17px; font-weight:800; color:#16A34A; }
+  .vuoto { color:#9CA3AF; font-size:9px; text-align:center; padding:8px 0; }
+  /* ── bottone stampa (solo schermo) ── */
+  .print-btn { display:block; width:100%; padding:14px; background:#1B4332; color:white; border:none; border-radius:28px;
+               font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:14px; }
   @media print {
-    @page { size: A4 portrait; margin: 1.5cm 1.8cm; }
-    html, body { background:white !important; padding:0 !important; max-width:100% !important; margin:0 !important; }
+    @page { size: A4 portrait; margin: 1cm 1.2cm; }
+    html, body { background:white !important; padding:0 !important; }
     .print-btn { display:none !important; }
-    .conto { break-inside:avoid; page-break-inside:avoid; margin-bottom:14px; }
-    .page-header { break-after:avoid; page-break-after:avoid; }
+    .conto { break-inside:avoid; page-break-inside:avoid; }
   }
 </style></head><body>
   <div class="page-header">
-    <div class="brand">Centro Vacanze Garden River</div>
-    <div class="title">Riepilogo Conti Aperti</div>
-    <div class="meta">${aperti.length} conti · Generato il ${now}</div>
-    <div class="grand-total">
-      <div class="lbl">Totale complessivo</div>
-      <div class="val">${fmt(totaleGlobale)}</div>
+    <div class="left">
+      <div class="brand">Centro Vacanze Garden River</div>
+      <div class="title">Riepilogo Conti Aperti</div>
+      <div class="meta">${aperti.length} conti · ${now}</div>
+    </div>
+    <div class="right">
+      <div class="gt-lbl">Totale complessivo</div>
+      <div class="gt-val">${fmt(totaleGlobale)}</div>
     </div>
   </div>
-  ${contiHtml}
+  <div class="grid">${contiHtml}</div>
   <button class="print-btn" onclick="window.print()">Stampa / Salva PDF</button>
 </body></html>`;
 
