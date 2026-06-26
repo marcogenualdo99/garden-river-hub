@@ -709,9 +709,8 @@ function renderBikeBody(b) {
     }
     return '<div class="bike-body">'+
       '<div class="bike-divider"></div>'+
-      '<div class="form-row-2">'+
-        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+id+'\'].nome=this.value">'+
-        '<select onchange="formTemp[\''+id+'\'].alloggio=this.value">'+alloggiOptionsHtml(t.alloggio)+'</select>'+
+      '<div style="margin-bottom:14px">'+
+        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
       '</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
         '<div style="display:flex;align-items:center;border:1.5px solid '+(oreOn?'var(--green-700)':'var(--gray-300)')+';border-radius:20px;background:'+(oreOn?'var(--green-50)':'var(--white)')+'">'+
@@ -753,12 +752,11 @@ function renderBikeBody(b) {
       const e = editingTemp[b.id] || {};
       return '<div class="bike-body">'+
         '<div class="bike-divider"></div>'+
-        '<div class="form-row-2">'+
-          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value">'+
-          '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
+        '<div style="margin-bottom:14px">'+
+          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
         '</div>'+
-        '<div class="form-row-2" style="margin-bottom:14px">'+
-          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
+        '<div style="margin-bottom:14px">'+
+          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="width:100%;height:48px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
         '</div>'+
         '<div class="form-row-2" style="margin-bottom:0">'+
           '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
@@ -791,9 +789,8 @@ function renderBikeBody(b) {
       const rientroLocal = e.rientroPrevistoTs || '';
       return '<div class="bike-body">'+
         '<div class="bike-divider"></div>'+
-        '<div class="form-row-2">'+
-          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value">'+
-          '<select onchange="editingTemp[\''+b.id+'\'].alloggio=this.value">'+alloggiOptionsHtml(e.alloggio)+'</select>'+
+        '<div style="margin-bottom:14px">'+
+          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
         '</div>'+
         '<div class="form-row-2">'+
           '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
@@ -903,15 +900,13 @@ function renderList() {
 async function segnalaRitiro(id) {
   const b = bikesMap[id];
   if (!b) return;
-  const t = formTemp[id] || { nome:'', alloggio:'' };
+  const t = formTemp[id] || { nome:'' };
   const nome = (t.nome || '').trim();
-  const alloggio = (t.alloggio || '').trim();
-  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
+  if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const nowIso = new Date().toISOString();
   // Aggiornamento ottimistico: si vede subito il cambio, poi si salva su Firestore
   b.stato = 'occupata';
   b.clienteNome = nome;
-  b.clienteAlloggio = alloggio;
   b.ritiroTs = nowIso;
   b.ritiroOp = currentOperatore || 'Operatore';
   delete formTemp[id];
@@ -920,7 +915,7 @@ async function segnalaRitiro(id) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
-      stato: 'occupata', clienteNome: nome, clienteAlloggio: alloggio,
+      stato: 'occupata', clienteNome: nome,
       ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
     });
   } catch(e) {
@@ -999,8 +994,7 @@ function segnalaRitiroPagato(id) {
   if (!b) return;
   const t = formTemp[id] || {};
   const nome = (t.nome || '').trim();
-  const alloggio = (t.alloggio || '').trim();
-  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
+  if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const r = calcolaSelezioneDurata(t);
   const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
   const rientroTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : new Date(Date.now() + r.ms).toISOString();
@@ -1008,17 +1002,16 @@ function segnalaRitiroPagato(id) {
     'Ritiro pagato — ' + costo.toFixed(2).replace('.',',') + '€',
     'Bici N°'+b.numero+' — '+nome+'. '+r.fascia+': '+r.dettaglio+'. Confermi di aver incassato il pagamento?',
     'Conferma pagamento',
-    () => eseguiRitiroPagato(id, nome, alloggio, rientroTs, { costo, fascia: r.fascia, dettaglio: r.dettaglio })
+    () => eseguiRitiroPagato(id, nome, rientroTs, { costo, fascia: r.fascia, dettaglio: r.dettaglio })
   );
 }
 
-async function eseguiRitiroPagato(id, nome, alloggio, rientroTs, r) {
+async function eseguiRitiroPagato(id, nome, rientroTs, r) {
   const b = bikesMap[id];
   if (!b) return;
   const nowIso = new Date().toISOString();
   b.stato = 'occupata';
   b.clienteNome = nome;
-  b.clienteAlloggio = alloggio;
   b.ritiroTs = nowIso;
   b.ritiroOp = currentOperatore || 'Operatore';
   b.pagamentoAnticipato = true;
@@ -1033,7 +1026,7 @@ async function eseguiRitiroPagato(id, nome, alloggio, rientroTs, r) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
-      stato: 'occupata', clienteNome: nome, clienteAlloggio: alloggio,
+      stato: 'occupata', clienteNome: nome,
       ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
       pagamentoAnticipato: true, costoAnticipato: r.costo,
       fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio, rientroPrevistoTs: rientroTs,
@@ -1118,11 +1111,9 @@ async function salvaDatiNoleggio(id) {
   if (!b) return;
   const e = editingTemp[id] || {};
   const nome = (e.nome || '').trim();
-  const alloggio = (e.alloggio || '').trim();
-  if (!nome || !alloggio) { showToast('Inserisci nome e alloggio'); return; }
-  const updates = { clienteNome: nome, clienteAlloggio: alloggio };
+  if (!nome) { showToast('Inserisci nome e cognome'); return; }
+  const updates = { clienteNome: nome };
   b.clienteNome = nome;
-  b.clienteAlloggio = alloggio;
   if (e.ritiroTs) {
     const ritiroIso = new Date(e.ritiroTs).toISOString();
     updates.ritiroTs = ritiroIso;
