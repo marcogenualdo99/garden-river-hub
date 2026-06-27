@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -32,7 +32,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
 
   function ready() {
     if (window._fbReady) return;
@@ -420,8 +420,8 @@ input[type="date"].finput{font-size:13px}
 
   <!-- MENU -->
   <div class="sec" id="sec-menu">
-    <div id="date-strip" class="date-strip"></div>
-    <div class="seg-row">
+    <div id="ciclo-strip"></div>
+    <div class="seg-row" style="margin-top:8px">
       <button class="seg-btn active" id="seg-pranzo-m" onclick="setMenuPasto('pranzo')">Pranzo</button>
       <button class="seg-btn"        id="seg-cena-m"   onclick="setMenuPasto('cena')">Cena</button>
     </div>
@@ -434,6 +434,15 @@ input[type="date"].finput{font-size:13px}
 <!-- SETTINGS VIEW -->
 <div id="settings-view" class="hidden">
   <main>
+    <div class="add-fam-card" style="margin-bottom:16px">
+      <h3>Ciclo menu (2 settimane)</h3>
+      <p style="font-size:12px;color:var(--gray-500);margin:0 0 12px">Imposta il giorno di inizio del ciclo bisettimanale. I piatti del menu si ripetono ogni 14 giorni a partire da questa data.</p>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="ciclo-start-input" type="date" placeholder="Data inizio ciclo">
+      </div>
+      <button class="btn-add" onclick="salvaCicloStart()">Salva inizio ciclo</button>
+      <div id="ciclo-status" style="font-size:12px;color:var(--gray-500);margin-top:8px"></div>
+    </div>
     <div class="add-fam-card">
       <h3>Inserisci famiglia</h3>
       <div class="form-row">
@@ -570,8 +579,9 @@ let reportDate      = isoToday(0);
 let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
 let cucinaDate      = isoToday(0);
-let menuDate        = isoToday(0);
+let menuGiorno      = 1;          // 1-14
 let menuPasto       = 'pranzo';
+let cicloStart      = null;       // ISO date "YYYY-MM-DD"
 let unsubCucina     = null;
 let menuDocs        = [];
 let famiglieDocs    = [];
@@ -614,14 +624,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
 
   // Load static data
-  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi()]);
+  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi(), loadImpostazioni()]);
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
 
-  buildDateStrip();
   buildReportDateStrip();
   buildCucinaDateStrip();
+  buildCicloStrip();
   renderReport();
   renderMenu();
   startCucina();
@@ -704,7 +714,8 @@ async function renderReport() {
   } catch(e) { console.error(e); }
 
   // Menu per questa data+pasto
-  const menuItems = menuDocs.filter(m => m.data === targetDate && m.tipo === reportPasto);
+  const giornoReport = getGiornoCiclo(targetDate);
+  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === reportPasto);
 
   if (!menuItems.length) {
     el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
@@ -907,7 +918,7 @@ function renderCucina(ordini) {
     return;
   }
 
-  const menuOggi = menuDocs.filter(m => m.data === cucinaDate && m.tipo === cucinaPasto);
+  const menuOggi = menuDocs.filter(m => m.giorno === getGiornoCiclo(cucinaDate) && m.tipo === cucinaPasto);
   const menuById = {};
   for (const m of menuOggi) menuById[m.id] = m;
 
@@ -1089,7 +1100,7 @@ let _mosData = null; // {famId, famNome, data, tipo, selezioni: {menuId: qty}}
 async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   const { db, collection, query, where, getDocs } = window._fb;
   const ordId = `${famId}_${data}_${tipo}`;
-  const menuItems = menuDocs.filter(m => m.data === data && m.tipo === tipo);
+  const menuItems = menuDocs.filter(m => m.giorno === getGiornoCiclo(data) && m.tipo === tipo);
   const fam = famiglieDocs.find(f => f.id === famId);
   const max = fam?.max_ospiti || 1;
 
@@ -1245,36 +1256,102 @@ function setMenuPasto(p) {
   renderMenu();
 }
 
-function buildDateStrip() {
-  const strip = document.getElementById('date-strip');
-  const oggi  = isoToday(0);
-  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
-  let html = '';
-  for (let i = 0; i < 14; i++) {
-    const d    = new Date(); d.setDate(d.getDate() + i);
-    const iso  = d.toISOString().split('T')[0];
-    const isT  = iso === oggi;
-    const gio  = giorni[d.getDay()];
-    const num  = d.getDate();
-    html += `<div class="date-pill${isT?' today':''}${iso===menuDate?' active':''}" onclick="setMenuDate('${iso}')">
-      <div class="date-pill-day">${gio}</div>
-      <div class="date-pill-num">${num}</div>
-    </div>`;
-  }
-  strip.innerHTML = html;
+// ── CICLO BISETTIMANALE ───────────────────────────────────────────────────────
+async function loadImpostazioni() {
+  const { db, doc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'impostazioni', 'ristorazione'));
+    if (snap.exists()) {
+      cicloStart = snap.data().ciclo_start || null;
+      if (cicloStart) {
+        document.getElementById('ciclo-start-input').value = cicloStart;
+        document.getElementById('ciclo-status').textContent = `Ciclo attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+        menuGiorno = getGiornoCiclo(isoToday(0));
+      }
+    }
+  } catch(e) { console.error('loadImpostazioni:', e); }
 }
 
-function setMenuDate(iso) {
-  menuDate = iso;
-  document.querySelectorAll('.date-pill').forEach(p => {
-    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+function getGiornoCiclo(iso) {
+  if (!cicloStart) return 1;
+  const start  = new Date(cicloStart + 'T12:00:00');
+  const target = new Date(iso + 'T12:00:00');
+  const diff   = Math.round((target - start) / 86400000);
+  return ((diff % 14) + 14) % 14 + 1;
+}
+
+function buildCicloStrip() {
+  const el = document.getElementById('ciclo-strip');
+  if (!cicloStart) {
+    el.innerHTML = `<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gray-700);margin-bottom:8px">
+      ⚠ Configura la data di inizio ciclo nelle <strong>Impostazioni</strong> per gestire il menu.
+    </div>`;
+    return;
+  }
+  const nomiGiorni = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+  const start = new Date(cicloStart + 'T12:00:00');
+  let html = '<div style="margin-bottom:12px">';
+  for (let sett = 0; sett < 2; sett++) {
+    html += `<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Settimana ${sett+1}</div><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    for (let gg = 0; gg < 7; gg++) {
+      const giorno = sett * 7 + gg + 1;
+      const d = new Date(start); d.setDate(d.getDate() + sett * 7 + gg);
+      const dow = nomiGiorni[(d.getDay() + 6) % 7];
+      html += `<div class="date-pill ciclo-pill${giorno===menuGiorno?' active':''}" onclick="setMenuGiorno(${giorno})" style="min-width:42px">
+        <div class="date-pill-day">${dow}</div>
+        <div class="date-pill-num">${giorno}</div>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function setMenuGiorno(g) {
+  menuGiorno = g;
+  document.querySelectorAll('.ciclo-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick') === `setMenuGiorno(${g})`);
   });
   renderMenu();
 }
 
+async function salvaCicloStart() {
+  const val = document.getElementById('ciclo-start-input').value;
+  if (!val) { showToast('Seleziona una data'); return; }
+  const { db, doc, setDoc, collection, getDocs, writeBatch } = window._fb;
+
+  // Migra i piatti esistenti che hanno ancora il campo "data"
+  const vecchi = menuDocs.filter(m => m.data && !m.giorno);
+  if (vecchi.length) {
+    const batch = writeBatch(db);
+    for (const m of vecchi) {
+      const giorno = (() => {
+        const start  = new Date(val + 'T12:00:00');
+        const target = new Date(m.data + 'T12:00:00');
+        const diff   = Math.round((target - start) / 86400000);
+        return ((diff % 14) + 14) % 14 + 1;
+      })();
+      const ref = doc(db, 'menu_ristorazione', m.id);
+      batch.update(ref, { giorno, data: null });
+      m.giorno = giorno;
+      delete m.data;
+    }
+    await batch.commit();
+  }
+
+  await setDoc(doc(db, 'impostazioni', 'ristorazione'), { ciclo_start: val }, { merge: true });
+  cicloStart = val;
+  menuGiorno = getGiornoCiclo(isoToday(0));
+  document.getElementById('ciclo-status').textContent = `Ciclo attivo dal ${new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+  buildCicloStrip();
+  renderMenu();
+  showToast(vecchi.length ? `Ciclo salvato · ${vecchi.length} piatti migrati` : 'Ciclo salvato');
+}
+
 function renderMenu() {
   const el = document.getElementById('menu-body');
-  const items = menuDocs.filter(m => m.data === menuDate && m.tipo === menuPasto);
+  const items = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === menuPasto);
 
   const cats = {};
   for (const m of items) {
@@ -1322,7 +1399,7 @@ let _menuEditId = null;
 
 function openModal() {
   _menuEditId = null;
-  _menuModalData = { data: menuDate, tipo: menuPasto };
+  _menuModalData = { giorno: menuGiorno, tipo: menuPasto };
   document.getElementById('modal-piatto').value = '';
   document.getElementById('modal-cat').value = 'Primi Carne';
   document.getElementById('modal-title').textContent = 'Aggiungi piatto';
@@ -1335,7 +1412,7 @@ function apriModificaMenuPiatto(idx) {
   const m = menuDocs[idx];
   if (!m) return;
   _menuEditId = m.id;
-  _menuModalData = { data: m.data, tipo: m.tipo };
+  _menuModalData = { giorno: m.giorno || menuGiorno, tipo: m.tipo };
   document.getElementById('modal-piatto').value = m.piatto;
   document.getElementById('modal-desc').value = m.descrizione || '';
   document.getElementById('modal-cat').value = m.categoria || 'Primi Carne';
@@ -1375,8 +1452,8 @@ async function salvaMenuPiatto() {
   }
 
   // Modalità aggiunta
-  const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
-  const docData = { data: _menuModalData.data, tipo: _menuModalData.tipo, piatto, descrizione, categoria: cat };
+  const id = `menu_g${_menuModalData.giorno}_${_menuModalData.tipo}_${Date.now()}`;
+  const docData = { giorno: _menuModalData.giorno, tipo: _menuModalData.tipo, piatto, descrizione, categoria: cat };
   try {
     await setDoc(doc(db, 'menu_ristorazione', id), docData);
     menuDocs.push({id, ...docData});
@@ -1389,10 +1466,10 @@ async function salvaMenuPiatto() {
 async function duplicaMenu() {
   const destinazione = menuPasto === 'pranzo' ? 'cena' : 'pranzo';
   const sorgente = menuPasto;
-  const itemsSorgente = menuDocs.filter(m => m.data === menuDate && m.tipo === sorgente);
+  const itemsSorgente = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === sorgente);
   if (!itemsSorgente.length) { showToast('Nessun piatto da copiare'); return; }
 
-  const itemsDest = menuDocs.filter(m => m.data === menuDate && m.tipo === destinazione);
+  const itemsDest = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === destinazione);
   if (itemsDest.length) {
     if (!confirm(`La ${destinazione} ha già ${itemsDest.length} piatt${itemsDest.length===1?'o':'i'}. Vuoi aggiungere comunque i piatti del ${sorgente}?`)) return;
   }
@@ -1401,8 +1478,8 @@ async function duplicaMenu() {
   const label = destinazione.charAt(0).toUpperCase() + destinazione.slice(1);
   try {
     for (const m of itemsSorgente) {
-      const id = `menu_${menuDate}_${destinazione}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
-      const docData = { data: menuDate, tipo: destinazione, piatto: m.piatto, categoria: m.categoria };
+      const id = `menu_g${menuGiorno}_${destinazione}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+      const docData = { giorno: menuGiorno, tipo: destinazione, piatto: m.piatto, categoria: m.categoria };
       await setDoc(doc(db, 'menu_ristorazione', id), docData);
       menuDocs.push({ id, ...docData });
     }
