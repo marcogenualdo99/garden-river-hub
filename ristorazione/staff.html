@@ -420,13 +420,11 @@ input[type="date"].finput{font-size:13px}
 
   <!-- MENU -->
   <div class="sec" id="sec-menu">
-    <div id="ciclo-config" style="background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Inizio ciclo bisettimanale</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="ciclo-start-menu" type="date" style="flex:1;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;background:#fff;color:var(--gray-900);-webkit-appearance:none">
-        <button class="btn-add" style="height:44px;padding:0 18px;font-size:14px;white-space:nowrap;margin:0;border-radius:10px" onclick="salvaCicloStart()">Salva</button>
-      </div>
-      <div id="ciclo-status-menu" style="font-size:11px;color:var(--green-700);margin-top:6px;font-weight:600"></div>
+    <div id="ciclo-config" style="background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:10px">Inizio ciclo bisettimanale</div>
+      <input id="ciclo-start-menu" type="date" style="display:block;width:100%;height:48px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 14px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box;margin-bottom:10px">
+      <button class="btn-add" style="width:100%;height:48px;font-size:15px;margin:0;border-radius:10px" onclick="salvaCicloStart()">Salva inizio ciclo</button>
+      <div id="ciclo-status-menu" style="font-size:12px;color:var(--green-700);margin-top:8px;font-weight:600"></div>
     </div>
     <div id="ciclo-strip"></div>
     <div class="seg-row" style="margin-top:8px">
@@ -1284,7 +1282,7 @@ function buildCicloStrip() {
   const el = document.getElementById('ciclo-strip');
   if (!cicloStart) {
     el.innerHTML = `<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gray-700);margin-bottom:8px">
-      ⚠ Configura la data di inizio ciclo nelle <strong>Impostazioni</strong> per gestire il menu.
+      ⚠ Imposta la data di inizio ciclo qui sopra per gestire il menu.
     </div>`;
     return;
   }
@@ -1934,3 +1932,4 @@ function scaricaFoglioQR() {
 </script>
 </body>
 </html>
+
