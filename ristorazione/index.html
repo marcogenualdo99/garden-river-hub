@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, query, where }
+  import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, where }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -33,7 +33,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fbRisto = { db, collection, doc, setDoc, getDocs, query, where };
+  window._fbRisto = { db, collection, doc, setDoc, getDocs, getDoc, query, where };
   window._fbRistoReady = false;
 
   function segnalaPronto() {
@@ -247,6 +247,15 @@ let famiglia = null;
 let menuOggi = [], menuDomani = [];
 let ordiniEsistenti = {};
 let selezioni = {};
+let cicloStart = null;
+
+function getGiornoCiclo(iso) {
+  if (!cicloStart) return null;
+  const start  = new Date(cicloStart + 'T12:00:00');
+  const target = new Date(iso + 'T12:00:00');
+  const diff   = Math.round((target - start) / 86400000);
+  return ((diff % 14) + 14) % 14 + 1;
+}
 
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
 const OGGI=isoDate(0), DOMANI=isoDate(1);
@@ -300,12 +309,25 @@ async function caricaFamiglia(codice){
 }
 
 async function caricaMenu(){
-  const {db,collection,query,where,getDocs}=window._fbRisto;
-  // Query separata per oggi e domani — evita indice composito con orderBy
-  const [snapO,snapD]=await Promise.all([
-    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',PRIMO_GIORNO))),
-    getDocs(query(collection(db,'menu_ristorazione'),where('data','==',SECONDO_GIORNO)))
-  ]);
+  const {db,collection,query,where,getDocs,getDoc,doc}=window._fbRisto;
+  // Carica inizio ciclo
+  try {
+    const snap=await getDoc(doc(db,'impostazioni','ristorazione'));
+    if(snap.exists()) cicloStart=snap.data().ciclo_start||null;
+  } catch(e) { console.error('cicloStart:', e); }
+
+  if(!cicloStart){ menuOggi=[]; menuDomani=[]; return; }
+
+  const giornoPrimo  = getGiornoCiclo(PRIMO_GIORNO);
+  const giornoSecondo= getGiornoCiclo(SECONDO_GIORNO);
+
+  const queries=[getDocs(query(collection(db,'menu_ristorazione'),where('giorno','==',giornoPrimo)))];
+  if(giornoSecondo!==giornoPrimo)
+    queries.push(getDocs(query(collection(db,'menu_ristorazione'),where('giorno','==',giornoSecondo))));
+  else
+    queries.push(Promise.resolve({docs:[]}));
+
+  const [snapO,snapD]=await Promise.all(queries);
   menuOggi  =snapO.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
   menuDomani=snapD.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
 }
@@ -322,7 +344,9 @@ async function caricaOrdiniEsistenti(){
 }
 
 function inizializzaSelezioni(){
-  const chiavi=[...new Set([...menuOggi,...menuDomani].map(m=>`${m.data}_${m.tipo}`))];
+  const chiavi=[
+    ...new Set([...menuOggi.map(m=>`${PRIMO_GIORNO}_${m.tipo}`),...menuDomani.map(m=>`${SECONDO_GIORNO}_${m.tipo}`)])
+  ];
   chiavi.forEach(key=>{
     const e=ordiniEsistenti[key];
     selezioni[key]={piatti:{},note:e?(e.note||''):''};
