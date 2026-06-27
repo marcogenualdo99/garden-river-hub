@@ -2116,8 +2116,8 @@ async function stampaComanda(ord) {
 
 function stampaComandaById(id) {
   const ord = _kdsOrdiniMap[id];
-  if (!ord) { alert('Ordine non trovato.'); return; }
-  stampaComanda(ord);
+  if (!ord) { alert('Ordine non trovato. ID: ' + id); return; }
+  stampaComanda(ord).catch(e => alert('Errore JS: ' + e.message));
 }
 
 window.addEventListener('firebase-ready', aggiornaStatoStampante);
