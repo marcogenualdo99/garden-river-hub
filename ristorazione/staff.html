@@ -8,8 +8,6 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -2005,8 +2003,8 @@ async function testStampante() {
     '<text>&#10;&#10;</text>',
     '<cut type="feed"/>',
   ], dev);
-  const ok = await inviaEpos(ip, xml);
-  res.textContent = ok ? '✓ Stampa di test inviata!' : '✗ Errore: stampante non raggiungibile. Verifica IP e che la webapp sia aperta via HTTP (non HTTPS).';
+  const { ok, err } = await inviaEpos(ip, xml);
+  res.textContent = ok ? '✓ Stampa di test inviata!' : `✗ Errore: ${err || 'stampante non raggiungibile'}`;
   res.style.color = ok ? '#16a34a' : '#ef4444';
 }
 
@@ -2022,16 +2020,23 @@ ${comandi.join('\n')}
 }
 
 async function inviaEpos(ip, xml) {
-  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
-  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`;
+  const endpoint = `https://192.168.5.85/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
       body: xml
     });
-    return r.ok;
-  } catch { return false; }
+    if (!r.ok) return { ok: false, err: `HTTP ${r.status}` };
+    const text = await r.text();
+    const success = text.includes('success="true"');
+    const code = (text.match(/code="([^"]*)"/) || [])[1] || '';
+    return { ok: success, err: code };
+  } catch (e) { return { ok: false, err: e.message }; }
+}
+
+function escXml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 
 async function stampaComanda(ord) {
@@ -2077,9 +2082,9 @@ async function stampaComanda(ord) {
     '<text>&#10;</text>',
     '<text>--------------------------------</text>',
     '<text>&#10;</text>',
-    `<text font="font_a" height="2" width="2">${(ord.famiglia_nome || '—').substring(0, 20)}</text>`,
+    `<text font="font_a" height="2" width="2">${escXml((ord.famiglia_nome || '—').substring(0, 20))}</text>`,
     '<text>&#10;</text>',
-    ord.unita ? `<text>Alloggio: ${ord.unita}</text><text>&#10;</text>` : '',
+    ord.unita ? `<text>Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>` : '',
     '<text>&#10;</text>',
     '<text>--------------------------------</text>',
     '<text>&#10;</text>',
@@ -2087,30 +2092,30 @@ async function stampaComanda(ord) {
 
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b">${cat.toUpperCase()}</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b">${escXml(cat.toUpperCase())}</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
-      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${p.piatto.substring(0, 18)}</text><text>&#10;</text>`);
+      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${escXml(p.piatto.substring(0, 18))}</text><text>&#10;</text>`);
     }
     righe.push('<text>&#10;</text>');
   }
 
   if (ord.note_famiglia) {
     righe.push('<text>--------------------------------</text><text>&#10;</text>');
-    righe.push(`<text>NOTE: ${ord.note_famiglia}</text><text>&#10;</text>`);
+    righe.push(`<text>NOTE: ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
   }
 
   righe.push('<text>&#10;&#10;</text>');
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
-  const ok = await inviaEpos(ip, xml);
-  if (!ok) alert('Errore invio stampa. Verifica che la stampante sia accesa e che la webapp sia aperta tramite http:// (non https://).');
+  const { ok, err } = await inviaEpos(null, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 function stampaComandaById(id) {
   const ord = _kdsOrdiniMap[id];
-  if (!ord) { alert('Ordine non trovato.'); return; }
-  stampaComanda(ord);
+  if (!ord) { alert('Ordine non trovato. ID: ' + id); return; }
+  stampaComanda(ord).catch(e => alert('Errore JS: ' + e.message));
 }
 
 window.addEventListener('firebase-ready', aggiornaStatoStampante);
@@ -2128,7 +2133,7 @@ window.addEventListener('firebase-ready', aggiornaStatoStampante);
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
     <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
-      Apri la pagina staff tramite <strong>http://192.168.5.136:8080</strong> (avvia prima "Avvia Proxy Stampante.command" sul Mac).
+      Stampante collegata direttamente via HTTPS — nessun proxy necessario. Assicurati di aver installato il certificato sul dispositivo.
     </div>
     <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
     <div style="display:flex;gap:10px">
