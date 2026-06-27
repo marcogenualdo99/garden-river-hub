@@ -692,12 +692,11 @@ function forceOpenBike(id) {
 function renderBikeBody(b) {
   const stato = effectiveStato(b);
   if (stato === 'libera') {
-    const t = formTemp[b.id] || (formTemp[b.id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' });
-    if (!t.rientroTs) {
-      const r0 = calcolaSelezioneDurata(t);
-      const s = new Date(Date.now() + r0.ms);
-      t.rientroTs = new Date(s.getTime() - s.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    if (!formTemp[b.id]) {
+      formTemp[b.id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' };
+      aggiornaRientroSuggerito(b.id, formTemp[b.id]);
     }
+    const t = formTemp[b.id];
     const r = calcolaSelezioneDurata(t);
     const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
     const id = b.id;
@@ -974,18 +973,26 @@ function stepCosto(id, delta) {
   if (el) el.value = t.costoManuale.toFixed(2);
 }
 
+function aggiornaRientroSuggerito(id, t) {
+  const r = calcolaSelezioneDurata(t);
+  const s = new Date(Date.now() + r.ms);
+  t.rientroTs = new Date(s.getTime() - s.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+
 function cambiaOre(id, delta) {
-  const t = formTemp[id] || (formTemp[id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null });
+  const t = formTemp[id] || (formTemp[id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' });
   t.fasciaKey = null;
   if (delta !== 0) t.ore = Math.max(1, (t.ore || 1) + delta);
   t.costoManuale = null;
+  aggiornaRientroSuggerito(id, t);
   render();
 }
 
 function selFascia(id, key) {
-  const t = formTemp[id] || (formTemp[id] = { nome:'', alloggio:'', fasciaKey:null, ore:1, costoManuale:null });
+  const t = formTemp[id] || (formTemp[id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' });
   t.fasciaKey = key;
   t.costoManuale = null;
+  aggiornaRientroSuggerito(id, t);
   render();
 }
 
