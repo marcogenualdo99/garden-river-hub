@@ -2022,8 +2022,7 @@ ${comandi.join('\n')}
 }
 
 async function inviaEpos(ip, xml) {
-  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
-  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`;
+  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -2032,6 +2031,10 @@ async function inviaEpos(ip, xml) {
     });
     return r.ok;
   } catch { return false; }
+}
+
+function escXml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 
 async function stampaComanda(ord) {
@@ -2077,9 +2080,9 @@ async function stampaComanda(ord) {
     '<text>&#10;</text>',
     '<text>--------------------------------</text>',
     '<text>&#10;</text>',
-    `<text font="font_a" height="2" width="2">${(ord.famiglia_nome || '—').substring(0, 20)}</text>`,
+    `<text font="font_a" height="2" width="2">${escXml((ord.famiglia_nome || '—').substring(0, 20))}</text>`,
     '<text>&#10;</text>',
-    ord.unita ? `<text>Alloggio: ${ord.unita}</text><text>&#10;</text>` : '',
+    ord.unita ? `<text>Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>` : '',
     '<text>&#10;</text>',
     '<text>--------------------------------</text>',
     '<text>&#10;</text>',
@@ -2087,16 +2090,16 @@ async function stampaComanda(ord) {
 
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b">${cat.toUpperCase()}</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b">${escXml(cat.toUpperCase())}</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
-      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${p.piatto.substring(0, 18)}</text><text>&#10;</text>`);
+      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${escXml(p.piatto.substring(0, 18))}</text><text>&#10;</text>`);
     }
     righe.push('<text>&#10;</text>');
   }
 
   if (ord.note_famiglia) {
     righe.push('<text>--------------------------------</text><text>&#10;</text>');
-    righe.push(`<text>NOTE: ${ord.note_famiglia}</text><text>&#10;</text>`);
+    righe.push(`<text>NOTE: ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
   }
 
   righe.push('<text>&#10;&#10;</text>');
