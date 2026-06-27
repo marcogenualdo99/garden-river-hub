@@ -2028,10 +2028,7 @@ ${comandi.join('\n')}
 
 async function inviaEpos(ip, xml) {
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
-  // Usa il proxy locale (HTTPS) per evitare il blocco mixed-content su HTTPS
-  // Dal Mac usa localhost, da mobile usa l'IP del Mac in rete locale
-  const proxyHost = localStorage.getItem('epson_proxy_host') || 'localhost';
-  const endpoint = `https://${proxyHost}:8765/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`;
+  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -2140,12 +2137,9 @@ window.addEventListener('firebase-ready', aggiornaStatoStampante);
     <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.100" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
     <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
-    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:8px;line-height:1.6">
-      <strong>Dal Mac:</strong> avvia "Avvia Proxy Stampante.command" — usa host <code>localhost</code><br>
-      <strong>Da mobile:</strong> 1) avvia il proxy sul Mac · 2) apri <strong>https://192.168.5.136:8765</strong> sul telefono e accetta il certificato · 3) usa host <code>192.168.5.136</code>
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
+      Apri la pagina staff tramite <strong>http://192.168.5.136:8080</strong> (avvia prima "Avvia Proxy Stampante.command" sul Mac).
     </div>
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Host proxy (localhost o IP del Mac)</div>
-    <input id="printer-proxy-input" type="text" placeholder="localhost" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
     <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
     <div style="display:flex;gap:10px">
       <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
