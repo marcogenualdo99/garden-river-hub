@@ -2005,8 +2005,8 @@ async function testStampante() {
     '<text>&#10;&#10;</text>',
     '<cut type="feed"/>',
   ], dev);
-  const ok = await inviaEpos(ip, xml);
-  res.textContent = ok ? '✓ Stampa di test inviata!' : '✗ Errore: stampante non raggiungibile. Verifica IP e che la webapp sia aperta via HTTP (non HTTPS).';
+  const { ok, err } = await inviaEpos(ip, xml);
+  res.textContent = ok ? '✓ Stampa di test inviata!' : `✗ Errore: ${err || 'stampante non raggiungibile'}`;
   res.style.color = ok ? '#16a34a' : '#ef4444';
 }
 
@@ -2029,8 +2029,12 @@ async function inviaEpos(ip, xml) {
       headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
       body: xml
     });
-    return r.ok;
-  } catch { return false; }
+    if (!r.ok) return { ok: false, err: `HTTP ${r.status}` };
+    const text = await r.text();
+    const success = text.includes('success="true"');
+    const code = (text.match(/code="([^"]*)"/) || [])[1] || '';
+    return { ok: success, err: code };
+  } catch (e) { return { ok: false, err: e.message }; }
 }
 
 function escXml(s) {
@@ -2106,8 +2110,8 @@ async function stampaComanda(ord) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
-  const ok = await inviaEpos(ip, xml);
-  if (!ok) alert('Errore invio stampa. Verifica che la stampante sia accesa e che la webapp sia aperta tramite http:// (non https://).');
+  const { ok, err } = await inviaEpos(ip, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 function stampaComandaById(id) {
