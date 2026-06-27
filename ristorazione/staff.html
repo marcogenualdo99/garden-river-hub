@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -32,7 +32,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, updateDoc, query, where, arrayUnion };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
 
   function ready() {
     if (window._fbReady) return;
@@ -110,14 +110,20 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .seg-btn.active{background:#fff;color:var(--gray-900);box-shadow:0 1px 4px rgba(0,0,0,.1)}
 
 /* ── REPORT CARDS ── */
-.cat-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:18px 0 8px}
-.cat-label:first-child{margin-top:0}
-.dish-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:16px 18px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
+.report-cat-block{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:12px}
+.report-cat-head{padding:10px 16px;background:var(--gray-900);display:flex;align-items:center;justify-content:space-between}
+.report-cat-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#fff}
+.report-cat-tot{font-size:13px;font-weight:700;color:rgba(255,255,255,.6)}
+.dish-row{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;border-bottom:1px solid var(--gray-100);-webkit-tap-highlight-color:transparent}
+.dish-row:last-of-type{border-bottom:none}
 .dish-row:active{background:var(--gray-50)}
-.dish-name{font-size:16px;font-weight:700;color:var(--gray-700)}
-.dish-qty{font-size:22px;font-weight:800;color:var(--gray-900)}
-.dish-detail{display:none;background:var(--gray-50);border-top:1px solid var(--gray-100);padding:0}
+.dish-name{font-size:14px;font-weight:600;color:var(--gray-800)}
+.dish-right{display:flex;align-items:center;gap:10px}
+.dish-qty{min-width:32px;height:32px;background:var(--green-700);color:#fff;border-radius:8px;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 8px}
+.dish-chevron{font-size:11px;color:var(--gray-400);transition:transform .2s}
+.dish-detail{display:none;background:var(--gray-50);border-top:1px solid var(--gray-100)}
 .dish-detail.open{display:block}
+.dish-detail .fam-detail-row:last-child{border-bottom:none}
 .fam-detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--gray-100)}
 .fam-detail-row:last-child{border-bottom:none}
 .fam-detail-nome{font-size:13px;font-weight:700;color:var(--gray-900)}
@@ -142,6 +148,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 @media(min-width:900px){
   #sec-cucina{margin-left:calc(50% - 50vw + 14px);margin-right:calc(50% - 50vw + 14px)}
   #cucina-body{grid-template-columns:repeat(3,1fr)}
+  #cucina-date-strip,#sec-cucina>.seg-row{padding-left:calc((100vw - 800px) / 2 + 14px);padding-right:calc((100vw - 800px) / 2 + 14px)}
 }
 
 /* ── KDS CARD ── */
@@ -215,6 +222,9 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .date-pill.active .date-pill-num{color:#fff}
 .date-pill.today .date-pill-num{color:var(--green-700)}
 .date-pill.active.today .date-pill-num{color:#fff}
+.ciclo-pill{min-width:36px;padding:5px 6px}
+.ciclo-pill .date-pill-num{font-size:14px;margin-top:1px}
+.ciclo-pill .date-pill-day{font-size:9px}
 
 .menu-block{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
 .menu-block-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100)}
@@ -225,6 +235,8 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .menu-item-name{font-size:14px;font-weight:600;color:var(--gray-800,#1F2937)}
 .menu-del{width:30px;height:30px;background:var(--red-bg);border:none;border-radius:8px;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .menu-del:active{opacity:.7}
+.menu-edit{width:30px;height:30px;background:var(--gray-100,#F3F4F6);border:none;border-radius:8px;color:var(--gray-600,#4B5563);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.menu-edit:active{opacity:.7}
 .add-dish-btn{width:100%;height:46px;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);background:transparent;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:8px;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .add-dish-btn:active{border-color:var(--green-400);color:var(--green-700)}
 .add-cat-btn{width:100%;height:46px;border:1.5px dashed var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);color:var(--green-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:12px}
@@ -247,10 +259,48 @@ input[type="date"].finput{font-size:13px}
 .fselect{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;background:#fff;color:var(--gray-900)}
 .btn-add{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
 .btn-add:active{opacity:.85}
+.btn-stampa{width:100%;height:48px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-stampa:active{opacity:.8}
+.btn-duplica{width:100%;height:48px;background:#fff;color:var(--gray-600,#4B5563);border:1.5px solid var(--gray-200,#E5E7EB);border-radius:var(--radius-xl);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-duplica:active{opacity:.8}
+
+/* ── STAMPA ──────────────────────────────────────────────────────── */
+@media print {
+  body * { visibility: hidden }
+  #print-area, #print-area * { visibility: visible }
+  #print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 0; }
+  @page { margin: 12mm 14mm; size: A4; }
+}
+.print-page { font-family: 'Georgia', serif; color: #000; }
+.print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 16px; }
+.print-header h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: .5px; }
+.print-header p { font-size: 13px; margin: 0; color: #444; }
+.print-riepilogo { margin-bottom: 20px; }
+.print-riepilogo h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 0 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+.print-riepilogo-row { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; border-bottom: 1px dotted #ddd; }
+.print-riepilogo-row span:last-child { font-weight: 700; min-width: 32px; text-align: right; }
+.print-comande { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.print-comanda { border: 1.5px solid #000; border-radius: 6px; overflow: hidden; break-inside: avoid; }
+.print-comanda-head { background: #111; color: #fff; padding: 8px 12px; }
+.print-comanda-nome { font-size: 15px; font-weight: 700; }
+.print-comanda-unita { font-size: 11px; opacity: .75; margin-top: 1px; }
+.print-cat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #666; padding: 6px 12px 2px; }
+.print-dish-row { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-top: 1px solid #eee; }
+.print-dish-qty { width: 24px; height: 24px; background: #111; color: #fff; border-radius: 4px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.print-dish-name { font-size: 13px; flex: 1; }
+.print-dish-check { width: 18px; height: 18px; border: 1.5px solid #aaa; border-radius: 3px; flex-shrink: 0; }
+.print-nota { font-size: 11px; font-style: italic; color: #555; padding: 4px 12px 6px; }
+.print-senza { margin-top: 16px; border: 1.5px solid #F59E0B; border-radius: 6px; padding: 10px 14px; }
+.print-senza-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #B45309; margin-bottom: 6px; }
+.print-senza-list { font-size: 13px; color: #333; }
 
 .sec-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin:20px 0 10px}
 .fam-row{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
 .fam-av{width:40px;height:40px;border-radius:50%;background:var(--green-100);color:var(--green-700);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.fam-av.partita{background:var(--gray-100);color:var(--gray-400)}
+.fam-av.arrivo{background:#EFF6FF;color:#3B82F6}
+.fam-group-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:6px 0 8px;margin-top:8px;display:flex;align-items:center;gap:8px}
+.fam-group-label::after{content:'';flex:1;height:1px;background:var(--gray-100)}
 .fam-info{flex:1;min-width:0}
 .fam-nome{font-size:14px;font-weight:800;color:var(--gray-900)}
 .fam-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
@@ -350,34 +400,57 @@ input[type="date"].finput{font-size:13px}
 
   <!-- REPORT -->
   <div class="sec active" id="sec-report">
-    <div class="seg-row">
-      <button class="seg-btn active" id="seg-oggi"   onclick="setReportDate('oggi')">Oggi</button>
-      <button class="seg-btn"        id="seg-domani" onclick="setReportDate('domani')">Domani</button>
-    </div>
-    <div id="seg-pasto-row" class="seg-row" style="margin-top:-12px">
+    <div id="report-date-strip" class="date-strip"></div>
+    <div id="seg-pasto-row" class="seg-row" style="margin-top:-4px">
       <button class="seg-btn active" id="seg-pranzo-r" onclick="setReportPasto('pranzo')">Pranzo</button>
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
     <div id="report-body"></div>
+    <div id="report-print-bar" style="display:none;margin-top:16px">
+      <button class="btn-stampa" onclick="scaricaReport()">⬇ Scarica report</button>
+    </div>
   </div>
 
   <!-- CUCINA -->
   <div class="sec" id="sec-cucina">
-    <div class="seg-row">
+    <div id="cucina-date-strip" class="date-strip"></div>
+    <div class="seg-row" style="margin-top:-4px">
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;margin:4px 0 2px">
+      <button onclick="apriImpostazioniStampante()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--gray-500);font-family:var(--font);padding:4px 0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span id="printer-status-label">Stampante termica</span>
+      </button>
     </div>
     <div id="cucina-body"></div>
   </div>
 
   <!-- MENU -->
   <div class="sec" id="sec-menu">
-    <div id="date-strip" class="date-strip"></div>
-    <div class="seg-row">
+    <div id="ciclo-config" style="margin-bottom:12px">
+      <!-- Riga compatta (sempre visibile) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f0f4f0;border-radius:8px">
+        <div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Ciclo menu · </span>
+          <span id="ciclo-status-menu" style="font-size:12px;font-weight:700;color:var(--green-700)">Non impostato</span>
+        </div>
+        <button onclick="toggleCicloEdit()" style="font-size:12px;font-weight:700;color:var(--green-700);background:none;border:none;cursor:pointer;padding:4px 0">Modifica</button>
+      </div>
+      <!-- Form espandibile -->
+      <div id="ciclo-edit-form" style="display:none;margin-top:8px;background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:12px">
+        <input id="ciclo-start-menu" type="date" style="display:block;width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box;margin-bottom:8px">
+        <button class="btn-add" style="width:100%;height:44px;font-size:14px;margin:0;border-radius:8px" onclick="salvaCicloStart()">Salva</button>
+      </div>
+    </div>
+    <div id="ciclo-strip"></div>
+    <div class="seg-row" style="margin-top:8px">
       <button class="seg-btn active" id="seg-pranzo-m" onclick="setMenuPasto('pranzo')">Pranzo</button>
       <button class="seg-btn"        id="seg-cena-m"   onclick="setMenuPasto('cena')">Cena</button>
     </div>
     <div id="menu-body"></div>
+    <button class="btn-duplica" id="btn-duplica" onclick="duplicaMenu()"></button>
   </div>
 
 </main>
@@ -396,20 +469,25 @@ input[type="date"].finput{font-size:13px}
           <option value="">Trattamento</option>
           <option value="PC">Pensione completa</option>
           <option value="MP">Mezza pensione</option>
-          <option value="SC">Solo cena</option>
-          <option value="SP">Solo pranzo</option>
         </select>
       </div>
-      <div class="form-row" style="grid-template-columns:1fr">
+      <div class="form-row">
+        <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
         <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
       </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
+      </div>
       <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
     </div>
 
-    <div class="sec-label">Famiglie inserite</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="sec-label" style="margin-bottom:0">Famiglie inserite</div>
+      <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ Scarica foglio QR</button>
+    </div>
     <div id="famiglie-list"></div>
   </main>
 </div>
@@ -417,20 +495,24 @@ input[type="date"].finput{font-size:13px}
 <!-- MODAL AGGIUNGI PIATTO -->
 <div id="modal" class="hidden">
   <div class="modal-box">
-    <div class="modal-title">Aggiungi piatto</div>
+    <div class="modal-title" id="modal-title">Aggiungi piatto</div>
     <div class="mlabel">Nome piatto</div>
     <input class="minput" id="modal-piatto" type="text" placeholder="es. Spaghetti al pomodoro">
+    <div class="mlabel">Descrizione (opzionale)</div>
+    <textarea class="minput" id="modal-desc" placeholder="es. con salsa al tartufo, senza glutine…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div class="mlabel">Categoria</div>
     <select class="mselect" id="modal-cat">
       <option value="Antipasti">Antipasti</option>
-      <option value="Primi" selected>Primi</option>
-      <option value="Secondi">Secondi</option>
+      <option value="Primi Carne" selected>Primi Carne</option>
+      <option value="Primi Pesce">Primi Pesce</option>
+      <option value="Secondi Carne">Secondi Carne</option>
+      <option value="Secondi Pesce">Secondi Pesce</option>
       <option value="Contorni">Contorni</option>
       <option value="Dessert">Dessert</option>
     </select>
     <div class="mbtns">
       <button class="mcancel" onclick="closeModal()">Annulla</button>
-      <button class="msave"   onclick="salvaMenuPiatto()">Aggiungi</button>
+      <button class="msave"   id="modal-save-btn" onclick="salvaMenuPiatto()">Aggiungi</button>
     </div>
   </div>
 </div>
@@ -449,13 +531,15 @@ input[type="date"].finput{font-size:13px}
       <option value="">Seleziona</option>
       <option value="PC">Pensione completa</option>
       <option value="MP">Mezza pensione</option>
-      <option value="SC">Solo cena</option>
-      <option value="SP">Solo pranzo</option>
     </select>
+    <div class="mlabel">Data check-in</div>
+    <input class="minput" id="ef-checkin" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Data check-out</div>
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Numero pax</div>
     <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div class="mlabel">Note</div>
+    <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
       <img id="edit-qr-img" src="" alt="QR" style="width:180px;height:180px;border-radius:10px">
       <div style="font-family:monospace;font-size:11px;background:var(--gray-50);color:var(--gray-700);padding:6px 10px;border-radius:8px;border:1px solid var(--gray-100);margin-top:8px;word-break:break-all" id="edit-qr-link"></div>
@@ -502,15 +586,17 @@ input[type="date"].finput{font-size:13px}
 <script>
 // ── COSTANTI ────────────────────────────────────────────────────────────────
 const HUB_URL = '../';
-const CAT_ORDER = ['Antipasti','Primi','Secondi','Contorni','Dessert'];
+const CAT_ORDER = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'report';
-let reportDate      = 'oggi';
+let reportDate      = isoToday(0);
 let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
-let menuDate        = isoToday(0);
+let cucinaDate      = isoToday(0);
+let menuGiorno      = 1;          // 1-14
 let menuPasto       = 'pranzo';
+let cicloStart      = null;       // ISO date "YYYY-MM-DD"
 let unsubCucina     = null;
 let menuDocs        = [];
 let famiglieDocs    = [];
@@ -553,12 +639,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
 
   // Load static data
-  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi()]);
+  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi(), loadImpostazioni()]);
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
 
-  buildDateStrip();
+  buildReportDateStrip();
+  buildCucinaDateStrip();
+  buildCicloStrip();
   renderReport();
   renderMenu();
   startCucina();
@@ -572,6 +660,9 @@ function switchTab(tab) {
   });
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
+  // Rimuovi print-area se esiste
+  const pa = document.getElementById('print-area');
+  if (pa) pa.remove();
 }
 
 function setSeg(idA, idB, aActive) {
@@ -582,9 +673,33 @@ function setSeg(idA, idB, aActive) {
 }
 
 // ── REPORT ────────────────────────────────────────────────────────────────────
-function setReportDate(d) {
-  reportDate = d;
-  setSeg('seg-oggi','seg-domani', d==='oggi');
+function buildReportDateStrip() {
+  const strip = document.getElementById('report-date-strip');
+  const oggi  = isoToday(0);
+  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+  let html = '';
+  for (let i = -3; i < 14; i++) {
+    const d   = new Date(); d.setDate(d.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const isT = iso === oggi;
+    const gio = giorni[d.getDay()];
+    const num = d.getDate();
+    html += `<div class="date-pill report-date-pill${isT?' today':''}${iso===reportDate?' active':''}" onclick="setReportDate('${iso}')">
+      <div class="date-pill-day">${gio}</div>
+      <div class="date-pill-num">${num}</div>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  // Scrolla fino alla data attiva
+  const active = strip.querySelector('.active');
+  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+function setReportDate(iso) {
+  reportDate = iso;
+  document.querySelectorAll('.report-date-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+  });
   renderReport();
 }
 function setReportPasto(p) {
@@ -597,32 +712,44 @@ async function renderReport() {
   const el = document.getElementById('report-body');
   el.innerHTML = '<div class="empty-state">Caricamento...</div>';
 
-  const targetDate = reportDate === 'oggi' ? isoToday(0) : isoToday(1);
-  const { db, collection, query, where, getDocs } = window._fb;
+  const targetDate = reportDate;
+  const { db, collection, query, where, getDocs, getDocsFromServer } = window._fb;
 
-  // Carica ordini per questa data+pasto
-  let ordini = [];
+  // Carica ordini per entrambi i pasti (serve per l'alert MP)
+  const famIds = new Set(famiglieDocs.map(f => f.id));
+  let ordini = [], ordiniAltro = [];
+  const altroPasto = reportPasto === 'pranzo' ? 'cena' : 'pranzo';
   try {
-    const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto)));
-    const famIds = new Set(famiglieDocs.map(f => f.id));
-    ordini = snap.docs.map(d => ({id:d.id, ...d.data()}))
-      .filter(o => famIds.has(o.famiglia_id));
+    const [snapQ, snapA] = await Promise.all([
+      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto))),
+      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',altroPasto)))
+    ]);
+    ordini      = snapQ.docs.map(d=>({id:d.id,...d.data()})).filter(o=>famIds.has(o.famiglia_id));
+    ordiniAltro = snapA.docs.map(d=>({id:d.id,...d.data()})).filter(o=>famIds.has(o.famiglia_id));
   } catch(e) { console.error(e); }
 
   // Menu per questa data+pasto
-  const menuItems = menuDocs.filter(m => m.data === targetDate && m.tipo === reportPasto);
+  const giornoReport = getGiornoCiclo(targetDate);
+  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === reportPasto);
 
   if (!menuItems.length) {
     el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
+    document.getElementById('report-print-bar').style.display = 'none';
     return;
   }
 
-  // Alert famiglie senza ordine (in soggiorno alla data selezionata)
+  // Alert famiglie senza ordine — considera trattamento
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
+    if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
     if (f.checkout && f.checkout < targetDate) return false; // già partite
-    const ordId1 = `${f.id}_${targetDate}_${reportPasto}`;
-    const haOrdine = ordini.some(o => o.famiglia_id === f.id || o.id === ordId1);
-    return !haOrdine;
+    const haPastoCorrente = ordini.some(o => o.famiglia_id === f.id);
+    if (f.trattamento === 'MP') {
+      // MP: ok se ha compilato almeno uno tra pranzo e cena
+      const haAltro = ordiniAltro.some(o => o.famiglia_id === f.id);
+      return !haPastoCorrente && !haAltro;
+    }
+    // PC (o senza trattamento): deve avere questo specifico pasto
+    return !haPastoCorrente;
   });
   let alertHtml = '';
   if (famiglieSenzaOrdine.length) {
@@ -675,14 +802,18 @@ async function renderReport() {
   const catOrd = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))];
   for (const cat of catOrd) {
     if (!cats[cat]) continue;
-    html += `<div class="cat-label">${cat}</div>`;
+    const totCat = cats[cat].reduce((s, m) => s + (totali[m.id] || 0), 0);
+    let righe = '';
     for (const m of cats[cat]) {
       const tot = totali[m.id] || 0;
       const dettagli = byFam[m.id] || [];
-      html += `
+      righe += `
         <div class="dish-row" onclick="toggleDetail('d-${m.id}')">
           <div class="dish-name">${esc(m.piatto)}</div>
-          <div class="dish-qty">${tot}</div>
+          <div class="dish-right">
+            <div class="dish-qty">${tot}</div>
+            <span class="dish-chevron" id="chev-${m.id}">▼</span>
+          </div>
         </div>
         <div class="dish-detail" id="d-${m.id}">
           ${dettagli.length ? dettagli.map(r => `
@@ -694,24 +825,72 @@ async function renderReport() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="fam-detail-qty">${r.qty}</div>
-                <button class="fam-edit" style="flex-shrink:0" onclick="apriModificaOrdineStaff('${r.famId}','${r.nome}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${esc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
                 </button>
               </div>
-            </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta">Nessun ordine</div></div>'}
+            </div>`).join('') : '<div class="fam-detail-row"><div class="fam-detail-meta" style="padding:12px 0">Nessun ordine</div></div>'}
         </div>`;
     }
+    html += `<div class="report-cat-block">
+      <div class="report-cat-head">
+        <span class="report-cat-title">${cat}</span>
+        <span class="report-cat-tot">Totale: ${totCat}</span>
+      </div>
+      ${righe}
+    </div>`;
   }
 
   el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
+
+  // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
+  _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
+  document.getElementById('report-print-bar').style.display = 'block';
 }
 
 function toggleDetail(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
+  if (!el) return;
+  el.classList.toggle('open');
+  const chev = document.getElementById('chev-' + id.replace('d-',''));
+  if (chev) chev.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
 }
 
+window.addEventListener('afterprint', () => {
+  const pa = document.getElementById('print-area');
+  if (pa) pa.remove();
+});
+
 // ── CUCINA ────────────────────────────────────────────────────────────────────
+function buildCucinaDateStrip() {
+  const strip = document.getElementById('cucina-date-strip');
+  const oggi  = isoToday(0);
+  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
+  let html = '';
+  for (let i = -3; i < 14; i++) {
+    const d   = new Date(); d.setDate(d.getDate() + i);
+    const iso = d.toISOString().split('T')[0];
+    const isT = iso === oggi;
+    const gio = giorni[d.getDay()];
+    const num = d.getDate();
+    html += `<div class="date-pill cucina-date-pill${isT?' today':''}${iso===cucinaDate?' active':''}" onclick="setCucinaDate('${iso}')">
+      <div class="date-pill-day">${gio}</div>
+      <div class="date-pill-num">${num}</div>
+    </div>`;
+  }
+  strip.innerHTML = html;
+  const active = strip.querySelector('.active');
+  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+function setCucinaDate(iso) {
+  cucinaDate = iso;
+  document.querySelectorAll('.cucina-date-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+  });
+  startCucina();
+}
+
 function setCucinaPasto(p) {
   cucinaPasto = p;
   setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
@@ -721,7 +900,7 @@ function setCucinaPasto(p) {
 function startCucina() {
   if (unsubCucina) { unsubCucina(); unsubCucina = null; }
   const { db, collection, query, where, onSnapshot } = window._fb;
-  const oggi = isoToday(0);
+  const oggi = cucinaDate;
   document.getElementById('cucina-body').innerHTML = '<div class="empty-state">Caricamento...</div>';
 
   try {
@@ -748,13 +927,14 @@ function startCucina() {
 }
 
 function renderCucina(ordini) {
+  for (const o of ordini) _kdsOrdiniMap[o.id] = o;
   const el = document.getElementById('cucina-body');
   if (!ordini.length) {
     el.innerHTML = '<div class="empty-state">Nessun ordine per questo pasto.</div>';
     return;
   }
 
-  const menuOggi = menuDocs.filter(m => m.data === isoToday(0) && m.tipo === cucinaPasto);
+  const menuOggi = menuDocs.filter(m => m.giorno === getGiornoCiclo(cucinaDate) && m.tipo === cucinaPasto);
   const menuById = {};
   for (const m of menuOggi) menuById[m.id] = m;
 
@@ -838,8 +1018,10 @@ function renderCucina(ordini) {
       }).join('')}`
     ).join('');
 
+    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
     const notaHtml = ord.note
-      ? `<div class="kds-note"><strong>Nota:</strong> ${esc(ord.note)}</div>` : '';
+      ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
 
     const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
     const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
@@ -863,10 +1045,11 @@ function renderCucina(ordini) {
         <div style="display:flex;align-items:center;gap:8px">
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
           <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+          <button class="kds-edit-btn" onclick="stampaComandaById('${ord.id}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
-      ${notaHtml}
+      ${famNote}${notaHtml}
       ${logHtml}
       <div class="kds-extra" id="extra-${ord.id}">
         <div class="kds-extra-row">
@@ -934,7 +1117,7 @@ let _mosData = null; // {famId, famNome, data, tipo, selezioni: {menuId: qty}}
 async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   const { db, collection, query, where, getDocs } = window._fb;
   const ordId = `${famId}_${data}_${tipo}`;
-  const menuItems = menuDocs.filter(m => m.data === data && m.tipo === tipo);
+  const menuItems = menuDocs.filter(m => m.giorno === getGiornoCiclo(data) && m.tipo === tipo);
   const fam = famiglieDocs.find(f => f.id === famId);
   const max = fam?.max_ospiti || 1;
 
@@ -1090,36 +1273,101 @@ function setMenuPasto(p) {
   renderMenu();
 }
 
-function buildDateStrip() {
-  const strip = document.getElementById('date-strip');
-  const oggi  = isoToday(0);
-  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
-  let html = '';
-  for (let i = 0; i < 14; i++) {
-    const d    = new Date(); d.setDate(d.getDate() + i);
-    const iso  = d.toISOString().split('T')[0];
-    const isT  = iso === oggi;
-    const gio  = giorni[d.getDay()];
-    const num  = d.getDate();
-    html += `<div class="date-pill${isT?' today':''}${iso===menuDate?' active':''}" onclick="setMenuDate('${iso}')">
-      <div class="date-pill-day">${gio}</div>
-      <div class="date-pill-num">${num}</div>
-    </div>`;
-  }
-  strip.innerHTML = html;
+// ── CICLO BISETTIMANALE ───────────────────────────────────────────────────────
+async function loadImpostazioni() {
+  const { db, doc, getDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'impostazioni', 'ristorazione'));
+    if (snap.exists()) {
+      cicloStart = snap.data().ciclo_start || null;
+      if (cicloStart) {
+        const label = `Attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+        ['ciclo-start-input','ciclo-start-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.value=cicloStart; });
+        ['ciclo-status','ciclo-status-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=label; });
+        menuGiorno = getGiornoCiclo(isoToday(0));
+      }
+    }
+  } catch(e) { console.error('loadImpostazioni:', e); }
 }
 
-function setMenuDate(iso) {
-  menuDate = iso;
-  document.querySelectorAll('.date-pill').forEach(p => {
-    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
+function getGiornoCiclo(iso) {
+  if (!cicloStart) return 1;
+  const start  = new Date(cicloStart + 'T12:00:00');
+  const target = new Date(iso + 'T12:00:00');
+  const diff   = Math.round((target - start) / 86400000);
+  return ((diff % 14) + 14) % 14 + 1;
+}
+
+function buildCicloStrip() {
+  const el = document.getElementById('ciclo-strip');
+  if (!cicloStart) {
+    el.innerHTML = `<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gray-700);margin-bottom:8px">
+      ⚠ Imposta la data di inizio ciclo qui sopra per gestire il menu.
+    </div>`;
+    return;
+  }
+  const nomiGiorni = ['Lu','Ma','Me','Gi','Ve','Sa','Do'];
+  const start = new Date(cicloStart + 'T12:00:00');
+  let html = '<div style="margin-bottom:12px">';
+  for (let sett = 0; sett < 2; sett++) {
+    html += `<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Settimana ${sett+1}</div><div style="display:flex;gap:4px;flex-wrap:wrap">`;
+    for (let gg = 0; gg < 7; gg++) {
+      const giorno = sett * 7 + gg + 1;
+      const d = new Date(start); d.setDate(d.getDate() + sett * 7 + gg);
+      const dow = nomiGiorni[(d.getDay() + 6) % 7];
+      html += `<div class="date-pill ciclo-pill${giorno===menuGiorno?' active':''}" onclick="setMenuGiorno(${giorno})">
+        <div class="date-pill-day">${dow}</div>
+        <div class="date-pill-num">${giorno}</div>
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function toggleCicloEdit() {
+  const form = document.getElementById('ciclo-edit-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+function setMenuGiorno(g) {
+  menuGiorno = g;
+  document.querySelectorAll('.ciclo-pill').forEach(p => {
+    p.classList.toggle('active', p.getAttribute('onclick') === `setMenuGiorno(${g})`);
   });
   renderMenu();
 }
 
+async function salvaCicloStart() {
+  const inp = document.getElementById('ciclo-start-input') || document.getElementById('ciclo-start-menu');
+  const val = inp ? inp.value : '';
+  if (!val) { showToast('Seleziona una data di inizio ciclo'); return; }
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db, 'impostazioni', 'ristorazione'), { ciclo_start: val }, { merge: true });
+    cicloStart = val;
+    menuGiorno = getGiornoCiclo(isoToday(0));
+    // Aggiorna tutti i riferimenti UI
+    ['ciclo-start-input','ciclo-start-menu'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = val;
+    });
+    const label = new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+    ['ciclo-status','ciclo-status-menu'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `Attivo dal ${label}`;
+    });
+    const form = document.getElementById('ciclo-edit-form');
+    if (form) form.style.display = 'none';
+    buildCicloStrip();
+    renderMenu();
+    showToast('Ciclo salvato');
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
 function renderMenu() {
   const el = document.getElementById('menu-body');
-  const items = menuDocs.filter(m => m.data === menuDate && m.tipo === menuPasto);
+  const items = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === menuPasto);
 
   const cats = {};
   for (const m of items) {
@@ -1136,54 +1384,123 @@ function renderMenu() {
         <div class="menu-block-cat">${cat}</div>
         <div class="menu-block-count">${cats[cat].length} piatt${cats[cat].length===1?'o':'i'}</div>
       </div>
-      ${cats[cat].map(m => `
-        <div class="menu-item">
-          <div class="menu-item-name">${esc(m.piatto)}</div>
-          <button class="menu-del" onclick="eliminaMenuPiatto('${m.id}')" title="Elimina">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
-          </button>
-        </div>`).join('')}
+      ${cats[cat].map((m,i) => {
+        const idx = menuDocs.indexOf(m);
+        return `<div class="menu-item">
+          <div>
+            <div class="menu-item-name">${esc(m.piatto)}</div>
+            ${m.descrizione ? `<div style="font-size:11px;color:var(--gray-500);margin-top:2px">${esc(m.descrizione)}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="menu-edit" onclick="apriModificaMenuPiatto(${idx})" title="Modifica">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+            </button>
+            <button class="menu-del" onclick="eliminaMenuPiatto('${m.id}')" title="Elimina">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>`).join('');
 
   html += `<button class="add-dish-btn" onclick="openModal()">+ Aggiungi piatto</button>`;
   el.innerHTML = html;
+
+  const dest = menuPasto === 'pranzo' ? 'Cena' : 'Pranzo';
+  const btn = document.getElementById('btn-duplica');
+  if (btn) btn.textContent = `⎘ Copia questo menu nella ${dest}`;
 }
 
+let _menuEditId = null;
+
 function openModal() {
-  _menuModalData = { data: menuDate, tipo: menuPasto };
+  _menuEditId = null;
+  _menuModalData = { giorno: menuGiorno, tipo: menuPasto };
   document.getElementById('modal-piatto').value = '';
-  document.getElementById('modal-cat').value = 'Primi';
+  document.getElementById('modal-cat').value = 'Primi Carne';
+  document.getElementById('modal-title').textContent = 'Aggiungi piatto';
+  document.getElementById('modal-save-btn').textContent = 'Aggiungi';
   document.getElementById('modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('modal-piatto').focus(), 50);
 }
+
+function apriModificaMenuPiatto(idx) {
+  const m = menuDocs[idx];
+  if (!m) return;
+  _menuEditId = m.id;
+  _menuModalData = { giorno: m.giorno || menuGiorno, tipo: m.tipo };
+  document.getElementById('modal-piatto').value = m.piatto;
+  document.getElementById('modal-desc').value = m.descrizione || '';
+  document.getElementById('modal-cat').value = m.categoria || 'Primi Carne';
+  document.getElementById('modal-title').textContent = 'Modifica piatto';
+  document.getElementById('modal-save-btn').textContent = 'Salva';
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-piatto').focus(), 50);
+}
+
 function closeModal() {
   document.getElementById('modal').classList.add('hidden');
+  document.getElementById('modal-piatto').value = '';
+  document.getElementById('modal-desc').value = '';
+  _menuEditId = null;
 }
 
 async function salvaMenuPiatto() {
-  const piatto = document.getElementById('modal-piatto').value.trim();
-  const cat    = document.getElementById('modal-cat').value;
+  const piatto     = document.getElementById('modal-piatto').value.trim();
+  const descrizione = document.getElementById('modal-desc').value.trim();
+  const cat        = document.getElementById('modal-cat').value;
   if (!piatto) { showToast('Inserisci il nome del piatto'); return; }
 
   const { db, collection, doc, setDoc } = window._fb;
-  const id = `menu_${_menuModalData.data}_${_menuModalData.tipo}_${Date.now()}`;
-  const docData = {
-    data: _menuModalData.data,
-    tipo: _menuModalData.tipo,
-    piatto,
-    categoria: cat
-  };
 
+  if (_menuEditId) {
+    // Modalità modifica
+    const docData = { piatto, descrizione, categoria: cat };
+    try {
+      await setDoc(doc(db, 'menu_ristorazione', _menuEditId), docData, { merge: true });
+      const idx = menuDocs.findIndex(m => m.id === _menuEditId);
+      if (idx >= 0) menuDocs[idx] = { ...menuDocs[idx], piatto, descrizione, categoria: cat };
+      closeModal();
+      renderMenu();
+      showToast('Piatto aggiornato');
+    } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+    return;
+  }
+
+  // Modalità aggiunta
+  const id = `menu_g${_menuModalData.giorno}_${_menuModalData.tipo}_${Date.now()}`;
+  const docData = { giorno: _menuModalData.giorno, tipo: _menuModalData.tipo, piatto, descrizione, categoria: cat };
   try {
     await setDoc(doc(db, 'menu_ristorazione', id), docData);
     menuDocs.push({id, ...docData});
     closeModal();
     renderMenu();
     showToast('Piatto aggiunto');
-  } catch(e) {
-    showToast('Errore: ' + e.message);
-    console.error(e);
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
+async function duplicaMenu() {
+  const destinazione = menuPasto === 'pranzo' ? 'cena' : 'pranzo';
+  const sorgente = menuPasto;
+  const itemsSorgente = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === sorgente);
+  if (!itemsSorgente.length) { showToast('Nessun piatto da copiare'); return; }
+
+  const itemsDest = menuDocs.filter(m => m.giorno === menuGiorno && m.tipo === destinazione);
+  if (itemsDest.length) {
+    if (!confirm(`La ${destinazione} ha già ${itemsDest.length} piatt${itemsDest.length===1?'o':'i'}. Vuoi aggiungere comunque i piatti del ${sorgente}?`)) return;
   }
+
+  const { db, doc, setDoc } = window._fb;
+  const label = destinazione.charAt(0).toUpperCase() + destinazione.slice(1);
+  try {
+    for (const m of itemsSorgente) {
+      const id = `menu_g${menuGiorno}_${destinazione}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+      const docData = { giorno: menuGiorno, tipo: destinazione, piatto: m.piatto, categoria: m.categoria };
+      await setDoc(doc(db, 'menu_ristorazione', id), docData);
+      menuDocs.push({ id, ...docData });
+    }
+    showToast(`${itemsSorgente.length} piatt${itemsSorgente.length===1?'o':'i'} copiati nella ${label}`);
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 async function eliminaMenuPiatto(id) {
@@ -1223,13 +1540,26 @@ function renderFamiglie() {
     el.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--gray-500);font-size:13px">Nessuna famiglia inserita</div>';
     return;
   }
-  el.innerHTML = famiglieDocs.map((f, idx) => {
+
+  const oggi = isoToday(0);
+  const soggiornanti = [], inArrivo = [], partite = [];
+  famiglieDocs.forEach((f, idx) => {
+    const ci = f.checkin  || '';
+    const co = f.checkout || '';
+    if (co && co < oggi) partite.push([f, idx]);
+    else if (ci && ci > oggi) inArrivo.push([f, idx]);
+    else soggiornanti.push([f, idx]);
+  });
+
+  function rigaFam(f, idx, avatarClass) {
     const ini = (f.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    const dateInfo = [f.checkin ? `in: ${f.checkin.slice(5).replace('-','/')}` : '', f.checkout ? `out: ${f.checkout.slice(5).replace('-','/')}` : ''].filter(Boolean).join(' · ');
     return `<div class="fam-row">
-      <div class="fam-av">${ini}</div>
+      <div class="fam-av ${avatarClass}">${ini}</div>
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
-        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+        ${f.note?`<div style="font-size:11px;color:#DC2626;margin-top:2px">⚠ ${esc(f.note)}</div>`:''}
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
@@ -1241,13 +1571,31 @@ function renderFamiglie() {
         </button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  let html = '';
+
+  if (soggiornanti.length) {
+    html += `<div class="fam-group-label" style="color:var(--green-700)">🏕 In struttura (${soggiornanti.length})</div>`;
+    html += soggiornanti.map(([f,idx]) => rigaFam(f, idx, '')).join('');
+  }
+  if (inArrivo.length) {
+    html += `<div class="fam-group-label" style="color:#3B82F6">✈ In arrivo (${inArrivo.length})</div>`;
+    html += inArrivo.map(([f,idx]) => rigaFam(f, idx, 'arrivo')).join('');
+  }
+  if (partite.length) {
+    html += `<div class="fam-group-label" style="color:var(--gray-400)">↩ Partite (${partite.length})</div>`;
+    html += partite.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
+  }
+
+  el.innerHTML = html;
 }
 
 async function aggiungiFamiglia() {
   const nome     = document.getElementById('f-nome').value.trim();
   const alloggio = document.getElementById('f-alloggio').value.trim();
   const tratt    = document.getElementById('f-trattamento').value;
+  const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
   const pax      = parseInt(document.getElementById('f-pax').value) || 1;
 
@@ -1255,7 +1603,8 @@ async function aggiungiFamiglia() {
 
   const codice = generaCodice();
   const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
-  const data   = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax, codice };
+  const note   = document.getElementById('f-note').value.trim();
+  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1264,9 +1613,11 @@ async function aggiungiFamiglia() {
     renderFamiglie();
     document.getElementById('f-nome').value = '';
     document.getElementById('f-alloggio').value = '';
+    document.getElementById('f-checkin').value = '';
     document.getElementById('f-checkout').value = '';
     document.getElementById('f-pax').value = '';
     document.getElementById('f-trattamento').value = '';
+    document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
@@ -1278,8 +1629,10 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-id').value          = id;
   document.getElementById('ef-nome').value        = f.nome || '';
   document.getElementById('ef-trattamento').value = f.trattamento || '';
+  document.getElementById('ef-checkin').value     = f.checkin  || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  document.getElementById('ef-note').value        = f.note || '';
   const src = document.getElementById('f-alloggio');
   const dst = document.getElementById('ef-alloggio');
   dst.innerHTML = src.innerHTML;
@@ -1304,12 +1657,14 @@ async function salvaEditFamiglia() {
   const nome     = document.getElementById('ef-nome').value.trim();
   const alloggio = document.getElementById('ef-alloggio').value;
   const tratt    = document.getElementById('ef-trattamento').value;
+  const checkin  = document.getElementById('ef-checkin').value;
   const checkout = document.getElementById('ef-checkout').value;
   const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
   if (!nome) { showToast('Inserisci il nome'); return; }
 
   const { db, doc, setDoc } = window._fb;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkout, max_ospiti: pax };
+  const note     = document.getElementById('ef-note').value.trim();
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -1399,6 +1754,389 @@ function showToast(msg) {
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
+
+// ── STAMPA REPORT ─────────────────────────────────────────────────────────────
+let _printData = null;
+
+function scaricaReport() {
+  if (!_printData) return;
+  const { targetDate, pasto, ordini, menuItems, famiglieSenzaOrdine } = _printData;
+
+  const dtLabel = new Date(targetDate + 'T12:00:00').toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const pastoLabel = pasto.charAt(0).toUpperCase() + pasto.slice(1);
+
+  // Riepilogo totali per piatto
+  const totali = {};
+  const ordiniMap = {}; // famId → {nome, unita, piatti:[{piatto,qty,cat}], nota}
+
+  for (const ord of ordini) {
+    const raw = ord.piatti || [];
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({ mid: p.menu_id, qty: Number(p.quantita), piatto: p.piatto, cat: p.categoria }); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k,v]) => {
+        if (typeof v === 'number' && v > 0) { const m = menuItems.find(x=>x.id===k); items.push({mid:k,qty:v,piatto:m?.piatto||k,cat:m?.categoria||'Altro'}); }
+        else if (v && typeof v === 'object' && Number(v.quantita)>0) items.push({mid:v.menu_id||k,qty:Number(v.quantita),piatto:v.piatto||k,cat:v.categoria||'Altro'});
+      });
+    }
+    for (const it of items) totali[it.mid] = (totali[it.mid]||0) + it.qty;
+    const famD = famiglieDocs.find(f => f.id === ord.famiglia_id);
+  ordiniMap[ord.famiglia_id] = { nome: ord.famiglia_nome||'—', unita: ord.unita||'', piatti: items, nota: ord.note||'', famNote: famD?.note||'' };
+  }
+
+  // Riepilogo HTML
+  const catOrd = [...CAT_ORDER, ...Object.keys(
+    Object.fromEntries(menuItems.map(m=>[m.categoria||'Altro',1]))
+  ).filter(c=>!CAT_ORDER.includes(c))];
+
+  let riepilogoHtml = '';
+  for (const cat of catOrd) {
+    const mCat = menuItems.filter(m=>(m.categoria||'Altro')===cat);
+    if (!mCat.length) continue;
+    riepilogoHtml += `<div style="margin-bottom:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#666;margin-top:10px">${cat}</div>`;
+    for (const m of mCat) {
+      const tot = totali[m.id] || 0;
+      if (!tot) continue;
+      riepilogoHtml += `<div class="print-riepilogo-row"><span>${m.piatto}</span><span>${tot}</span></div>`;
+    }
+  }
+
+  // Comande KDS per famiglia
+  let comandeHtml = '';
+  for (const [famId, ord] of Object.entries(ordiniMap)) {
+    if (!ord.piatti.length) continue;
+    const catMap = {};
+    for (const p of ord.piatti) {
+      const c = p.cat || 'Altro';
+      if (!catMap[c]) catMap[c] = [];
+      catMap[c].push(p);
+    }
+    const allCats = [...catOrd, ...Object.keys(catMap).filter(c=>!catOrd.includes(c))].filter(c=>catMap[c]);
+    let bodyHtml = '';
+    for (const cat of allCats) {
+      bodyHtml += `<div class="print-cat-label">${cat}</div>`;
+      for (const p of catMap[cat]) {
+        bodyHtml += `<div class="print-dish-row">
+          <div class="print-dish-qty">${p.qty}</div>
+          <div class="print-dish-name">${esc(p.piatto)}</div>
+          <div class="print-dish-check"></div>
+        </div>`;
+      }
+    }
+    const famNoteHtml = ord.famNote ? `<div class="print-fam-note">⚠ ${esc(ord.famNote)}</div>` : '';
+    const notaHtml = ord.nota ? `<div class="print-nota">Nota ordine: ${esc(ord.nota)}</div>` : '';
+    comandeHtml += `<div class="print-comanda">
+      <div class="print-comanda-head">
+        <div class="print-comanda-nome">${esc(ord.nome)}</div>
+        <div class="print-comanda-unita">Alloggio ${esc(ord.unita||'—')}</div>
+      </div>
+      ${famNoteHtml}${bodyHtml}${notaHtml}
+    </div>`;
+  }
+
+  const senzaHtml = famiglieSenzaOrdine.length ? `<div class="print-senza">
+    <div class="print-senza-title">⚠ Senza ordine</div>
+    <div class="print-senza-list">${famiglieSenzaOrdine.map(f=>`${esc(f.nome)} · ${esc(f.unita||'—')}`).join(' &nbsp;|&nbsp; ')}</div>
+  </div>` : '';
+
+  const headerHtml = `
+    <div class="page-header">
+      <strong>Garden River &mdash; ${pastoLabel}</strong>
+      <span>${dtLabel.charAt(0).toUpperCase()+dtLabel.slice(1)}</span>
+    </div>`;
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>Report ${pastoLabel} — ${targetDate}</title>
+  <style>
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    @page{size:A4;margin:12mm 14mm}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;color:#111;margin:0;background:#fff}
+    /* Header ripetuto */
+    .page-header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2.5px solid #111;padding-bottom:6px;margin-bottom:14px;font-size:13px}
+    .page-header strong{font-size:18px;font-weight:800;letter-spacing:-.3px}
+    /* Pagina 1 — Riepilogo */
+    .page{padding:0;page-break-after:always}
+    .page:last-child{page-break-after:auto}
+    .section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:10px}
+    .print-riepilogo{background:#f8f8f8;border:1.5px solid #e0e0e0;border-radius:6px;padding:12px 16px}
+    .riepilogo-cat{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#555;margin:10px 0 4px;padding-bottom:3px;border-bottom:1px solid #ddd}
+    .riepilogo-cat:first-child{margin-top:0}
+    .print-riepilogo-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:4px 0;border-bottom:1px dotted #e0e0e0}
+    .print-riepilogo-row:last-child{border-bottom:none}
+    .print-riepilogo-row span:last-child{font-weight:800;background:#111;color:#fff;border-radius:3px;min-width:26px;text-align:center;padding:1px 5px;font-size:12px}
+    /* Senza ordine */
+    .print-senza{margin-top:16px;border:1.5px solid #F59E0B;border-radius:6px;padding:10px 14px;background:#FFFBEB}
+    .print-senza-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#B45309;margin-bottom:5px}
+    .print-senza-list{font-size:12px;color:#444;line-height:1.8}
+    /* Pagina 2 — Comande */
+    .print-comande{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .print-comanda{border:1.5px solid #111;border-radius:6px;overflow:hidden;break-inside:avoid}
+    .print-comanda-head{background:#111;color:#fff;padding:8px 12px}
+    .print-comanda-nome{font-size:13px;font-weight:800;letter-spacing:-.1px}
+    .print-comanda-unita{font-size:10px;opacity:.7;margin-top:1px}
+    .print-cat-label{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#888;padding:5px 12px 2px;background:#f5f5f5;border-top:1px solid #e8e8e8}
+    .print-dish-row{display:flex;align-items:center;gap:8px;padding:4px 12px;border-top:1px solid #eee}
+    .print-dish-qty{width:22px;height:22px;background:#111;color:#fff;border-radius:4px;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .print-dish-name{font-size:11px;flex:1;line-height:1.3}
+    .print-dish-check{width:16px;height:16px;border:1.5px solid #ccc;border-radius:2px;flex-shrink:0}
+    .print-nota{font-size:10px;font-style:italic;color:#777;padding:3px 12px 6px;border-top:1px solid #eee;background:#fffbf0}
+    .print-fam-note{font-size:10px;font-weight:700;color:#DC2626;background:#FEE2E2;padding:4px 12px;border-left:3px solid #EF4444}
+  </style></head><body>
+
+  <!-- PAGINA 1: RIEPILOGO -->
+  <div class="page">
+    ${headerHtml}
+    <div class="section-title">Riepilogo piatti</div>
+    <div class="print-riepilogo">
+      ${riepilogoHtml || '<div style="font-size:12px;color:#999">Nessun piatto ordinato</div>'}
+    </div>
+    ${senzaHtml}
+  </div>
+
+  <!-- PAGINA 2: COMANDE -->
+  <div class="page">
+    ${headerHtml}
+    <div class="section-title">Comande per famiglia</div>
+    <div class="print-comande">${comandeHtml || '<div style="font-size:12px;color:#999">Nessuna comanda</div>'}</div>
+  </div>
+
+  </body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `report-${pasto}-${targetDate}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function scaricaFoglioQR() {
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+  const famiglie = famiglieDocs.filter(f => f.codice);
+  if (!famiglie.length) { showToast('Nessuna famiglia con codice QR'); return; }
+
+  const cards = famiglie.map(f => {
+    const url = `${base}?f=${f.codice}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&color=1a5c32&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
+    return `
+      <div class="qr-card">
+        <div class="qr-istr">Scansiona il Qrcode<br>e compila il menù</div>
+        <img class="qr-img" src="${qrSrc}" alt="QR ${f.nome}" crossorigin="anonymous">
+        <div class="qr-nome">${f.nome}</div>
+      </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>Foglio QR — Garden River</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Montserrat',sans-serif;background:#fff;padding:16px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px 16px}
+    .qr-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px 8px;break-inside:avoid}
+    .qr-istr{font-size:13px;font-weight:800;color:#E07B39;text-transform:uppercase;letter-spacing:.03em;line-height:1.3;margin-bottom:10px}
+    .qr-img{width:100%;max-width:180px;height:auto;display:block}
+    .qr-nome{font-size:18px;font-weight:800;color:#1a5c32;margin-top:8px;letter-spacing:-.2px}
+    @media print{body{padding:4mm}@page{size:A4;margin:10mm}}
+  </style></head><body>
+  <div class="grid">${cards}</div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = 'qr-famiglie.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+}
+
+// ── MAPPA ORDINI CUCINA (per stampa) ────────────────────────────────────────
+const _kdsOrdiniMap = {};
+
+// ── STAMPANTE TERMICA EPSON ──────────────────────────────────────────────────
+
+function apriImpostazioniStampante() {
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.5.85';
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  document.getElementById('printer-ip-input').value = ip;
+  document.getElementById('printer-dev-input').value = dev;
+  document.getElementById('printer-test-result').textContent = '';
+  document.getElementById('modal-stampante').classList.remove('hidden');
+}
+
+function chiudiImpostazioniStampante() {
+  document.getElementById('modal-stampante').classList.add('hidden');
+}
+
+function salvaImpostazioniStampante() {
+  const ip = document.getElementById('printer-ip-input').value.trim();
+  const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
+  localStorage.setItem('epson_printer_ip', ip || '192.168.5.85');
+  localStorage.setItem('epson_printer_dev', dev);
+  aggiornaStatoStampante();
+  chiudiImpostazioniStampante();
+}
+
+function aggiornaStatoStampante() {
+  const ip = localStorage.getItem('epson_printer_ip');
+  const lbl = document.getElementById('printer-status-label');
+  if (lbl) lbl.textContent = ip ? `Stampante · ${ip}` : 'Stampante termica';
+}
+
+async function testStampante() {
+  const ip = document.getElementById('printer-ip-input').value.trim();
+  const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
+  const res = document.getElementById('printer-test-result');
+  if (!ip) { res.textContent = 'Inserisci prima un IP.'; res.style.color = '#ef4444'; return; }
+  res.textContent = 'Invio test…'; res.style.color = '#6b7280';
+  const xml = buildEposXml([
+    '<text>&#10;</text>',
+    '<text font="font_a" align="center" height="2" width="2">TEST OK</text>',
+    '<text>&#10;</text>',
+    '<text align="center">Stampante Epson collegata correttamente.</text>',
+    '<text>&#10;&#10;</text>',
+    '<cut type="feed"/>',
+  ], dev);
+  const ok = await inviaEpos(ip, xml);
+  res.textContent = ok ? '✓ Stampa di test inviata!' : '✗ Errore: stampante non raggiungibile. Verifica IP e che la webapp sia aperta via HTTP (non HTTPS).';
+  res.style.color = ok ? '#16a34a' : '#ef4444';
+}
+
+function buildEposXml(comandi, dev) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+<s:Body>
+<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
+${comandi.join('\n')}
+</epos-print>
+</s:Body>
+</s:Envelope>`;
+}
+
+async function inviaEpos(ip, xml) {
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`;
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
+      body: xml
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function stampaComanda(ord) {
+
+  const rawPiatti = ord.piatti || [];
+  const piattiArr = [];
+  if (Array.isArray(rawPiatti)) {
+    rawPiatti.forEach(p => {
+      if (!p || typeof p !== 'object') return;
+      const qty = Number(p.quantita);
+      if (!(qty > 0)) return;
+      piattiArr.push({ qty, piatto: p.piatto || p.menu_id, cat: p.categoria || 'Altro' });
+    });
+  } else if (rawPiatti && typeof rawPiatti === 'object') {
+    const _mById = {};
+    for (const m of (menuDocs || [])) _mById[m.id] = m;
+    Object.entries(rawPiatti).forEach(([k, v]) => {
+      if (typeof v === 'number') {
+        if (v <= 0) return;
+        piattiArr.push({ qty: v, piatto: _mById[k]?.piatto || k, cat: _mById[k]?.categoria || 'Altro' });
+      } else if (v && typeof v === 'object') {
+        const qty = Number(v.quantita);
+        if (!(qty > 0)) return;
+        piattiArr.push({ qty, piatto: v.piatto || k, cat: v.categoria || 'Altro' });
+      }
+    });
+  }
+
+  const cats = {};
+  for (const p of piattiArr) {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push(p);
+  }
+
+  const now = new Date();
+  const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
+  const righe = [
+    '<text font="font_a" align="center" height="2" width="2">COMANDA</text>',
+    '<text>&#10;</text>',
+    `<text align="center">${data}  ${ora}  ${cucinaPasto.toUpperCase()}</text>`,
+    '<text>&#10;</text>',
+    '<text>--------------------------------</text>',
+    '<text>&#10;</text>',
+    `<text font="font_a" height="2" width="2">${(ord.famiglia_nome || '—').substring(0, 20)}</text>`,
+    '<text>&#10;</text>',
+    ord.unita ? `<text>Alloggio: ${ord.unita}</text><text>&#10;</text>` : '',
+    '<text>&#10;</text>',
+    '<text>--------------------------------</text>',
+    '<text>&#10;</text>',
+  ];
+
+  const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
+  for (const cat of catOrder) {
+    righe.push(`<text font="font_b">${cat.toUpperCase()}</text><text>&#10;</text>`);
+    for (const p of cats[cat]) {
+      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${p.piatto.substring(0, 18)}</text><text>&#10;</text>`);
+    }
+    righe.push('<text>&#10;</text>');
+  }
+
+  if (ord.note_famiglia) {
+    righe.push('<text>--------------------------------</text><text>&#10;</text>');
+    righe.push(`<text>NOTE: ${ord.note_famiglia}</text><text>&#10;</text>`);
+  }
+
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  const ok = await inviaEpos(ip, xml);
+  if (!ok) alert('Errore invio stampa. Verifica che la stampante sia accesa e che la webapp sia aperta tramite http:// (non https://).');
+}
+
+function stampaComandaById(id) {
+  const ord = _kdsOrdiniMap[id];
+  if (!ord) { alert('Ordine non trovato.'); return; }
+  stampaComanda(ord);
+}
+
+window.addEventListener('firebase-ready', aggiornaStatoStampante);
 </script>
+
+<!-- MODAL STAMPANTE TERMICA -->
+<div id="modal-stampante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
+  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div style="font-size:17px;font-weight:800;color:var(--gray-900)">Stampante termica</div>
+      <button onclick="chiudiImpostazioniStampante()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray-400);line-height:1">×</button>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP stampante</div>
+    <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.100" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
+    <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
+    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
+      Apri la pagina staff tramite <strong>http://192.168.5.136:8080</strong> (avvia prima "Avvia Proxy Stampante.command" sul Mac).
+    </div>
+    <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
+      <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
