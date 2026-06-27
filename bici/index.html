@@ -746,7 +746,10 @@ function renderBikeBody(b) {
     '</div>';
   }
   if (stato === 'occupata') {
-    const r = calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
+    const usaFisso = b.costoPreselezionato != null;
+    const r = usaFisso
+      ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
+      : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
     if (editingBike[b.id]) {
       const e = editingTemp[b.id] || {};
       return '<div class="bike-body">'+
@@ -754,8 +757,22 @@ function renderBikeBody(b) {
         '<div style="margin-bottom:14px">'+
           '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
         '</div>'+
-        '<div style="margin-bottom:14px">'+
-          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="width:100%;height:48px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
+        '<div class="form-row-2">'+
+          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
+          '<input type="datetime-local" value="'+(e.rientroPrevistoTs||'')+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
+        '</div>'+
+        '<div class="bike-cost-row" style="margin-top:14px;margin-bottom:18px">'+
+          '<div>'+
+            '<div class="bike-cost-label">Costo concordato</div>'+
+            '<div style="display:flex;align-items:center;gap:6px">'+
+              '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
+                '<button onclick="stepCostoEdit(\''+b.id+'\',-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
+                '<input type="number" min="0" step="0.5" value="'+((e.costo||0).toFixed(2))+'" id="costo-edit-'+b.id+'" oninput="editingTemp[\''+b.id+'\'].costo=parseFloat(this.value)||0" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
+                '<button onclick="stepCostoEdit(\''+b.id+'\',0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
+              '</div>'+
+              '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
+            '</div>'+
+          '</div>'+
         '</div>'+
         '<div class="form-row-2" style="margin-bottom:0">'+
           '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
@@ -767,13 +784,13 @@ function renderBikeBody(b) {
       '<div class="bike-divider"></div>'+
       '<div class="bike-info-row">'+
         '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
-        '<div class="bike-info-col"><div class="bike-info-label">Orario attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
+        '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+(b.rientroPrevistoTs ? fmtTs(b.rientroPrevistoTs) : '—')+'</div></div>'+
       '</div>'+
       '<div class="bike-info-row">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div><div class="bike-sub">'+(b.clienteAlloggio||'')+'</div></div>'+
+        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div></div>'+
       '</div>'+
       '<div class="bike-cost-row">'+
-        '<div><div class="bike-cost-label">Costo calcolato</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
+        '<div><div class="bike-cost-label">'+(usaFisso?'Costo concordato':'Costo calcolato')+'</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
         '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
       '</div>'+
       '<div class="form-row-2" style="margin-bottom:0">'+
@@ -902,12 +919,18 @@ async function segnalaRitiro(id) {
   const t = formTemp[id] || { nome:'' };
   const nome = (t.nome || '').trim();
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
+  const r = calcolaSelezioneDurata(t);
+  const costoPreselezionato = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  const rientroPrevistoTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : new Date(Date.now() + r.ms).toISOString();
   const nowIso = new Date().toISOString();
-  // Aggiornamento ottimistico: si vede subito il cambio, poi si salva su Firestore
   b.stato = 'occupata';
   b.clienteNome = nome;
   b.ritiroTs = nowIso;
   b.ritiroOp = currentOperatore || 'Operatore';
+  b.costoPreselezionato = costoPreselezionato;
+  b.fasciaPreselezionata = r.fascia;
+  b.dettaglioPreselezionato = r.dettaglio;
+  b.rientroPrevistoTs = rientroPrevistoTs;
   delete formTemp[id];
   render();
   try {
@@ -916,6 +939,8 @@ async function segnalaRitiro(id) {
     await updateDoc(doc(db, 'bici', id), {
       stato: 'occupata', clienteNome: nome,
       ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
+      costoPreselezionato, fasciaPreselezionata: r.fascia,
+      dettaglioPreselezionato: r.dettaglio, rientroPrevistoTs,
     });
   } catch(e) {
     console.error('Errore segnalazione ritiro:', e);
@@ -926,9 +951,9 @@ async function segnalaRitiro(id) {
 function confermaRiscuoti(id) {
   const b = bikesMap[id];
   if (!b || b.stato !== 'occupata') return;
-  const r = calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
+  const costo = (b.costoPreselezionato != null) ? b.costoPreselezionato : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime()).costo;
   showModal(
-    'Riscuoti ' + r.costo.toFixed(2).replace('.',',') + '€',
+    'Riscuoti ' + costo.toFixed(2).replace('.',',') + '€',
     'Bici N°'+b.numero+' — '+(b.clienteNome||'')+'. Confermi di aver incassato il pagamento e di voler segnalare il rientro della bici?',
     'Riscuoti',
     () => riscuoti(id)
@@ -938,17 +963,21 @@ async function riscuoti(id) {
   const b = bikesMap[id];
   if (!b || b.stato !== 'occupata') return;
   const nowIso = new Date().toISOString();
-  const r = calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
+  const usaFisso = b.costoPreselezionato != null;
+  const r = usaFisso
+    ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
+    : calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
   const entry = {
-    clienteNome: b.clienteNome || '', clienteAlloggio: b.clienteAlloggio || '',
+    clienteNome: b.clienteNome || '',
     ritiroTs: b.ritiroTs, rientroTs: nowIso,
     fascia: r.fascia, dettaglio: r.dettaglio, costo: r.costo,
     opRitiro: b.ritiroOp || '', opRiscossione: currentOperatore || 'Operatore',
   };
   const newLog = [entry].concat(b.log || []).slice(0, 30);
-  // Aggiornamento ottimistico
   b.stato = 'libera';
-  b.clienteNome = null; b.clienteAlloggio = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.clienteNome = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.costoPreselezionato = null; b.fasciaPreselezionata = null;
+  b.dettaglioPreselezionato = null; b.rientroPrevistoTs = null;
   b.log = newLog;
   render();
   showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
@@ -956,7 +985,9 @@ async function riscuoti(id) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
-      stato: 'libera', clienteNome: null, clienteAlloggio: null, ritiroTs: null, ritiroOp: null, log: newLog,
+      stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
+      costoPreselezionato: null, fasciaPreselezionata: null,
+      dettaglioPreselezionato: null, rientroPrevistoTs: null, log: newLog,
     });
   } catch(e) {
     console.error('Errore riscossione:', e);
@@ -1097,10 +1128,10 @@ function attivaModificaBici(id) {
     const d = new Date(iso);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
+  const isPagata = effectiveStato(b) === 'occupata_pagata';
   editingTemp[id] = {
     nome: b.clienteNome || '',
-    alloggio: b.clienteAlloggio || '',
-    costo: b.costoAnticipato || 0,
+    costo: isPagata ? (b.costoAnticipato || 0) : (b.costoPreselezionato || 0),
     ritiroTs: toLocal(b.ritiroTs),
     rientroPrevistoTs: toLocal(b.rientroPrevistoTs),
   };
@@ -1129,11 +1160,14 @@ async function salvaDatiNoleggio(id) {
   if (effectiveStato(b) === 'occupata_pagata') {
     updates.costoAnticipato = e.costo || 0;
     b.costoAnticipato = e.costo || 0;
-    if (e.rientroPrevistoTs) {
-      const rientroIso = new Date(e.rientroPrevistoTs).toISOString();
-      updates.rientroPrevistoTs = rientroIso;
-      b.rientroPrevistoTs = rientroIso;
-    }
+  } else if (effectiveStato(b) === 'occupata') {
+    updates.costoPreselezionato = e.costo || 0;
+    b.costoPreselezionato = e.costo || 0;
+  }
+  if (e.rientroPrevistoTs) {
+    const rientroIso = new Date(e.rientroPrevistoTs).toISOString();
+    updates.rientroPrevistoTs = rientroIso;
+    b.rientroPrevistoTs = rientroIso;
   }
   delete editingBike[id];
   delete editingTemp[id];
