@@ -2095,17 +2095,49 @@ async function stampaComanda(ord) {
     return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
   }
 
+  // spezza il testo in righe senza tagliare le parole
+  function wordWrap(text, maxChars) {
+    const words = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      if (!cur) { cur = w; }
+      else if (cur.length + 1 + w.length <= maxChars) { cur += ' ' + w; }
+      else { lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
   // piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
   function rigaPiatto(nome, qty) {
     const nomeUp = nome.toUpperCase();
     const qtyStr = 'x' + qty;
+    const NL = `<text font="font_a" height="1" width="1">&#10;</text>`;
+    const riga = (t, alignR) => `<text font="font_a" height="2" width="2" align="${alignR ? 'right' : 'left'}">${escXml(t)}</text>${NL}`;
+
+    // caso semplice: tutto su una riga
     if (nomeUp.length + 1 + qtyStr.length <= W_WIDE) {
-      const spaces = W_WIDE - nomeUp.length - qtyStr.length;
-      return `<text font="font_a" height="2" width="2" align="left">${escXml(nomeUp + ' '.repeat(spaces) + qtyStr)}</text><text font="font_a" height="1" width="1">&#10;</text>`;
+      const sp = W_WIDE - nomeUp.length - qtyStr.length;
+      return riga(nomeUp + ' '.repeat(sp) + qtyStr, false);
     }
-    // nome lungo: qty sulla riga successiva allineato a destra, poi reset align
-    return `<text font="font_a" height="2" width="2" align="left">${escXml(nomeUp)}</text><text font="font_a" height="1" width="1">&#10;</text>` +
-           `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
+
+    // word-wrap del nome
+    const lines = wordWrap(nomeUp, W_WIDE);
+    let out = '';
+    const last = lines[lines.length - 1];
+
+    if (last.length + 1 + qtyStr.length <= W_WIDE) {
+      // qty si attacca all'ultima riga
+      for (let i = 0; i < lines.length - 1; i++) out += riga(lines[i], false);
+      const sp = W_WIDE - last.length - qtyStr.length;
+      out += riga(last + ' '.repeat(sp) + qtyStr, false);
+    } else {
+      // qty su riga separata a destra
+      for (const l of lines) out += riga(l, false);
+      out += `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
+    }
+    return out;
   }
 
   const righe = [];
