@@ -8,8 +8,6 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -2022,7 +2020,7 @@ ${comandi.join('\n')}
 }
 
 async function inviaEpos(ip, xml) {
-  const endpoint = `https://192.168.5.136:8765/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+  const endpoint = `https://192.168.5.85/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -2135,7 +2133,7 @@ window.addEventListener('firebase-ready', aggiornaStatoStampante);
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
     <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
-      Apri la pagina staff tramite <strong>http://192.168.5.136:8080</strong> (avvia prima "Avvia Proxy Stampante.command" sul Mac).
+      Stampante collegata direttamente via HTTPS — nessun proxy necessario. Assicurati di aver installato il certificato sul dispositivo.
     </div>
     <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
     <div style="display:flex;gap:10px">
