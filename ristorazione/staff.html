@@ -2079,13 +2079,20 @@ async function stampaComanda(ord) {
   const W_NORM = 42;
   const W_WIDE = 21;
 
-  // banda nera (reverse) a larghezza piena, font normale
+  // banda nera (reverse) a larghezza piena con reset automatico dello stato
   function banda(testo, wide) {
     const W = wide ? W_WIDE : W_NORM;
-    const t = ' ' + testo;
-    const padded = escXml(t.padEnd(W));
-    if (wide) return `<text reverse="true" font="font_a" height="2" width="2" align="center">${padded}</text><text reverse="true">&#10;</text>`;
-    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="true">&#10;</text>`;
+    let padded;
+    if (wide) {
+      // centra manualmente con spazi
+      const inner = ' ' + testo + ' ';
+      const lp = Math.max(0, Math.floor((W - inner.length) / 2));
+      const rp = Math.max(0, W - inner.length - lp);
+      padded = escXml(' '.repeat(lp) + inner + ' '.repeat(rp));
+      return `<text reverse="true" font="font_a" height="2" width="2">${padded}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`;
+    }
+    padded = escXml((' ' + testo).padEnd(W));
+    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
   }
 
   // piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
@@ -2094,11 +2101,11 @@ async function stampaComanda(ord) {
     const qtyStr = 'x' + qty;
     if (nomeUp.length + 1 + qtyStr.length <= W_WIDE) {
       const spaces = W_WIDE - nomeUp.length - qtyStr.length;
-      return `<text font="font_a" height="2" width="2">${escXml(nomeUp + ' '.repeat(spaces) + qtyStr)}</text><text>&#10;</text>`;
+      return `<text font="font_a" height="2" width="2" align="left">${escXml(nomeUp + ' '.repeat(spaces) + qtyStr)}</text><text font="font_a" height="1" width="1">&#10;</text>`;
     }
-    // nome lungo: stampa nome poi qty allineato a destra
-    return `<text font="font_a" height="2" width="2">${escXml(nomeUp)}</text><text>&#10;</text>` +
-           `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text>&#10;</text>`;
+    // nome lungo: qty sulla riga successiva allineato a destra, poi reset align
+    return `<text font="font_a" height="2" width="2" align="left">${escXml(nomeUp)}</text><text font="font_a" height="1" width="1">&#10;</text>` +
+           `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
   }
 
   const righe = [];
