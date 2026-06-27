@@ -2110,7 +2110,7 @@ async function stampaComanda(ord) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
-  const { ok, err } = await inviaEpos(ip, xml);
+  const { ok, err } = await inviaEpos(null, xml);
   if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
