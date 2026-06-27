@@ -2073,7 +2073,8 @@ async function stampaComanda(ord) {
 
   const now = new Date();
   const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  const dataOrdine = ord.data ? new Date(ord.data + 'T12:00:00') : now;
+  const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
   // larghezze colonne in caratteri: font_a normale = 42, double-width = 21
   const W_NORM = 42;
