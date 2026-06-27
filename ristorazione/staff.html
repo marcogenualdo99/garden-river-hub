@@ -222,6 +222,9 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .date-pill.active .date-pill-num{color:#fff}
 .date-pill.today .date-pill-num{color:var(--green-700)}
 .date-pill.active.today .date-pill-num{color:#fff}
+.ciclo-pill{min-width:36px;padding:5px 6px}
+.ciclo-pill .date-pill-num{font-size:14px;margin-top:1px}
+.ciclo-pill .date-pill-day{font-size:9px}
 
 .menu-block{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
 .menu-block-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100)}
@@ -420,11 +423,20 @@ input[type="date"].finput{font-size:13px}
 
   <!-- MENU -->
   <div class="sec" id="sec-menu">
-    <div id="ciclo-config" style="background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:10px">Inizio ciclo bisettimanale</div>
-      <input id="ciclo-start-menu" type="date" style="display:block;width:100%;height:48px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 14px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box;margin-bottom:10px">
-      <button class="btn-add" style="width:100%;height:48px;font-size:15px;margin:0;border-radius:10px" onclick="salvaCicloStart()">Salva inizio ciclo</button>
-      <div id="ciclo-status-menu" style="font-size:12px;color:var(--green-700);margin-top:8px;font-weight:600"></div>
+    <div id="ciclo-config" style="margin-bottom:12px">
+      <!-- Riga compatta (sempre visibile) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f0f4f0;border-radius:8px">
+        <div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)">Ciclo menu · </span>
+          <span id="ciclo-status-menu" style="font-size:12px;font-weight:700;color:var(--green-700)">Non impostato</span>
+        </div>
+        <button onclick="toggleCicloEdit()" style="font-size:12px;font-weight:700;color:var(--green-700);background:none;border:none;cursor:pointer;padding:4px 0">Modifica</button>
+      </div>
+      <!-- Form espandibile -->
+      <div id="ciclo-edit-form" style="display:none;margin-top:8px;background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:12px">
+        <input id="ciclo-start-menu" type="date" style="display:block;width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box;margin-bottom:8px">
+        <button class="btn-add" style="width:100%;height:44px;font-size:14px;margin:0;border-radius:8px" onclick="salvaCicloStart()">Salva</button>
+      </div>
     </div>
     <div id="ciclo-strip"></div>
     <div class="seg-row" style="margin-top:8px">
@@ -1261,7 +1273,7 @@ async function loadImpostazioni() {
     if (snap.exists()) {
       cicloStart = snap.data().ciclo_start || null;
       if (cicloStart) {
-        const label = `Ciclo attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+        const label = `Attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
         ['ciclo-start-input','ciclo-start-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.value=cicloStart; });
         ['ciclo-status','ciclo-status-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=label; });
         menuGiorno = getGiornoCiclo(isoToday(0));
@@ -1290,12 +1302,12 @@ function buildCicloStrip() {
   const start = new Date(cicloStart + 'T12:00:00');
   let html = '<div style="margin-bottom:12px">';
   for (let sett = 0; sett < 2; sett++) {
-    html += `<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Settimana ${sett+1}</div><div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    html += `<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Settimana ${sett+1}</div><div style="display:flex;gap:4px;flex-wrap:wrap">`;
     for (let gg = 0; gg < 7; gg++) {
       const giorno = sett * 7 + gg + 1;
       const d = new Date(start); d.setDate(d.getDate() + sett * 7 + gg);
       const dow = nomiGiorni[(d.getDay() + 6) % 7];
-      html += `<div class="date-pill ciclo-pill${giorno===menuGiorno?' active':''}" onclick="setMenuGiorno(${giorno})" style="min-width:42px">
+      html += `<div class="date-pill ciclo-pill${giorno===menuGiorno?' active':''}" onclick="setMenuGiorno(${giorno})">
         <div class="date-pill-day">${dow}</div>
         <div class="date-pill-num">${giorno}</div>
       </div>`;
@@ -1304,6 +1316,11 @@ function buildCicloStrip() {
   }
   html += '</div>';
   el.innerHTML = html;
+}
+
+function toggleCicloEdit() {
+  const form = document.getElementById('ciclo-edit-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }
 
 function setMenuGiorno(g) {
@@ -1327,10 +1344,13 @@ async function salvaCicloStart() {
     ['ciclo-start-input','ciclo-start-menu'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = val;
     });
+    const label = new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
     ['ciclo-status','ciclo-status-menu'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.textContent = `Ciclo attivo dal ${new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+      if (el) el.textContent = `Attivo dal ${label}`;
     });
+    const form = document.getElementById('ciclo-edit-form');
+    if (form) form.style.display = 'none';
     buildCicloStrip();
     renderMenu();
     showToast('Ciclo salvato');
@@ -1932,4 +1952,3 @@ function scaricaFoglioQR() {
 </script>
 </body>
 </html>
-
