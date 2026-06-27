@@ -420,6 +420,14 @@ input[type="date"].finput{font-size:13px}
 
   <!-- MENU -->
   <div class="sec" id="sec-menu">
+    <div id="ciclo-config" style="background:#f8f8f8;border:1px solid var(--gray-200);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Inizio ciclo bisettimanale</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="finput" id="ciclo-start-menu" type="date" style="flex:1;height:40px;font-size:13px">
+        <button class="btn-add" style="height:40px;padding:0 16px;font-size:13px;white-space:nowrap;margin:0" onclick="salvaCicloStart()">Salva</button>
+      </div>
+      <div id="ciclo-status-menu" style="font-size:11px;color:var(--green-700);margin-top:6px;font-weight:600"></div>
+    </div>
     <div id="ciclo-strip"></div>
     <div class="seg-row" style="margin-top:8px">
       <button class="seg-btn active" id="seg-pranzo-m" onclick="setMenuPasto('pranzo')">Pranzo</button>
@@ -1264,8 +1272,9 @@ async function loadImpostazioni() {
     if (snap.exists()) {
       cicloStart = snap.data().ciclo_start || null;
       if (cicloStart) {
-        document.getElementById('ciclo-start-input').value = cicloStart;
-        document.getElementById('ciclo-status').textContent = `Ciclo attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+        const label = `Ciclo attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+        ['ciclo-start-input','ciclo-start-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.value=cicloStart; });
+        ['ciclo-status','ciclo-status-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=label; });
         menuGiorno = getGiornoCiclo(isoToday(0));
       }
     }
@@ -1317,36 +1326,26 @@ function setMenuGiorno(g) {
 }
 
 async function salvaCicloStart() {
-  const val = document.getElementById('ciclo-start-input').value;
-  if (!val) { showToast('Seleziona una data'); return; }
-  const { db, doc, setDoc, collection, getDocs, writeBatch } = window._fb;
-
-  // Migra i piatti esistenti che hanno ancora il campo "data"
-  const vecchi = menuDocs.filter(m => m.data && !m.giorno);
-  if (vecchi.length) {
-    const batch = writeBatch(db);
-    for (const m of vecchi) {
-      const giorno = (() => {
-        const start  = new Date(val + 'T12:00:00');
-        const target = new Date(m.data + 'T12:00:00');
-        const diff   = Math.round((target - start) / 86400000);
-        return ((diff % 14) + 14) % 14 + 1;
-      })();
-      const ref = doc(db, 'menu_ristorazione', m.id);
-      batch.update(ref, { giorno, data: null });
-      m.giorno = giorno;
-      delete m.data;
-    }
-    await batch.commit();
-  }
-
-  await setDoc(doc(db, 'impostazioni', 'ristorazione'), { ciclo_start: val }, { merge: true });
-  cicloStart = val;
-  menuGiorno = getGiornoCiclo(isoToday(0));
-  document.getElementById('ciclo-status').textContent = `Ciclo attivo dal ${new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
-  buildCicloStrip();
-  renderMenu();
-  showToast(vecchi.length ? `Ciclo salvato · ${vecchi.length} piatti migrati` : 'Ciclo salvato');
+  const inp = document.getElementById('ciclo-start-input') || document.getElementById('ciclo-start-menu');
+  const val = inp ? inp.value : '';
+  if (!val) { showToast('Seleziona una data di inizio ciclo'); return; }
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db, 'impostazioni', 'ristorazione'), { ciclo_start: val }, { merge: true });
+    cicloStart = val;
+    menuGiorno = getGiornoCiclo(isoToday(0));
+    // Aggiorna tutti i riferimenti UI
+    ['ciclo-start-input','ciclo-start-menu'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = val;
+    });
+    ['ciclo-status','ciclo-status-menu'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `Ciclo attivo dal ${new Date(val+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+    });
+    buildCicloStrip();
+    renderMenu();
+    showToast('Ciclo salvato');
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 function renderMenu() {
