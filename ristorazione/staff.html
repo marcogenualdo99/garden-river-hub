@@ -418,6 +418,12 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
     </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;margin:4px 0 2px">
+      <button onclick="apriImpostazioniStampante()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--gray-500);font-family:var(--font);padding:4px 0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span id="printer-status-label">Stampante termica</span>
+      </button>
+    </div>
     <div id="cucina-body"></div>
   </div>
 
@@ -921,6 +927,7 @@ function startCucina() {
 }
 
 function renderCucina(ordini) {
+  for (const o of ordini) _kdsOrdiniMap[o.id] = o;
   const el = document.getElementById('cucina-body');
   if (!ordini.length) {
     el.innerHTML = '<div class="empty-state">Nessun ordine per questo pasto.</div>';
@@ -1038,6 +1045,7 @@ function renderCucina(ordini) {
         <div style="display:flex;align-items:center;gap:8px">
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
           <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+          <button class="kds-edit-btn" onclick="stampaComandaById('${ord.id}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
@@ -1949,6 +1957,191 @@ function scaricaFoglioQR() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
 }
+
+// ── MAPPA ORDINI CUCINA (per stampa) ────────────────────────────────────────
+const _kdsOrdiniMap = {};
+
+// ── STAMPANTE TERMICA EPSON ──────────────────────────────────────────────────
+
+function apriImpostazioniStampante() {
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.5.85';
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  document.getElementById('printer-ip-input').value = ip;
+  document.getElementById('printer-dev-input').value = dev;
+  document.getElementById('printer-test-result').textContent = '';
+  document.getElementById('modal-stampante').classList.remove('hidden');
+}
+
+function chiudiImpostazioniStampante() {
+  document.getElementById('modal-stampante').classList.add('hidden');
+}
+
+function salvaImpostazioniStampante() {
+  const ip = document.getElementById('printer-ip-input').value.trim();
+  const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
+  if (!ip) { alert('Inserisci l\'indirizzo IP della stampante.'); return; }
+  localStorage.setItem('epson_printer_ip', ip);
+  localStorage.setItem('epson_printer_dev', dev);
+  aggiornaStatoStampante();
+  chiudiImpostazioniStampante();
+}
+
+function aggiornaStatoStampante() {
+  const ip = localStorage.getItem('epson_printer_ip');
+  const lbl = document.getElementById('printer-status-label');
+  if (lbl) lbl.textContent = ip ? `Stampante · ${ip}` : 'Stampante termica';
+}
+
+async function testStampante() {
+  const ip = document.getElementById('printer-ip-input').value.trim();
+  const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
+  const res = document.getElementById('printer-test-result');
+  if (!ip) { res.textContent = 'Inserisci prima un IP.'; res.style.color = '#ef4444'; return; }
+  res.textContent = 'Invio test…'; res.style.color = '#6b7280';
+  const xml = buildEposXml([
+    '<text>&#10;</text>',
+    '<text font="font_a" align="center" height="2" width="2">TEST OK</text>',
+    '<text>&#10;</text>',
+    '<text align="center">Stampante Epson collegata correttamente.</text>',
+    '<text>&#10;&#10;</text>',
+    '<cut type="feed"/>',
+  ], dev);
+  const ok = await inviaEpos(ip, xml);
+  res.textContent = ok ? '✓ Stampa di test inviata!' : '✗ Errore: stampante non raggiungibile. Verifica IP e che la webapp sia aperta via HTTP (non HTTPS).';
+  res.style.color = ok ? '#16a34a' : '#ef4444';
+}
+
+function buildEposXml(comandi, dev) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+<s:Body>
+<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
+${comandi.join('\n')}
+</epos-print>
+</s:Body>
+</s:Envelope>`;
+}
+
+async function inviaEpos(ip, xml) {
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  try {
+    const r = await fetch(`http://${ip}/cgi-bin/epos/service.cgi?devid=${dev}&timeout=10000`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
+      body: xml
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function stampaComanda(ord) {
+  const ip = localStorage.getItem('epson_printer_ip');
+  if (!ip) {
+    alert('Configura prima la stampante termica: clicca "Stampante termica" in cima alla sezione Cucina.');
+    return;
+  }
+
+  const rawPiatti = ord.piatti || [];
+  const piattiArr = [];
+  if (Array.isArray(rawPiatti)) {
+    rawPiatti.forEach(p => {
+      if (!p || typeof p !== 'object') return;
+      const qty = Number(p.quantita);
+      if (!(qty > 0)) return;
+      piattiArr.push({ qty, piatto: p.piatto || p.menu_id, cat: p.categoria || 'Altro' });
+    });
+  } else if (rawPiatti && typeof rawPiatti === 'object') {
+    const _mById = {};
+    for (const m of (menuDocs || [])) _mById[m.id] = m;
+    Object.entries(rawPiatti).forEach(([k, v]) => {
+      if (typeof v === 'number') {
+        if (v <= 0) return;
+        piattiArr.push({ qty: v, piatto: _mById[k]?.piatto || k, cat: _mById[k]?.categoria || 'Altro' });
+      } else if (v && typeof v === 'object') {
+        const qty = Number(v.quantita);
+        if (!(qty > 0)) return;
+        piattiArr.push({ qty, piatto: v.piatto || k, cat: v.categoria || 'Altro' });
+      }
+    });
+  }
+
+  const cats = {};
+  for (const p of piattiArr) {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push(p);
+  }
+
+  const now = new Date();
+  const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
+  const righe = [
+    '<text font="font_a" align="center" height="2" width="2">COMANDA</text>',
+    '<text>&#10;</text>',
+    `<text align="center">${data}  ${ora}  ${cucinaPasto.toUpperCase()}</text>`,
+    '<text>&#10;</text>',
+    '<text>--------------------------------</text>',
+    '<text>&#10;</text>',
+    `<text font="font_a" height="2" width="2">${(ord.famiglia_nome || '—').substring(0, 20)}</text>`,
+    '<text>&#10;</text>',
+    ord.unita ? `<text>Alloggio: ${ord.unita}</text><text>&#10;</text>` : '',
+    '<text>&#10;</text>',
+    '<text>--------------------------------</text>',
+    '<text>&#10;</text>',
+  ];
+
+  const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
+  for (const cat of catOrder) {
+    righe.push(`<text font="font_b">${cat.toUpperCase()}</text><text>&#10;</text>`);
+    for (const p of cats[cat]) {
+      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${p.piatto.substring(0, 18)}</text><text>&#10;</text>`);
+    }
+    righe.push('<text>&#10;</text>');
+  }
+
+  if (ord.note_famiglia) {
+    righe.push('<text>--------------------------------</text><text>&#10;</text>');
+    righe.push(`<text>NOTE: ${ord.note_famiglia}</text><text>&#10;</text>`);
+  }
+
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  const ok = await inviaEpos(ip, xml);
+  if (!ok) alert('Errore invio stampa. Verifica che la stampante sia accesa e che la webapp sia aperta tramite http:// (non https://).');
+}
+
+function stampaComandaById(id) {
+  const ord = _kdsOrdiniMap[id];
+  if (!ord) { alert('Ordine non trovato.'); return; }
+  stampaComanda(ord);
+}
+
+window.addEventListener('firebase-ready', aggiornaStatoStampante);
 </script>
+
+<!-- MODAL STAMPANTE TERMICA -->
+<div id="modal-stampante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
+  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div style="font-size:17px;font-weight:800;color:var(--gray-900)">Stampante termica</div>
+      <button onclick="chiudiImpostazioniStampante()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray-400);line-height:1">×</button>
+    </div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP stampante</div>
+    <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.100" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
+    <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;font-size:12px;color:#92400e;margin-bottom:16px;line-height:1.5">
+      ⚠️ <strong>Nota:</strong> la comunicazione con la stampante richiede HTTP. Se accedi alla webapp tramite <strong>https://</strong>, la stampa verrà bloccata dal browser. Apri la webapp da <strong>http://</strong> nella rete locale oppure usa Chrome con il flag <em>allow mixed content</em>.
+    </div>
+    <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
+    <div style="display:flex;gap:10px">
+      <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
+      <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
