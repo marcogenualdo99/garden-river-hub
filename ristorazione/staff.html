@@ -2168,6 +2168,7 @@ async function stampaComanda(ord) {
     righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
       righe.push(rigaPiatto(p.piatto, p.qty));
+      righe.push('<text>&#10;</text>');
     }
     righe.push('<text>&#10;</text>');
   }
