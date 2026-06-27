@@ -1966,10 +1966,8 @@ const _kdsOrdiniMap = {};
 function apriImpostazioniStampante() {
   const ip = localStorage.getItem('epson_printer_ip') || '192.168.5.85';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
-  const proxy = localStorage.getItem('epson_proxy_host') || 'localhost';
   document.getElementById('printer-ip-input').value = ip;
   document.getElementById('printer-dev-input').value = dev;
-  document.getElementById('printer-proxy-input').value = proxy;
   document.getElementById('printer-test-result').textContent = '';
   document.getElementById('modal-stampante').classList.remove('hidden');
 }
@@ -1981,11 +1979,8 @@ function chiudiImpostazioniStampante() {
 function salvaImpostazioniStampante() {
   const ip = document.getElementById('printer-ip-input').value.trim();
   const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
-  const proxy = document.getElementById('printer-proxy-input').value.trim() || 'localhost';
-  if (!ip) { alert('Inserisci l\'indirizzo IP della stampante.'); return; }
-  localStorage.setItem('epson_printer_ip', ip);
+  localStorage.setItem('epson_printer_ip', ip || '192.168.5.85');
   localStorage.setItem('epson_printer_dev', dev);
-  localStorage.setItem('epson_proxy_host', proxy);
   aggiornaStatoStampante();
   chiudiImpostazioniStampante();
 }
@@ -2040,11 +2035,6 @@ async function inviaEpos(ip, xml) {
 }
 
 async function stampaComanda(ord) {
-  const ip = localStorage.getItem('epson_printer_ip');
-  if (!ip) {
-    alert('Configura prima la stampante termica: clicca "Stampante termica" in cima alla sezione Cucina.');
-    return;
-  }
 
   const rawPiatti = ord.piatti || [];
   const piattiArr = [];
