@@ -2075,33 +2075,70 @@ async function stampaComanda(ord) {
   const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
   const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
-  const righe = [
-    '<text font="font_a" align="center" height="2" width="2">COMANDA</text>',
-    '<text>&#10;</text>',
-    `<text align="center">${data}  ${ora}  ${cucinaPasto.toUpperCase()}</text>`,
-    '<text>&#10;</text>',
-    '<text>--------------------------------</text>',
-    '<text>&#10;</text>',
-    `<text font="font_a" height="2" width="2">${escXml((ord.famiglia_nome || '—').substring(0, 20))}</text>`,
-    '<text>&#10;</text>',
-    ord.unita ? `<text>Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>` : '',
-    '<text>&#10;</text>',
-    '<text>--------------------------------</text>',
-    '<text>&#10;</text>',
-  ];
+  // larghezze colonne in caratteri: font_a normale = 42, double-width = 21
+  const W_NORM = 42;
+  const W_WIDE = 21;
 
+  // banda nera (reverse) a larghezza piena, font normale
+  function banda(testo, wide) {
+    const W = wide ? W_WIDE : W_NORM;
+    const t = ' ' + testo;
+    const padded = escXml(t.padEnd(W));
+    if (wide) return `<text reverse="true" font="font_a" height="2" width="2" align="center">${padded}</text><text reverse="true">&#10;</text>`;
+    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="true">&#10;</text>`;
+  }
+
+  // piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
+  function rigaPiatto(nome, qty) {
+    const nomeUp = nome.toUpperCase();
+    const qtyStr = 'x' + qty;
+    if (nomeUp.length + 1 + qtyStr.length <= W_WIDE) {
+      const spaces = W_WIDE - nomeUp.length - qtyStr.length;
+      return `<text font="font_a" height="2" width="2">${escXml(nomeUp + ' '.repeat(spaces) + qtyStr)}</text><text>&#10;</text>`;
+    }
+    // nome lungo: stampa nome poi qty allineato a destra
+    return `<text font="font_a" height="2" width="2">${escXml(nomeUp)}</text><text>&#10;</text>` +
+           `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text>&#10;</text>`;
+  }
+
+  const righe = [];
+
+  // Intestazione
+  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(cucinaPasto.toUpperCase())}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Famiglia
+  righe.push(`<text font="font_a" em="true">Famiglia:</text><text>&#10;</text>`);
+  const nomeFam = (ord.famiglia_nome || '—').substring(0, W_WIDE);
+  righe.push(banda(nomeFam, true));
+  if (ord.unita) righe.push(`<text font="font_b"> Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Note famiglia
+  if (ord.note_famiglia) {
+    righe.push(banda('Note Famiglia:', false));
+    righe.push(`<text font="font_a"> ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
+    righe.push(`<text>- - - - - - - - - - - - - - - - - - - - -</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
+  }
+
+  // Piatti per categoria
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b">${escXml(cat.toUpperCase())}</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
-      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${escXml(p.piatto.substring(0, 18))}</text><text>&#10;</text>`);
+      righe.push(rigaPiatto(p.piatto, p.qty));
     }
     righe.push('<text>&#10;</text>');
   }
 
-  if (ord.note_famiglia) {
-    righe.push('<text>--------------------------------</text><text>&#10;</text>');
-    righe.push(`<text>NOTE: ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
+  // Note comanda
+  const noteComanda = ord.note_comanda || ord.note || '';
+  if (noteComanda) {
+    righe.push(banda('Note comanda:', false));
+    righe.push(`<text font="font_a" height="2" width="2"> ${escXml(noteComanda)}</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
   }
 
   righe.push('<text>&#10;&#10;</text>');
