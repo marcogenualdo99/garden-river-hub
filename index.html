@@ -563,6 +563,15 @@ const ICON_WRENCH = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor
   <path d="M62 32 L76 46"/>
 </svg>`;
 
+const ICON_SPIAGGIA = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M50 20 L50 72"/>
+  <path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/>
+  <path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/>
+  <path d="M30 72 Q50 64 70 72"/>
+  <path d="M20 82 L80 82"/>
+  <path d="M60 72 Q65 58 76 60 Q78 70 70 72"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -649,6 +658,18 @@ const MODULES = [
     sezioni: [
       { id: 'tickets',  nome: 'Segnala ticket' },
       { id: 'gestione', nome: 'Gestione ticket (cambia stato)' },
+    ],
+  },
+  {
+    id: 'spiaggia',
+    nome: 'Prenotazioni Spiaggia',
+    titolo: 'Spiaggia',
+    url: 'spiaggia/',
+    icon: ICON_SPIAGGIA,
+    tile: 'sky',
+    statKey: 'spiaggia',
+    sezioni: [
+      { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
     ],
   },
 ];
