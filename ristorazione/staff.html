@@ -405,8 +405,8 @@ input[type="date"].finput{font-size:13px}
     </div>
     <div id="report-body"></div>
     <div id="report-print-bar" style="display:none;margin-top:16px;display:flex;gap:10px">
-      <button class="btn-stampa" onclick="scaricaReport()">⬇ Scarica report</button>
-      <button class="btn-stampa" onclick="stampaReportTermica()">🖨 Stampa termica</button>
+      <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
+      <button class="btn-stampa" onclick="stampaReportTermica()">Stampa termica</button>
     </div>
   </div>
 
@@ -416,12 +416,6 @@ input[type="date"].finput{font-size:13px}
     <div class="seg-row" style="margin-top:-4px">
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:flex-end;margin:4px 0 2px">
-      <button onclick="apriImpostazioniStampante()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--gray-500);font-family:var(--font);padding:4px 0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        <span id="printer-status-label">Stampante termica</span>
-      </button>
     </div>
     <div id="cucina-body"></div>
   </div>
@@ -488,6 +482,22 @@ input[type="date"].finput{font-size:13px}
       <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ Scarica foglio QR</button>
     </div>
     <div id="famiglie-list"></div>
+
+    <div class="add-fam-card" style="margin-top:16px">
+      <h3>Stampante termica</h3>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP</div>
+      <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.5" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
+      <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:12px;line-height:1.6">
+        Stampante collegata direttamente via HTTPS. Assicurati di aver installato il certificato sul dispositivo.
+      </div>
+      <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
+      <div style="display:flex;gap:10px">
+        <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
+        <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -1727,6 +1737,11 @@ function openSettings() {
   document.getElementById('top-bar-main').style.display = 'none';
   document.getElementById('top-bar-settings').style.display = 'block';
   renderFamiglie();
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  document.getElementById('printer-ip-input').value = ip;
+  document.getElementById('printer-dev-input').value = dev;
+  document.getElementById('printer-test-result').textContent = '';
 }
 function closeSettings() {
   document.getElementById('main-view').classList.remove('hidden');
@@ -2044,16 +2059,12 @@ const _kdsOrdiniMap = {};
 // ── STAMPANTE TERMICA EPSON ──────────────────────────────────────────────────
 
 function apriImpostazioniStampante() {
+  openSettings();
   const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
   document.getElementById('printer-ip-input').value = ip;
   document.getElementById('printer-dev-input').value = dev;
   document.getElementById('printer-test-result').textContent = '';
-  document.getElementById('modal-stampante').classList.remove('hidden');
-}
-
-function chiudiImpostazioniStampante() {
-  document.getElementById('modal-stampante').classList.add('hidden');
 }
 
 function salvaImpostazioniStampante() {
@@ -2282,27 +2293,6 @@ function stampaComandaById(id) {
 window.addEventListener('firebase-ready', aggiornaStatoStampante);
 </script>
 
-<!-- MODAL STAMPANTE TERMICA -->
-<div id="modal-stampante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
-  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-sizing:border-box">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-      <div style="font-size:17px;font-weight:800;color:var(--gray-900)">Stampante termica</div>
-      <button onclick="chiudiImpostazioniStampante()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray-400);line-height:1">×</button>
-    </div>
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP stampante</div>
-    <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.100" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
-    <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
-    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
-      Stampante collegata direttamente via HTTPS — nessun proxy necessario. Assicurati di aver installato il certificato sul dispositivo.
-    </div>
-    <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
-    <div style="display:flex;gap:10px">
-      <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
-      <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
