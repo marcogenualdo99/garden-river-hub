@@ -1962,7 +1962,7 @@ const _kdsOrdiniMap = {};
 // ── STAMPANTE TERMICA EPSON ──────────────────────────────────────────────────
 
 function apriImpostazioniStampante() {
-  const ip = localStorage.getItem('epson_printer_ip') || '192.168.5.85';
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
   document.getElementById('printer-ip-input').value = ip;
   document.getElementById('printer-dev-input').value = dev;
@@ -1977,7 +1977,7 @@ function chiudiImpostazioniStampante() {
 function salvaImpostazioniStampante() {
   const ip = document.getElementById('printer-ip-input').value.trim();
   const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
-  localStorage.setItem('epson_printer_ip', ip || '192.168.5.85');
+  localStorage.setItem('epson_printer_ip', ip || '192.168.1.5');
   localStorage.setItem('epson_printer_dev', dev);
   aggiornaStatoStampante();
   chiudiImpostazioniStampante();
@@ -2020,7 +2020,8 @@ ${comandi.join('\n')}
 }
 
 async function inviaEpos(ip, xml) {
-  const endpoint = `https://192.168.5.85/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+  const printerIp = ip || localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const endpoint = `https://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
