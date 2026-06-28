@@ -1204,6 +1204,7 @@ async function resetComandaStaff() {
     await deleteDoc(doc(db, 'ordini_ristorazione', ordId));
     document.getElementById('modal-ordine-staff').classList.add('hidden');
     showToast('Comanda eliminata');
+    renderReport();
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
