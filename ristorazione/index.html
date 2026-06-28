@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, getDoc, query, where }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, query, where }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -33,7 +33,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fbRisto = { db, collection, doc, setDoc, getDocs, getDoc, query, where };
+  window._fbRisto = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, query, where };
   window._fbRistoReady = false;
 
   function segnalaPronto() {
@@ -432,7 +432,9 @@ function buildMealCard(data,tipo,piatti){
       <div id="piatti-${key}"></div>
       ${isLocked?'':'<div class="note-wrap"><input type="text" placeholder="Note (allergie, preferenze…)" value="'+esc(sel.note)+'" oninput="aggiornaNota(\''+key+'\',this.value)" autocomplete="off"></div>'}
     </div>
-    <div class="mp-lock-msg" id="mp-msg-${key}" style="display:${isMPLocked?'block':'none'}">Hai già scelto il ${oppTipo} — mezza pensione</div>`;
+    <div class="mp-lock-msg" id="mp-msg-${key}" style="display:${isMPLocked?'block':'none'}">Hai già scelto il ${oppTipo} — mezza pensione</div>
+    ${(isLocked && ordiniEsistenti[key] && !scaduto(data))?`<div style="padding:0 16px 16px"><button onclick="resetComanda('${data}','${tipo}')" style="width:100%;height:44px;background:#DC2626;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.02em">Annulla ordine</button></div>`:''}
+    `;
   const pDiv=card.querySelector(`#piatti-${key}`);
 
   // raggruppa per categoria
@@ -614,6 +616,19 @@ function changeGuests(delta){
 async function salvaMaxOspiti(val){
   try{ const {db,doc,setDoc}=window._fbRisto; await setDoc(doc(db,'famiglie_ristorazione',famiglia.id),{max_ospiti:val},{merge:true}); }
   catch(e){ console.error(e); }
+}
+
+async function resetComanda(data, tipo) {
+  if (!confirm(`Annullare l'ordine ${tipo} del ${data}?`)) return;
+  const { db, doc, deleteDoc } = window._fbRisto;
+  const docId = `${famiglia.id}_${data}_${tipo}`;
+  try {
+    await deleteDoc(doc(db, 'ordini_ristorazione', docId));
+    delete ordiniEsistenti[`${data}_${tipo}`];
+    selezioni[`${data}_${tipo}`] = { piatti: {}, note: '' };
+    showToast('Ordine annullato');
+    renderOrdini();
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 function resetAccesso(){ if(!confirm('Disconnettere questo dispositivo?'))return; localStorage.removeItem('gr_risto_codice'); location.reload(); }
