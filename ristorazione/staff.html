@@ -567,7 +567,10 @@ input[type="date"].finput{font-size:13px}
     <div class="modal-title" id="mos-title">Modifica ordine</div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px" id="mos-sub"></p>
     <div id="mos-body"></div>
-    <div class="mbtns" style="margin-top:18px">
+    <div style="margin-top:14px">
+      <button onclick="resetComandaStaff()" style="width:100%;height:44px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)">Reset comanda</button>
+    </div>
+    <div class="mbtns" style="margin-top:10px">
       <button class="mcancel" onclick="document.getElementById('modal-ordine-staff').classList.add('hidden')">Annulla</button>
       <button class="msave" onclick="salvaOrdineStaff()">Salva modifica</button>
     </div>
@@ -1190,6 +1193,18 @@ function mosStep(menuId, cat, delta) {
   _mosData.selezioni[menuId] = cur + delta;
   const el = document.getElementById(`mosv-${menuId}`);
   if (el) el.textContent = _mosData.selezioni[menuId];
+}
+
+async function resetComandaStaff() {
+  if (!_mosData) return;
+  if (!confirm(`Eliminare la comanda ${_mosData.tipo} di ${_mosData.famNome}?`)) return;
+  const { db, doc, deleteDoc } = window._fb;
+  const ordId = `${_mosData.famId}_${_mosData.data}_${_mosData.tipo}`;
+  try {
+    await deleteDoc(doc(db, 'ordini_ristorazione', ordId));
+    document.getElementById('modal-ordine-staff').classList.add('hidden');
+    showToast('Comanda eliminata');
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 async function salvaOrdineStaff() {
