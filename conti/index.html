@@ -413,23 +413,32 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
-      <button class="hbtn ghost" onclick="stampaRiepilogoConti()" id="btn-stampa-riepilogo" title="Stampa tutti i conti aperti (PDF)" style="font-size:12px;gap:5px;display:flex;align-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Riepilogo
-      </button>
-      <button class="hbtn ghost" onclick="stampaRiepilogoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa riepilogo su stampante termica" style="font-size:12px;gap:5px;display:flex;align-items:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Termica
-      </button>
+      <div style="position:relative" id="stampa-menu-wrap">
+        <button class="hbtn ghost" onclick="toggleStampaMenu()" title="Stampa riepilogo conti" style="font-size:12px;gap:5px;display:flex;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Stampa ▾
+        </button>
+        <div id="stampa-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1.5px solid var(--gray-200);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;min-width:180px;overflow:hidden">
+          <button onclick="stampaRiepilogoConti();toggleStampaMenu()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:10px;color:var(--gray-700)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            PDF / Condividi
+          </button>
+          <div style="height:1px;background:var(--gray-100)"></div>
+          <button onclick="stampaRiepilogoTermica().catch(e=>alert('Errore JS: '+e.message));toggleStampaMenu()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:10px;color:var(--gray-700)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V3H8v4"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+            Termica
+          </button>
+        </div>
+      </div>
       <button class="hbtn ghost icon" onclick="switchTab('setup')" id="btn-setup" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+      <div id="sync-status" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
         <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
         <span id="sync-label" style="display:none"></span>
       </div>
-      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora" id="btn-refresh">&#8635;</button>
     </div>
   </div>
   <div class="nav-wrap">
@@ -520,8 +529,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="back-title" id="det-nome">—</div>
         <div class="back-sub"   id="det-sub">—</div>
       </div>
-      <button class="back-btn" id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica">&#9998;</button>
-      <button class="back-btn" onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="font-size:16px">&#128438;</button>
+      <button id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--gray-100);border:none;border-radius:12px;padding:6px 10px;cursor:pointer;font-family:var(--font)">
+        <span style="font-size:16px">&#9998;</span>
+        <span style="font-size:9px;font-weight:700;color:var(--gray-500);line-height:1">Modifica</span>
+      </button>
+      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--gray-100);border:none;border-radius:12px;padding:6px 10px;cursor:pointer;font-family:var(--font)">
+        <span style="font-size:16px">&#128438;</span>
+        <span style="font-size:9px;font-weight:700;color:var(--gray-500);line-height:1">Stampa</span>
+      </button>
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
         <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
@@ -530,7 +545,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
       <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
-      <button class="btn-action ghost" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl)">Chiudi</button>
+      <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
     </div>
     <div id="ordini-list"></div>
   </div>
@@ -1052,6 +1067,21 @@ setTimeout(async () => {
   forceRefresh(true);
 }, 8000);
 setTimeout(hideLoadingScreen, 18000);
+
+function toggleStampaMenu() {
+  const dd = document.getElementById('stampa-dropdown');
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    const close = (e) => {
+      if (!document.getElementById('stampa-menu-wrap').contains(e.target)) {
+        dd.style.display = 'none';
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
 
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
