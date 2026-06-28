@@ -413,9 +413,13 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
-      <button class="hbtn ghost" onclick="stampaRiepilogoConti()" id="btn-stampa-riepilogo" title="Stampa tutti i conti aperti" style="font-size:12px;gap:5px;display:flex;align-items:center">
+      <button class="hbtn ghost" onclick="stampaRiepilogoConti()" id="btn-stampa-riepilogo" title="Stampa tutti i conti aperti (PDF)" style="font-size:12px;gap:5px;display:flex;align-items:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         Riepilogo
+      </button>
+      <button class="hbtn ghost" onclick="stampaRiepilogoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa riepilogo su stampante termica" style="font-size:12px;gap:5px;display:flex;align-items:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Termica
       </button>
       <button class="hbtn ghost icon" onclick="switchTab('setup')" id="btn-setup" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -536,6 +540,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
       <div><div class="back-title">Resoconto conto</div></div>
       <button onclick="stampaReport()" class="no-print" style="height:36px;padding:0 14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;font-family:var(--font)">Stampa / Condividi</button>
+      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" class="no-print" style="height:36px;padding:0 14px;background:var(--green-ok);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Stampa termica</button>
     </div>
     <div id="report-content"></div>
   </div>
@@ -1500,6 +1505,142 @@ function stampaRiepilogoConti() {
     a.href = url; a.download = 'riepilogo-conti-aperti.html';
     a.click(); URL.revokeObjectURL(url);
   }
+}
+
+// ── STAMPANTE TERMICA ─────────────────────────────────────────────────────────
+
+function escXmlConti(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+async function _inviaEposConti(xml) {
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const endpoint = `https://${ip}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
+      body: xml
+    });
+    if (!r.ok) return { ok: false, err: `HTTP ${r.status}` };
+    const text = await r.text();
+    return { ok: text.includes('success="true"'), err: (text.match(/code="([^"]*)"/) || [])[1] || '' };
+  } catch (e) { return { ok: false, err: e.message }; }
+}
+
+function _buildEposConti(comandi) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+<s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
+${comandi.filter(Boolean).join('\n')}
+</epos-print></s:Body></s:Envelope>`;
+}
+
+async function stampaContoTermica() {
+  const r = _buildReportData(currentOspiteId); if (!r) return;
+  const { tot, o } = r;
+  const miei = ordini.filter(x => x.ospiteId === o.id);
+  const now = new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  const W = 42;
+
+  function riga(desc, importo) {
+    const imp = fmt(importo);
+    const sp = Math.max(1, W - desc.length - imp.length);
+    return `<text font="font_b">${escXmlConti(desc + ' '.repeat(sp) + imp)}</text><text>&#10;</text>`;
+  }
+
+  const righe = [];
+  righe.push(`<text font="font_a" align="center" height="2" width="2">CONTO</text><text>&#10;</text>`);
+  righe.push(`<text align="center">Centro Vacanze Garden River</text><text>&#10;</text>`);
+  righe.push(`<text align="center">${escXmlConti(now)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  const nomeFam = `${o.cognome} ${o.nome}`;
+  const W2 = 21;
+  const inner = ' ' + nomeFam + ' ';
+  const lp = Math.max(0, Math.floor((W2 - inner.length) / 2));
+  const rp = Math.max(0, W2 - inner.length - lp);
+  righe.push(`<text reverse="true" font="font_a" height="2" width="2">${escXmlConti(' '.repeat(lp) + inner + ' '.repeat(rp))}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`);
+  righe.push(`<text align="center" font="font_b">${escXmlConti(o.alloggio || '')} · ${escXmlConti(pianoLabel(o.piano))}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const punto of PUNTI_RISTORO) {
+    const po = miei.filter(x => x.punto === punto);
+    if (!po.length) continue;
+    const ptot = po.reduce((s, x) => s + x.importo, 0);
+    const hdr = (' ' + punto.toUpperCase()).padEnd(W);
+    righe.push(`<text reverse="true" font="font_a" em="true" height="1" width="1">${escXmlConti(hdr)}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`);
+    for (const ord of po) {
+      const desc = fmtTs(ord.ts) + ' ' + (ord.desc || '');
+      const imp = fmt(ord.importo);
+      const sp = Math.max(1, W - desc.length - imp.length);
+      const line = desc.length + imp.length >= W
+        ? desc.substring(0, W - imp.length - 1) + ' ' + imp
+        : desc + ' '.repeat(sp) + imp;
+      righe.push(`<text font="font_b">${escXmlConti(line)}</text><text>&#10;</text>`);
+    }
+    righe.push(riga('Subtotale ' + punto, ptot));
+    righe.push('<text>&#10;</text>');
+  }
+
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  const totStr = fmt(tot);
+  const totLabel = 'TOTALE DA INCASSARE';
+  const totSp = Math.max(1, W - totLabel.length - totStr.length);
+  righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti(totLabel + ' '.repeat(totSp) + totStr)}</text><text>&#10;</text>`);
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+async function stampaRiepilogoTermica() {
+  const aperti = ospiti.filter(o => !o.chiuso).sort((a, b) =>
+    (a.cognome || '').localeCompare(b.cognome || '', 'it'));
+  if (!aperti.length) { alert('Nessun conto aperto.'); return; }
+  const W = 42;
+  const now = new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+
+  const righe = [];
+  righe.push(`<text font="font_a" align="center" height="2" width="2">RIEPILOGO CONTI</text><text>&#10;</text>`);
+  righe.push(`<text align="center">Garden River · ${escXmlConti(now)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const o of aperti) {
+    const miei = ordini.filter(x => x.ospiteId === o.id);
+    const tot = miei.reduce((s, x) => s + x.importo, 0);
+
+    const hdr = (' ' + `${o.cognome} ${o.nome}`).padEnd(W);
+    righe.push(`<text reverse="true" font="font_a" em="true" height="1" width="1">${escXmlConti(hdr)}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`);
+    righe.push(`<text font="font_b">${escXmlConti((o.alloggio || '—') + ' · ' + pianoLabel(o.piano))}</text><text>&#10;</text>`);
+
+    for (const punto of PUNTI_RISTORO) {
+      const po = miei.filter(x => x.punto === punto);
+      if (!po.length) continue;
+      const ptot = po.reduce((s, x) => s + x.importo, 0);
+      const ptotStr = fmt(ptot);
+      const sp = Math.max(1, W - punto.length - ptotStr.length);
+      righe.push(`<text font="font_b">${escXmlConti(punto + ' '.repeat(sp) + ptotStr)}</text><text>&#10;</text>`);
+    }
+
+    const totStr = fmt(tot);
+    const totSp = Math.max(1, W - 'Totale'.length - totStr.length);
+    righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti('Totale' + ' '.repeat(totSp) + totStr)}</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
+  }
+
+  const totGlobale = aperti.reduce((s, o) => s + totOspite(o.id), 0);
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  const glStr = fmt(totGlobale);
+  const glSp = Math.max(1, W - 'TOTALE GENERALE'.length - glStr.length);
+  righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti('TOTALE GENERALE' + ' '.repeat(glSp) + glStr)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 // ── NAVIGAZIONE ───────────────────────────────────────────────────────────────
