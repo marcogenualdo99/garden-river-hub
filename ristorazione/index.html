@@ -406,12 +406,11 @@ function buildMealCard(data,tipo,piatti){
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
-  // Blocca se: ordine già confermato, OPPURE la data è oggi o passata (scadenza entro le 23:00 del giorno prima)
+  // Blocca se: ordine già confermato, OPPURE la data è passata, OPPURE è oggi e sono già le 10:00
   const oraAttuale = new Date().getHours();
   function scaduto(iso) {
-    if (iso < OGGI) return true;                       // data passata
-    if (iso === OGGI) return true;                     // oggi: deadline era ieri alle 23
-    if (iso === DOMANI && oraAttuale >= 23) return true; // domani ma già passate le 23
+    if (iso < OGGI) return true;                          // data passata
+    if (iso === OGGI && oraAttuale >= 10) return true;    // oggi ma già passate le 10:00
     return false;
   }
   const isLocked = !!ordiniEsistenti[key] || scaduto(data);
@@ -580,7 +579,7 @@ async function salvaOrdini(){
       const [data,tipo]=key.split('_');
       // Salta slot già confermati o scaduti
       const _ora=new Date().getHours();
-      const _scaduto=data<DOMANI||(data===DOMANI&&_ora>=23);
+      const _scaduto=data<OGGI||(data===OGGI&&_ora>=10);
       if(ordiniEsistenti[key]||_scaduto) continue;
       // Salta pasto MP bloccato (l'altro pasto ha già quantità)
       if(famiglia.trattamento==='MP'){
