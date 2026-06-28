@@ -1940,7 +1940,7 @@ async function stampaReportTermica() {
 
   function banda(testo) {
     const padded = escXml((' ' + testo).padEnd(W_NORM));
-    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
+    return `<text reverse="true" font="font_a" em="true" height="1" width="1">${padded}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`;
   }
 
   // Ricostruisce byPiatto: menuId → [{nome, unita, qty, nota}]
