@@ -404,9 +404,9 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
     <div id="report-body"></div>
-    <div id="report-print-bar" style="display:none;margin-top:16px;display:flex;gap:10px">
+    <div id="report-print-bar" style="display:none;margin-top:16px;gap:10px">
       <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
-      <button class="btn-stampa" onclick="stampaReportTermica()">Stampa termica</button>
+      <button class="btn-stampa" onclick="stampaReportTermica().catch(e=>alert('Errore JS: '+e.message))">Stampa termica</button>
     </div>
   </div>
 
@@ -854,7 +854,7 @@ async function renderReport() {
 
   // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
   _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
-  document.getElementById('report-print-bar').style.display = 'block';
+  document.getElementById('report-print-bar').style.display = 'flex';
 }
 
 function toggleDetail(id) {
