@@ -529,13 +529,13 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="back-title" id="det-nome">—</div>
         <div class="back-sub"   id="det-sub">—</div>
       </div>
-      <button id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--gray-100);border:none;border-radius:12px;padding:6px 10px;cursor:pointer;font-family:var(--font)">
-        <span style="font-size:16px">&#9998;</span>
-        <span style="font-size:9px;font-weight:700;color:var(--gray-500);line-height:1">Modifica</span>
+      <button id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica" style="display:flex;align-items:center;gap:6px;background:var(--gray-100);border:none;border-radius:20px;padding:0 14px;height:36px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;color:var(--gray-700)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modifica
       </button>
-      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--gray-100);border:none;border-radius:12px;padding:6px 10px;cursor:pointer;font-family:var(--font)">
-        <span style="font-size:16px">&#128438;</span>
-        <span style="font-size:9px;font-weight:700;color:var(--gray-500);line-height:1">Stampa</span>
+      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="display:flex;align-items:center;gap:6px;background:var(--gray-100);border:none;border-radius:20px;padding:0 14px;height:36px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;color:var(--gray-700)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Stampa
       </button>
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
