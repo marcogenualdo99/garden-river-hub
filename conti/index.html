@@ -1535,7 +1535,7 @@ async function buildLogoEpos() {
     const img = new Image();
     img.onload = () => {
       try {
-        const paperW = 512;           // larghezza carta 80mm a 203dpi
+        const paperW = 576;           // larghezza stampabile carta 80mm a 203dpi (72mm * 203/25.4)
         const logoW = 320;             // larghezza logo
         const logoScale = logoW / img.naturalWidth;
         const logoH = Math.round(img.naturalHeight * logoScale);
