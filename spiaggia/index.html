@@ -257,9 +257,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .modal-btn-save    { flex: 2; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
 .modal-btn-save:active { opacity: .85; }
 .modal-btn-delete  { height: 48px; width: 48px; background: var(--red-bg); color: var(--red); border: none; border-radius: 50%; font-size: 16px; cursor: pointer; flex-shrink: 0; font-family: var(--font); }
-.color-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.color-opt { width: 28px; height: 28px; border-radius: 8px; cursor: pointer; border: 3px solid transparent; transition: border-color .15s, transform .15s; }
-.color-opt.selected { border-color: var(--gray-900); transform: scale(1.15); }
+.stato-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 14px; }
+.stato-opt { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: var(--radius-sm); border: 2px solid var(--gray-200); cursor: pointer; transition: border-color .15s, background .15s; font-size: 12px; font-weight: 700; color: var(--gray-700); }
+.stato-opt:hover { border-color: var(--gray-400); background: var(--gray-50); }
+.stato-opt.selected { border-color: var(--gray-900); background: var(--gray-100); color: var(--gray-900); }
+.stato-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+/* Row drop-target highlight durante drag verticale */
+.tl-row.drop-target { background: rgba(37,99,235,.08); outline: 2px dashed #2563EB; outline-offset: -2px; }
 
 /* ══ MODAL CONFERMA ELIMINA ═══════════════════════════════════════════════════ */
 .modal-confirm { position: fixed; inset: 0; z-index: 1010; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 24px; }
@@ -424,7 +428,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
     <div class="leg-item"><div class="leg-dot" style="background:#D97706"></div>Opzione</div>
     <div class="leg-item"><div class="leg-dot" style="background:#7C3AED"></div>VIP</div>
     <div class="leg-item"><div class="leg-dot" style="background:#059669"></div>Stagionale</div>
-    <div class="sync-hint">Doppio clic per modificare &middot; Trascina per spostare le date</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#DC2626"></div>Annullata</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#0891B2"></div>Gruppo</div>
+    <div class="sync-hint">Doppio clic per modificare &middot; Trascina per spostare date o ombrellone</div>
   </div>
 
   <!-- Timeline -->
@@ -462,8 +468,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
     <label class="form-label">Note</label>
     <textarea id="f-note" class="form-textarea" placeholder="Es. lettino extra, bambini, allergie…"></textarea>
 
-    <label class="form-label">Colore</label>
-    <div class="color-picker" id="color-picker"></div>
+    <label class="form-label">Stato prenotazione</label>
+    <div class="stato-grid" id="stato-grid"></div>
 
     <div class="conflict-msg" id="conflict-msg">⚠ Ombrellone già occupato in questo periodo</div>
 
@@ -510,18 +516,19 @@ const HUB_URL     = '../';
 const MODULE_ID   = 'spiaggia';
 const SECTION_IDS = ['spiaggia'];
 
-// ── COLORI PRENOTAZIONE ──────────────────────────────────────────────────────
-const COLORS = [
-  { id:'blue',   hex:'#2563EB', label:'Confermata' },
-  { id:'amber',  hex:'#D97706', label:'Opzione'    },
-  { id:'purple', hex:'#7C3AED', label:'VIP'        },
-  { id:'green',  hex:'#059669', label:'Stagionale' },
-  { id:'red',    hex:'#DC2626', label:'Annullata'  },
-  { id:'teal',   hex:'#0891B2', label:'Gruppo'     },
-  { id:'pink',   hex:'#DB2777', label:'Altro'      },
-  { id:'slate',  hex:'#475569', label:'Altro'      },
+// ── STATI PRENOTAZIONE (ogni stato ha colore fisso) ──────────────────────────
+const STATI = [
+  { id:'confermata', label:'Confermata', colore:'blue',   hex:'#2563EB' },
+  { id:'opzione',    label:'Opzione',    colore:'amber',  hex:'#D97706' },
+  { id:'vip',        label:'VIP',        colore:'purple', hex:'#7C3AED' },
+  { id:'stagionale', label:'Stagionale', colore:'green',  hex:'#059669' },
+  { id:'annullata',  label:'Annullata',  colore:'red',    hex:'#DC2626' },
+  { id:'gruppo',     label:'Gruppo',     colore:'teal',   hex:'#0891B2' },
 ];
-const colorHex = id => (COLORS.find(c=>c.id===id)||COLORS[0]).hex;
+const COLORS = STATI.map(s => ({ id: s.colore, hex: s.hex, label: s.label }));
+const colorHex   = colore => (STATI.find(s=>s.colore===colore)||STATI[0]).hex;
+const statoLabel = colore => (STATI.find(s=>s.colore===colore)||STATI[0]).label;
+const coloreFromStato = stato => (STATI.find(s=>s.id===stato)||STATI[0]).colore;
 
 const MONTHS = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const DOW    = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
@@ -542,9 +549,9 @@ let currentBeachId = '';
 let spiagge    = {};   // { [id]: { id, nome, zone:[{id,label,ombrelloni:[str]}] } }
 let prenotazioni = {}; // { [id]: { id, spiaggia_id, ombrellone, cliente, dal, al, note, colore, ... } }
 
-let editingId   = null;
-let selectedColor = 'blue';
-let dragState   = null;
+let editingId    = null;
+let selectedStato = 'confermata';
+let dragState    = null;
 let _unsubSpiagge = null, _unsubPren = null;
 let _fbReady = false, _dataReady = false, _authDone = false;
 
@@ -769,6 +776,11 @@ function renderTimeline() {
 }
 
 function placeBookingBlock(rowEl, b, y, m, days) {
+  // Verifica che la prenotazione si sovrapponga al mese visualizzato
+  const mStart   = toIso(y, m, 1);
+  const mEndExcl = m === 11 ? `${y+1}-01-01` : toIso(y, m+1, 1);
+  if (b.al <= mStart || b.dal >= mEndExcl) return;
+
   const {y:dy,m:dm,d:dd} = fromIso(b.dal);
   const {y:ay,m:am,d:ad} = fromIso(b.al);
   const startD = Math.max(1, (dy===y && dm===m) ? dd : 1);
@@ -791,57 +803,83 @@ function placeBookingBlock(rowEl, b, y, m, days) {
   `;
   el.title = `${b.cliente} · ${fmtDate(b.dal)} → ${fmtDate(b.al)}${b.note ? '\n'+b.note : ''}`;
 
-  setupDrag(el, b, y, m, days);
+  setupDrag(el, b);
   el.addEventListener('dblclick', e => { if (e.target.classList.contains('b-print')) return; openModal(b); });
 
   rowEl.appendChild(el);
 }
 
-// ── DRAG & DROP ───────────────────────────────────────────────────────────────
-function setupDrag(el, b, y, m, days) {
-  let startX, startLeft;
+// ── DRAG & DROP (orizzontale = date, verticale = ombrellone) ─────────────────
+function setupDrag(el, b) {
   el.addEventListener('mousedown', e => {
     if (e.target.classList.contains('b-print')) return;
     e.stopPropagation();
-    startX    = e.clientX;
-    startLeft = parseInt(el.style.left);
+
+    const startX    = e.clientX;
+    const startY    = e.clientY;
+    const startLeft = parseInt(el.style.left);
     el.classList.add('dragging');
-    dragState = { b, el, startX, startLeft, dCols: 0 };
+
+    // Raccoglie tutte le righe ombrellone con le loro posizioni
+    const allRowEls = Array.from(document.querySelectorAll('#tl-outer .tl-row[data-row]'));
+    const rowRects  = allRowEls.map(r => ({ el: r, id: r.dataset.row, rect: r.getBoundingClientRect() }));
+    let targetRowId = b.ombrellone;
+    let lastHighlight = null;
+
+    dragState = { b, el, dCols: 0, targetRowId };
 
     const onMove = mv => {
       const dx = mv.clientX - startX;
       dragState.dCols = Math.round(dx / COL_W);
       el.style.left = (startLeft + dragState.dCols * COL_W) + 'px';
+
+      // Trova la riga sotto il cursore in base alla posizione Y
+      const hit = rowRects.find(r => mv.clientY >= r.rect.top && mv.clientY <= r.rect.bottom);
+      const newRowId = hit ? hit.id : targetRowId;
+      if (newRowId !== dragState.targetRowId) {
+        dragState.targetRowId = newRowId;
+        // Aggiorna highlight drop-target
+        if (lastHighlight) lastHighlight.classList.remove('drop-target');
+        if (hit) { hit.el.classList.add('drop-target'); lastHighlight = hit.el; }
+      }
     };
+
     const onUp = async () => {
       el.classList.remove('dragging');
-      const dc = dragState ? dragState.dCols : 0;
+      if (lastHighlight) lastHighlight.classList.remove('drop-target');
+      const { dCols, targetRowId: newOmbr } = dragState;
       dragState = null;
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
 
-      if (!dc) return;
+      const dateChanged = dCols !== 0;
+      const rowChanged  = newOmbr !== b.ombrellone;
+      if (!dateChanged && !rowChanged) return;
+
+      const fmt = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
       const {y:dy,m:dm,d:dd} = fromIso(b.dal);
       const {y:ay,m:am,d:ad} = fromIso(b.al);
-      const nd = new Date(dy,dm,dd+dc), na = new Date(ay,am,ad+dc);
-      const fmt = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-      const newDal = fmt(nd), newAl = fmt(na);
+      const newDal = dateChanged ? fmt(new Date(dy,dm,dd+dCols)) : b.dal;
+      const newAl  = dateChanged ? fmt(new Date(ay,am,ad+dCols)) : b.al;
 
-      if (hasConflict(b.ombrellone, newDal, newAl, b.id)) {
-        showToast('⚠ Conflitto: ombrellone già occupato in quel periodo'); renderTimeline(); return;
+      if (hasConflict(newOmbr, newDal, newAl, b.id)) {
+        showToast('⚠ Conflitto: ombrellone già occupato in quel periodo');
+        renderTimeline(); return;
       }
+
       // Aggiornamento ottimistico
-      b.dal = newDal; b.al = newAl;
+      b.dal = newDal; b.al = newAl; b.ombrellone = newOmbr;
       renderTimeline(); renderStats();
       try {
         setSyncStatus('saving');
         await waitForFirebase();
         const { db, doc, updateDoc } = window._fb;
-        await updateDoc(doc(db, 'beach_prenotazioni', b.id), { dal: newDal, al: newAl });
+        await updateDoc(doc(db, 'beach_prenotazioni', b.id), { dal: newDal, al: newAl, ombrellone: newOmbr });
         setSyncStatus('live');
-        showToast(`✓ ${b.cliente} spostato → ${fmtDate(newDal)}`);
-      } catch(e) { console.error(e); showToast('Errore di salvataggio'); setSyncStatus('error'); }
+        showToast(`✓ ${b.cliente} → ${newOmbr}${dateChanged ? ', '+fmtDate(newDal) : ''}`);
+      } catch(err) { console.error(err); showToast('Errore di salvataggio'); setSyncStatus('error'); }
     };
+
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup',   onUp);
   });
@@ -858,8 +896,8 @@ function openModal(b, defaultRow='', defaultDate='') {
   document.getElementById('conflict-msg').style.display = 'none';
   document.getElementById('modal-btn-delete').classList.toggle('hidden', !b);
 
-  selectedColor = b ? (b.colore || 'blue') : 'blue';
-  renderColorPicker();
+  selectedStato = b ? (b.stato || 'confermata') : 'confermata';
+  renderStatoPicker();
 
   // Popolamento select ombrelloni
   const sel = document.getElementById('f-ombrellone');
@@ -884,15 +922,15 @@ function openModal(b, defaultRow='', defaultDate='') {
 
 function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
-function renderColorPicker() {
-  const wrap = document.getElementById('color-picker');
-  wrap.innerHTML = COLORS.map(c =>
-    `<div class="color-opt${selectedColor===c.id?' selected':''}"
-      style="background:${c.hex}" title="${c.label}"
-      onclick="selectColor('${c.id}')"></div>`
+function renderStatoPicker() {
+  const wrap = document.getElementById('stato-grid');
+  wrap.innerHTML = STATI.map(s =>
+    `<div class="stato-opt${selectedStato===s.id?' selected':''}" onclick="selectStato('${s.id}')">
+      <div class="stato-dot" style="background:${s.hex}"></div>${s.label}
+    </div>`
   ).join('');
 }
-window.selectColor = function(id) { selectedColor = id; renderColorPicker(); };
+window.selectStato = function(id) { selectedStato = id; renderStatoPicker(); };
 
 async function saveBooking() {
   const cliente  = document.getElementById('f-cliente').value.trim();
@@ -906,7 +944,8 @@ async function saveBooking() {
     document.getElementById('conflict-msg').style.display = 'block'; return;
   }
 
-  const data = { spiaggia_id: currentBeachId, ombrellone, cliente, dal, al, note, colore: selectedColor, operatore: currentOperatore||'Operatore', updatedAt: new Date().toISOString() };
+  const colore = coloreFromStato(selectedStato);
+  const data = { spiaggia_id: currentBeachId, ombrellone, cliente, dal, al, note, stato: selectedStato, colore, operatore: currentOperatore||'Operatore', updatedAt: new Date().toISOString() };
 
   try {
     setSyncStatus('saving');
@@ -954,12 +993,16 @@ function closeConfirm() { document.getElementById('modal-confirm').classList.add
 function buildTicketHTML(b) {
   const s = spiagge[b.spiaggia_id];
   const n = nights(b.dal, b.al);
+  const st = STATI.find(x => x.id === (b.stato||'confermata')) || STATI[0];
   return `
     <div class="ticket-card">
-      <div class="ticket-badge">${s ? s.nome : b.spiaggia_id}</div>
-      <div class="ticket-id">#${b.id.slice(-4).toUpperCase()}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${st.hex};flex-shrink:0"></div>
+        <span class="ticket-badge" style="margin-bottom:0">${st.label}</span>
+        <span class="ticket-id" style="position:static;margin-left:auto">#${b.id.slice(-4).toUpperCase()}</span>
+      </div>
       <div class="ticket-name">${b.cliente}</div>
-      <div class="ticket-ombr">☂ ${b.ombrellone}</div>
+      <div class="ticket-ombr">☂ ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
       <div class="ticket-dates">
         <span>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></span>
         <span>◀ Partenza: <strong>${fmtDate(b.al)}</strong></span>
@@ -975,51 +1018,73 @@ function openPrintPanel() {
   const s = currentSpiaggia();
   document.getElementById('pp-title').textContent = `Tagliandini — ${s ? s.nome : ''}`;
   document.getElementById('pp-sub').textContent   = `${MONTHS[currentMonth]} ${currentYear} · ${list.length} prenotazion${list.length===1?'e':'i'}`;
-  document.getElementById('pp-grid').innerHTML = list.length ? list.map(buildTicketHTML).join('') : '<div style="grid-column:span 2;text-align:center;padding:30px;color:var(--gray-500);font-size:14px">Nessuna prenotazione per questa spiaggia</div>';
+  document.getElementById('pp-grid').innerHTML = list.length
+    ? list.map(buildTicketHTML).join('')
+    : '<div style="grid-column:span 2;text-align:center;padding:30px;color:var(--gray-500);font-size:14px">Nessuna prenotazione per questa spiaggia</div>';
   document.getElementById('print-overlay').classList.remove('hidden');
 }
 function closePrintPanel() { document.getElementById('print-overlay').classList.add('hidden'); }
 
-window.printSingle = function(id) {
-  const b = prenotazioni[id]; if (!b) return;
+function ticketPrintBody(b) {
   const s = spiagge[b.spiaggia_id];
   const n = nights(b.dal, b.al);
-  const w = window.open('','_blank','width=420,height=320');
-  w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Tagliandino</title>
-  <style>
-    body{font-family:Arial,sans-serif;padding:20px;font-size:13px;color:#111}
-    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-    .badge{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;background:#EFF6FF;color:#1D4ED8;padding:3px 8px;border-radius:5px}
-    .id{font-size:10px;color:#999;font-weight:700}
-    h2{font-size:18px;font-weight:800;margin:0 0 3px}
-    .ombr{font-size:12px;color:#555;margin-bottom:10px}
-    .dates{border-top:1px dashed #ddd;padding-top:8px;display:flex;flex-direction:column;gap:3px}
-    .dates span{font-size:12px;color:#333;display:flex;gap:8px}
-    .dates strong{color:#111}
-    .note{font-size:10px;color:#888;font-style:italic;margin-top:8px}
-    .footer{margin-top:14px;text-align:center;font-size:10px;color:#bbb;border-top:1px dashed #eee;padding-top:8px}
-    @media print{@page{margin:10mm}body{padding:5px}}
-  </style></head><body>
-  <div class="header">
-    <span class="badge">${s ? s.nome : b.spiaggia_id}</span>
-    <span class="id">#${b.id.slice(-4).toUpperCase()}</span>
-  </div>
-  <h2>${b.cliente}</h2>
-  <div class="ombr">☂ ${b.ombrellone}</div>
-  <div class="dates">
-    <span>▶ Arrivo:<strong>${fmtDate(b.dal)}</strong></span>
-    <span>◀ Partenza:<strong>${fmtDate(b.al)}</strong></span>
-    <span>⏱ ${n} nott${n===1?'e':'i'}</span>
-  </div>
-  ${b.note ? `<div class="note">📝 ${b.note}</div>` : ''}
-  <div class="footer">Garden River · ${s ? s.nome : ''} · ${b.ombrellone}</div>
-  <script>window.onload=function(){window.print();}<\/script>
-  </body></html>`);
+  const st = STATI.find(x => x.id === (b.stato||'confermata')) || STATI[0];
+  return `
+  <div class="ticket">
+    <div class="t-header">
+      <span class="t-stato" style="background:${st.hex}">${st.label}</span>
+      <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
+    </div>
+    <div class="t-name">${b.cliente}</div>
+    <div class="t-ombr">☂ ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
+    <div class="t-dates">
+      <div>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></div>
+      <div>◀ Partenza: <strong>${fmtDate(b.al)}</strong></div>
+      <div>⏱ ${n} nott${n===1?'e':'i'}</div>
+    </div>
+    ${b.note ? `<div class="t-note">📝 ${b.note}</div>` : ''}
+  </div>`;
+}
+
+window.printSingle = function(id) {
+  const b = prenotazioni[id]; if (!b) return;
+  const w = window.open('','_blank','width=440,height=340');
+  w.document.write(printPageHTML([b]));
   w.document.close();
 };
 
 function printAll() {
-  bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal)).forEach(b => printSingle(b.id));
+  const list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
+  if (!list.length) { showToast('Nessuna prenotazione da stampare'); return; }
+  const w = window.open('','_blank','width=860,height=640');
+  w.document.write(printPageHTML(list));
+  w.document.close();
+}
+
+function printPageHTML(list) {
+  const s = currentSpiaggia();
+  return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+  <title>Tagliandini · ${s ? s.nome : 'Spiaggia'}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:10px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .ticket{border:1.5px dashed #ccc;border-radius:8px;padding:10px;break-inside:avoid}
+    .t-header{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+    .t-stato{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;padding:2px 7px;border-radius:4px}
+    .t-id{margin-left:auto;font-size:10px;color:#999;font-weight:700}
+    .t-name{font-size:15px;font-weight:800;margin-bottom:2px}
+    .t-ombr{font-size:11px;color:#555;margin-bottom:6px}
+    .t-dates{border-top:1px dashed #e5e5e5;padding-top:5px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#333}
+    .t-dates strong{color:#111}
+    .t-note{font-size:9px;color:#888;font-style:italic;margin-top:5px}
+    .footer{text-align:center;font-size:9px;color:#bbb;margin-top:10px;padding-top:6px;border-top:1px solid #eee}
+    @media print{@page{margin:8mm}body{padding:4px}.grid{grid-template-columns:repeat(3,1fr)}}
+  </style></head><body>
+  <div class="grid">${list.map(ticketPrintBody).join('')}</div>
+  <div class="footer">Garden River · ${s ? s.nome : ''} · ${MONTHS[currentMonth]} ${currentYear}</div>
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`;
 }
 
 // ── NAVIGAZIONE MESE ──────────────────────────────────────────────────────────
