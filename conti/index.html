@@ -1539,6 +1539,31 @@ function stampaRiepilogoConti() {
 
 // ── STAMPANTE TERMICA ─────────────────────────────────────────────────────────
 
+async function buildLogoEpos() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const targetW = 300;
+      const scale = targetW / img.naturalWidth;
+      const targetH = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetW, targetH);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+      const { data } = ctx.getImageData(0, 0, targetW, targetH);
+      let bin = '';
+      for (let i = 0; i < data.length; i++) bin += String.fromCharCode(data[i]);
+      const b64 = btoa(bin);
+      resolve(`<image width="${targetW}" height="${targetH}" color="color_1" mode="mono" hri="false">${b64}</image><feed line="1"/>`);
+    };
+    img.onerror = () => resolve('');
+    img.src = '../logo-scontrini.png';
+  });
+}
+
 function escXmlConti(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
@@ -1579,7 +1604,9 @@ async function stampaContoTermica() {
     return `<text font="font_b">${escXmlConti(desc + ' '.repeat(sp) + imp)}</text><text>&#10;</text>`;
   }
 
+  const logoXml = await buildLogoEpos();
   const righe = [];
+  if (logoXml) righe.push(logoXml);
   righe.push(`<text font="font_a" align="center" height="2" width="2">CONTO</text><text>&#10;</text>`);
   righe.push(`<text align="center">Centro Vacanze Garden River</text><text>&#10;</text>`);
   righe.push(`<text align="center">${escXmlConti(now)}</text><text>&#10;</text>`);
