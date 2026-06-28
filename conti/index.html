@@ -1535,30 +1535,32 @@ async function buildLogoEpos() {
     const img = new Image();
     img.onload = () => {
       try {
-        const targetW = 200;
-        const scale = targetW / img.naturalWidth;
-        const targetH = Math.round(img.naturalHeight * scale);
+        const paperW = 512;           // larghezza carta 80mm a 203dpi
+        const logoW = 320;             // larghezza logo
+        const logoScale = logoW / img.naturalWidth;
+        const logoH = Math.round(img.naturalHeight * logoScale);
+        const offsetX = Math.round((paperW - logoW) / 2);
         const canvas = document.createElement('canvas');
-        canvas.width = targetW;
-        canvas.height = targetH;
+        canvas.width = paperW;
+        canvas.height = logoH;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, targetW, targetH);
-        ctx.drawImage(img, 0, 0, targetW, targetH);
-        const { data } = ctx.getImageData(0, 0, targetW, targetH);
+        ctx.fillRect(0, 0, paperW, logoH);
+        ctx.drawImage(img, offsetX, 0, logoW, logoH);
+        const { data } = ctx.getImageData(0, 0, paperW, logoH);
         // packed monochrome: 1 bit per pixel, MSB first
-        const rowBytes = Math.ceil(targetW / 8);
-        const mono = new Uint8Array(rowBytes * targetH);
-        for (let y = 0; y < targetH; y++) {
-          for (let x = 0; x < targetW; x++) {
-            const i = (y * targetW + x) * 4;
+        const rowBytes = Math.ceil(paperW / 8);
+        const mono = new Uint8Array(rowBytes * logoH);
+        for (let y = 0; y < logoH; y++) {
+          for (let x = 0; x < paperW; x++) {
+            const i = (y * paperW + x) * 4;
             const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
             if (lum < 128) mono[y * rowBytes + Math.floor(x/8)] |= (0x80 >> (x % 8));
           }
         }
         let bin = '';
         for (let i = 0; i < mono.length; i++) bin += String.fromCharCode(mono[i]);
-        resolve(`<image width="${targetW}" height="${targetH}" color="color_1" mode="mono" hri="false">${btoa(bin)}</image><feed line="1"/>`);
+        resolve(`<image width="${paperW}" height="${logoH}" color="color_1" mode="mono" hri="false">${btoa(bin)}</image><feed line="1"/>`);
       } catch(e) { resolve(''); }
     };
     img.onerror = () => resolve('');
