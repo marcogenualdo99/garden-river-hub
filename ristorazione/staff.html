@@ -404,8 +404,9 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
     <div id="report-body"></div>
-    <div id="report-print-bar" style="display:none;margin-top:16px">
+    <div id="report-print-bar" style="display:none;margin-top:16px;display:flex;gap:10px">
       <button class="btn-stampa" onclick="scaricaReport()">⬇ Scarica report</button>
+      <button class="btn-stampa" onclick="stampaReportTermica()">🖨 Stampa termica</button>
     </div>
   </div>
 
@@ -1910,6 +1911,87 @@ function scaricaReport() {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function stampaReportTermica() {
+  if (!_printData) return;
+  const { targetDate, pasto, ordini, menuItems } = _printData;
+
+  const dataLabel = new Date(targetDate + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  const pastoLabel = pasto.toUpperCase();
+
+  const W_NORM = 42;
+  const W_WIDE = 21;
+
+  function banda(testo) {
+    const padded = escXml((' ' + testo).padEnd(W_NORM));
+    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
+  }
+
+  // Ricostruisce byPiatto: menuId → [{nome, unita, qty, nota}]
+  const _mById = {};
+  for (const m of menuItems) _mById[m.id] = m;
+
+  const byPiatto = {}; // menuId → {piatto, cat, famiglie:[]}
+  for (const ord of ordini) {
+    const raw = ord.piatti || [];
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({ mid: p.menu_id, qty: Number(p.quantita), piatto: p.piatto, cat: p.categoria }); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k, v]) => {
+        if (typeof v === 'number' && v > 0) { const m = _mById[k]; items.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' }); }
+        else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({ mid: v.menu_id || k, qty: Number(v.quantita), piatto: v.piatto || k, cat: v.categoria || 'Altro' });
+      });
+    }
+    for (const it of items) {
+      if (!byPiatto[it.mid]) byPiatto[it.mid] = { piatto: it.piatto, cat: it.cat || 'Altro', famiglie: [] };
+      byPiatto[it.mid].famiglie.push({ nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty: it.qty, nota: ord.note || '' });
+    }
+  }
+
+  const catOrd = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []),
+    ...Object.values(byPiatto).map(p => p.cat).filter((c, i, a) => a.indexOf(c) === i && !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))
+  ];
+
+  const righe = [];
+  righe.push(`<text font="font_a" align="center" height="2" width="2">RESOCONTO ${escXml(pastoLabel)}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center">Data: ${dataLabel}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const cat of catOrd) {
+    const piatti = Object.values(byPiatto).filter(p => p.cat === cat);
+    if (!piatti.length) continue;
+
+    righe.push(banda(cat.toUpperCase()));
+
+    for (const { piatto, famiglie } of piatti) {
+      const totale = famiglie.reduce((s, f) => s + f.qty, 0);
+      const nomeUp = piatto.toUpperCase();
+      const qtyStr = 'x' + totale;
+      const sp = W_WIDE - nomeUp.length - qtyStr.length;
+      const titolo = sp > 0
+        ? nomeUp + ' '.repeat(sp) + qtyStr
+        : nomeUp.substring(0, W_WIDE - qtyStr.length - 1) + ' ' + qtyStr;
+      righe.push(`<text font="font_a" height="2" width="2" align="left">${escXml(titolo)}</text><text font="font_a" height="1" width="1">&#10;</text>`);
+
+      for (const f of famiglie) {
+        const famLine = `  ${f.nome}`;
+        const qStr = 'x' + f.qty;
+        const spaces = Math.max(1, W_NORM - famLine.length - qStr.length);
+        righe.push(`<text font="font_b">${escXml(famLine + ' '.repeat(spaces) + qStr)}</text><text>&#10;</text>`);
+        if (f.nota) righe.push(`<text font="font_b">  → ${escXml(f.nota)}</text><text>&#10;</text>`);
+      }
+      righe.push('<text>&#10;</text>');
+    }
+  }
+
+  righe.push('<text>&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), 'local_printer');
+  const { ok, err } = await inviaEpos(null, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 function scaricaFoglioQR() {
