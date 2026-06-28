@@ -521,6 +521,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="back-sub"   id="det-sub">—</div>
       </div>
       <button class="back-btn" id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica">&#9998;</button>
+      <button class="back-btn" onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="font-size:16px">&#128438;</button>
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
         <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
@@ -540,7 +541,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
       <div><div class="back-title">Resoconto conto</div></div>
       <button onclick="stampaReport()" class="no-print" style="height:36px;padding:0 14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;font-family:var(--font)">Stampa / Condividi</button>
-      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" class="no-print" style="height:36px;padding:0 14px;background:var(--green-ok);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Stampa termica</button>
     </div>
     <div id="report-content"></div>
   </div>
