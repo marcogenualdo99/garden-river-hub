@@ -1145,10 +1145,11 @@ function printPageHTML(list, logoUrl) {
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     @page{size:A4 portrait;margin:0}
-    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111;width:210mm;height:297mm}
-    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);width:210mm;height:297mm}
-    .ticket{border:1px solid #d0d0d0;padding:7mm 8mm 6mm;display:flex;flex-direction:column;overflow:hidden;position:relative}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111;width:210mm}
+    .grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:74.25mm;width:210mm}
+    .ticket{border:1px solid #d0d0d0;padding:7mm 8mm 6mm;display:flex;flex-direction:column;overflow:hidden;break-inside:avoid}
     .ticket:nth-child(even){border-left:none}
+    /* top border: suppresso per tutti i ticket dopo i primi 2 della stessa "pagina" — si gestisce con border-top su tutti tranne i primi due per pagina */
     .ticket:nth-child(n+3){border-top:none}
 
     /* header: logo + stato + numero */
@@ -1183,7 +1184,7 @@ function printPageHTML(list, logoUrl) {
 
     .footer{position:fixed;bottom:0;left:0;right:0;height:8mm;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ccc;letter-spacing:.08em;text-transform:uppercase;border-top:1px solid #eee}
   </style></head><body>
-  <div class="grid">${list.slice(0,8).map(b => ticketPrintBody(b, logoUrl)).join('')}</div>
+  <div class="grid">${list.map(b => ticketPrintBody(b, logoUrl)).join('')}</div>
   </body></html>`;
 }
 
