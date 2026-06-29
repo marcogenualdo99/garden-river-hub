@@ -191,6 +191,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .tl-cell:hover { background: var(--blue-bg); opacity: .7; }
 .tl-cell.weekend { background: rgba(139,92,246,.04); }
 .tl-cell.today   { background: var(--green-50); }
+.tl-cell.unavail { background: repeating-linear-gradient(45deg,#f0f0f0,#f0f0f0 3px,#fafafa 3px,#fafafa 8px); cursor: not-allowed; pointer-events: none; }
 
 /* Blocchi prenotazione */
 .booking-block {
@@ -641,10 +642,43 @@ function isWeekend(y,m,d)  { const w=dayOfWeek(y,m,d); return w===0||w===6; }
 function isToday(y,m,d)    { const t=new Date(); return t.getFullYear()===y&&t.getMonth()===m&&t.getDate()===d; }
 
 function currentSpiaggia() { return spiagge[currentBeachId] || null; }
+
+// Ombrellone can be stored as string "A1" (legacy) or {id:"A1", dal:"2026-06-01", al:"2026-06-30"}
+function normalizeOmbr(o) { return typeof o === 'string' ? { id: o } : o; }
+function ombrId(o) { return normalizeOmbr(o).id; }
+function ombrAvailableInMonth(o, y, m) {
+  const { dal, al } = normalizeOmbr(o);
+  if (!dal && !al) return true;
+  const mStart = toIso(y, m, 1);
+  const mEnd   = m === 11 ? `${y+1}-01-01` : toIso(y, m+1, 1);
+  if (dal && dal >= mEnd) return false;
+  if (al && al <= mStart) return false;
+  return true;
+}
+function ombrUnavailableDays(o, y, m) {
+  // Returns set of ISO dates unavailable due to period restriction
+  const { dal, al } = normalizeOmbr(o);
+  const days = daysInMonth(y, m);
+  const out = new Set();
+  for (let d = 1; d <= days; d++) {
+    const iso = toIso(y, m, d);
+    if (dal && iso < dal) out.add(iso);
+    if (al && iso >= al) out.add(iso);
+  }
+  return out;
+}
+function ombrAvailableForDates(o, dal, al) {
+  const n = normalizeOmbr(o);
+  if (!n.dal && !n.al) return true;
+  if (n.dal && dal < n.dal) return false;
+  if (n.al && al > n.al) return false;
+  return true;
+}
+
 function allRows() {
   const s = currentSpiaggia();
   if (!s || !s.zone) return [];
-  return s.zone.flatMap(z => (z.ombrelloni||[]).map(o => ({ zona:z, ombrellone:o })));
+  return s.zone.flatMap(z => (z.ombrelloni||[]).map(o => ({ zona:z, ombrellone:ombrId(o) })));
 }
 function bookingsForBeach() {
   return Object.values(prenotazioni).filter(p => p.spiaggia_id === currentBeachId);
@@ -743,12 +777,16 @@ function renderTimeline() {
     for (let d=1; d<=days; d++) html += '<div></div>';
     html += '</div>';
 
-    for (const ombr of (zone.ombrelloni||[])) {
+    for (const ombrRaw of (zone.ombrelloni||[])) {
+      if (!ombrAvailableInMonth(ombrRaw, y, m)) continue;
+      const ombr = ombrId(ombrRaw);
+      const unavail = ombrUnavailableDays(ombrRaw, y, m);
       html += `<div class="tl-row" style="grid-template-columns:${cols}" data-row="${ombr}" data-spiaggia="${currentBeachId}">`;
       html += `<div class="row-label">${ombr}</div>`;
       for (let d=1; d<=days; d++) {
         const we=isWeekend(y,m,d), td=isToday(y,m,d), iso=toIso(y,m,d);
-        html += `<div class="tl-cell${we?' weekend':''}${td?' today':''}" data-row="${ombr}" data-date="${iso}"></div>`;
+        const na=unavail.has(iso);
+        html += `<div class="tl-cell${we?' weekend':''}${td?' today':''}${na?' unavail':''}" data-row="${na?'':ombr}" data-date="${na?'':iso}"></div>`;
       }
       html += '</div>';
     }
@@ -899,21 +937,27 @@ function openModal(b, defaultRow='', defaultDate='') {
   selectedStato = b ? (b.stato || 'confermata') : 'confermata';
   renderStatoPicker();
 
-  // Popolamento select ombrelloni
+  // Popolamento select ombrelloni (filtrato per disponibilità nelle date scelte)
   const sel = document.getElementById('f-ombrellone');
   sel.innerHTML = '';
   const s = currentSpiaggia();
   if (s && s.zone) {
+    const fDal = document.getElementById('f-dal').value;
+    const fAl  = document.getElementById('f-al').value;
     s.zone.forEach(z => {
       const grp = document.createElement('optgroup');
       grp.label = z.label;
+      let added = 0;
       (z.ombrelloni||[]).forEach(o => {
+        const id = ombrId(o);
+        if (fDal && fAl && !ombrAvailableForDates(o, fDal, fAl)) return;
         const opt = document.createElement('option');
-        opt.value = o; opt.textContent = o;
-        if ((b && b.ombrellone===o) || (!b && o===defaultRow)) opt.selected = true;
+        opt.value = id; opt.textContent = id;
+        if ((b && b.ombrellone===id) || (!b && id===defaultRow)) opt.selected = true;
         grp.appendChild(opt);
+        added++;
       });
-      sel.appendChild(grp);
+      if (added) sel.appendChild(grp);
     });
   }
   document.getElementById('modal-overlay').classList.remove('hidden');
@@ -1048,7 +1092,7 @@ function ticketPrintBody(b) {
 
 window.printSingle = function(id) {
   const b = prenotazioni[id]; if (!b) return;
-  const w = window.open('','_blank','width=440,height=340');
+  const w = window.open('','_blank');
   w.document.write(printPageHTML([b]));
   w.document.close();
 };
@@ -1056,7 +1100,7 @@ window.printSingle = function(id) {
 function printAll() {
   const list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
   if (!list.length) { showToast('Nessuna prenotazione da stampare'); return; }
-  const w = window.open('','_blank','width=860,height=640');
+  const w = window.open('','_blank');
   w.document.write(printPageHTML(list));
   w.document.close();
 }
@@ -1067,19 +1111,20 @@ function printPageHTML(list) {
   <title>Tagliandini · ${s ? s.nome : 'Spiaggia'}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:10px}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-    .ticket{border:1.5px dashed #ccc;border-radius:8px;padding:10px;break-inside:avoid}
-    .t-header{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-    .t-stato{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;padding:2px 7px;border-radius:4px}
-    .t-id{margin-left:auto;font-size:10px;color:#999;font-weight:700}
-    .t-name{font-size:15px;font-weight:800;margin-bottom:2px}
-    .t-ombr{font-size:11px;color:#555;margin-bottom:6px}
-    .t-dates{border-top:1px dashed #e5e5e5;padding-top:5px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#333}
+    @page{size:A4 portrait;margin:8mm}
+    body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;padding:2mm}
+    .ticket{border:1.5px dashed #ccc;border-radius:8px;padding:12px;break-inside:avoid;min-height:125mm;display:flex;flex-direction:column}
+    .t-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .t-stato{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;padding:3px 9px;border-radius:4px}
+    .t-id{margin-left:auto;font-size:11px;color:#999;font-weight:700}
+    .t-name{font-size:18px;font-weight:800;margin-bottom:3px}
+    .t-ombr{font-size:13px;color:#555;margin-bottom:8px}
+    .t-dates{border-top:1px dashed #e5e5e5;padding-top:7px;display:flex;flex-direction:column;gap:3px;font-size:13px;color:#333}
     .t-dates strong{color:#111}
-    .t-note{font-size:9px;color:#888;font-style:italic;margin-top:5px}
-    .footer{text-align:center;font-size:9px;color:#bbb;margin-top:10px;padding-top:6px;border-top:1px solid #eee}
-    @media print{@page{margin:8mm}body{padding:4px}.grid{grid-template-columns:repeat(3,1fr)}}
+    .t-note{font-size:10px;color:#888;font-style:italic;margin-top:8px}
+    .spacer{flex:1}
+    .footer{text-align:center;font-size:9px;color:#bbb;margin-top:8mm;padding-top:5px;border-top:1px solid #eee}
   </style></head><body>
   <div class="grid">${list.map(ticketPrintBody).join('')}</div>
   <div class="footer">Garden River · ${s ? s.nome : ''} · ${MONTHS[currentMonth]} ${currentYear}</div>
@@ -1150,13 +1195,15 @@ function renderSettings() {
           </div>
           <!-- Ombrelloni della zona -->
           <div class="pill-list" id="pills-${s.id}-${z.id}">
-            ${(z.ombrelloni||[]).map(o => `
-              <div class="pill">${o}
-                <button onclick="deleteOmbrellone('${s.id}','${z.id}','${o}')" title="Rimuovi">✕</button>
-              </div>`).join('')}
+            ${(z.ombrelloni||[]).map(o => { const n=normalizeOmbr(o); return `
+              <div class="pill">${n.id}${n.dal||n.al ? `<span style="font-size:10px;font-weight:400;opacity:.7;margin-left:4px">${n.dal||''}→${n.al||''}</span>` : ''}
+                <button onclick="deleteOmbrellone('${s.id}','${z.id}','${n.id}')" title="Rimuovi">✕</button>
+              </div>`;}).join('')}
           </div>
-          <div class="settings-form-row">
-            <input type="text" id="new-ombr-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:13px" placeholder="Codice ombrellone (es. A1)">
+          <div class="settings-form-row" style="flex-wrap:wrap;gap:6px">
+            <input type="text" id="new-ombr-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:13px;flex:1;min-width:80px" placeholder="Codice (es. A1)">
+            <input type="date" id="new-ombr-dal-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:12px;width:140px" title="Disponibile dal (opzionale)">
+            <input type="date" id="new-ombr-al-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:12px;width:140px" title="Disponibile al (opzionale)">
             <button class="settings-btn" style="height:36px;font-size:13px" onclick="addOmbrellone('${s.id}','${z.id}')">+ Aggiungi</button>
           </div>
         </div>`).join('')}
@@ -1227,11 +1274,14 @@ async function deleteZone(spId, zId) {
 async function addOmbrellone(spId, zId) {
   const nome = document.getElementById(`new-ombr-${spId}-${zId}`).value.trim().toUpperCase();
   if (!nome) return;
+  const dal  = document.getElementById(`new-ombr-dal-${spId}-${zId}`)?.value || '';
+  const al   = document.getElementById(`new-ombr-al-${spId}-${zId}`)?.value  || '';
+  const entry = (dal || al) ? { id: nome, ...(dal ? { dal } : {}), ...(al ? { al } : {}) } : nome;
   const s = spiagge[spId]; if (!s) return;
   const zone = (s.zone||[]).map(z => {
     if (z.id !== zId) return z;
-    if ((z.ombrelloni||[]).includes(nome)) { showToast(`"${nome}" già presente`); return z; }
-    return { ...z, ombrelloni: [...(z.ombrelloni||[]), nome] };
+    if ((z.ombrelloni||[]).some(o => ombrId(o) === nome)) { showToast(`"${nome}" già presente`); return z; }
+    return { ...z, ombrelloni: [...(z.ombrelloni||[]), entry] };
   });
   try {
     await waitForFirebase();
@@ -1249,7 +1299,7 @@ async function deleteOmbrellone(spId, zId, nome) {
   const s = spiagge[spId]; if (!s) return;
   const zone = (s.zone||[]).map(z => {
     if (z.id !== zId) return z;
-    return { ...z, ombrelloni: (z.ombrelloni||[]).filter(o => o !== nome) };
+    return { ...z, ombrelloni: (z.ombrelloni||[]).filter(o => ombrId(o) !== nome) };
   });
   try {
     await waitForFirebase();
