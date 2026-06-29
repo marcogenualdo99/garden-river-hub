@@ -1076,9 +1076,11 @@ function ticketPrintBody(b, logoUrl) {
   return `
   <div class="ticket">
     <div class="t-top">
-      <img class="t-logo" src="${logoUrl}" alt="Garden River">
+      <div class="t-top-r1">
+        <img class="t-logo" src="${logoUrl}" alt="Garden River">
+        <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
+      </div>
       <span class="t-stato" style="background:${st.hex}">${st.label}</span>
-      <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
     </div>
     <div class="t-name">${b.cliente}</div>
     <div class="t-ombr">
@@ -1150,9 +1152,10 @@ function printPageHTML(list, logoUrl) {
     .ticket:nth-child(n+3){border-top:none}
 
     /* header: logo + stato + numero */
-    .t-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4mm;gap:4px}
-    .t-logo{height:36px;width:auto;max-width:120px;object-fit:contain;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .t-stato{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:3px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;white-space:nowrap}
+    .t-top{display:flex;flex-direction:column;gap:2mm;margin-bottom:4mm}
+    .t-top-r1{display:flex;align-items:center;justify-content:space-between}
+    .t-logo{height:13mm;width:auto;max-width:58mm;object-fit:contain;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .t-stato{display:inline-block;align-self:flex-start;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:3px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;white-space:nowrap}
     .t-id{font-size:9px;color:#bbb;font-weight:600;white-space:nowrap}
 
     /* nome cliente — info più importante */
