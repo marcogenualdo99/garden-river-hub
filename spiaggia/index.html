@@ -1069,20 +1069,22 @@ function openPrintPanel() {
 }
 function closePrintPanel() { document.getElementById('print-overlay').classList.add('hidden'); }
 
-function ticketPrintBody(b) {
+function ticketPrintBody(b, logoUrl) {
   const s = spiagge[b.spiaggia_id];
   const n = nights(b.dal, b.al);
   const st = STATI.find(x => x.id === (b.stato||'confermata')) || STATI[0];
   return `
   <div class="ticket">
     <div class="t-top">
+      <img class="t-logo" src="${logoUrl}" alt="Garden River">
       <span class="t-stato" style="background:${st.hex}">${st.label}</span>
       <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
     </div>
     <div class="t-name">${b.cliente}</div>
     <div class="t-ombr">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
-      <strong>${b.ombrellone}</strong>${s ? ' &nbsp;·&nbsp; '+s.nome : ''}
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E05A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+      <span class="t-ombr-num">${b.ombrellone}</span>
+      ${s ? `<span class="t-ombr-dot">·</span><span class="t-ombr-beach">${s.nome}</span>` : ''}
     </div>
     <hr class="t-sep">
     <div class="t-dates">
@@ -1120,34 +1122,49 @@ function printAll() {
 
 function printPageHTML(list) {
   const s = currentSpiaggia();
+  const logoUrl = new URL('../logo-tagliandini.png', window.location.href).href;
   return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
   <title>Tagliandini · ${s ? s.nome : 'Spiaggia'}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    @page{size:A4 portrait;margin:10mm}
-    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111}
-    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:0;width:100%;height:277mm}
-    .ticket{border:1px solid #222;padding:10mm 8mm;display:flex;flex-direction:column;gap:0;overflow:hidden}
-    .ticket:nth-child(odd){border-right:none}
-    .ticket:nth-child(n+3):nth-child(-n+4){border-top:none}
-    .ticket:nth-child(n+5):nth-child(-n+6){border-top:none}
-    .ticket:nth-child(n+7):nth-child(-n+8){border-top:none}
-    .t-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm}
-    .t-stato{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;padding:2px 7px;border-radius:3px;color:#fff}
-    .t-id{font-size:9px;color:#aaa;font-weight:600;letter-spacing:.04em}
-    .t-name{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:2mm;letter-spacing:-.02em}
-    .t-ombr{font-size:13px;color:#444;margin-bottom:5mm;display:flex;align-items:center;gap:5px}
-    .t-sep{border:none;border-top:1.5px dashed #ccc;margin:0 0 4mm}
-    .t-dates{display:flex;flex-direction:column;gap:2mm;font-size:13px;color:#222}
-    .t-dates .row{display:flex;gap:5px;align-items:baseline}
-    .t-dates .lbl{font-size:11px;color:#777;min-width:54px}
-    .t-dates .val{font-weight:700;font-size:14px}
-    .t-notti{margin-top:2mm;font-size:11px;color:#888}
-    .t-note{margin-top:3mm;font-size:10px;color:#888;font-style:italic;border-top:1px solid #eee;padding-top:2mm}
-    .footer{position:fixed;bottom:3mm;left:0;right:0;text-align:center;font-size:8px;color:#bbb;letter-spacing:.06em;text-transform:uppercase}
+    @page{size:A4 portrait;margin:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111;width:210mm;height:297mm}
+    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);width:210mm;height:297mm}
+    .ticket{border:1px solid #d0d0d0;padding:7mm 8mm 6mm;display:flex;flex-direction:column;overflow:hidden;position:relative}
+    .ticket:nth-child(even){border-left:none}
+    .ticket:nth-child(n+3){border-top:none}
+
+    /* header: logo + stato + numero */
+    .t-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4mm;gap:4px}
+    .t-logo{height:18px;width:auto;object-fit:contain;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .t-stato{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:2px 7px;border-radius:3px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;white-space:nowrap}
+    .t-id{font-size:9px;color:#bbb;font-weight:600;white-space:nowrap}
+
+    /* nome cliente — info più importante */
+    .t-name{font-size:24px;font-weight:900;line-height:1.05;letter-spacing:-.03em;color:#111;margin-bottom:1.5mm}
+
+    /* ombrellone */
+    .t-ombr{display:flex;align-items:center;gap:5px;margin-bottom:5mm}
+    .t-ombr-num{font-size:17px;font-weight:800;color:#E05A00}
+    .t-ombr-dot{font-size:13px;color:#bbb;margin:0 1px}
+    .t-ombr-beach{font-size:12px;color:#555;font-weight:500}
+
+    /* separatore */
+    .t-sep{border:none;border-top:1.5px dashed #ddd;margin:0 0 4mm}
+
+    /* date */
+    .t-dates{display:flex;flex-direction:column;gap:1.5mm}
+    .t-dates .row{display:flex;align-items:baseline;gap:0}
+    .t-dates .lbl{font-size:10px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.06em;min-width:62px}
+    .t-dates .val{font-size:15px;font-weight:800;color:#111}
+    .t-notti{margin-top:3mm;font-size:10px;font-weight:600;color:#E05A00;text-transform:uppercase;letter-spacing:.08em}
+
+    /* note */
+    .t-note{margin-top:auto;padding-top:2mm;border-top:1px solid #eee;font-size:9px;color:#999;font-style:italic}
+
+    .footer{position:fixed;bottom:0;left:0;right:0;height:8mm;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ccc;letter-spacing:.08em;text-transform:uppercase;border-top:1px solid #eee}
   </style></head><body>
-  <div class="grid">${list.slice(0,8).map(ticketPrintBody).join('')}</div>
-  <div class="footer">Garden River &nbsp;·&nbsp; ${s ? s.nome : ''} &nbsp;·&nbsp; ${MONTHS[currentMonth]} ${currentYear}</div>
+  <div class="grid">${list.slice(0,8).map(b => ticketPrintBody(b, logoUrl)).join('')}</div>
   </body></html>`;
 }
 
