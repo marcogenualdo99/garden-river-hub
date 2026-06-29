@@ -1096,7 +1096,22 @@ function ticketPrintBody(b, logoUrl) {
   </div>`;
 }
 
-function triggerPrint(html) {
+async function fetchLogoDataUrl() {
+  try {
+    const resp = await fetch('../logo-tagliandini.png');
+    if (!resp.ok) return '';
+    const blob = await resp.blob();
+    return await new Promise(res => {
+      const fr = new FileReader();
+      fr.onload = () => res(fr.result);
+      fr.readAsDataURL(blob);
+    });
+  } catch { return ''; }
+}
+
+async function triggerPrint(list) {
+  const logoDataUrl = await fetchLogoDataUrl();
+  const html = printPageHTML(list, logoDataUrl);
   let fr = document.getElementById('_print-fr');
   if (fr) fr.remove();
   fr = document.createElement('iframe');
@@ -1111,18 +1126,18 @@ function triggerPrint(html) {
 
 window.printSingle = function(id) {
   const b = prenotazioni[id]; if (!b) return;
-  triggerPrint(printPageHTML([b]));
+  triggerPrint([b]);
 };
 
 function printAll() {
   const list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
   if (!list.length) { showToast('Nessuna prenotazione da stampare'); return; }
-  triggerPrint(printPageHTML(list));
+  triggerPrint(list);
 }
 
-function printPageHTML(list) {
+function printPageHTML(list, logoUrl) {
   const s = currentSpiaggia();
-  const logoUrl = new URL('../logo-tagliandini.png', window.location.href).href;
+  logoUrl = logoUrl || '';
   return `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
   <title>Tagliandini · ${s ? s.nome : 'Spiaggia'}</title>
   <style>
