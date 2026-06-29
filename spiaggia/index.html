@@ -1090,19 +1090,28 @@ function ticketPrintBody(b) {
   </div>`;
 }
 
+function triggerPrint(html) {
+  let fr = document.getElementById('_print-fr');
+  if (fr) fr.remove();
+  fr = document.createElement('iframe');
+  fr.id = '_print-fr';
+  fr.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:210mm;height:297mm;border:none';
+  document.body.appendChild(fr);
+  fr.contentDocument.open();
+  fr.contentDocument.write(html);
+  fr.contentDocument.close();
+  setTimeout(() => { fr.contentWindow.focus(); fr.contentWindow.print(); }, 400);
+}
+
 window.printSingle = function(id) {
   const b = prenotazioni[id]; if (!b) return;
-  const w = window.open('','_blank');
-  w.document.write(printPageHTML([b]));
-  w.document.close();
+  triggerPrint(printPageHTML([b]));
 };
 
 function printAll() {
   const list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
   if (!list.length) { showToast('Nessuna prenotazione da stampare'); return; }
-  const w = window.open('','_blank');
-  w.document.write(printPageHTML(list));
-  w.document.close();
+  triggerPrint(printPageHTML(list));
 }
 
 function printPageHTML(list) {
@@ -1112,23 +1121,22 @@ function printPageHTML(list) {
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     @page{size:A4 portrait;margin:8mm}
-    body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:#fff}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm;padding:2mm}
-    .ticket{border:1.5px dashed #ccc;border-radius:8px;padding:12px;break-inside:avoid;min-height:125mm;display:flex;flex-direction:column}
-    .t-header{display:flex;align-items:center;gap:6px;margin-bottom:8px}
-    .t-stato{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#fff;padding:3px 9px;border-radius:4px}
-    .t-id{margin-left:auto;font-size:11px;color:#999;font-weight:700}
-    .t-name{font-size:18px;font-weight:800;margin-bottom:3px}
-    .t-ombr{font-size:13px;color:#555;margin-bottom:8px}
-    .t-dates{border-top:1px dashed #e5e5e5;padding-top:7px;display:flex;flex-direction:column;gap:3px;font-size:13px;color:#333}
+    body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#fff}
+    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:4mm;width:100%;height:277mm}
+    .ticket{border:1.5px dashed #ccc;border-radius:6px;padding:8px 10px;break-inside:avoid;display:flex;flex-direction:column;overflow:hidden}
+    .t-header{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+    .t-stato{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#fff;padding:2px 7px;border-radius:4px;white-space:nowrap}
+    .t-id{margin-left:auto;font-size:10px;color:#aaa;font-weight:700}
+    .t-name{font-size:15px;font-weight:800;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .t-ombr{font-size:11px;color:#555;margin-bottom:5px}
+    .t-dates{border-top:1px dashed #e5e5e5;padding-top:5px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#333}
     .t-dates strong{color:#111}
-    .t-note{font-size:10px;color:#888;font-style:italic;margin-top:8px}
+    .t-note{font-size:9px;color:#888;font-style:italic;margin-top:4px}
     .spacer{flex:1}
-    .footer{text-align:center;font-size:9px;color:#bbb;margin-top:8mm;padding-top:5px;border-top:1px solid #eee}
+    .footer{position:fixed;bottom:2mm;left:0;right:0;text-align:center;font-size:8px;color:#ccc}
   </style></head><body>
-  <div class="grid">${list.map(ticketPrintBody).join('')}</div>
+  <div class="grid">${list.slice(0,8).map(ticketPrintBody).join('')}</div>
   <div class="footer">Garden River · ${s ? s.nome : ''} · ${MONTHS[currentMonth]} ${currentYear}</div>
-  <script>window.onload=function(){window.print();}<\/script>
   </body></html>`;
 }
 
@@ -1200,11 +1208,17 @@ function renderSettings() {
                 <button onclick="deleteOmbrellone('${s.id}','${z.id}','${n.id}')" title="Rimuovi">✕</button>
               </div>`;}).join('')}
           </div>
-          <div class="settings-form-row" style="flex-wrap:wrap;gap:6px">
-            <input type="text" id="new-ombr-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:13px;flex:1;min-width:80px" placeholder="Codice (es. A1)">
-            <input type="date" id="new-ombr-dal-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:12px;width:140px" title="Disponibile dal (opzionale)">
-            <input type="date" id="new-ombr-al-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:12px;width:140px" title="Disponibile al (opzionale)">
-            <button class="settings-btn" style="height:36px;font-size:13px" onclick="addOmbrellone('${s.id}','${z.id}')">+ Aggiungi</button>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <input type="text" id="new-ombr-${s.id}-${z.id}" class="settings-input" style="height:36px;font-size:13px;flex:1;min-width:80px" placeholder="Codice ombrellone (es. A1)">
+              <button class="settings-btn" style="height:36px;font-size:13px" onclick="addOmbrellone('${s.id}','${z.id}')">+ Aggiungi</button>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span style="font-size:11px;color:var(--gray-500);white-space:nowrap">Disponibilità (opzionale):</span>
+              <label style="font-size:11px;color:var(--gray-500)">dal <input type="date" id="new-ombr-dal-${s.id}-${z.id}" class="settings-input" style="height:30px;font-size:12px;width:130px;display:inline-block"></label>
+              <label style="font-size:11px;color:var(--gray-500)">al <input type="date" id="new-ombr-al-${s.id}-${z.id}" class="settings-input" style="height:30px;font-size:12px;width:130px;display:inline-block"></label>
+            </div>
+            <p style="font-size:10px;color:var(--gray-400);margin:0">Lascia vuoto se l'ombrellone è disponibile per tutta la stagione.</p>
           </div>
         </div>`).join('')}
     </div>`;
