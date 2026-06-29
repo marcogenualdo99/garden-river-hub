@@ -1075,18 +1075,22 @@ function ticketPrintBody(b) {
   const st = STATI.find(x => x.id === (b.stato||'confermata')) || STATI[0];
   return `
   <div class="ticket">
-    <div class="t-header">
+    <div class="t-top">
       <span class="t-stato" style="background:${st.hex}">${st.label}</span>
       <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
     </div>
     <div class="t-name">${b.cliente}</div>
-    <div class="t-ombr">☂ ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
-    <div class="t-dates">
-      <div>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></div>
-      <div>◀ Partenza: <strong>${fmtDate(b.al)}</strong></div>
-      <div>⏱ ${n} nott${n===1?'e':'i'}</div>
+    <div class="t-ombr">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+      <strong>${b.ombrellone}</strong>${s ? ' &nbsp;·&nbsp; '+s.nome : ''}
     </div>
-    ${b.note ? `<div class="t-note">📝 ${b.note}</div>` : ''}
+    <hr class="t-sep">
+    <div class="t-dates">
+      <div class="row"><span class="lbl">Arrivo</span><span class="val">${fmtDate(b.dal)}</span></div>
+      <div class="row"><span class="lbl">Partenza</span><span class="val">${fmtDate(b.al)}</span></div>
+    </div>
+    <div class="t-notti">${n} nott${n===1?'e':'i'}</div>
+    ${b.note ? `<div class="t-note">${b.note}</div>` : ''}
   </div>`;
 }
 
@@ -1120,23 +1124,30 @@ function printPageHTML(list) {
   <title>Tagliandini · ${s ? s.nome : 'Spiaggia'}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    @page{size:A4 portrait;margin:8mm}
-    body{font-family:Arial,sans-serif;font-size:12px;color:#111;background:#fff}
-    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:4mm;width:100%;height:277mm}
-    .ticket{border:1.5px dashed #ccc;border-radius:6px;padding:8px 10px;break-inside:avoid;display:flex;flex-direction:column;overflow:hidden}
-    .t-header{display:flex;align-items:center;gap:5px;margin-bottom:5px}
-    .t-stato{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#fff;padding:2px 7px;border-radius:4px;white-space:nowrap}
-    .t-id{margin-left:auto;font-size:10px;color:#aaa;font-weight:700}
-    .t-name{font-size:15px;font-weight:800;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .t-ombr{font-size:11px;color:#555;margin-bottom:5px}
-    .t-dates{border-top:1px dashed #e5e5e5;padding-top:5px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#333}
-    .t-dates strong{color:#111}
-    .t-note{font-size:9px;color:#888;font-style:italic;margin-top:4px}
-    .spacer{flex:1}
-    .footer{position:fixed;bottom:2mm;left:0;right:0;text-align:center;font-size:8px;color:#ccc}
+    @page{size:A4 portrait;margin:10mm}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111}
+    .grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(4,1fr);gap:0;width:100%;height:277mm}
+    .ticket{border:1px solid #222;padding:10mm 8mm;display:flex;flex-direction:column;gap:0;overflow:hidden}
+    .ticket:nth-child(odd){border-right:none}
+    .ticket:nth-child(n+3):nth-child(-n+4){border-top:none}
+    .ticket:nth-child(n+5):nth-child(-n+6){border-top:none}
+    .ticket:nth-child(n+7):nth-child(-n+8){border-top:none}
+    .t-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm}
+    .t-stato{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;padding:2px 7px;border-radius:3px;color:#fff}
+    .t-id{font-size:9px;color:#aaa;font-weight:600;letter-spacing:.04em}
+    .t-name{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:2mm;letter-spacing:-.02em}
+    .t-ombr{font-size:13px;color:#444;margin-bottom:5mm;display:flex;align-items:center;gap:5px}
+    .t-sep{border:none;border-top:1.5px dashed #ccc;margin:0 0 4mm}
+    .t-dates{display:flex;flex-direction:column;gap:2mm;font-size:13px;color:#222}
+    .t-dates .row{display:flex;gap:5px;align-items:baseline}
+    .t-dates .lbl{font-size:11px;color:#777;min-width:54px}
+    .t-dates .val{font-weight:700;font-size:14px}
+    .t-notti{margin-top:2mm;font-size:11px;color:#888}
+    .t-note{margin-top:3mm;font-size:10px;color:#888;font-style:italic;border-top:1px solid #eee;padding-top:2mm}
+    .footer{position:fixed;bottom:3mm;left:0;right:0;text-align:center;font-size:8px;color:#bbb;letter-spacing:.06em;text-transform:uppercase}
   </style></head><body>
   <div class="grid">${list.slice(0,8).map(ticketPrintBody).join('')}</div>
-  <div class="footer">Garden River · ${s ? s.nome : ''} · ${MONTHS[currentMonth]} ${currentYear}</div>
+  <div class="footer">Garden River &nbsp;·&nbsp; ${s ? s.nome : ''} &nbsp;·&nbsp; ${MONTHS[currentMonth]} ${currentYear}</div>
   </body></html>`;
 }
 
