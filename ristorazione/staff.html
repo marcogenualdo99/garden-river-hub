@@ -2180,13 +2180,15 @@ function applicaFiltroDate() {
   let selezionate = 0;
   document.querySelectorAll('.rf-check').forEach(c => {
     const f = famiglieDocs.find(x => x.id === c.dataset.id);
-    if (!f) return;
+    if (!f || (!f.checkin && !f.checkout)) { c.checked = false; return; }
     const ci = f.checkin  || '';
     const co = f.checkout || '';
-    // La famiglia è presente nel periodo se il suo soggiorno si sovrappone a [dal, al]
-    const inizioOk = !al  || ci <= al;
-    const fineOk   = !dal || co >= dal;
-    const presente = inizioOk && fineOk;
+    // Sovrapposizione: il soggiorno [ci,co] si sovrappone al filtro [dal,al]
+    // checkin della famiglia deve essere <= data fine filtro
+    // checkout della famiglia deve essere >= data inizio filtro
+    const checkinOk  = !al  || !ci || ci <= al;
+    const checkoutOk = !dal || !co || co >= dal;
+    const presente = checkinOk && checkoutOk;
     c.checked = presente;
     if (presente) selezionate++;
   });
