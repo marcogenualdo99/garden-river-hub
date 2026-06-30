@@ -474,6 +474,9 @@ input[type="date"].finput{font-size:13px}
       </div>
       <div id="f-bambini-ages"></div>
       <div class="form-row" style="grid-template-columns:1fr">
+        <input class="finput" id="f-tel" type="tel" placeholder="Telefono">
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
       </div>
       <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
@@ -556,6 +559,8 @@ input[type="date"].finput{font-size:13px}
       <input class="minput" id="ef-bambini" type="number" min="0" max="10" placeholder="Bambini" style="margin-bottom:0" oninput="aggiornaBambiniFields('ef-bambini-ages','ef-bambini')">
     </div>
     <div id="ef-bambini-ages" style="margin-bottom:8px"></div>
+    <div class="mlabel">Telefono</div>
+    <input class="minput" id="ef-tel" type="tel" placeholder="Telefono">
     <div class="mlabel">Note</div>
     <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
@@ -598,6 +603,23 @@ input[type="date"].finput{font-size:13px}
     <div class="mbtns">
       <button class="mcancel" onclick="document.getElementById('modal-qr').classList.add('hidden')">Chiudi</button>
       <button class="msave" onclick="scaricaQR('qr-img','qr-title')">Scarica</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SELEZIONE QR -->
+<div id="modal-qr-panel" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title">Foglio QR</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="selezionaTutteQR(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
+      <button onclick="selezionaTutteQR(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
+    </div>
+    <div id="qr-panel-list"></div>
+    <div class="mbtns" style="margin-top:16px">
+      <button class="mcancel" onclick="document.getElementById('modal-qr-panel').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="scaricaQRSelezionati()">⬇ Scarica QR</button>
     </div>
   </div>
 </div>
@@ -1653,7 +1675,7 @@ function aggiornaBambiniFields(containerId, inputId) {
       <span style="font-size:13px;color:var(--gray-500);min-width:72px">Bambino ${i+1}</span>
       <select class="finput" style="height:38px;font-size:13px;flex:1">
         <option value="">Età</option>
-        ${[2,3,4,5,6,7,8,9,10].map(e=>`<option value="${e}"${val==e?' selected':''}>${e} anni</option>`).join('')}
+        ${Array.from({length:18},(_,i)=>`<option value="${i}"${val==i?' selected':''}>${i===0?'< 1 anno':i+' ann'+(i===1?'o':'i')}</option>`).join('')}
       </select>
     </div>`;
   }
@@ -1678,8 +1700,9 @@ async function aggiungiFamiglia() {
   const codice     = generaCodice();
   const id         = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
   const note       = document.getElementById('f-note').value.trim();
+  const tel        = document.getElementById('f-tel').value.trim();
   const max_ospiti = adulti + bambini.length;
-  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, codice, note };
+  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1694,6 +1717,7 @@ async function aggiungiFamiglia() {
     document.getElementById('f-bambini').value = '';
     document.getElementById('f-bambini-ages').innerHTML = '';
     document.getElementById('f-trattamento').value = '';
+    document.getElementById('f-tel').value = '';
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
@@ -1710,6 +1734,7 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-adulti').value      = f.adulti  ?? (f.max_ospiti || 1);
   document.getElementById('ef-bambini').value     = (f.bambini||[]).length;
+  document.getElementById('ef-tel').value         = f.tel  || '';
   document.getElementById('ef-note').value        = f.note || '';
   // Popola età bambini
   aggiornaBambiniFields('ef-bambini-ages','ef-bambini');
@@ -1747,8 +1772,9 @@ async function salvaEditFamiglia() {
 
   const { db, doc, setDoc } = window._fb;
   const note       = document.getElementById('ef-note').value.trim();
+  const tel        = document.getElementById('ef-tel').value.trim();
   const max_ospiti = adulti + bambini.length;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, note };
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -2136,19 +2162,20 @@ function scaricaReportFamiglie() {
     return 'In struttura';
   }
 
+  const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
   const rows = fams.map(f => {
-    const bambiniStr = (f.bambini||[]).map((e,i) => `Bimbo ${i+1}: ${e||'?'} anni`).join(', ');
-    const dateStr = [f.checkin?`In: ${f.checkin.slice(5).replace('-','/')}`:'', f.checkout?`Out: ${f.checkout.slice(5).replace('-','/')}`:''].filter(Boolean).join(' — ');
+    const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
+    const dateStr = [f.checkin?f.checkin.slice(5).replace('-','/'):'' , f.checkout?f.checkout.slice(5).replace('-','/'):''].filter(Boolean).join(' → ');
     return `<tr>
       <td>${esc(f.nome)}</td>
       <td>${esc(f.unita||'—')}</td>
-      <td>${esc(f.trattamento||'—')}</td>
+      <td>${esc(f.tel||'—')}</td>
+      <td>${esc(trattLabel(f.trattamento))}</td>
       <td style="text-align:center">${f.adulti||0}</td>
       <td style="text-align:center">${(f.bambini||[]).length}</td>
       <td style="font-size:11px;color:#666">${bambiniStr||'—'}</td>
       <td style="font-size:11px">${dateStr||'—'}</td>
       <td style="font-size:11px;color:#DC2626">${esc(f.note||'—')}</td>
-      <td style="font-size:11px;color:#666">${gruppoLabel(f)}</td>
     </tr>`;
   }).join('');
 
@@ -2157,21 +2184,21 @@ function scaricaReportFamiglie() {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap');
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Montserrat',sans-serif;padding:14mm 16mm;font-size:12px;color:#111}
+    body{font-family:'Montserrat',sans-serif;padding:10mm 14mm;font-size:11px;color:#111}
     h1{font-size:18px;font-weight:800;color:#1a5c32;margin-bottom:4px}
     .sub{font-size:11px;color:#666;margin-bottom:16px}
     table{width:100%;border-collapse:collapse}
-    th{background:#1a5c32;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;text-align:left}
-    td{padding:7px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    th{background:#1a5c32;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left}
+    td{padding:6px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
     tr:nth-child(even) td{background:#f9fafb}
-    @page{size:A4 landscape;margin:12mm 14mm}
+    @page{size:A4 landscape;margin:10mm 12mm}
     @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
   </style></head><body>
   <h1>Report Famiglie · Garden River</h1>
   <div class="sub">Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})} · ${fams.length} famiglie</div>
   <table>
     <thead><tr>
-      <th>Nome</th><th>Alloggio</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th><th>Stato</th>
+      <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
@@ -2189,15 +2216,58 @@ function scaricaReportFamiglie() {
 }
 
 function scaricaFoglioQR() {
-  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
-  const famiglie = famiglieDocs.filter(f => f.codice);
-  if (!famiglie.length) { showToast('Nessuna famiglia con codice QR'); return; }
+  apriPanelQR();
+}
 
+function apriPanelQR() {
+  const oggi = isoToday(0);
+  const gruppi = { soggiornanti: [], inArrivo: [], partite: [] };
+  famiglieDocs.filter(f => f.codice).forEach(f => {
+    const ci = f.checkin||'', co = f.checkout||'';
+    if (co && co < oggi) gruppi.partite.push(f);
+    else if (ci && ci > oggi) gruppi.inArrivo.push(f);
+    else gruppi.soggiornanti.push(f);
+  });
+
+  const sezioni = [
+    { label: '🏕 In struttura', list: gruppi.soggiornanti },
+    { label: '✈ In arrivo',    list: gruppi.inArrivo },
+    { label: '↩ Partite',      list: gruppi.partite },
+  ];
+
+  let html = '';
+  sezioni.forEach(({ label, list }) => {
+    if (!list.length) return;
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:10px 0 6px">${label}</div>`;
+    list.forEach(f => {
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f9f9f9;border-radius:8px;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" class="qr-check" data-id="${f.id}" checked style="width:16px;height:16px;accent-color:var(--green-700)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-900)">${esc(f.nome)}</div>
+          <div style="font-size:11px;color:var(--gray-500)">Alloggio ${esc(f.unita||'—')} · ${esc(f.trattamento||'—')}</div>
+        </div>
+      </label>`;
+    });
+  });
+
+  document.getElementById('qr-panel-list').innerHTML = html || '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:16px">Nessuna famiglia con QR</div>';
+  document.getElementById('modal-qr-panel').classList.remove('hidden');
+}
+
+function selezionaTutteQR(val) {
+  document.querySelectorAll('.qr-check').forEach(c => c.checked = val);
+}
+
+function scaricaQRSelezionati() {
+  const selezionati = new Set([...document.querySelectorAll('.qr-check:checked')].map(c => c.dataset.id));
+  const famiglie = famiglieDocs.filter(f => f.codice && selezionati.has(f.id));
+  if (!famiglie.length) { showToast('Seleziona almeno una famiglia'); return; }
+
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
   const cards = famiglie.map(f => {
     const url = `${base}?f=${f.codice}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&color=1a5c32&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
-    return `
-      <div class="qr-card">
+    return `<div class="qr-card">
         <div class="qr-istr">Scansiona il Qrcode<br>e compila il menù</div>
         <div class="qr-deadline">Entro le ore 10:00<br>del giorno stesso</div>
         <img class="qr-img" src="${qrSrc}" alt="QR ${f.nome}" crossorigin="anonymous">
@@ -2226,12 +2296,11 @@ function scaricaFoglioQR() {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const objUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = objUrl;
-  a.download = 'qr-famiglie.html';
-  document.body.appendChild(a);
-  a.click();
+  a.href = objUrl; a.download = 'qr-famiglie.html';
+  document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+  document.getElementById('modal-qr-panel').classList.add('hidden');
 }
 
 // ── MAPPA ORDINI CUCINA (per stampa) ────────────────────────────────────────
