@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -473,8 +473,9 @@ input[type="date"].finput{font-size:13px}
         <input class="finput" id="f-bambini" type="number" placeholder="Bambini"  min="0" max="10" oninput="aggiornaBambiniFields('f-bambini-ages','f-bambini')">
       </div>
       <div id="f-bambini-ages"></div>
-      <div class="form-row" style="grid-template-columns:1fr">
-        <input class="finput" id="f-tel" type="tel" placeholder="Telefono">
+      <div class="form-row">
+        <input class="finput" id="f-tel"   type="tel"  placeholder="Telefono">
+        <input class="finput" id="f-tavolo" type="text" placeholder="N. Tavolo (opzionale)">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
@@ -485,8 +486,8 @@ input[type="date"].finput{font-size:13px}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="sec-label" style="margin-bottom:0">Famiglie inserite</div>
       <div style="display:flex;gap:8px">
-        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="apriReportFamiglie()">📋 Report</button>
-        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ QR</button>
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="apriReportFamiglie()">Report</button>
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">QR</button>
       </div>
     </div>
     <div id="famiglie-list"></div>
@@ -561,6 +562,8 @@ input[type="date"].finput{font-size:13px}
     <div id="ef-bambini-ages" style="margin-bottom:8px"></div>
     <div class="mlabel">Telefono</div>
     <input class="minput" id="ef-tel" type="tel" placeholder="Telefono">
+    <div class="mlabel">N. Tavolo</div>
+    <input class="minput" id="ef-tavolo" type="text" placeholder="es. 5 (lascia vuoto se nessun tavolo condiviso)">
     <div class="mlabel">Note</div>
     <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
@@ -619,7 +622,7 @@ input[type="date"].finput{font-size:13px}
     <div id="qr-panel-list"></div>
     <div class="mbtns" style="margin-top:16px">
       <button class="mcancel" onclick="document.getElementById('modal-qr-panel').classList.add('hidden')">Annulla</button>
-      <button class="msave" onclick="scaricaQRSelezionati()">⬇ Scarica QR</button>
+      <button class="msave" onclick="scaricaQRSelezionati()">Scarica QR</button>
     </div>
   </div>
 </div>
@@ -636,7 +639,7 @@ input[type="date"].finput{font-size:13px}
     <div id="rf-list"></div>
     <div class="mbtns" style="margin-top:16px">
       <button class="mcancel" onclick="document.getElementById('modal-report-fam').classList.add('hidden')">Annulla</button>
-      <button class="msave" onclick="scaricaReportFamiglie()">⬇ Scarica report</button>
+      <button class="msave" onclick="scaricaReportFamiglie()">Scarica report</button>
     </div>
   </div>
 </div>
@@ -1080,6 +1083,9 @@ function renderCucina(ordini) {
 
     const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
     const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
+    const tavoloId = famDoc?.tavolo;
+    const compagniTavolo = tavoloId ? famiglieDocs.filter(f => f.tavolo === tavoloId && f.id !== ord.famiglia_id).map(f => esc(f.nome)) : [];
+    const tavoloHtml = tavoloId ? `<div class="kds-note" style="background:#F0FDF4;border-left:3px solid var(--green-700);margin-bottom:4px"><strong style="color:var(--green-700)">Tavolo ${esc(tavoloId)}</strong>${compagniTavolo.length ? ` · con ${compagniTavolo.join(', ')}` : ''}</div>` : '';
     const notaHtml = ord.note
       ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
 
@@ -1109,7 +1115,7 @@ function renderCucina(ordini) {
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
-      ${famNote}${notaHtml}
+      ${tavoloHtml}${famNote}${notaHtml}
       ${logHtml}
       <div class="kds-extra" id="extra-${ord.id}">
         <div class="kds-extra-row">
@@ -1631,7 +1637,7 @@ function renderFamiglie() {
       <div class="fam-av ${avatarClass}">${ini}</div>
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
-        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''}  · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''}  · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}${f.tavolo?` · <strong style="color:var(--green-700)">Tavolo ${esc(f.tavolo)}</strong>`:''}</div>
         ${f.note?`<div style="font-size:11px;color:#DC2626;margin-top:2px">⚠ ${esc(f.note)}</div>`:''}
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
@@ -1649,15 +1655,15 @@ function renderFamiglie() {
   let html = '';
 
   if (soggiornanti.length) {
-    html += `<div class="fam-group-label" style="color:var(--green-700)">🏕 In struttura (${soggiornanti.length})</div>`;
+    html += `<div class="fam-group-label" style="color:var(--green-700)">In struttura (${soggiornanti.length})</div>`;
     html += soggiornanti.map(([f,idx]) => rigaFam(f, idx, '')).join('');
   }
   if (inArrivo.length) {
-    html += `<div class="fam-group-label" style="color:#3B82F6">✈ In arrivo (${inArrivo.length})</div>`;
+    html += `<div class="fam-group-label" style="color:#3B82F6">In arrivo (${inArrivo.length})</div>`;
     html += inArrivo.map(([f,idx]) => rigaFam(f, idx, 'arrivo')).join('');
   }
   if (partite.length) {
-    html += `<div class="fam-group-label" style="color:var(--gray-400)">↩ Partite (${partite.length})</div>`;
+    html += `<div class="fam-group-label" style="color:var(--gray-400)">Partite (${partite.length})</div>`;
     html += partite.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
   }
 
@@ -1701,8 +1707,9 @@ async function aggiungiFamiglia() {
   const id         = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
   const note       = document.getElementById('f-note').value.trim();
   const tel        = document.getElementById('f-tel').value.trim();
+  const tavolo     = document.getElementById('f-tavolo').value.trim();
   const max_ospiti = adulti + bambini.length;
-  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, codice, note };
+  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, tavolo, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1718,6 +1725,7 @@ async function aggiungiFamiglia() {
     document.getElementById('f-bambini-ages').innerHTML = '';
     document.getElementById('f-trattamento').value = '';
     document.getElementById('f-tel').value = '';
+    document.getElementById('f-tavolo').value = '';
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
@@ -1734,7 +1742,8 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-adulti').value      = f.adulti  ?? (f.max_ospiti || 1);
   document.getElementById('ef-bambini').value     = (f.bambini||[]).length;
-  document.getElementById('ef-tel').value         = f.tel  || '';
+  document.getElementById('ef-tel').value         = f.tel    || '';
+  document.getElementById('ef-tavolo').value      = f.tavolo || '';
   document.getElementById('ef-note').value        = f.note || '';
   // Popola età bambini
   aggiornaBambiniFields('ef-bambini-ages','ef-bambini');
@@ -1773,8 +1782,9 @@ async function salvaEditFamiglia() {
   const { db, doc, setDoc } = window._fb;
   const note       = document.getElementById('ef-note').value.trim();
   const tel        = document.getElementById('ef-tel').value.trim();
+  const tavolo     = document.getElementById('ef-tavolo').value.trim();
   const max_ospiti = adulti + bambini.length;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, note };
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, tavolo, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -2121,9 +2131,9 @@ function apriReportFamiglie() {
   });
 
   const sezioni = [
-    { label: '🏕 In struttura', list: gruppi.soggiornanti },
-    { label: '✈ In arrivo',    list: gruppi.inArrivo },
-    { label: '↩ Partite',      list: gruppi.partite },
+    { label: 'In struttura', list: gruppi.soggiornanti },
+    { label: 'In arrivo',    list: gruppi.inArrivo },
+    { label: 'Partite',      list: gruppi.partite },
   ];
 
   let html = '';
@@ -2163,11 +2173,24 @@ function scaricaReportFamiglie() {
   }
 
   const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
-  const rows = fams.map(f => {
+  const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
+
+  // Ordina: prima per tavolo (raggruppati), poi senza tavolo
+  const conTavolo = fams.filter(f => f.tavolo).sort((a,b) => a.tavolo.localeCompare(b.tavolo, undefined, {numeric:true}));
+  const senzaTavolo = fams.filter(f => !f.tavolo);
+  const famOrdinati = [...conTavolo, ...senzaTavolo];
+
+  let lastTavolo = null;
+  const rows = famOrdinati.map(f => {
     const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
-    const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
     const dateStr = [fmtData(f.checkin), fmtData(f.checkout)].filter(Boolean).join(' → ');
-    return `<tr>
+    let tavoloRow = '';
+    if (f.tavolo && f.tavolo !== lastTavolo) {
+      lastTavolo = f.tavolo;
+      const compagni = fams.filter(x => x.tavolo === f.tavolo).map(x => x.nome).join(', ');
+      tavoloRow = `<tr><td colspan="9" style="background:#f0fdf4;font-size:10px;font-weight:700;color:#1a5c32;padding:5px 8px;letter-spacing:.04em">TAVOLO ${esc(f.tavolo)} — ${compagni}</td></tr>`;
+    }
+    return tavoloRow + `<tr>
       <td>${esc(f.nome)}</td>
       <td>${esc(f.unita||'—')}</td>
       <td>${esc(f.tel||'—')}</td>
@@ -2231,9 +2254,9 @@ function apriPanelQR() {
   });
 
   const sezioni = [
-    { label: '🏕 In struttura', list: gruppi.soggiornanti },
-    { label: '✈ In arrivo',    list: gruppi.inArrivo },
-    { label: '↩ Partite',      list: gruppi.partite },
+    { label: 'In struttura', list: gruppi.soggiornanti },
+    { label: 'In arrivo',    list: gruppi.inArrivo },
+    { label: 'Partite',      list: gruppi.partite },
   ];
 
   let html = '';
