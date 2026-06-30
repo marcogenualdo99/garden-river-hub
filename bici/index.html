@@ -746,7 +746,7 @@ function renderBikeBody(b) {
     '</div>';
   }
   if (stato === 'occupata') {
-    const usaFisso = b.costoPreselezionato != null;
+    const usaFisso = !!b.rientroPrevistoTs;
     const r = usaFisso
       ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
       : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
@@ -784,10 +784,11 @@ function renderBikeBody(b) {
       '<div class="bike-divider"></div>'+
       '<div class="bike-info-row">'+
         '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
-        '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+(b.rientroPrevistoTs ? fmtTs(b.rientroPrevistoTs) : '—')+'</div></div>'+
+        '<div class="bike-info-col"><div class="bike-info-label">Orario attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
       '</div>'+
       '<div class="bike-info-row">'+
         '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div></div>'+
+        (b.rientroPrevistoTs ? '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+fmtTs(b.rientroPrevistoTs)+'</div></div>' : '')+
       '</div>'+
       '<div class="bike-cost-row">'+
         '<div><div class="bike-cost-label">'+(usaFisso?'Costo concordato':'Costo calcolato')+'</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
@@ -951,7 +952,7 @@ async function segnalaRitiro(id) {
 function confermaRiscuoti(id) {
   const b = bikesMap[id];
   if (!b || b.stato !== 'occupata') return;
-  const costo = (b.costoPreselezionato != null) ? b.costoPreselezionato : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime()).costo;
+  const costo = (!!b.rientroPrevistoTs) ? b.costoPreselezionato : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime()).costo;
   showModal(
     'Riscuoti ' + costo.toFixed(2).replace('.',',') + '€',
     'Bici N°'+b.numero+' — '+(b.clienteNome||'')+'. Confermi di aver incassato il pagamento e di voler segnalare il rientro della bici?',
@@ -963,7 +964,7 @@ async function riscuoti(id) {
   const b = bikesMap[id];
   if (!b || b.stato !== 'occupata') return;
   const nowIso = new Date().toISOString();
-  const usaFisso = b.costoPreselezionato != null;
+  const usaFisso = !!b.rientroPrevistoTs;
   const r = usaFisso
     ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
     : calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
