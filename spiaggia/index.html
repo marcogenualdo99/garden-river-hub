@@ -501,7 +501,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
   <div class="print-panel">
     <div class="print-panel-title" id="pp-title"></div>
     <div class="print-panel-sub"   id="pp-sub"></div>
-    <div class="tickets-grid"      id="pp-grid"></div>
+    <!-- filtro date -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:600;color:var(--gray-600)">Filtra per periodo:</span>
+      <input type="date" id="pp-filter-dal" class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
+      <span style="font-size:12px;color:var(--gray-400)">→</span>
+      <input type="date" id="pp-filter-al"  class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
+      <button class="btn-close-print" style="height:32px;padding:0 10px;font-size:11px" onclick="resetPrintFilter()">✕ Reset</button>
+    </div>
+    <div class="tickets-grid" id="pp-grid"></div>
     <div class="print-panel-btns">
       <button class="btn-close-print" onclick="toggleSelectAll()" id="btn-sel-all">Seleziona tutti</button>
       <button class="btn-print-all-confirm" onclick="printSelected()">
@@ -1097,15 +1105,43 @@ function printSelected() {
   triggerPrint(list);
 }
 
-function openPrintPanel() {
-  const list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
-  const s = currentSpiaggia();
-  document.getElementById('pp-title').textContent = `Tagliandini — ${s ? s.nome : ''}`;
-  document.getElementById('pp-sub').textContent   = `${MONTHS[currentMonth]} ${currentYear} · ${list.length} prenotazion${list.length===1?'e':'i'}`;
+function getPrintList() {
+  const dal = document.getElementById('pp-filter-dal')?.value;
+  const al  = document.getElementById('pp-filter-al')?.value;
+  let list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
+  if (dal || al) {
+    list = list.filter(b => {
+      if (dal && b.al <= dal) return false;
+      if (al  && b.dal >= al)  return false;
+      return true;
+    });
+  }
+  return list;
+}
+
+function renderPrintGrid() {
+  const list = getPrintList();
+  document.getElementById('pp-sub').textContent = `${list.length} prenotazion${list.length===1?'e':'i'} trovate`;
   document.getElementById('pp-grid').innerHTML = list.length
     ? list.map(buildTicketHTML).join('')
-    : '<div style="grid-column:span 2;text-align:center;padding:30px;color:var(--gray-500);font-size:14px">Nessuna prenotazione per questa spiaggia</div>';
+    : '<div style="grid-column:span 2;text-align:center;padding:30px;color:var(--gray-500);font-size:14px">Nessuna prenotazione nel periodo selezionato</div>';
   updateStampaLabel();
+}
+
+function filterPrintPanel() { renderPrintGrid(); }
+
+function resetPrintFilter() {
+  document.getElementById('pp-filter-dal').value = '';
+  document.getElementById('pp-filter-al').value  = '';
+  renderPrintGrid();
+}
+
+function openPrintPanel() {
+  const s = currentSpiaggia();
+  document.getElementById('pp-title').textContent = `Tagliandini — ${s ? s.nome : ''}`;
+  document.getElementById('pp-filter-dal').value = '';
+  document.getElementById('pp-filter-al').value  = '';
+  renderPrintGrid();
   document.getElementById('print-overlay').classList.remove('hidden');
 }
 function closePrintPanel() { document.getElementById('print-overlay').classList.add('hidden'); }
