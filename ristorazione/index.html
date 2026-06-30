@@ -103,8 +103,9 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 .meal-card-body{padding:0 18px 14px}
 .meal-card-body.mp-locked{pointer-events:none;opacity:.4;position:relative}
 .mp-lock-msg{text-align:center;font-size:12px;font-weight:600;color:var(--gray-500);padding:12px 18px;border-top:1px solid var(--gray-100)}
-.meal-badge{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
-.meal-badge::before{content:'';display:block;width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5)}
+.meal-badge{font-size:17px;font-weight:800;color:#fff;letter-spacing:.01em;display:flex;align-items:center;gap:10px}
+.meal-badge-icon{font-size:26px;line-height:1;flex-shrink:0}
+.meal-badge-sub{font-size:11px;font-weight:500;color:rgba(255,255,255,.6);margin-top:2px;letter-spacing:.01em}
 .lock-badge{font-size:11px;font-weight:700;color:var(--green-500);background:var(--green-50);border:1px solid var(--green-100);border-radius:20px;padding:4px 10px}
 /* locked card */
 .meal-card.locked{opacity:.85}
@@ -170,6 +171,24 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 .guest-stepper{display:flex;align-items:center;gap:12px}
 .guest-stepper .step-btn{border:1.5px solid var(--gray-200);border-radius:50%;width:34px;height:34px;font-size:18px}
 .btn-reset{width:100%;height:44px;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font)}
+
+/* ── MP MEAL SELECTOR ── */
+.mp-selector-wrap{background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:18px;margin-bottom:16px}
+.mp-selector-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-500);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.mp-selector-label::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--green-700)}
+.mp-selector-hint{font-size:13px;color:var(--gray-500);margin-bottom:14px;line-height:1.5}
+.mp-selector-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mp-sel-btn{height:72px;border:2px solid var(--gray-200);border-radius:14px;background:var(--gray-50);cursor:pointer;font-family:var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:background .15s,border-color .15s,transform .1s;-webkit-tap-highlight-color:transparent}
+.mp-sel-btn:active{transform:scale(.97)}
+.mp-sel-btn .mp-sel-icon{font-size:24px;line-height:1}
+.mp-sel-btn .mp-sel-txt{font-size:15px;font-weight:800;color:var(--gray-500)}
+.mp-sel-btn.active.pranzo{background:var(--green-700);border-color:var(--green-700)}
+.mp-sel-btn.active.pranzo .mp-sel-txt{color:#fff}
+.mp-sel-btn.active.cena{background:var(--gray-900);border-color:var(--gray-900)}
+.mp-sel-btn.active.cena .mp-sel-txt{color:#fff}
+.mp-sel-btn.locked-mp{opacity:.45;cursor:not-allowed;pointer-events:none}
+.mp-change-btn{margin-top:14px;width:100%;height:38px;background:transparent;border:1.5px solid var(--gray-200);border-radius:20px;font-size:12px;font-weight:700;color:var(--gray-500);cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;transition:background .15s}
+.mp-change-btn:active{background:var(--gray-100)}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:var(--white);padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
@@ -249,6 +268,7 @@ let menuOggi = [], menuDomani = [];
 let ordiniEsistenti = {};
 let selezioni = {};
 let cicloStart = null;
+const mpChoice = {}; // { 'YYYY-MM-DD': 'pranzo'|'cena' } — scelta pasto per mezza pensione
 
 function getGiornoCiclo(iso) {
   if (!cicloStart) return null;
@@ -417,7 +437,65 @@ function renderGiorno(c,data,voci){
   if(!voci.length){ const e=document.createElement('div'); e.className='empty-day'; e.textContent='Nessun menu disponibile per questo giorno.'; c.appendChild(e); return; }
   const tipi={};
   voci.forEach(v=>{ if(!tipi[v.tipo])tipi[v.tipo]=[]; tipi[v.tipo].push(v); });
+
+  // Mezza pensione: mostra selettore pranzo/cena prima del menu
+  if(famiglia.trattamento==='MP'){
+    const disponibili=['pranzo','cena'].filter(t=>tipi[t]);
+    if(disponibili.length>1){ renderGiornoMP(c,data,tipi); return; }
+  }
   ['pranzo','cena'].forEach(t=>{ if(tipi[t]) c.appendChild(buildMealCard(data,t,tipi[t])); });
+}
+
+function renderGiornoMP(c,data,tipi){
+  // Pre-seleziona automaticamente se uno è già confermato
+  if(!mpChoice[data]){
+    if(ordiniEsistenti[`${data}_pranzo`]) mpChoice[data]='pranzo';
+    else if(ordiniEsistenti[`${data}_cena`]) mpChoice[data]='cena';
+  }
+  const scelta=mpChoice[data];
+  const pranzoLocked=!!ordiniEsistenti[`${data}_pranzo`];
+  const cenaLocked=!!ordiniEsistenti[`${data}_cena`];
+
+  const wrap=document.createElement('div');
+  wrap.className='mp-selector-wrap';
+  wrap.id=`mp-sel-${data}`;
+  wrap.innerHTML=`
+    <div class="mp-selector-label">Mezza pensione — scegli un pasto</div>
+    ${!scelta?'<div class="mp-selector-hint">Con la mezza pensione puoi ordinare <strong>pranzo oppure cena</strong>, non entrambi. Seleziona quale vuoi ordinare oggi.</div>':''}
+    <div class="mp-selector-btns">
+      <button class="mp-sel-btn pranzo${scelta==='pranzo'?' active':''}${cenaLocked?' locked-mp':''}"
+        onclick="scegliPasto('${data}','pranzo')" aria-label="Scegli pranzo">
+        <span class="mp-sel-icon">☀️</span>
+        <span class="mp-sel-txt">Pranzo</span>
+      </button>
+      <button class="mp-sel-btn cena${scelta==='cena'?' active':''}${pranzoLocked?' locked-mp':''}"
+        onclick="scegliPasto('${data}','cena')" aria-label="Scegli cena">
+        <span class="mp-sel-icon">🌙</span>
+        <span class="mp-sel-txt">Cena</span>
+      </button>
+    </div>
+    ${scelta&&!pranzoLocked&&!cenaLocked?`<button class="mp-change-btn" onclick="cambiaPasto('${data}')">Cambia scelta</button>`:''}`;
+  c.appendChild(wrap);
+
+  const cardWrap=document.createElement('div');
+  cardWrap.id=`mp-card-${data}`;
+  c.appendChild(cardWrap);
+
+  if(scelta&&tipi[scelta]) cardWrap.appendChild(buildMealCard(data,scelta,tipi[scelta]));
+}
+
+function scegliPasto(data,tipo){
+  if(mpChoice[data]===tipo) return;
+  // Azzera le quantità del pasto precedentemente selezionato (MP: solo uno)
+  const prev=mpChoice[data];
+  if(prev) selezioni[`${data}_${prev}`]={piatti:{},note:''};
+  mpChoice[data]=tipo;
+  renderMenu();
+}
+
+function cambiaPasto(data){
+  mpChoice[data]=null;
+  renderMenu();
 }
 
 const CAT_ORDER=['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
@@ -446,7 +524,9 @@ function buildMealCard(data,tipo,piatti){
 
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
-  const tipoLabel=tipo==='pranzo'?'☀ Pranzo':'🌙 Cena';
+  const tipoIcon =tipo==='pranzo'?'☀️':'🌙';
+  const tipoNome =tipo==='pranzo'?'Pranzo':'Cena';
+  const tipoSub  =tipo==='pranzo'?'Mezzogiorno · ordina entro le 10:00':'Sera · ordina entro le 10:00';
   // Calcola lock MP iniziale
   const oppTipo = tipo==='pranzo'?'cena':'pranzo';
   const oppKey  = `${data}_${oppTipo}`;
@@ -454,7 +534,13 @@ function buildMealCard(data,tipo,piatti){
 
   card.innerHTML=`
     <div class="meal-card-header ${tipo}">
-      <span class="meal-badge">${tipoLabel}</span>
+      <span class="meal-badge">
+        <span class="meal-badge-icon">${tipoIcon}</span>
+        <div>
+          <div>${tipoNome}</div>
+          <div class="meal-badge-sub">${tipoSub}</div>
+        </div>
+      </span>
       ${isLocked?(ordiniEsistenti[key]?'<span class="lock-badge">✓ Confermato</span>':'<span class="lock-badge" style="background:var(--gray-100);color:var(--gray-500);border-color:var(--gray-200)">⏱ Scaduto</span>'):''}
     </div>
     <div class="meal-card-body${isMPLocked?' mp-locked':''}" id="meal-body-${key}">
