@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -36,7 +36,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -693,8 +693,7 @@ function renderBikeBody(b) {
   const stato = effectiveStato(b);
   if (stato === 'libera') {
     if (!formTemp[b.id]) {
-      formTemp[b.id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' };
-      aggiornaRientroSuggerito(b.id, formTemp[b.id]);
+      formTemp[b.id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
     }
     const t = formTemp[b.id];
     const r = calcolaSelezioneDurata(t);
@@ -708,8 +707,9 @@ function renderBikeBody(b) {
     }
     return '<div class="bike-body">'+
       '<div class="bike-divider"></div>'+
-      '<div style="margin-bottom:14px">'+
-        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
+      '<div class="form-row-2">'+
+        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp[\''+id+'\'].nome=this.value" style="flex:1;min-width:0;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
+        '<input type="datetime-local" value="'+(t.ritiroTs||'')+'" oninput="formTemp[\''+id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro (lascia vuoto per ora attuale)">'+
       '</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">'+
         '<div style="display:flex;align-items:center;border:1.5px solid '+(oreOn?'var(--green-700)':'var(--gray-300)')+';border-radius:20px;background:'+(oreOn?'var(--green-50)':'var(--white)')+'">'+
@@ -922,8 +922,8 @@ async function segnalaRitiro(id) {
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const r = calcolaSelezioneDurata(t);
   const costoPreselezionato = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
-  const rientroPrevistoTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : new Date(Date.now() + r.ms).toISOString();
-  const nowIso = new Date().toISOString();
+  const rientroPrevistoTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : null;
+  const nowIso = t.ritiroTs ? new Date(t.ritiroTs).toISOString() : new Date().toISOString();
   b.stato = 'occupata';
   b.clienteNome = nome;
   b.ritiroTs = nowIso;
@@ -936,12 +936,13 @@ async function segnalaRitiro(id) {
   render();
   try {
     await waitForFirebase();
-    const { db, doc, updateDoc } = window._fb;
+    const { db, doc, updateDoc, deleteField } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
       stato: 'occupata', clienteNome: nome,
       ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
       costoPreselezionato, fasciaPreselezionata: r.fascia,
-      dettaglioPreselezionato: r.dettaglio, rientroPrevistoTs,
+      dettaglioPreselezionato: r.dettaglio,
+      rientroPrevistoTs: rientroPrevistoTs !== null ? rientroPrevistoTs : deleteField(),
     });
   } catch(e) {
     console.error('Errore segnalazione ritiro:', e);
@@ -1016,7 +1017,6 @@ function cambiaOre(id, delta) {
   t.fasciaKey = null;
   if (delta !== 0) t.ore = Math.max(1, (t.ore || 1) + delta);
   t.costoManuale = null;
-  aggiornaRientroSuggerito(id, t);
   render();
 }
 
@@ -1024,7 +1024,6 @@ function selFascia(id, key) {
   const t = formTemp[id] || (formTemp[id] = { nome:'', fasciaKey:null, ore:1, costoManuale:null, rientroTs:'' });
   t.fasciaKey = key;
   t.costoManuale = null;
-  aggiornaRientroSuggerito(id, t);
   render();
 }
 
@@ -1036,19 +1035,20 @@ function segnalaRitiroPagato(id) {
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const r = calcolaSelezioneDurata(t);
   const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
-  const rientroTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : new Date(Date.now() + r.ms).toISOString();
+  const rientroTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : null;
+  const ritiroTs = t.ritiroTs ? new Date(t.ritiroTs).toISOString() : new Date().toISOString();
   showModal(
     'Ritiro pagato — ' + costo.toFixed(2).replace('.',',') + '€',
     'Bici N°'+b.numero+' — '+nome+'. '+r.fascia+': '+r.dettaglio+'. Confermi di aver incassato il pagamento?',
     'Conferma pagamento',
-    () => eseguiRitiroPagato(id, nome, rientroTs, { costo, fascia: r.fascia, dettaglio: r.dettaglio })
+    () => eseguiRitiroPagato(id, nome, ritiroTs, rientroTs, { costo, fascia: r.fascia, dettaglio: r.dettaglio })
   );
 }
 
-async function eseguiRitiroPagato(id, nome, rientroTs, r) {
+async function eseguiRitiroPagato(id, nome, ritiroTs, rientroTs, r) {
   const b = bikesMap[id];
   if (!b) return;
-  const nowIso = new Date().toISOString();
+  const nowIso = ritiroTs || new Date().toISOString();
   b.stato = 'occupata';
   b.clienteNome = nome;
   b.ritiroTs = nowIso;
@@ -1063,12 +1063,13 @@ async function eseguiRitiroPagato(id, nome, rientroTs, r) {
   showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
   try {
     await waitForFirebase();
-    const { db, doc, updateDoc } = window._fb;
+    const { db, doc, updateDoc, deleteField } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
       stato: 'occupata', clienteNome: nome,
       ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
       pagamentoAnticipato: true, costoAnticipato: r.costo,
-      fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio, rientroPrevistoTs: rientroTs,
+      fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio,
+      rientroPrevistoTs: rientroTs !== null ? rientroTs : deleteField(),
     });
   } catch(e) {
     console.error('Errore ritiro pagato:', e);
