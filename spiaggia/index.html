@@ -1081,16 +1081,16 @@ function ticketPrintBody(b, logoUrl) {
     </div>
     <div class="t-name">${b.cliente}</div>
     <div class="t-ombr">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E05A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E05A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
       <span class="t-ombr-num">${b.ombrellone}</span>
-      ${s ? `<span class="t-ombr-beach">· ${s.nome}</span>` : ''}
+      ${s ? `<span class="t-ombr-beach">${s.nome}</span>` : ''}
     </div>
     <hr class="t-sep">
     <div class="t-dates">
       <div class="row"><span class="lbl">Arrivo</span><span class="val">${fmtDate(b.dal)}</span></div>
       <div class="row"><span class="lbl">Partenza</span><span class="val">${fmtDate(b.al)}</span></div>
     </div>
-    <div class="t-notti">${n} nott${n===1?'e':'i'}</div>
+    <div class="t-notti">${n} giorn${n===1?'o':'i'} di utilizzo</div>
     ${b.note ? `<div class="t-note">${b.note}</div>` : ''}
   </div>`;
 }
@@ -1154,25 +1154,27 @@ function printPageHTML(list, logoUrl) {
     .t-logo{width:38mm;height:auto;display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .t-id{font-size:8px;color:#bbb;font-weight:600;white-space:nowrap}
 
-    /* 1° — nome cliente */
-    .t-name{font-size:20px;font-weight:900;line-height:1.05;letter-spacing:-.02em;color:#111;margin-bottom:2mm}
+    /* 1° — logo (già in .t-top) */
 
-    /* 2° — ombrellone + spiaggia */
-    .t-ombr{display:flex;align-items:center;gap:5px;margin-bottom:4mm;flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
-    .t-ombr-num{font-size:17px;font-weight:800;color:#E05A00;flex-shrink:0}
-    .t-ombr-beach{font-size:12px;font-weight:500;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    /* 2° — nome cliente (poco evidente) */
+    .t-name{font-size:11px;font-weight:600;color:#444;margin-bottom:2mm;letter-spacing:.01em}
+
+    /* 3° — ombrellone + spiaggia (ELEMENTO PRINCIPALE) */
+    .t-ombr{display:flex;align-items:baseline;gap:6px;margin-bottom:4mm;flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+    .t-ombr-num{font-size:28px;font-weight:900;color:#E05A00;letter-spacing:-.02em;line-height:1;flex-shrink:0}
+    .t-ombr-beach{font-size:14px;font-weight:600;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
     /* separatore */
     .t-sep{border:none;border-top:1.5px dashed #ddd;margin:0 0 3mm}
 
-    /* 3° — date */
+    /* 5-6° — date */
     .t-dates{display:flex;flex-direction:column;gap:1.5mm}
-    .t-dates .row{display:flex;align-items:baseline}
-    .t-dates .lbl{font-size:9px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:.07em;min-width:58px}
+    .t-dates .row{display:flex;align-items:baseline;gap:3mm}
+    .t-dates .lbl{font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.07em;min-width:16mm;flex-shrink:0}
     .t-dates .val{font-size:14px;font-weight:800;color:#111}
 
-    /* 4° — notti */
-    .t-notti{margin-top:2.5mm;font-size:9px;font-weight:700;color:#E05A00;text-transform:uppercase;letter-spacing:.08em}
+    /* 7° — giorni di utilizzo */
+    .t-notti{margin-top:2.5mm;font-size:9px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.06em}
 
     /* note */
     .t-note{font-size:9px;color:#888;font-style:italic;border-top:1px solid #eee;padding-top:1.5mm;margin-top:1.5mm}
