@@ -2209,14 +2209,12 @@ function applicaFiltroDate() {
     if (!f || (!f.checkin && !f.checkout)) { c.checked = false; return; }
     const ci = f.checkin  || '';
     const co = f.checkout || '';
-    // Sovrapposizione: il soggiorno [ci,co] si sovrappone al filtro [dal,al]
-    // checkin della famiglia deve essere <= data fine filtro
-    // checkout della famiglia deve essere >= data inizio filtro
-    const checkinOk  = !al  || !ci || ci <= al;
-    const checkoutOk = !dal || !co || co >= dal;
-    const presente = checkinOk && checkoutOk;
-    c.checked = presente;
-    if (presente) selezionate++;
+    // Escludi se il soggiorno finisce prima dell'inizio filtro
+    if (dal && co && co < dal) { c.checked = false; return; }
+    // Escludi se il soggiorno inizia dopo la fine filtro
+    if (al  && ci && ci > al)  { c.checked = false; return; }
+    c.checked = true;
+    selezionate++;
   });
   showToast(`${selezionate} famiglie selezionate`);
 }
