@@ -139,6 +139,7 @@
   --gray-700:  #374151;
   --gray-500:  #6B7280;
   --gray-300:  #D1D5DB;
+  --gray-200:  #E5E7EB;
   --gray-100:  #F3F4F6;
   --gray-50:   #F9FAFB;
   --white:     #FFFFFF;
@@ -184,7 +185,7 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
 .pin-dot.error  { background: var(--red); border-color: var(--red); }
 .pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
-.pin-key { height: 56px; border: 1.5px solid var(--gray-200,#E5E7EB); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
+.pin-key { height: 56px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
 .pin-key:active { background: var(--gray-100); }
 .pin-key.del    { font-size: 18px; color: var(--gray-500); }
 .pin-key.empty  { border: none; background: none; cursor: default; }
@@ -348,7 +349,17 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 .empty { text-align: center; padding: 48px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
 
 /* ══ TOAST ════════════════════════════════════════════════════════════════════ */
-.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+/* ══ MODAL ═══════════════════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-overlay.hidden { display: none; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 17px; font-weight: 800; color: var(--gray-900); margin-bottom: 8px; }
+.modal-body  { font-size: 14px; color: var(--gray-500); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-btn-cancel  { flex: 1; height: 48px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm { flex: 1; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ══ MISC ═════════════════════════════════════════════════════════════════════ */
@@ -683,13 +694,13 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 
 </main>
 <!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
-<div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
-  <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
-    <div id="modal-title" style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:8px"></div>
-    <div id="modal-body"  style="font-size:14px;color:var(--gray-500);line-height:1.6;margin-bottom:20px;white-space:pre-line"></div>
-    <div style="display:flex;gap:10px">
-      <button id="modal-cancel" onclick="closeModal()" style="flex:1;height:48px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Annulla</button>
-      <button id="modal-confirm" style="flex:1;height:48px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Conferma</button>
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div id="modal-title" class="modal-title"></div>
+    <div id="modal-body"  class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
     </div>
   </div>
 </div>
@@ -1108,10 +1119,10 @@ function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
   btn.style.background = confirmColor || 'var(--green-700)';
   btn.onclick = () => { closeModal(); onConfirm(); };
   const overlay = document.getElementById('modal-overlay');
-  overlay.style.display = 'flex';
+  overlay.classList.remove('hidden');
   overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
 }
-function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init() {
