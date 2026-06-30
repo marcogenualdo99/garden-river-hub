@@ -2303,7 +2303,30 @@ function scaricaReportFamiglie() {
   const tavoliOrdinati = Object.keys(tavoliMap).sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
   const senzaTavolo = fams.filter(f => !f.tavolo);
 
-  let blocchi = '';
+  // Sezione recuperi pasti
+  const famiglieConRecupero = fams.filter(f => recuperoPastiLabel(f));
+  let recuperiBlock = '';
+  if (famiglieConRecupero.length) {
+    recuperiBlock = `<div style="border:2px solid #D97706;border-radius:8px;padding:12px 16px;margin-bottom:20px;background:#FFFBEB;break-inside:avoid">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#D97706;margin-bottom:10px">Recupero pasti</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Famiglia</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Alloggio</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Check-out</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Pasti da recuperare</th>
+        </tr></thead>
+        <tbody>${famiglieConRecupero.map(f => `<tr>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.nome)}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.unita||'—')}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${fmtData(f.checkout)||'—'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A;font-weight:700;color:#B45309">${esc(recuperoPastiLabel(f))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  let blocchi = recuperiBlock;
 
   // Riquadri tratteggiati per tavoli condivisi
   tavoliOrdinati.forEach(t => {
