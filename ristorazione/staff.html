@@ -2205,10 +2205,6 @@ function applicaFiltroDate() {
   if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
   const checks = document.querySelectorAll('.rf-check');
   if (!checks.length) { showToast('Nessun elemento trovato'); return; }
-  // debug: mostra il primo id trovato e la famiglia corrispondente
-  const primoId = checks[0]?.dataset?.id;
-  const primaFam = famiglieDocs.find(x => x.id === primoId);
-  console.log('DEBUG filtro — dal:', dal, 'al:', al, 'checks:', checks.length, 'primo id:', primoId, 'fam trovata:', primaFam, 'famiglieDocs ids:', famiglieDocs.map(f=>f.id));
   let selezionate = 0;
   checks.forEach(c => {
     const fid = c.dataset.id;
@@ -2217,7 +2213,7 @@ function applicaFiltroDate() {
     const ci = (f.checkin  || '').trim();
     const co = (f.checkout || '').trim();
     if (!ci && !co) { c.checked = false; return; }
-    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
+    const fuoriRange = (dal && co && co <= dal) || (al && ci && ci >= al);
     c.checked = !fuoriRange;
     if (!fuoriRange) selezionate++;
   });
