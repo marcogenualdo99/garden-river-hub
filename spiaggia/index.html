@@ -1076,17 +1076,14 @@ function ticketPrintBody(b, logoUrl) {
   return `
   <div class="ticket">
     <div class="t-top">
-      <div class="t-top-r1">
-        <div class="t-logo-clip"><img class="t-logo" src="${logoUrl}" alt="Garden River"></div>
-        <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
-      </div>
-      <span class="t-stato" style="background:${st.hex}">${st.label}</span>
+      <div class="t-logo-clip"><img class="t-logo" src="${logoUrl}" alt="Garden River"></div>
+      <span class="t-id">#${b.id.slice(-4).toUpperCase()}</span>
     </div>
     <div class="t-name">${b.cliente}</div>
     <div class="t-ombr">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#E05A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#E05A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
       <span class="t-ombr-num">${b.ombrellone}</span>
-      ${s ? `<span class="t-ombr-dot">·</span><span class="t-ombr-beach">${s.nome}</span>` : ''}
+      ${s ? `<span class="t-ombr-beach">· ${s.nome}</span>` : ''}
     </div>
     <hr class="t-sep">
     <div class="t-dates">
@@ -1147,40 +1144,38 @@ function printPageHTML(list, logoUrl) {
     @page{size:A4 portrait;margin:0}
     body{font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#111;width:210mm}
     .grid{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:74.25mm;width:210mm}
-    .ticket{border:1px solid #d0d0d0;padding:7mm 8mm 6mm;display:flex;flex-direction:column;overflow:hidden;break-inside:avoid}
+    .ticket{border:1px solid #d0d0d0;padding:6mm 7mm 5mm;display:flex;flex-direction:column;overflow:hidden;break-inside:avoid}
     .ticket:nth-child(even){border-left:none}
-    /* top border: suppresso per tutti i ticket dopo i primi 2 della stessa "pagina" — si gestisce con border-top su tutti tranne i primi due per pagina */
     .ticket:nth-child(n+3){border-top:none}
 
-    /* header: logo + stato + numero */
-    .t-top{display:flex;flex-direction:column;gap:1mm;margin-bottom:3mm}
-    .t-top-r1{display:flex;align-items:center;justify-content:space-between}
+    /* logo + id */
+    .t-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3mm}
     .t-logo-clip{height:10mm;overflow:hidden;display:flex;align-items:center}
-    .t-logo{width:38mm;height:auto;object-fit:contain;display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .t-stato{display:inline-block;align-self:flex-start;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:2px 8px;border-radius:3px;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;white-space:nowrap}
-    .t-id{font-size:9px;color:#bbb;font-weight:600;white-space:nowrap}
+    .t-logo{width:38mm;height:auto;display:block;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .t-id{font-size:8px;color:#bbb;font-weight:600;white-space:nowrap}
 
-    /* nome cliente — info più importante */
-    .t-name{font-size:24px;font-weight:900;line-height:1.05;letter-spacing:-.03em;color:#111;margin-bottom:1.5mm}
+    /* 1° — nome cliente */
+    .t-name{font-size:20px;font-weight:900;line-height:1.05;letter-spacing:-.02em;color:#111;margin-bottom:2mm}
 
-    /* ombrellone */
-    .t-ombr{display:flex;align-items:center;gap:5px;margin-bottom:5mm}
-    .t-ombr-num{font-size:17px;font-weight:800;color:#E05A00}
-    .t-ombr-dot{font-size:13px;color:#bbb;margin:0 1px}
-    .t-ombr-beach{font-size:12px;color:#555;font-weight:500}
+    /* 2° — ombrellone + spiaggia */
+    .t-ombr{display:flex;align-items:center;gap:5px;margin-bottom:4mm;flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+    .t-ombr-num{font-size:17px;font-weight:800;color:#E05A00;flex-shrink:0}
+    .t-ombr-beach{font-size:12px;font-weight:500;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
     /* separatore */
-    .t-sep{border:none;border-top:1.5px dashed #ddd;margin:0 0 4mm}
+    .t-sep{border:none;border-top:1.5px dashed #ddd;margin:0 0 3mm}
 
-    /* date */
+    /* 3° — date */
     .t-dates{display:flex;flex-direction:column;gap:1.5mm}
-    .t-dates .row{display:flex;align-items:baseline;gap:0}
-    .t-dates .lbl{font-size:10px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.06em;min-width:62px}
-    .t-dates .val{font-size:15px;font-weight:800;color:#111}
-    .t-notti{margin-top:3mm;font-size:10px;font-weight:600;color:#E05A00;text-transform:uppercase;letter-spacing:.08em}
+    .t-dates .row{display:flex;align-items:baseline}
+    .t-dates .lbl{font-size:9px;font-weight:700;color:#333;text-transform:uppercase;letter-spacing:.07em;min-width:58px}
+    .t-dates .val{font-size:14px;font-weight:800;color:#111}
+
+    /* 4° — notti */
+    .t-notti{margin-top:2.5mm;font-size:9px;font-weight:700;color:#E05A00;text-transform:uppercase;letter-spacing:.08em}
 
     /* note */
-    .t-note{margin-top:auto;padding-top:2mm;border-top:1px solid #eee;font-size:9px;color:#999;font-style:italic}
+    .t-note{font-size:9px;color:#888;font-style:italic;border-top:1px solid #eee;padding-top:1.5mm;margin-top:1.5mm}
 
     .footer{position:fixed;bottom:0;left:0;right:0;height:8mm;display:flex;align-items:center;justify-content:center;font-size:8px;color:#ccc;letter-spacing:.08em;text-transform:uppercase;border-top:1px solid #eee}
   </style></head><body>
