@@ -828,10 +828,29 @@ async function renderReport() {
     return;
   }
 
-  // Alert famiglie senza ordine — considera trattamento
+  // Recuperi pasti: PC che partono oggi e hanno pasti da recuperare
+  const recuperiOggi = famiglieDocs.filter(f => {
+    if (f.checkout !== targetDate) return false;
+    if (f.trattamento !== 'PC') return false;
+    if (f.ora_arrivo === 'dopo_pranzo') return true;  // recupera colazione + pranzo
+    if (f.ora_arrivo === 'sera')        return true;  // recupera colazione + pranzo + cena
+    return false;
+  }).filter(f => {
+    // Filtra per pasto corrente: dopo_pranzo recupera pranzo (e colazione); sera recupera pranzo e cena
+    if (f.ora_arrivo === 'dopo_pranzo') return reportPasto === 'pranzo';
+    if (f.ora_arrivo === 'sera')        return true; // sia pranzo che cena
+    return false;
+  });
+
+  // Alert famiglie senza ordine — considera trattamento e giorno di arrivo/partenza
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
     if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
-    if (f.checkout && f.checkout < targetDate) return false; // già partite
+    if (f.checkout && f.checkout <= targetDate) return false; // partono oggi o già partite
+    // Famiglie che arrivano oggi: escludi se non mangiano questo pasto
+    if (f.checkin === targetDate) {
+      if (f.ora_arrivo === 'dopo_pranzo' && reportPasto === 'pranzo') return false;
+      if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
+    }
     const haPastoCorrente = ordini.some(o => o.famiglia_id === f.id);
     if (f.trattamento === 'MP') {
       // MP: ok se ha compilato almeno uno tra pranzo e cena
@@ -841,6 +860,24 @@ async function renderReport() {
     // PC (o senza trattamento): deve avere questo specifico pasto
     return !haPastoCorrente;
   });
+  const recuperoLabel = f => f.ora_arrivo === 'dopo_pranzo' ? 'Colazione + Pranzo' : 'Colazione + Pranzo + Cena';
+  let recuperiHtml = '';
+  if (recuperiOggi.length) {
+    recuperiHtml = `<div class="report-alert" style="border-left:4px solid #D97706;background:#FFFBEB">
+      <div class="report-alert-head">
+        <div class="report-alert-icon" style="color:#D97706">!</div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count" style="color:#D97706">${recuperiOggi.length}</span>
+            <span class="report-alert-label">recuper${recuperiOggi.length===1?'o':'i'} pasti (partenz${recuperiOggi.length===1?'a':'e'} oggi)</span>
+          </div>
+        </div>
+      </div>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${recuperiOggi.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${recuperoLabel(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
+    </div>`;
+  }
+
   let alertHtml = '';
   if (famiglieSenzaOrdine.length) {
     alertHtml = `<div class="report-alert">
@@ -931,7 +968,7 @@ async function renderReport() {
     </div>`;
   }
 
-  el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
+  el.innerHTML = recuperiHtml + alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 
   // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
   _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
