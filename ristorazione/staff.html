@@ -632,6 +632,20 @@ input[type="date"].finput{font-size:13px}
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
     <div class="modal-title">Report famiglie</div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere nel report</p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Filtra per periodo di soggiorno</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Dal</div>
+          <input id="rf-dal" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Al</div>
+          <input id="rf-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+      </div>
+      <button onclick="applicaFiltroDate()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button onclick="selezionaTutteFamiglie(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
       <button onclick="selezionaTutteFamiglie(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
@@ -2157,6 +2171,26 @@ function apriReportFamiglie() {
 
 function selezionaTutteFamiglie(val) {
   document.querySelectorAll('.rf-check').forEach(c => c.checked = val);
+}
+
+function applicaFiltroDate() {
+  const dal = document.getElementById('rf-dal').value;
+  const al  = document.getElementById('rf-al').value;
+  if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
+  let selezionate = 0;
+  document.querySelectorAll('.rf-check').forEach(c => {
+    const f = famiglieDocs.find(x => x.id === c.dataset.id);
+    if (!f) return;
+    const ci = f.checkin  || '';
+    const co = f.checkout || '';
+    // La famiglia è presente nel periodo se il suo soggiorno si sovrappone a [dal, al]
+    const inizioOk = !al  || ci <= al;
+    const fineOk   = !dal || co >= dal;
+    const presente = inizioOk && fineOk;
+    c.checked = presente;
+    if (presente) selezionate++;
+  });
+  showToast(`${selezionate} famiglie selezionate`);
 }
 
 function scaricaReportFamiglie() {
