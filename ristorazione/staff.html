@@ -2175,33 +2175,53 @@ function scaricaReportFamiglie() {
   const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
   const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
 
-  // Ordina: prima per tavolo (raggruppati), poi senza tavolo
-  const conTavolo = fams.filter(f => f.tavolo).sort((a,b) => a.tavolo.localeCompare(b.tavolo, undefined, {numeric:true}));
-  const senzaTavolo = fams.filter(f => !f.tavolo);
-  const famOrdinati = [...conTavolo, ...senzaTavolo];
+  const thead = `<thead><tr>
+    <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th>
+  </tr></thead>`;
 
-  let lastTavolo = null;
-  const rows = famOrdinati.map(f => {
+  function rigaFam(f) {
     const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
     const dateStr = [fmtData(f.checkin), fmtData(f.checkout)].filter(Boolean).join(' → ');
-    let tavoloRow = '';
-    if (f.tavolo && f.tavolo !== lastTavolo) {
-      lastTavolo = f.tavolo;
-      const compagni = fams.filter(x => x.tavolo === f.tavolo).map(x => x.nome).join(', ');
-      tavoloRow = `<tr><td colspan="9" style="background:#f0fdf4;font-size:10px;font-weight:700;color:#1a5c32;padding:5px 8px;letter-spacing:.04em">TAVOLO ${esc(f.tavolo)} — ${compagni}</td></tr>`;
-    }
-    return tavoloRow + `<tr>
+    return `<tr>
       <td>${esc(f.nome)}</td>
       <td>${esc(f.unita||'—')}</td>
       <td>${esc(f.tel||'—')}</td>
       <td>${esc(trattLabel(f.trattamento))}</td>
       <td style="text-align:center">${f.adulti||0}</td>
       <td style="text-align:center">${(f.bambini||[]).length}</td>
-      <td style="font-size:11px;color:#666">${bambiniStr||'—'}</td>
-      <td style="font-size:11px">${dateStr||'—'}</td>
-      <td style="font-size:11px;color:#DC2626">${esc(f.note||'—')}</td>
+      <td>${bambiniStr||'—'}</td>
+      <td>${dateStr||'—'}</td>
+      <td style="color:#DC2626">${esc(f.note||'—')}</td>
     </tr>`;
-  }).join('');
+  }
+
+  // Gruppi per tavolo
+  const tavoliMap = {};
+  fams.filter(f => f.tavolo).forEach(f => {
+    if (!tavoliMap[f.tavolo]) tavoliMap[f.tavolo] = [];
+    tavoliMap[f.tavolo].push(f);
+  });
+  const tavoliOrdinati = Object.keys(tavoliMap).sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+  const senzaTavolo = fams.filter(f => !f.tavolo);
+
+  let blocchi = '';
+
+  // Riquadri tratteggiati per tavoli condivisi
+  tavoliOrdinati.forEach(t => {
+    const gruppo = tavoliMap[t];
+    blocchi += `<div class="tavolo-box">
+      <div class="tavolo-label">Tavolo ${esc(t)}</div>
+      <table>${thead}<tbody>${gruppo.map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  });
+
+  // Famiglie senza tavolo
+  if (senzaTavolo.length) {
+    blocchi += `<div style="margin-top:${tavoliOrdinati.length?'20px':'0'}">
+      ${tavoliOrdinati.length ? '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Altre famiglie</div>' : ''}
+      <table>${thead}<tbody>${senzaTavolo.map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  }
 
   const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
   <title>Report Famiglie — Garden River</title>
@@ -2214,18 +2234,14 @@ function scaricaReportFamiglie() {
     table{width:100%;border-collapse:collapse}
     th{background:#1a5c32;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left}
     td{padding:6px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
-    tr:nth-child(even) td{background:#f9fafb}
+    .tavolo-box{border:2px dashed #1a5c32;border-radius:6px;padding:10px 12px;margin-bottom:16px;break-inside:avoid}
+    .tavolo-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1a5c32;margin-bottom:8px}
     @page{size:A4 landscape;margin:10mm 12mm}
     @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
   </style></head><body>
   <h1>Report Famiglie · Garden River</h1>
   <div class="sub">Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})} · ${fams.length} famiglie</div>
-  <table>
-    <thead><tr>
-      <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
+  ${blocchi}
   <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>
   </body></html>`;
 
