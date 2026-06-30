@@ -2203,20 +2203,25 @@ function applicaFiltroDate() {
   const dal = document.getElementById('rf-dal').value;
   const al  = document.getElementById('rf-al').value;
   if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
+  const checks = document.querySelectorAll('.rf-check');
+  if (!checks.length) { showToast('Nessun elemento trovato'); return; }
+  // debug: mostra il primo id trovato e la famiglia corrispondente
+  const primoId = checks[0]?.dataset?.id;
+  const primaFam = famiglieDocs.find(x => x.id === primoId);
+  console.log('DEBUG filtro — dal:', dal, 'al:', al, 'checks:', checks.length, 'primo id:', primoId, 'fam trovata:', primaFam, 'famiglieDocs ids:', famiglieDocs.map(f=>f.id));
   let selezionate = 0;
-  document.querySelectorAll('.rf-check').forEach(c => {
-    const f = famiglieDocs.find(x => x.id === c.dataset.id);
-    if (!f || (!f.checkin && !f.checkout)) { c.checked = false; return; }
-    const ci = f.checkin  || '';
-    const co = f.checkout || '';
-    // Escludi se il soggiorno finisce prima dell'inizio filtro
-    if (dal && co && co < dal) { c.checked = false; return; }
-    // Escludi se il soggiorno inizia dopo la fine filtro
-    if (al  && ci && ci > al)  { c.checked = false; return; }
-    c.checked = true;
-    selezionate++;
+  checks.forEach(c => {
+    const fid = c.dataset.id;
+    const f = famiglieDocs.find(x => x.id === fid);
+    if (!f) { c.checked = false; return; }
+    const ci = (f.checkin  || '').trim();
+    const co = (f.checkout || '').trim();
+    if (!ci && !co) { c.checked = false; return; }
+    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
+    c.checked = !fuoriRange;
+    if (!fuoriRange) selezionate++;
   });
-  showToast(`${selezionate} famiglie selezionate`);
+  showToast(`${selezionate} / ${checks.length} famiglie nel periodo`);
 }
 
 function scaricaReportFamiglie() {
