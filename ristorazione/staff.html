@@ -468,6 +468,14 @@ input[type="date"].finput{font-size:13px}
         <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
         <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
       </div>
+      <div class="form-row" style="grid-template-columns:1fr">
+        <select class="fselect" id="f-ora-arrivo">
+          <option value="">Primo pasto</option>
+          <option value="mattina">Mattina (colazione)</option>
+          <option value="dopo_pranzo">Dopo pranzo (cena)</option>
+          <option value="sera">Sera (nessun pasto)</option>
+        </select>
+      </div>
       <div class="form-row">
         <input class="finput" id="f-adulti"  type="number" placeholder="Adulti"   min="0" max="20">
         <input class="finput" id="f-bambini" type="number" placeholder="Bambini"  min="0" max="10" oninput="aggiornaBambiniFields('f-bambini-ages','f-bambini')">
@@ -554,6 +562,13 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-checkin" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Data check-out</div>
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
+    <div class="mlabel">Primo pasto</div>
+    <select class="minput" id="ef-ora-arrivo">
+      <option value="">Seleziona</option>
+      <option value="mattina">Mattina (colazione)</option>
+      <option value="dopo_pranzo">Dopo pranzo (cena)</option>
+      <option value="sera">Sera (nessun pasto)</option>
+    </select>
     <div class="mlabel">Adulti e bambini</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <input class="minput" id="ef-adulti"  type="number" min="0" max="20" placeholder="Adulti" style="margin-bottom:0">
@@ -1100,6 +1115,7 @@ function renderCucina(ordini) {
     const tavoloId = famDoc?.tavolo;
     const compagniTavolo = tavoloId ? famiglieDocs.filter(f => f.tavolo === tavoloId && f.id !== ord.famiglia_id).map(f => esc(f.nome)) : [];
     const tavoloHtml = tavoloId ? `<div class="kds-note" style="background:#F0FDF4;border-left:3px solid var(--green-700);margin-bottom:4px"><strong style="color:var(--green-700)">Tavolo ${esc(tavoloId)}</strong>${compagniTavolo.length ? ` · con ${compagniTavolo.join(', ')}` : ''}</div>` : '';
+    const recuperoHtml = '';
     const notaHtml = ord.note
       ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
 
@@ -1129,7 +1145,7 @@ function renderCucina(ordini) {
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
-      ${tavoloHtml}${famNote}${notaHtml}
+      ${recuperoHtml}${tavoloHtml}${famNote}${notaHtml}
       ${logHtml}
       <div class="kds-extra" id="extra-${ord.id}">
         <div class="kds-extra-row">
@@ -1684,6 +1700,14 @@ function renderFamiglie() {
   el.innerHTML = html;
 }
 
+function recuperoPastiLabel(f) {
+  if (f.trattamento !== 'PC' || !f.ora_arrivo) return '';
+  // Pasti non consumati il giorno di arrivo = pasti da recuperare alla partenza
+  if (f.ora_arrivo === 'dopo_pranzo') return 'Recupero: Colazione + Pranzo';
+  if (f.ora_arrivo === 'sera')        return 'Recupero: Colazione + Pranzo + Cena';
+  return ''; // mattina = nessun recupero
+}
+
 function aggiornaBambiniFields(containerId, inputId) {
   const n = parseInt(document.getElementById(inputId).value) || 0;
   const c = document.getElementById(containerId);
@@ -1722,8 +1746,9 @@ async function aggiungiFamiglia() {
   const note       = document.getElementById('f-note').value.trim();
   const tel        = document.getElementById('f-tel').value.trim();
   const tavolo     = document.getElementById('f-tavolo').value.trim();
+  const ora_arrivo = document.getElementById('f-ora-arrivo').value;
   const max_ospiti = adulti + bambini.length;
-  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, tavolo, codice, note };
+  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, ora_arrivo, adulti, bambini, max_ospiti, tel, tavolo, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1740,6 +1765,7 @@ async function aggiungiFamiglia() {
     document.getElementById('f-trattamento').value = '';
     document.getElementById('f-tel').value = '';
     document.getElementById('f-tavolo').value = '';
+    document.getElementById('f-ora-arrivo').value = '';
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
@@ -1756,8 +1782,9 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-checkout').value    = f.checkout || '';
   document.getElementById('ef-adulti').value      = f.adulti  ?? (f.max_ospiti || 1);
   document.getElementById('ef-bambini').value     = (f.bambini||[]).length;
-  document.getElementById('ef-tel').value         = f.tel    || '';
-  document.getElementById('ef-tavolo').value      = f.tavolo || '';
+  document.getElementById('ef-tel').value           = f.tel          || '';
+  document.getElementById('ef-tavolo').value        = f.tavolo        || '';
+  document.getElementById('ef-ora-arrivo').value = f.ora_arrivo || '';
   document.getElementById('ef-note').value        = f.note || '';
   // Popola età bambini
   aggiornaBambiniFields('ef-bambini-ages','ef-bambini');
@@ -1797,8 +1824,9 @@ async function salvaEditFamiglia() {
   const note       = document.getElementById('ef-note').value.trim();
   const tel        = document.getElementById('ef-tel').value.trim();
   const tavolo     = document.getElementById('ef-tavolo').value.trim();
+  const ora_arrivo = document.getElementById('ef-ora-arrivo').value;
   const max_ospiti = adulti + bambini.length;
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, tel, tavolo, note };
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, ora_arrivo, adulti, bambini, max_ospiti, tel, tavolo, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -2212,7 +2240,7 @@ function scaricaReportFamiglie() {
   const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
 
   const thead = `<thead><tr>
-    <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th>
+    <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Recupero pasti</th><th>Note</th>
   </tr></thead>`;
 
   function rigaFam(f) {
@@ -2227,6 +2255,7 @@ function scaricaReportFamiglie() {
       <td style="text-align:center">${(f.bambini||[]).length}</td>
       <td>${bambiniStr||'—'}</td>
       <td>${dateStr||'—'}</td>
+      <td style="color:#B45309;font-weight:700">${esc(recuperoPastiLabel(f)||'—')}</td>
       <td style="color:#DC2626">${esc(f.note||'—')}</td>
     </tr>`;
   }
