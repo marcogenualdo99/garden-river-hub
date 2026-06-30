@@ -628,6 +628,20 @@ input[type="date"].finput{font-size:13px}
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
     <div class="modal-title">Foglio QR</div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere</p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Filtra per periodo di soggiorno</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Dal</div>
+          <input id="qr-dal" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Al</div>
+          <input id="qr-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+      </div>
+      <button onclick="applicaFiltroDateQR()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button onclick="selezionaTutteQR(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
       <button onclick="selezionaTutteQR(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
@@ -2241,6 +2255,27 @@ function applicaFiltroDate() {
   const al  = document.getElementById('rf-al').value;
   if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
   const checks = document.querySelectorAll('.rf-check');
+  if (!checks.length) { showToast('Nessun elemento trovato'); return; }
+  let selezionate = 0;
+  checks.forEach(c => {
+    const fid = c.dataset.id;
+    const f = famiglieDocs.find(x => x.id === fid);
+    if (!f) { c.checked = false; return; }
+    const ci = (f.checkin  || '').trim();
+    const co = (f.checkout || '').trim();
+    if (!ci && !co) { c.checked = false; return; }
+    const fuoriRange = (dal && co && co <= dal) || (al && ci && ci >= al);
+    c.checked = !fuoriRange;
+    if (!fuoriRange) selezionate++;
+  });
+  showToast(`${selezionate} / ${checks.length} famiglie nel periodo`);
+}
+
+function applicaFiltroDateQR() {
+  const dal = document.getElementById('qr-dal').value;
+  const al  = document.getElementById('qr-al').value;
+  if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
+  const checks = document.querySelectorAll('.qr-check');
   if (!checks.length) { showToast('Nessun elemento trovato'); return; }
   let selezionate = 0;
   checks.forEach(c => {
