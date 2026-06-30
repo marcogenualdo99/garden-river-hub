@@ -373,11 +373,40 @@ function renderApp(){
   renderMenu();
 }
 
+function recuperoMeals(){
+  // Restituisce i pasti da recuperare se oggi è il giorno di partenza
+  if (!famiglia || famiglia.trattamento !== 'PC') return [];
+  if (famiglia.checkout !== OGGI) return [];
+  if (famiglia.ora_arrivo === 'dopo_pranzo') return ['pranzo'];
+  if (famiglia.ora_arrivo === 'sera') return ['pranzo','cena'];
+  return [];
+}
+
 function renderMenu(){
   const c=document.getElementById('menu-container');
   c.innerHTML='';
-  renderGiorno(c,PRIMO_GIORNO,menuOggi);
-  renderGiorno(c,SECONDO_GIORNO,menuDomani);
+  const rec = recuperoMeals();
+  if (rec.length) {
+    // Giorno di partenza con recupero pasti: mostra solo i pasti da recuperare
+    const banner=document.createElement('div');
+    banner.className='day-label';
+    banner.style.cssText='background:#FFF8E7;border-left:4px solid #D97706;color:#92400E;padding-left:14px';
+    banner.textContent='Recupero pasti — Giorno di partenza';
+    c.appendChild(banner);
+    const note=document.createElement('div');
+    note.style.cssText='font-size:13px;color:#92400E;background:#FFF8E7;padding:6px 16px 12px;margin-bottom:4px';
+    note.textContent='In base al tuo piano puoi recuperare i seguenti pasti. Ordina entro le 10:00.';
+    c.appendChild(note);
+    const tipiOggi={};
+    menuOggi.forEach(v=>{ if(!tipiOggi[v.tipo])tipiOggi[v.tipo]=[]; tipiOggi[v.tipo].push(v); });
+    rec.forEach(t=>{ if(tipiOggi[t]) c.appendChild(buildMealCard(OGGI,t,tipiOggi[t])); });
+  } else {
+    renderGiorno(c,PRIMO_GIORNO,menuOggi);
+    // Nascondi secondo giorno se la famiglia parte oggi o prima
+    if (!famiglia.checkout || famiglia.checkout > OGGI) {
+      renderGiorno(c,SECONDO_GIORNO,menuDomani);
+    }
+  }
 }
 
 function renderGiorno(c,data,voci){
