@@ -636,7 +636,7 @@ function daysInMonth(y,m) { return new Date(y,m+1,0).getDate(); }
 function dayOfWeek(y,m,d) { return new Date(y,m,d).getDay(); }
 function toIso(y,m,d)     { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function fromIso(s)        { const p=s.split('-'); return {y:+p[0],m:+p[1]-1,d:+p[2]}; }
-function fmtDate(iso)      { const {y,m,d}=fromIso(iso); return `${d} ${MONTHS[m].slice(0,3)} ${y}`; }
+function fmtDate(iso)      { const {y,m,d}=fromIso(iso); return `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`; }
 function nights(dal,al)    { return Math.max(0,Math.round((new Date(al)-new Date(dal))/86400000)); }
 function isWeekend(y,m,d)  { const w=dayOfWeek(y,m,d); return w===0||w===6; }
 function isToday(y,m,d)    { const t=new Date(); return t.getFullYear()===y&&t.getMonth()===m&&t.getDate()===d; }
