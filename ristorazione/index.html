@@ -222,7 +222,6 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
     <div class="settings-section">
       <h3>La tua famiglia</h3>
       <div class="info-row"><span class="info-label">Nome</span><span class="info-value" id="set-nome">—</span></div>
-      <div class="info-row"><span class="info-label">Unità</span><span class="info-value" id="set-unita">—</span></div>
       <div class="info-row"><span class="info-label">Codice</span><span class="info-value" id="set-codice" style="font-size:12px;letter-spacing:.03em">—</span></div>
     </div>
     <div class="settings-section">
@@ -365,7 +364,7 @@ function inizializzaSelezioni(){
 function renderApp(){
   document.getElementById('hdr-avatar').textContent=famiglia.nome.slice(0,2).toUpperCase();
   document.getElementById('hdr-nome').textContent=famiglia.nome;
-  document.getElementById('hdr-sub').textContent=`Unità ${famiglia.unita} · ${famiglia.max_ospiti} ospiti`;
+  document.getElementById('hdr-sub').textContent=`${famiglia.max_ospiti} ospiti`;
   document.getElementById('set-nome').textContent=famiglia.nome;
   document.getElementById('set-unita').textContent=famiglia.unita;
   document.getElementById('set-codice').textContent=famiglia.codice;
