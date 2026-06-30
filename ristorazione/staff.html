@@ -468,9 +468,11 @@ input[type="date"].finput{font-size:13px}
         <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
         <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
       </div>
-      <div class="form-row" style="grid-template-columns:1fr">
-        <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
+      <div class="form-row">
+        <input class="finput" id="f-adulti"  type="number" placeholder="Adulti"   min="0" max="20">
+        <input class="finput" id="f-bambini" type="number" placeholder="Bambini"  min="0" max="10" oninput="aggiornaBambiniFields('f-bambini-ages','f-bambini')">
       </div>
+      <div id="f-bambini-ages"></div>
       <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
       </div>
@@ -479,7 +481,10 @@ input[type="date"].finput{font-size:13px}
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="sec-label" style="margin-bottom:0">Famiglie inserite</div>
-      <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ Scarica foglio QR</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="apriReportFamiglie()">📋 Report</button>
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ QR</button>
+      </div>
     </div>
     <div id="famiglie-list"></div>
 
@@ -545,8 +550,12 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-checkin" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Data check-out</div>
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
-    <div class="mlabel">Numero pax</div>
-    <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div class="mlabel">Adulti e bambini</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <input class="minput" id="ef-adulti"  type="number" min="0" max="20" placeholder="Adulti" style="margin-bottom:0">
+      <input class="minput" id="ef-bambini" type="number" min="0" max="10" placeholder="Bambini" style="margin-bottom:0" oninput="aggiornaBambiniFields('ef-bambini-ages','ef-bambini')">
+    </div>
+    <div id="ef-bambini-ages" style="margin-bottom:8px"></div>
     <div class="mlabel">Note</div>
     <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
@@ -589,6 +598,23 @@ input[type="date"].finput{font-size:13px}
     <div class="mbtns">
       <button class="mcancel" onclick="document.getElementById('modal-qr').classList.add('hidden')">Chiudi</button>
       <button class="msave" onclick="scaricaQR('qr-img','qr-title')">Scarica</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REPORT FAMIGLIE -->
+<div id="modal-report-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title">Report famiglie</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere nel report</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="selezionaTutteFamiglie(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
+      <button onclick="selezionaTutteFamiglie(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
+    </div>
+    <div id="rf-list"></div>
+    <div class="mbtns" style="margin-top:16px">
+      <button class="mcancel" onclick="document.getElementById('modal-report-fam').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="scaricaReportFamiglie()">⬇ Scarica report</button>
     </div>
   </div>
 </div>
@@ -1583,7 +1609,7 @@ function renderFamiglie() {
       <div class="fam-av ${avatarClass}">${ini}</div>
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
-        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''}  · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
         ${f.note?`<div style="font-size:11px;color:#DC2626;margin-top:2px">⚠ ${esc(f.note)}</div>`:''}
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
@@ -1616,20 +1642,44 @@ function renderFamiglie() {
   el.innerHTML = html;
 }
 
+function aggiornaBambiniFields(containerId, inputId) {
+  const n = parseInt(document.getElementById(inputId).value) || 0;
+  const c = document.getElementById(containerId);
+  const existing = [...c.querySelectorAll('select')].map(s => s.value);
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const val = existing[i] || '';
+    html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:13px;color:var(--gray-500);min-width:72px">Bambino ${i+1}</span>
+      <select class="finput" style="height:38px;font-size:13px;flex:1">
+        <option value="">Età</option>
+        ${[2,3,4,5,6,7,8,9,10].map(e=>`<option value="${e}"${val==e?' selected':''}>${e} anni</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  c.innerHTML = n ? `<div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;margin-bottom:8px">${html}</div>` : '';
+}
+
+function getBambiniEta(containerId) {
+  return [...document.getElementById(containerId).querySelectorAll('select')].map(s => parseInt(s.value)||0);
+}
+
 async function aggiungiFamiglia() {
   const nome     = document.getElementById('f-nome').value.trim();
   const alloggio = document.getElementById('f-alloggio').value.trim();
   const tratt    = document.getElementById('f-trattamento').value;
   const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
-  const pax      = parseInt(document.getElementById('f-pax').value) || 1;
+  const adulti   = parseInt(document.getElementById('f-adulti').value) || 0;
+  const bambini  = getBambiniEta('f-bambini-ages');
 
   if (!nome) { showToast('Inserisci il nome della famiglia'); return; }
 
-  const codice = generaCodice();
-  const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
-  const note   = document.getElementById('f-note').value.trim();
-  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice, note };
+  const codice     = generaCodice();
+  const id         = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
+  const note       = document.getElementById('f-note').value.trim();
+  const max_ospiti = adulti + bambini.length;
+  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
@@ -1640,7 +1690,9 @@ async function aggiungiFamiglia() {
     document.getElementById('f-alloggio').value = '';
     document.getElementById('f-checkin').value = '';
     document.getElementById('f-checkout').value = '';
-    document.getElementById('f-pax').value = '';
+    document.getElementById('f-adulti').value = '';
+    document.getElementById('f-bambini').value = '';
+    document.getElementById('f-bambini-ages').innerHTML = '';
     document.getElementById('f-trattamento').value = '';
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
@@ -1656,8 +1708,13 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-trattamento').value = f.trattamento || '';
   document.getElementById('ef-checkin').value     = f.checkin  || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
-  document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  document.getElementById('ef-adulti').value      = f.adulti  ?? (f.max_ospiti || 1);
+  document.getElementById('ef-bambini').value     = (f.bambini||[]).length;
   document.getElementById('ef-note').value        = f.note || '';
+  // Popola età bambini
+  aggiornaBambiniFields('ef-bambini-ages','ef-bambini');
+  const ages = f.bambini || [];
+  [...document.getElementById('ef-bambini-ages').querySelectorAll('select')].forEach((s,i) => { if(ages[i]) s.value = ages[i]; });
   const src = document.getElementById('f-alloggio');
   const dst = document.getElementById('ef-alloggio');
   dst.innerHTML = src.innerHTML;
@@ -1684,12 +1741,14 @@ async function salvaEditFamiglia() {
   const tratt    = document.getElementById('ef-trattamento').value;
   const checkin  = document.getElementById('ef-checkin').value;
   const checkout = document.getElementById('ef-checkout').value;
-  const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
+  const adulti   = parseInt(document.getElementById('ef-adulti').value) || 0;
+  const bambini  = getBambiniEta('ef-bambini-ages');
   if (!nome) { showToast('Inserisci il nome'); return; }
 
   const { db, doc, setDoc } = window._fb;
-  const note     = document.getElementById('ef-note').value.trim();
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, note };
+  const note       = document.getElementById('ef-note').value.trim();
+  const max_ospiti = adulti + bambini.length;
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, adulti, bambini, max_ospiti, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
@@ -2023,6 +2082,110 @@ async function stampaReportTermica() {
   const xml = buildEposXml(righe.filter(Boolean), 'local_printer');
   const { ok, err } = await inviaEpos(null, xml);
   if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+function apriReportFamiglie() {
+  const oggi = isoToday(0);
+  const gruppi = { soggiornanti: [], inArrivo: [], partite: [] };
+  famiglieDocs.forEach(f => {
+    const ci = f.checkin || '', co = f.checkout || '';
+    if (co && co < oggi) gruppi.partite.push(f);
+    else if (ci && ci > oggi) gruppi.inArrivo.push(f);
+    else gruppi.soggiornanti.push(f);
+  });
+
+  const sezioni = [
+    { label: '🏕 In struttura', list: gruppi.soggiornanti },
+    { label: '✈ In arrivo',    list: gruppi.inArrivo },
+    { label: '↩ Partite',      list: gruppi.partite },
+  ];
+
+  let html = '';
+  sezioni.forEach(({ label, list }) => {
+    if (!list.length) return;
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:10px 0 6px">${label}</div>`;
+    list.forEach(f => {
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f9f9f9;border-radius:8px;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" class="rf-check" data-id="${f.id}" checked style="width:16px;height:16px;accent-color:var(--green-700)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-900)">${esc(f.nome)}</div>
+          <div style="font-size:11px;color:var(--gray-500)">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''} · ${esc(f.trattamento||'—')}</div>
+        </div>
+      </label>`;
+    });
+  });
+
+  document.getElementById('rf-list').innerHTML = html || '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:16px">Nessuna famiglia</div>';
+  document.getElementById('modal-report-fam').classList.remove('hidden');
+}
+
+function selezionaTutteFamiglie(val) {
+  document.querySelectorAll('.rf-check').forEach(c => c.checked = val);
+}
+
+function scaricaReportFamiglie() {
+  const selezionati = new Set([...document.querySelectorAll('.rf-check:checked')].map(c => c.dataset.id));
+  const fams = famiglieDocs.filter(f => selezionati.has(f.id));
+  if (!fams.length) { showToast('Seleziona almeno una famiglia'); return; }
+
+  const oggi = isoToday(0);
+  function gruppoLabel(f) {
+    const ci = f.checkin||'', co = f.checkout||'';
+    if (co && co < oggi) return 'Partite';
+    if (ci && ci > oggi) return 'In arrivo';
+    return 'In struttura';
+  }
+
+  const rows = fams.map(f => {
+    const bambiniStr = (f.bambini||[]).map((e,i) => `Bimbo ${i+1}: ${e||'?'} anni`).join(', ');
+    const dateStr = [f.checkin?`In: ${f.checkin.slice(5).replace('-','/')}`:'', f.checkout?`Out: ${f.checkout.slice(5).replace('-','/')}`:''].filter(Boolean).join(' — ');
+    return `<tr>
+      <td>${esc(f.nome)}</td>
+      <td>${esc(f.unita||'—')}</td>
+      <td>${esc(f.trattamento||'—')}</td>
+      <td style="text-align:center">${f.adulti||0}</td>
+      <td style="text-align:center">${(f.bambini||[]).length}</td>
+      <td style="font-size:11px;color:#666">${bambiniStr||'—'}</td>
+      <td style="font-size:11px">${dateStr||'—'}</td>
+      <td style="font-size:11px;color:#DC2626">${esc(f.note||'—')}</td>
+      <td style="font-size:11px;color:#666">${gruppoLabel(f)}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>Report Famiglie — Garden River</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Montserrat',sans-serif;padding:14mm 16mm;font-size:12px;color:#111}
+    h1{font-size:18px;font-weight:800;color:#1a5c32;margin-bottom:4px}
+    .sub{font-size:11px;color:#666;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1a5c32;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;text-align:left}
+    td{padding:7px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    tr:nth-child(even) td{background:#f9fafb}
+    @page{size:A4 landscape;margin:12mm 14mm}
+    @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+  </style></head><body>
+  <h1>Report Famiglie · Garden River</h1>
+  <div class="sub">Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})} · ${fams.length} famiglie</div>
+  <table>
+    <thead><tr>
+      <th>Nome</th><th>Alloggio</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Note</th><th>Stato</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'report-famiglie.html';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  document.getElementById('modal-report-fam').classList.add('hidden');
 }
 
 function scaricaFoglioQR() {
