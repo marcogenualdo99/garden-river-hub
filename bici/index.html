@@ -67,6 +67,7 @@
   --gray-500:  #6B7280;
   --gray-400:  #9CA3AF;
   --gray-300:  #D1D5DB;
+  --gray-200:  #E5E7EB;
   --gray-100:  #F3F4F6;
   --gray-50:   #F9FAFB;
   --white:     #FFFFFF;
@@ -109,7 +110,7 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .header-name  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
 .header-role  { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
 .header-btns  { display: flex; align-items: center; gap: 6px; }
-.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: opacity .15s; }
 .hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
 .hbtn.ghost { background: var(--gray-100); color: var(--gray-700); border: none; }
 .hbtn:active { opacity: .8; }
@@ -187,7 +188,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .alert-bike-num { font-size: 13px; font-weight: 800; color: var(--gray-900); }
 .alert-bike-info { font-size: 12px; color: var(--gray-700); text-align: right; line-height: 1.4; }
 
-.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
 
