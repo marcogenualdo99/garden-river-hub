@@ -278,7 +278,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .print-panel-title { font-size: 16px; font-weight: 800; margin-bottom: 3px; }
 .print-panel-sub   { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; }
 .tickets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-.ticket-card { border: 1.5px dashed var(--gray-300); border-radius: var(--radius); padding: 13px; position: relative; background: var(--white); }
+.ticket-card { border: 1.5px dashed var(--gray-300); border-radius: var(--radius); padding: 13px; position: relative; background: var(--white); cursor: pointer; transition: border-color .15s, background .15s; }
+.ticket-card.selected { border: 2px solid var(--green-700); background: var(--green-50); }
+.ticket-card .tc-check { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; accent-color: var(--green-700); cursor: pointer; }
 .ticket-badge { display: inline-block; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 2px 7px; border-radius: 6px; background: var(--blue-bg); color: var(--blue); margin-bottom: 8px; }
 .ticket-id    { position: absolute; top: 12px; right: 12px; font-size: 10px; color: var(--gray-400); font-weight: 700; }
 .ticket-name  { font-size: 15px; font-weight: 800; margin-bottom: 2px; }
@@ -501,9 +503,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
     <div class="print-panel-sub"   id="pp-sub"></div>
     <div class="tickets-grid"      id="pp-grid"></div>
     <div class="print-panel-btns">
-      <button class="btn-print-all-confirm" onclick="printAll()">
+      <button class="btn-close-print" onclick="toggleSelectAll()" id="btn-sel-all">Seleziona tutti</button>
+      <button class="btn-print-all-confirm" onclick="printSelected()">
         <svg style="vertical-align:-2px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        Stampa tutti
+        <span id="btn-stampa-label">Stampa tutti</span>
       </button>
       <button class="btn-close-print" onclick="closePrintPanel()">Chiudi</button>
     </div>
@@ -1039,7 +1042,8 @@ function buildTicketHTML(b) {
   const n = nights(b.dal, b.al);
   const st = STATI.find(x => x.id === (b.stato||'confermata')) || STATI[0];
   return `
-    <div class="ticket-card">
+    <div class="ticket-card" data-id="${b.id}" onclick="toggleTicketSel('${b.id}')">
+      <input type="checkbox" class="tc-check" data-id="${b.id}" onclick="event.stopPropagation();toggleTicketSel('${b.id}')">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <div style="width:8px;height:8px;border-radius:50%;background:${st.hex};flex-shrink:0"></div>
         <span class="ticket-badge" style="margin-bottom:0">${st.label}</span>
@@ -1050,11 +1054,47 @@ function buildTicketHTML(b) {
       <div class="ticket-dates">
         <span>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></span>
         <span>◀ Partenza: <strong>${fmtDate(b.al)}</strong></span>
-        <span>⏱ ${n} nott${n===1?'e':'i'}</span>
+        <span>⏱ ${n} giorn${n===1?'o':'i'} di utilizzo</span>
       </div>
       ${b.note ? `<div class="ticket-note">📝 ${b.note}</div>` : ''}
-      <button class="ticket-print-single" onclick="printSingle('${b.id}')">🖨 Stampa</button>
     </div>`;
+}
+
+function toggleTicketSel(id) {
+  const card = document.querySelector(`.ticket-card[data-id="${id}"]`);
+  const chk  = document.querySelector(`.tc-check[data-id="${id}"]`);
+  if (!card) return;
+  const sel = card.classList.toggle('selected');
+  if (chk) chk.checked = sel;
+  updateStampaLabel();
+}
+
+function updateStampaLabel() {
+  const sel = document.querySelectorAll('.ticket-card.selected').length;
+  const tot = document.querySelectorAll('.ticket-card').length;
+  document.getElementById('btn-stampa-label').textContent = sel > 0 ? `Stampa ${sel} selezionat${sel===1?'o':'i'}` : 'Stampa tutti';
+  document.getElementById('btn-sel-all').textContent = sel === tot ? 'Deseleziona tutti' : 'Seleziona tutti';
+}
+
+function toggleSelectAll() {
+  const cards = document.querySelectorAll('.ticket-card');
+  const allSel = document.querySelectorAll('.ticket-card.selected').length === cards.length;
+  cards.forEach(c => {
+    const chk = c.querySelector('.tc-check');
+    if (allSel) { c.classList.remove('selected'); if (chk) chk.checked = false; }
+    else        { c.classList.add('selected');    if (chk) chk.checked = true;  }
+  });
+  updateStampaLabel();
+}
+
+function printSelected() {
+  const selCards = document.querySelectorAll('.ticket-card.selected');
+  const ids = selCards.length > 0
+    ? Array.from(selCards).map(c => c.dataset.id)
+    : bookingsForBeach().map(b => b.id);
+  const list = ids.map(id => prenotazioni[id]).filter(Boolean).sort((a,b) => a.dal.localeCompare(b.dal));
+  if (!list.length) { showToast('Nessuna prenotazione da stampare'); return; }
+  triggerPrint(list);
 }
 
 function openPrintPanel() {
@@ -1065,6 +1105,7 @@ function openPrintPanel() {
   document.getElementById('pp-grid').innerHTML = list.length
     ? list.map(buildTicketHTML).join('')
     : '<div style="grid-column:span 2;text-align:center;padding:30px;color:var(--gray-500);font-size:14px">Nessuna prenotazione per questa spiaggia</div>';
+  updateStampaLabel();
   document.getElementById('print-overlay').classList.remove('hidden');
 }
 function closePrintPanel() { document.getElementById('print-overlay').classList.add('hidden'); }
