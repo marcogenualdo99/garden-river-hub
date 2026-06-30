@@ -2165,7 +2165,8 @@ function scaricaReportFamiglie() {
   const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
   const rows = fams.map(f => {
     const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
-    const dateStr = [f.checkin?f.checkin.slice(5).replace('-','/'):'' , f.checkout?f.checkout.slice(5).replace('-','/'):''].filter(Boolean).join(' → ');
+    const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
+    const dateStr = [fmtData(f.checkin), fmtData(f.checkout)].filter(Boolean).join(' → ');
     return `<tr>
       <td>${esc(f.nome)}</td>
       <td>${esc(f.unita||'—')}</td>
