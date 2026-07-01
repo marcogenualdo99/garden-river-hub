@@ -278,6 +278,15 @@ function getGiornoCiclo(iso) {
   return ((diff % 14) + 14) % 14 + 1;
 }
 
+let _bambiniOpen = true;
+function toggleMenuBambini(){
+  _bambiniOpen = !_bambiniOpen;
+  const body = document.getElementById('bambini-body');
+  const arrow = document.getElementById('bambini-arrow');
+  if (body) body.style.display = _bambiniOpen ? 'block' : 'none';
+  if (arrow) arrow.style.transform = _bambiniOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
 const OGGI=isoDate(0), DOMANI=isoDate(1);
 // PRIMO_GIORNO e SECONDO_GIORNO vengono calcolati dopo il caricamento famiglia
@@ -405,6 +414,25 @@ function recuperoMeals(){
 function renderMenu(){
   const c=document.getElementById('menu-container');
   c.innerHTML='';
+
+  // Banner menu bambini collassabile
+  const bambiniBanner = document.createElement('div');
+  bambiniBanner.style.cssText='border-radius:10px;overflow:hidden;margin-bottom:16px;border:1px solid #F3C06B';
+  bambiniBanner.innerHTML=`
+    <button onclick="toggleMenuBambini()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:#FEF9EE;border:none;cursor:pointer;text-align:left">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        <span style="font-size:13px;font-weight:700;color:#92400E">Menu bambini — sempre disponibile</span>
+      </div>
+      <svg id="bambini-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="bambini-body" style="padding:10px 14px 13px;background:#FEF9EE;border-top:1px solid #F3C06B">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+        ${['Cotoletta','Patatine','Pasta in bianco','Pasta al pomodoro','Pasta al pesto','Hamburger','Wurstel'].map(p=>`<span style="font-size:12px;background:#fff;border:1px solid #F3C06B;color:#92400E;padding:4px 10px;border-radius:20px">${p}</span>`).join('')}
+      </div>
+      <p style="font-size:12px;color:#B45309;margin:0;line-height:1.5">Indica nelle <strong>note</strong> dell'ordine i piatti scelti per i bambini.</p>
+    </div>`;
+  c.appendChild(bambiniBanner);
   const rec = recuperoMeals();
   if (rec.length) {
     // Giorno di partenza con recupero pasti: mostra solo i pasti da recuperare
