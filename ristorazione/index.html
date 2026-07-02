@@ -229,6 +229,16 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 
 <div class="confirm-bar hidden" id="confirm-bar"></div>
 
+<div id="confirm-overlay" onclick="chiudiConfermaOrdine()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)"></div>
+<div id="confirm-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:301;background:#fff;border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto">
+  <div style="width:36px;height:4px;background:var(--gray-200);border-radius:2px;margin:0 auto 20px"></div>
+  <div style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:4px" id="cm-titolo"></div>
+  <div style="font-size:13px;color:var(--gray-500);margin-bottom:16px" id="cm-sottotitolo"></div>
+  <div id="cm-riepilogo" style="background:var(--gray-50);border-radius:12px;padding:14px 16px;margin-bottom:20px;max-height:40vh;overflow-y:auto"></div>
+  <button onclick="confermaSalva()" style="width:100%;height:52px;background:var(--green-700);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--font);margin-bottom:10px">Conferma e invia</button>
+  <button onclick="chiudiConfermaOrdine()" style="width:100%;height:44px;background:none;color:var(--gray-500);border:none;font-size:15px;cursor:pointer;font-family:var(--font)">Torna indietro</button>
+</div>
+
 <div id="settings-overlay" onclick="closeSettings()"></div>
 <div id="settings-panel" role="dialog" aria-label="Impostazioni famiglia">
   <div class="settings-header">
@@ -711,14 +721,60 @@ function step(key,menuId,cat,delta){
 
 function aggiornaNota(key,val){ if(selezioni[key]) selezioni[key].note=val; }
 
+let _confirmData = null;
+
 function buildConfirmBtn(data){
   const isOggi = data === PRIMO_GIORNO;
   const label = isOggi ? 'Conferma ordine di oggi' : 'Conferma ordine di domani';
   const btnId = `btn-confirm-${data}`;
   const wrap = document.createElement('div');
   wrap.style.cssText='margin:4px 0 28px';
-  wrap.innerHTML=`<button id="${btnId}" class="btn-confirm" onclick="salvaOrdini('${data}')">${label}</button>`;
+  wrap.innerHTML=`<button id="${btnId}" class="btn-confirm" onclick="apriConfermaOrdine('${data}')">${label}</button>`;
   return wrap;
+}
+
+function apriConfermaOrdine(data){
+  const isOggi = data === PRIMO_GIORNO;
+  _confirmData = data;
+
+  // Costruisce riepilogo piatti
+  const tipiLabel = {pranzo:'Pranzo', cena:'Cena'};
+  let righe = '';
+  let totPiatti = 0;
+  ['pranzo','cena'].forEach(tipo => {
+    const key = `${data}_${tipo}`;
+    const sel = selezioni[key];
+    if (!sel || ordiniEsistenti[key]) return;
+    const piatti = Object.entries(sel.piatti).filter(([,q])=>q>0);
+    if (!piatti.length) return;
+    righe += `<div style="font-size:12px;font-weight:700;color:var(--green-700);text-transform:uppercase;letter-spacing:.05em;margin:${righe?'12px':0} 0 6px">${tipiLabel[tipo]}</div>`;
+    piatti.forEach(([mid,qty]) => {
+      const m = menuCatMap[mid]||{};
+      righe += `<div style="display:flex;justify-content:space-between;font-size:14px;color:var(--gray-800);padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>${m.piatto||'—'}</span><span style="font-weight:700">×${qty}</span></div>`;
+      totPiatti += qty;
+    });
+    if (sel.note) righe += `<div style="font-size:12px;color:var(--gray-500);margin-top:6px">Note: ${esc(sel.note)}</div>`;
+  });
+
+  if (!totPiatti) { showToast('Seleziona almeno un piatto prima di confermare'); return; }
+
+  document.getElementById('cm-titolo').textContent = isOggi ? 'Ordine di oggi' : 'Ordine di domani';
+  document.getElementById('cm-sottotitolo').textContent = `${totPiatti} portate selezionate — controlla prima di inviare`;
+  document.getElementById('cm-riepilogo').innerHTML = righe;
+  document.getElementById('confirm-overlay').style.display = 'block';
+  document.getElementById('confirm-modal').style.display = 'block';
+}
+
+function chiudiConfermaOrdine(){
+  document.getElementById('confirm-overlay').style.display = 'none';
+  document.getElementById('confirm-modal').style.display = 'none';
+  _confirmData = null;
+}
+
+function confermaSalva(){
+  if (!_confirmData) return;
+  chiudiConfermaOrdine();
+  salvaOrdini(_confirmData);
 }
 
 async function salvaOrdini(targetData){
