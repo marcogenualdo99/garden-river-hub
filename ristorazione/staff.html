@@ -843,7 +843,7 @@ async function renderReport() {
     return;
   }
 
-  // Recuperi pasti: PC che partono oggi e hanno pasti da recuperare
+  // Recuperi pasti: PC che partono oggi e hanno pasti da recuperare e non li hanno ancora ordinati
   const recuperiOggi = famiglieDocs.filter(f => {
     if (f.checkout !== targetDate) return false;
     if (f.trattamento !== 'PC') return false;
@@ -855,7 +855,7 @@ async function renderReport() {
     if (f.ora_arrivo === 'dopo_pranzo') return reportPasto === 'pranzo';
     if (f.ora_arrivo === 'sera')        return true; // sia pranzo che cena
     return false;
-  });
+  }).filter(f => !ordini.some(o => o.famiglia_id === f.id)); // escludi chi ha già ordinato
 
   // Alert famiglie senza ordine — considera trattamento e giorno di arrivo/partenza
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
@@ -2264,8 +2264,8 @@ function applicaFiltroDate() {
     if (!f) { c.checked = false; return; }
     const ci = (f.checkin  || '').trim();
     const co = (f.checkout || '').trim();
-    if (!ci && !co) { c.checked = false; return; }
-    const fuoriRange = (dal && co && co <= dal) || (al && ci && ci >= al);
+    if (!ci && !co) { c.checked = true; selezionate++; return; } // senza date: sempre inclusa
+    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
     c.checked = !fuoriRange;
     if (!fuoriRange) selezionate++;
   });
@@ -2285,8 +2285,8 @@ function applicaFiltroDateQR() {
     if (!f) { c.checked = false; return; }
     const ci = (f.checkin  || '').trim();
     const co = (f.checkout || '').trim();
-    if (!ci && !co) { c.checked = false; return; }
-    const fuoriRange = (dal && co && co <= dal) || (al && ci && ci >= al);
+    if (!ci && !co) { c.checked = true; selezionate++; return; } // senza date: sempre inclusa
+    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
     c.checked = !fuoriRange;
     if (!fuoriRange) selezionate++;
   });
