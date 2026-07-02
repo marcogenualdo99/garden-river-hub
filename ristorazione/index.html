@@ -227,11 +227,7 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
   <div id="menu-container"></div>
 </main>
 
-<div class="confirm-bar hidden" id="confirm-bar">
-  <div class="confirm-bar-inner">
-    <button class="btn-confirm" onclick="salvaOrdini()">Conferma ordini</button>
-  </div>
-</div>
+<div class="confirm-bar hidden" id="confirm-bar"></div>
 
 <div id="settings-overlay" onclick="closeSettings()"></div>
 <div id="settings-panel" role="dialog" aria-label="Impostazioni famiglia">
@@ -448,6 +444,7 @@ function renderMenu(){
     const tipiOggi={};
     menuOggi.forEach(v=>{ if(!tipiOggi[v.tipo])tipiOggi[v.tipo]=[]; tipiOggi[v.tipo].push(v); });
     rec.forEach(t=>{ if(tipiOggi[t]) c.appendChild(buildMealCard(OGGI,t,tipiOggi[t])); });
+    c.appendChild(buildConfirmBtn(OGGI));
   } else {
     renderGiorno(c,PRIMO_GIORNO,menuOggi);
     // Nascondi secondo giorno se la famiglia parte oggi o prima
@@ -472,6 +469,7 @@ function renderGiorno(c,data,voci){
     if(disponibili.length>1){ renderGiornoMP(c,data,tipi); return; }
   }
   ['pranzo','cena'].forEach(t=>{ if(tipi[t]) c.appendChild(buildMealCard(data,t,tipi[t])); });
+  c.appendChild(buildConfirmBtn(data));
 }
 
 function renderGiornoMP(c,data,tipi){
@@ -510,6 +508,7 @@ function renderGiornoMP(c,data,tipi){
   c.appendChild(cardWrap);
 
   if(scelta&&tipi[scelta]) cardWrap.appendChild(buildMealCard(data,scelta,tipi[scelta]));
+  c.appendChild(buildConfirmBtn(data));
 }
 
 function scegliPasto(data,tipo){
@@ -712,14 +711,25 @@ function step(key,menuId,cat,delta){
 
 function aggiornaNota(key,val){ if(selezioni[key]) selezioni[key].note=val; }
 
-async function salvaOrdini(){
-  const btn=document.querySelector('.btn-confirm');
-  btn.disabled=true; btn.textContent='Salvataggio…';
+function buildConfirmBtn(data){
+  const isOggi = data === PRIMO_GIORNO;
+  const label = isOggi ? 'Conferma ordine di oggi' : 'Conferma ordine di domani';
+  const btnId = `btn-confirm-${data}`;
+  const wrap = document.createElement('div');
+  wrap.style.cssText='margin:4px 0 28px';
+  wrap.innerHTML=`<button id="${btnId}" class="btn-confirm" onclick="salvaOrdini('${data}')">${label}</button>`;
+  return wrap;
+}
+
+async function salvaOrdini(targetData){
+  const btn=document.getElementById(`btn-confirm-${targetData}`);
+  if(btn){ btn.disabled=true; btn.textContent='Salvataggio…'; }
   try{
     const {db,collection,doc,setDoc}=window._fbRisto;
     const promises=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const [data,tipo]=key.split('_');
+      if(data !== targetData) continue;
       // Salta slot già confermati o scaduti
       const _ora=new Date().getHours();
       const _scaduto=data<OGGI||(data===OGGI&&_ora>=10);
@@ -737,9 +747,9 @@ async function salvaOrdini(){
       promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,timestamp:new Date().toISOString()},{merge:true}));
     }
     await Promise.all(promises);
-    showToast('Ordini salvati ✓');
+    showToast('Ordine salvato ✓');
     setTimeout(()=>location.reload(), 1200);
-  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); btn.disabled=false; btn.textContent='Conferma ordini'; }
+  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
 }
 
 function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); }
@@ -766,7 +776,6 @@ function nascondiLoading(){
   el.style.opacity='0'; setTimeout(()=>el.style.display='none',250);
   document.getElementById('app-header').classList.remove('hidden');
   document.getElementById('app-main').classList.remove('hidden');
-  document.getElementById('confirm-bar').classList.remove('hidden');
 }
 function mostraErrore(){ document.getElementById('loading-screen').style.display='none'; document.getElementById('error-screen').classList.remove('hidden'); }
 
