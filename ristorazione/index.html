@@ -409,9 +409,10 @@ function renderApp(){
 }
 
 function recuperoMeals(){
-  // Restituisce i pasti da recuperare se oggi è il giorno di partenza
+  // Restituisce i pasti da recuperare se oggi è il giorno di partenza (entro le 10:00)
   if (!famiglia || famiglia.trattamento !== 'PC') return [];
   if (famiglia.checkout !== OGGI) return [];
+  if (new Date().getHours() >= 10) return []; // ordini chiusi dopo le 10:00
   if (famiglia.ora_arrivo === 'dopo_pranzo') return ['pranzo'];
   if (famiglia.ora_arrivo === 'sera') return ['pranzo','cena'];
   return [];
@@ -526,12 +527,18 @@ function scegliPasto(data,tipo){
   const prev=mpChoice[data];
   if(prev) {
     selezioni[`${data}_${prev}`]={piatti:{},note:''};
-    // Se il pasto precedente era confermato, eliminalo localmente e da Firestore
     const prevKey=`${data}_${prev}`;
     if(ordiniEsistenti[prevKey]){
+      const backup=ordiniEsistenti[prevKey];
       delete ordiniEsistenti[prevKey];
       const {db,doc,deleteDoc}=window._fbRisto;
-      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${prevKey}`)).catch(e=>console.error(e));
+      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${prevKey}`)).catch(e=>{
+        console.error(e);
+        ordiniEsistenti[prevKey]=backup;
+        mpChoice[data]=prev;
+        renderMenu();
+        showToast('Errore di rete — riprova');
+      });
     }
   }
   mpChoice[data]=tipo;
@@ -539,12 +546,19 @@ function scegliPasto(data,tipo){
 }
 
 function cambiaPasto(data){
+  const backups={};
   ['pranzo','cena'].forEach(tipo=>{
     const key=`${data}_${tipo}`;
     if(ordiniEsistenti[key]){
+      backups[key]=ordiniEsistenti[key];
       delete ordiniEsistenti[key];
       const {db,doc,deleteDoc}=window._fbRisto;
-      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${key}`)).catch(e=>console.error(e));
+      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${key}`)).catch(e=>{
+        console.error(e);
+        ordiniEsistenti[key]=backups[key];
+        renderMenu();
+        showToast('Errore di rete — riprova');
+      });
     }
     selezioni[key]={piatti:{},note:''};
   });
@@ -773,7 +787,14 @@ function apriConfermaOrdine(data){
     if (sel.note) righe += `<div style="font-size:12px;color:var(--gray-500);margin-top:6px">Note: ${esc(sel.note)}</div>`;
   });
 
-  if (!totPiatti) { showToast('Seleziona almeno un piatto prima di confermare'); return; }
+  if (!totPiatti) {
+    const tuttiConfermati = ['pranzo','cena'].every(tipo => {
+      const key = `${data}_${tipo}`;
+      return ordiniEsistenti[key] || !selezioni[key];
+    });
+    showToast(tuttiConfermati ? 'Ordine già confermato ✓' : 'Seleziona almeno un piatto prima di confermare');
+    return;
+  }
 
   document.getElementById('cm-titolo').textContent = isOggi ? 'Ordine di oggi' : 'Ordine di domani';
   document.getElementById('cm-sottotitolo').textContent = `${totPiatti} portate selezionate — controlla prima di inviare`;
