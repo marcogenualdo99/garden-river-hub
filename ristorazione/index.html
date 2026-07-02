@@ -229,7 +229,7 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 
 <div class="confirm-bar hidden" id="confirm-bar"></div>
 
-<div id="confirm-overlay" onclick="chiudiConfermaOrdine()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)"></div>
+<div id="confirm-overlay" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.5)"></div>
 <div id="confirm-modal" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:301;background:#fff;border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto">
   <div style="width:36px;height:4px;background:var(--gray-200);border-radius:2px;margin:0 auto 20px"></div>
   <div style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:4px" id="cm-titolo"></div>
@@ -523,14 +523,31 @@ function renderGiornoMP(c,data,tipi){
 
 function scegliPasto(data,tipo){
   if(mpChoice[data]===tipo) return;
-  // Azzera le quantità del pasto precedentemente selezionato (MP: solo uno)
   const prev=mpChoice[data];
-  if(prev) selezioni[`${data}_${prev}`]={piatti:{},note:''};
+  if(prev) {
+    selezioni[`${data}_${prev}`]={piatti:{},note:''};
+    // Se il pasto precedente era confermato, eliminalo localmente e da Firestore
+    const prevKey=`${data}_${prev}`;
+    if(ordiniEsistenti[prevKey]){
+      delete ordiniEsistenti[prevKey];
+      const {db,doc,deleteDoc}=window._fbRisto;
+      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${prevKey}`)).catch(e=>console.error(e));
+    }
+  }
   mpChoice[data]=tipo;
   renderMenu();
 }
 
 function cambiaPasto(data){
+  ['pranzo','cena'].forEach(tipo=>{
+    const key=`${data}_${tipo}`;
+    if(ordiniEsistenti[key]){
+      delete ordiniEsistenti[key];
+      const {db,doc,deleteDoc}=window._fbRisto;
+      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${key}`)).catch(e=>console.error(e));
+    }
+    selezioni[key]={piatti:{},note:''};
+  });
   mpChoice[data]=null;
   renderMenu();
 }
