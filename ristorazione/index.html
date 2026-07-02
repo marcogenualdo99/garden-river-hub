@@ -802,12 +802,11 @@ async function salvaOrdini(targetData){
     const {db,collection,doc,setDoc}=window._fbRisto;
     const promises=[];
     for(const [key,sel] of Object.entries(selezioni)){
-      const [data,tipo]=key.split('_');
+      const idx = key.lastIndexOf('_');
+      const data = key.slice(0, idx);
+      const tipo = key.slice(idx + 1);
       if(data !== targetData) continue;
-      // Salta slot già confermati o scaduti
-      const _ora=new Date().getHours();
-      const _scaduto=data<OGGI||(data===OGGI&&_ora>=10);
-      if(ordiniEsistenti[key]||_scaduto) continue;
+      if(ordiniEsistenti[key]) continue;
       // Salta pasto MP bloccato (l'altro pasto ha già quantità)
       if(famiglia.trattamento==='MP'){
         const oppKey=`${data}_${tipo==='pranzo'?'cena':'pranzo'}`;
@@ -817,9 +816,11 @@ async function salvaOrdini(targetData){
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
       });
+      if(!piatti.length) continue;
       const docId=`${famiglia.id}_${data}_${tipo}`;
       promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,timestamp:new Date().toISOString()},{merge:true}));
     }
+    if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
     showToast('Ordine salvato ✓');
     setTimeout(()=>location.reload(), 1200);
