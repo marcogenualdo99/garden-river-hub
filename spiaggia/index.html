@@ -1170,7 +1170,7 @@ function ticketPrintBody(b, logoUrl) {
     <hr class="t-sep">
     <div class="t-dates">
       <div class="row"><span class="lbl">Arrivo</span><span class="val">${fmtDate(b.dal)}</span></div>
-      <div class="row"><span class="lbl">Partenza</span><span class="val">${fmtDate(isoAddDays(b.al,1))}</span></div>
+      <div class="row"><span class="lbl">Fino al</span><span class="val">${fmtDate(b.al)}</span></div>
     </div>
     ${b.note ? `<div class="t-note">${b.note}</div>` : ''}
   </div>`;
