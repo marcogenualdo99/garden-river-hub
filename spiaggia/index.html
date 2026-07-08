@@ -649,6 +649,7 @@ function toIso(y,m,d)     { return `${y}-${String(m+1).padStart(2,'0')}-${String
 function fromIso(s)        { const p=s.split('-'); return {y:+p[0],m:+p[1]-1,d:+p[2]}; }
 function fmtDate(iso)      { const {y,m,d}=fromIso(iso); return `${String(d).padStart(2,'0')}/${String(m+1).padStart(2,'0')}/${y}`; }
 function nights(dal,al)    { return Math.max(0,Math.round((new Date(al)-new Date(dal))/86400000)); }
+function isoAddDays(iso,n) { const {y,m,d}=fromIso(iso); const dt=new Date(y,m,d+n); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 function isWeekend(y,m,d)  { const w=dayOfWeek(y,m,d); return w===0||w===6; }
 function isToday(y,m,d)    { const t=new Date(); return t.getFullYear()===y&&t.getMonth()===m&&t.getDate()===d; }
 
@@ -662,27 +663,30 @@ function ombrAvailableInMonth(o, y, m) {
   if (!dal && !al) return true;
   const mStart = toIso(y, m, 1);
   const mEnd   = m === 11 ? `${y+1}-01-01` : toIso(y, m+1, 1);
-  if (dal && dal >= mEnd) return false;
-  if (al && al <= mStart) return false;
+  if (dal && dal >= mEnd) return false;   // primo giorno disponibile è dopo il mese
+  if (al  && al  <  mStart) return false; // ultimo giorno disponibile è prima del mese
   return true;
 }
 function ombrUnavailableDays(o, y, m) {
-  // Returns set of ISO dates unavailable due to period restriction
+  // al = ultimo giorno INCLUSO in cui l'ombrellone è disponibile
   const { dal, al } = normalizeOmbr(o);
   const days = daysInMonth(y, m);
   const out = new Set();
   for (let d = 1; d <= days; d++) {
     const iso = toIso(y, m, d);
-    if (dal && iso < dal) out.add(iso);
-    if (al && iso >= al) out.add(iso);
+    if (dal && iso < dal) out.add(iso);  // prima dell'inizio
+    if (al  && iso > al)  out.add(iso);  // dopo la fine (al incluso = disponibile)
   }
   return out;
 }
 function ombrAvailableForDates(o, dal, al) {
+  // dal/al prenotazione: dal=arrivo, al=partenza (giorno prima = ultimo di utilizzo)
+  // n.al = ultimo giorno INCLUSO dell'ombrellone
   const n = normalizeOmbr(o);
   if (!n.dal && !n.al) return true;
-  if (n.dal && dal < n.dal) return false;
-  if (n.al && al > n.al) return false;
+  if (n.dal && dal < n.dal) return false;          // arriva prima che l'ombrellone sia pronto
+  const lastUseDay = al > dal ? al.slice(0,8) + String(parseInt(al.slice(8))-1).padStart(2,'0') : dal;
+  if (n.al  && lastUseDay > n.al) return false;    // l'ultimo giorno di utilizzo supera il limite
   return true;
 }
 
@@ -696,11 +700,12 @@ function bookingsForBeach() {
 }
 
 function hasConflict(ombrellone, dal, al, excludeId=null) {
+  // dal = arrivo, al = ultimo giorno di utilizzo (incluso)
   const d1=new Date(dal), d2=new Date(al);
   return bookingsForBeach().some(b =>
     b.id !== excludeId &&
     b.ombrellone === ombrellone &&
-    new Date(b.dal) < d2 && new Date(b.al) > d1
+    new Date(b.dal) <= d2 && new Date(b.al) >= d1
   );
 }
 
@@ -732,13 +737,13 @@ function renderStats() {
   const row = document.getElementById('stats-row');
   const list = bookingsForBeach();
   const oggi = new Date().toISOString().slice(0,10);
-  const attive   = list.filter(b => b.dal <= oggi && b.al > oggi).length;
+  const attive   = list.filter(b => b.dal <= oggi && b.al >= oggi).length;
   const meseCurr = list.filter(b => {
     const {y,m} = fromIso(b.dal);
     return y===currentYear && m===currentMonth;
   }).length;
   const tuttiRows = allRows().length;
-  const occupati  = list.filter(b => b.dal <= oggi && b.al > oggi).map(b=>b.ombrellone);
+  const occupati  = list.filter(b => b.dal <= oggi && b.al >= oggi).map(b=>b.ombrellone);
   const liberi    = tuttiRows - occupati.length;
 
   row.innerHTML = `
@@ -833,7 +838,7 @@ function placeBookingBlock(rowEl, b, y, m, days) {
   const {y:dy,m:dm,d:dd} = fromIso(b.dal);
   const {y:ay,m:am,d:ad} = fromIso(b.al);
   const startD = Math.max(1, (dy===y && dm===m) ? dd : 1);
-  const endD   = Math.min(days, (ay===y && am===m) ? ad-1 : days);
+  const endD   = Math.min(days, (ay===y && am===m) ? ad : days);
   if (startD > days || endD < 1) return;
 
   const left  = LABEL_W + (startD-1)*COL_W + 3;
@@ -850,7 +855,7 @@ function placeBookingBlock(rowEl, b, y, m, days) {
     <span class="b-name">${b.cliente}</span>
     <button class="b-print" data-id="${b.id}" title="Stampa tagliandino" onclick="event.stopPropagation();printSingle('${b.id}')">🖨</button>
   `;
-  el.title = `${b.cliente} · ${fmtDate(b.dal)} → ${fmtDate(b.al)}${b.note ? '\n'+b.note : ''}`;
+  el.title = `${b.cliente} · ${fmtDate(b.dal)} → ${fmtDate(isoAddDays(b.al,1))}${b.note ? '\n'+b.note : ''}`;
 
   setupDrag(el, b);
   el.addEventListener('dblclick', e => { if (e.target.classList.contains('b-print')) return; openModal(b); });
@@ -941,7 +946,7 @@ function openModal(b, defaultRow='', defaultDate='') {
   document.getElementById('f-cliente').value = b ? b.cliente : '';
   document.getElementById('f-note').value    = b ? (b.note||'') : '';
   document.getElementById('f-dal').value     = b ? b.dal : defaultDate;
-  document.getElementById('f-al').value      = b ? b.al  : (defaultDate ? new Date(new Date(defaultDate).getTime()+86400000).toISOString().slice(0,10) : '');
+  document.getElementById('f-al').value      = b ? isoAddDays(b.al,1) : (defaultDate ? new Date(new Date(defaultDate).getTime()+86400000).toISOString().slice(0,10) : '');
   document.getElementById('conflict-msg').style.display = 'none';
   document.getElementById('modal-btn-delete').classList.toggle('hidden', !b);
 
@@ -991,10 +996,11 @@ async function saveBooking() {
   const cliente  = document.getElementById('f-cliente').value.trim();
   const ombrellone = document.getElementById('f-ombrellone').value;
   const dal      = document.getElementById('f-dal').value;
-  const al       = document.getElementById('f-al').value;
+  const alForm   = document.getElementById('f-al').value;  // data di partenza inserita dall'utente
+  const al       = alForm ? isoAddDays(alForm, -1) : '';   // ultimo giorno di utilizzo (salvato)
   const note     = document.getElementById('f-note').value.trim();
   if (!cliente || !ombrellone || !dal || !al) { showToast('Compila tutti i campi obbligatori'); return; }
-  if (new Date(al) <= new Date(dal)) { showToast('La data di partenza deve essere dopo l\'arrivo'); return; }
+  if (new Date(alForm) <= new Date(dal)) { showToast('La data di partenza deve essere dopo l\'arrivo'); return; }
   if (hasConflict(ombrellone, dal, al, editingId)) {
     document.getElementById('conflict-msg').style.display = 'block'; return;
   }
@@ -1025,7 +1031,7 @@ function deleteBooking() {
   if (!editingId) return;
   const b = prenotazioni[editingId];
   document.getElementById('confirm-title').textContent = 'Elimina prenotazione';
-  document.getElementById('confirm-body').textContent  = `Eliminare la prenotazione di ${b.cliente} (${fmtDate(b.dal)} → ${fmtDate(b.al)})?`;
+  document.getElementById('confirm-body').textContent  = `Eliminare la prenotazione di ${b.cliente} (${fmtDate(b.dal)} → ${fmtDate(isoAddDays(b.al,1))})?`;
   document.getElementById('confirm-action').onclick = async () => {
     try {
       setSyncStatus('saving');
@@ -1061,8 +1067,7 @@ function buildTicketHTML(b) {
       <div class="ticket-ombr">☂ ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
       <div class="ticket-dates">
         <span>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></span>
-        <span>◀ Partenza: <strong>${fmtDate(b.al)}</strong></span>
-        <span>⏱ ${n} giorn${n===1?'o':'i'} di utilizzo</span>
+        <span>◀ Partenza: <strong>${fmtDate(isoAddDays(b.al,1))}</strong></span>
       </div>
       ${b.note ? `<div class="ticket-note">📝 ${b.note}</div>` : ''}
     </div>`;
@@ -1111,8 +1116,8 @@ function getPrintList() {
   let list = bookingsForBeach().sort((a,b) => a.dal.localeCompare(b.dal));
   if (dal || al) {
     list = list.filter(b => {
-      if (dal && b.al <= dal) return false;
-      if (al  && b.dal >= al)  return false;
+      if (dal && b.al < dal) return false;
+      if (al  && b.dal > al) return false;
       return true;
     });
   }
@@ -1165,9 +1170,8 @@ function ticketPrintBody(b, logoUrl) {
     <hr class="t-sep">
     <div class="t-dates">
       <div class="row"><span class="lbl">Arrivo</span><span class="val">${fmtDate(b.dal)}</span></div>
-      <div class="row"><span class="lbl">Partenza</span><span class="val">${fmtDate(b.al)}</span></div>
+      <div class="row"><span class="lbl">Partenza</span><span class="val">${fmtDate(isoAddDays(b.al,1))}</span></div>
     </div>
-    <div class="t-notti">${n} giorn${n===1?'o':'i'} di utilizzo</div>
     ${b.note ? `<div class="t-note">${b.note}</div>` : ''}
   </div>`;
 }
