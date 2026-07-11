@@ -889,7 +889,7 @@ async function renderReport() {
         </div>
       </div>
       <div class="report-alert-divider"></div>
-      <div class="report-alert-list">${recuperiOggi.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${recuperoLabel(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
+      <div class="report-alert-list">${recuperiOggi.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${recuperoLabel(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
     </div>`;
   }
 
@@ -906,7 +906,7 @@ async function renderReport() {
         </div>
       </div>
       <div class="report-alert-divider"></div>
-      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
+      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
     </div>`;
   }
 
@@ -967,7 +967,7 @@ async function renderReport() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="fam-detail-qty">${r.qty}</div>
-                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${esc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${jsEsc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
                 </button>
               </div>
@@ -1190,7 +1190,7 @@ function renderCucina(ordini) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
-          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
           <button class="kds-edit-btn" onclick="stampaComandaById('${ord.id}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
@@ -1962,6 +1962,10 @@ function doLogout() {
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Escape per nomi usati dentro stringhe JS in attributi onclick (apostrofo → \')
+function jsEsc(s) {
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 }
 
 let _toastTimer;
