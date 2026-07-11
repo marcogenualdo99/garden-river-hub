@@ -1150,11 +1150,11 @@ function renderCucina(ordini) {
         const isExtra = p.mid.startsWith('extra_');
         return `<div class="kds-dish${done?' done':''}">
           <div class="kds-qty-badge">${p.qty}</div>
-          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${ord.id}','${p.mid}')" title="Elimina">✕</button>`:''}</div>
+          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${jsEsc(ord.id)}','${jsEsc(p.mid)}')" title="Elimina">✕</button>`:''}</div>
           <div class="kds-dish-ctrl">
-            <button class="kds-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
+            <button class="kds-btn" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
             <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
-            <button class="kds-btn plus" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
+            <button class="kds-btn plus" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
           </div>
         </div>`;
       }).join('')}`
@@ -1190,8 +1190,8 @@ function renderCucina(ordini) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
-          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
-          <button class="kds-edit-btn" onclick="stampaComandaById('${ord.id}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+          <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
@@ -1201,15 +1201,15 @@ function renderCucina(ordini) {
         <div class="kds-extra-row">
           <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-            <button class="kds-btn" onclick="kdsExtraStep('${ord.id}',-1)">−</button>
+            <button class="kds-btn" onclick="kdsExtraStep('${jsEsc(ord.id)}',-1)">−</button>
             <span class="kds-served" id="extra-qty-${ord.id}">1</span>
-            <button class="kds-btn plus" onclick="kdsExtraStep('${ord.id}',+1)">+</button>
+            <button class="kds-btn plus" onclick="kdsExtraStep('${jsEsc(ord.id)}',+1)">+</button>
           </div>
-          <button class="kds-extra-save" onclick="salvaExtra('${ord.id}','${ord.famiglia_id}')">+</button>
+          <button class="kds-extra-save" onclick="salvaExtra('${jsEsc(ord.id)}','${jsEsc(ord.famiglia_id)}')">+</button>
         </div>
       </div>
       <div class="kds-foot">
-        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${ord.id}',${isDone})">${doneBtnTxt}</button>
+        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
       </div>
     </div>`;
   }).join('');
@@ -1792,7 +1792,7 @@ async function aggiungiFamiglia() {
   if (!nome) { showToast('Inserisci il nome della famiglia'); return; }
 
   const codice     = generaCodice();
-  const id         = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
+  const id         = 'fam_' + nome.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + Date.now().toString(36);
   const note       = document.getElementById('f-note').value.trim();
   const tel        = document.getElementById('f-tel').value.trim();
   const tavolo     = document.getElementById('f-tavolo').value.trim();
