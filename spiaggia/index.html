@@ -1173,6 +1173,17 @@ function ticketPrintBody(b, logoUrl) {
       <div class="row"><span class="lbl">Fino al</span><span class="val">${fmtDate(b.al)}</span></div>
     </div>
     ${b.note ? `<div class="t-note">${b.note}</div>` : ''}
+    <div class="t-navetta">
+      <div class="t-navetta-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Navetta per il mare
+      </div>
+      <div class="t-navetta-orari">
+        <span class="t-navetta-slot">9:00 – 13:00</span>
+        <span class="t-navetta-dot">·</span>
+        <span class="t-navetta-slot">15:30 – 19:00</span>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1254,8 +1265,12 @@ function printPageHTML(list, logoUrl) {
     .t-dates .lbl{font-size:9px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.07em;min-width:16mm;flex-shrink:0}
     .t-dates .val{font-size:14px;font-weight:800;color:#111}
 
-    /* 7° — giorni di utilizzo */
-    .t-notti{margin-top:2.5mm;font-size:9px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.06em}
+    /* navetta */
+    .t-navetta{margin-top:auto;padding-top:3mm;border-top:1px solid #eee}
+    .t-navetta-title{font-size:8px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:2.5px;margin-bottom:1.5mm}
+    .t-navetta-orari{display:flex;align-items:center;gap:3mm}
+    .t-navetta-slot{font-size:13px;font-weight:800;color:#E05A00}
+    .t-navetta-dot{font-size:10px;color:#ccc;font-weight:400}
 
     /* note */
     .t-note{font-size:9px;color:#888;font-style:italic;border-top:1px solid #eee;padding-top:1.5mm;margin-top:1.5mm}
