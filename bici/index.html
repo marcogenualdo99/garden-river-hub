@@ -55,6 +55,7 @@
 </script>
 <style>
 :root {
+  /* Brand greens */
   --green-900: #0D2B1E;
   --green-700: #1B4332;
   --green-500: #2D6A4F;
@@ -62,37 +63,41 @@
   --green-200: #95D5B2;
   --green-100: #D8F3DC;
   --green-50:  #F0FAF4;
-  --gray-900:  #111827;
-  --gray-700:  #374151;
-  --gray-500:  #6B7280;
-  --gray-400:  #9CA3AF;
-  --gray-300:  #D1D5DB;
-  --gray-200:  #E5E7EB;
-  --gray-100:  #F3F4F6;
-  --gray-50:   #F9FAFB;
+  /* Neutrals */
+  --gray-900:  #0F172A;
+  --gray-700:  #334155;
+  --gray-500:  #64748B;
+  --gray-400:  #94A3B8;
+  --gray-300:  #CBD5E1;
+  --gray-200:  #E2E8F0;
+  --gray-100:  #F1F5F9;
+  --gray-50:   #F8FAFC;
   --white:     #FFFFFF;
-  --orange:    #E07B00;
-  --orange-bg: #FFF8F0;
-  --red:       #DC2626; --red-bg: #FEF2F2;
+  /* Semantic */
+  --orange:    #D97706; --orange-bg: #FFFBEB;
+  --red:       #DC2626; --red-bg: #FEF2F2; --red-light: #FCA5A5;
   --amber:     #D97706; --amber-bg: #FFFBEB;
-  --green-ok:  #16A34A; --green-bg: #F0FAF4;
-  --pink-busy: #FF6E6E;
-  --blue:      #2563EB; --blue-bg: #EFF6FF;
+  --green-ok:  #16A34A; --green-bg: #F0FDF4; --green-light: #86EFAC;
+  --pink-busy: #EF4444;
+  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-light: #93C5FD;
+  /* Radius */
+  --radius-xs: 8px;
   --radius-sm: 12px;
   --radius:    16px;
-  --radius-lg: 22px;
+  --radius-lg: 20px;
   --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
-  --shadow:    0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
-  --red-bd: #FECACA; --amber-bd: #FDE68A; --green-bd: #BBF7D0; --blue-bd: #BFDBFE;
-  --font: 'Inter', -apple-system, sans-serif;
+  /* Shadows — Soft UI Evolution */
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow:    0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
+  --shadow-lg: 0 10px 30px rgba(15,23,42,0.12), 0 4px 8px rgba(15,23,42,0.06);
+  --border:    #E2E8F0;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
-/* ══ LOGIN (stesso stile delle altre app della suite) ════════════════════════ */
+/* ══ LOGIN ════════════════════════════════════════════════════════════════ */
 .login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
 .login-screen.hidden { display: none; }
 .login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
@@ -103,91 +108,133 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .btn-primary:active { opacity: .85; }
 
 /* ══ HEADER ═══════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-200); padding-top: env(safe-area-inset-top); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
-.header-role  { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
+.header-name  { font-size: 14px; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
+.header-role  { font-size: 10px; color: var(--gray-500); font-weight: 500; margin-top: 1px; }
 .header-btns  { display: flex; align-items: center; gap: 6px; }
-.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: opacity .15s; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: background .15s; }
 .hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
-.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); border: none; }
+.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); }
+.hbtn.ghost:hover { background: var(--gray-200); }
 .hbtn:active { opacity: .8; }
 
-main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
+main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 
-/* ══ STATS ════════════════════════════════════════════════════════════════ */
-.stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
-.stat-chip:active { transform: scale(.96); }
-.stat-chip .n { font-size: 26px; font-weight: 800; line-height: 1; }
-.stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
-.filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.filter-label { font-size: 15px; font-weight: 800; }
-.filter-clear { background: var(--white); border: none; box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
-.empty-filter, .empty-state { text-align: center; padding: 50px 20px; color: var(--gray-500); font-size: 13px; line-height: 1.6; }
+/* ══ SECTION LABEL ═══════════════════════════════════════════════════════ */
+.sec-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-500); text-transform: uppercase; margin: 18px 0 8px 2px; }
 
-/* ══ CATEGORIE (taglia bici) ══════════════════════════════════════════════ */
-.cat-block { margin-bottom: 10px; }
-.cat-header { width: 100%; min-height: 76px; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 22px 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
-.cat-header:active { background: var(--gray-50); }
-.cat-header .nome { font-size: 19px; font-weight: 800; color: var(--gray-900); }
-.cat-header .meta { display: flex; align-items: center; gap: 12px; }
-.cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--white); background: var(--orange); padding: 6px 14px; border-radius: 20px; }
-.cat-header .chev { font-size: 20px; color: var(--orange); transition: transform .2s; display: inline-block; }
-.cat-header .chev.open { transform: rotate(180deg); }
-.cat-units { margin-top: 10px; }
+/* ══ FORM INSERIMENTO ═════════════════════════════════════════════════════ */
+.insert-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 16px 16px 14px; margin-bottom: 4px; }
+.insert-card-title { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--green-ok); text-transform: uppercase; margin-bottom: 12px; }
 
-/* ══ BIKE CARD ════════════════════════════════════════════════════════════ */
-.bike-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 12px; overflow: hidden; }
-.bike-header { width: 100%; background: none; border: none; padding: 20px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; font-family: var(--font); text-align: left; -webkit-tap-highlight-color: transparent; }
-.bike-header:active { background: var(--gray-50); }
-.bike-header.locked { cursor: default; }
-.bike-title-block { min-width: 0; }
-.bike-title { font-size: 18px; font-weight: 800; color: var(--gray-900); }
-.bike-sub   { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
-.bike-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.bike-status { font-size: 15px; font-weight: 800; white-space: nowrap; }
-.pill-assign { background: var(--green-ok); color: #fff; border: none; border-radius: 20px; padding: 9px 16px; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; -webkit-tap-highlight-color: transparent; }
-.pill-assign:active { opacity: .85; }
-.bike-chev { font-size: 17px; color: var(--gray-400); transition: transform .2s; display: inline-block; flex-shrink: 0; }
-.bike-chev.open { transform: rotate(180deg); }
+/* Bike chip grid */
+.bike-chips-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.bike-chip { height: 40px; padding: 0 14px; border-radius: 20px; border: 1.5px solid var(--gray-200); background: var(--white); font-size: 13px; font-weight: 700; color: var(--gray-500); cursor: pointer; font-family: var(--font); transition: all .15s; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; gap: 5px; }
+.bike-chip:hover { border-color: var(--green-400); color: var(--green-500); }
+.bike-chip.selected { background: var(--green-ok); border-color: var(--green-ok); color: #fff; }
+.bike-chip:active { transform: scale(.95); }
 
-.bike-body { padding: 0 20px 20px; }
-.bike-divider { height: 1px; background: var(--gray-100); margin-bottom: 16px; }
-.bike-info-row { display: flex; gap: 20px; margin-bottom: 16px; flex-wrap: wrap; }
-.bike-info-col { flex: 1; min-width: 130px; }
-.bike-info-label { font-size: 12px; color: var(--gray-500); font-weight: 600; margin-bottom: 4px; }
-.bike-info-value { font-size: 14px; font-weight: 800; color: var(--gray-900); }
-.bike-cost-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; gap: 10px; }
-.bike-cost-label { font-size: 13px; font-weight: 700; color: var(--green-ok); margin-bottom: 4px; }
-.bike-cost-value { font-size: 30px; font-weight: 800; color: var(--gray-900); line-height: 1; }
-.bike-cost-detail { font-size: 11px; color: var(--gray-500); margin-top: 4px; text-align: right; }
+/* Form fields */
+.f-input { width: 100%; height: 46px; padding: 0 14px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); color: var(--gray-900); background: var(--gray-50); outline: none; transition: border-color .15s; }
+.f-input:focus { border-color: var(--green-400); background: var(--white); }
+.f-label { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 5px; letter-spacing: .02em; }
 
-.form-row-2 { display: flex; gap: 8px; margin-bottom: 14px; }
-.form-row-2 input, .form-row-2 select { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--white); }
-.form-row-2 input:focus, .form-row-2 select:focus { border-color: var(--green-400); }
+/* Duration chips */
+.dur-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; align-items: center; }
+.dur-chip { height: 36px; padding: 0 13px; border-radius: 20px; border: 1.5px solid var(--gray-200); background: var(--white); font-size: 12px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); transition: all .15s; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.dur-chip:hover { border-color: var(--green-400); color: var(--green-500); }
+.dur-chip.on { background: var(--green-ok); border-color: var(--green-ok); color: #fff; }
+.dur-chip:active { transform: scale(.95); }
+.ore-stepper { display: flex; align-items: center; border: 1.5px solid var(--gray-200); border-radius: 20px; overflow: hidden; height: 36px; }
+.ore-btn { width: 34px; height: 36px; border: none; background: none; font-size: 18px; font-weight: 700; cursor: pointer; font-family: var(--font); color: var(--gray-500); transition: color .15s; }
+.ore-btn:hover { color: var(--green-ok); }
+.ore-val { min-width: 36px; text-align: center; font-size: 13px; font-weight: 800; color: var(--gray-900); }
 
-.btn-block { width: 100%; height: 54px; border: none; border-radius: var(--radius-xl); font-size: 16px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
-.btn-block:active { opacity: .88; }
-.btn-block:disabled { opacity: .4; pointer-events: none; }
-.btn-block.green { background: var(--green-ok); color: #fff; }
-.btn-block.red   { background: var(--pink-busy); color: #fff; }
+/* Cost stepper */
+.cost-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.cost-stepper { display: flex; align-items: center; border: 1.5px solid var(--gray-200); border-radius: var(--radius-xs); overflow: hidden; }
+.cost-btn { width: 38px; height: 42px; border: none; font-size: 20px; font-weight: 700; cursor: pointer; font-family: var(--font); color: var(--gray-700); transition: background .15s; }
+.cost-btn:hover { background: var(--gray-100); }
+.cost-btn.minus { background: var(--gray-50); border-right: 1px solid var(--gray-200); }
+.cost-btn.plus  { background: var(--gray-50); border-left: 1px solid var(--gray-200); }
+.cost-input { width: 70px; height: 42px; border: none; font-size: 22px; font-weight: 900; color: var(--gray-900); text-align: center; font-family: var(--font); background: var(--white); outline: none; -moz-appearance: textfield; appearance: textfield; }
+.cost-meta { font-size: 11px; color: var(--gray-500); line-height: 1.4; }
 
-.disabled-note { margin-top: 4px; background: var(--gray-100); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
+/* Optional fields section */
+.opt-toggle { font-size: 12px; font-weight: 600; color: var(--gray-400); cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 8px 0 0; -webkit-tap-highlight-color: transparent; }
+.opt-toggle:hover { color: var(--gray-600); }
+.opt-fields { display: flex; gap: 8px; margin-top: 10px; }
+.opt-fields > div { flex: 1; min-width: 0; }
+
+/* CTA buttons */
+.cta-row { display: flex; gap: 8px; margin-top: 14px; }
+.cta-btn { flex: 1; height: 48px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); transition: opacity .15s, transform .1s; -webkit-tap-highlight-color: transparent; }
+.cta-btn:active { opacity: .88; transform: scale(.98); }
+.cta-btn.green  { background: var(--green-ok); color: #fff; }
+.cta-btn.dark   { background: var(--green-700); color: #fff; }
+
+/* Total preview badge */
+.total-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--green-bg); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; color: var(--green-ok); }
+.total-badge.multi { background: #e8f5e2; }
+
+/* ══ ACTIVE RENTALS ═══════════════════════════════════════════════════════ */
+.rental-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid var(--gray-300); }
+.rental-card.occ  { border-left-color: var(--red); }
+.rental-card.paid { border-left-color: var(--blue); }
+.rental-card.late { border-left-color: #7C2D12; }
+.rental-header { padding: 14px 16px 0; }
+.rental-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.rental-name { font-size: 17px; font-weight: 800; color: var(--gray-900); }
+.rental-bikes { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-top: 2px; }
+.rental-badge { font-size: 10px; font-weight: 800; padding: 4px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.badge-occ  { background: var(--red-bg); color: var(--red); }
+.badge-paid { background: var(--blue-bg); color: var(--blue); }
+.badge-late { background: #FEF2E8; color: #C2410C; }
+.rental-stats { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--gray-100); }
+.rental-stat { }
+.rental-stat-lbl { font-size: 10px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.rental-stat-val { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.rental-stat-val.red  { color: var(--red); }
+.rental-stat-val.blue { color: var(--blue); }
+.rental-stat-val.late { color: #C2410C; }
+.rental-actions { display: flex; gap: 8px; padding: 10px 12px 12px; }
+.r-btn { flex: 1; height: 42px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); transition: opacity .15s, transform .1s; -webkit-tap-highlight-color: transparent; }
+.r-btn:active { opacity: .85; transform: scale(.98); }
+.r-btn.edit    { background: var(--gray-100); color: var(--gray-700); }
+.r-btn.collect { background: var(--red); color: #fff; }
+.r-btn.ret     { background: var(--blue-bg); color: var(--blue); }
+
+/* Edit form inside rental card */
+.rental-edit { padding: 12px 16px 14px; border-top: 1px solid var(--gray-100); background: var(--gray-50); }
+.edit-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.edit-row > div { flex: 1; min-width: 0; }
+.edit-actions { display: flex; gap: 8px; margin-top: 4px; }
+.edit-btn { flex: 1; height: 40px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.edit-btn.cancel { background: var(--gray-200); color: var(--gray-700); }
+.edit-btn.save   { background: var(--green-ok); color: #fff; }
+
+/* ══ BIKE STATUS (bottom) ═════════════════════════════════════════════════ */
+.status-row { display: flex; gap: 8px; }
+.status-chip { flex: 1; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 8px; text-align: center; box-shadow: var(--shadow-sm); }
+.status-chip .n { font-size: 26px; font-weight: 900; line-height: 1; }
+.status-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
 
 /* ══ ALERT BANNER ════════════════════════════════════════════════════════ */
-.alert-banner { border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
-.alert-banner.orange { background: var(--orange-bg); border-left: 4px solid var(--orange); }
-.alert-banner.red    { background: var(--red-bg);    border-left: 4px solid var(--red); }
-.alert-banner-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.alert-banner { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; border: 1px solid; }
+.alert-banner.orange { background: var(--orange-bg); border-color: #FDE68A; }
+.alert-banner.red    { background: var(--red-bg);    border-color: #FECACA; }
+.alert-banner-title { font-size: 12px; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .alert-banner.orange .alert-banner-title { color: var(--orange); }
 .alert-banner.red    .alert-banner-title { color: var(--red); }
-.alert-bike-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-top: 1px solid rgba(0,0,0,0.06); }
-.alert-bike-num { font-size: 13px; font-weight: 800; color: var(--gray-900); }
-.alert-bike-info { font-size: 12px; color: var(--gray-700); text-align: right; line-height: 1.4; }
+.alert-bike-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-top: 1px solid rgba(0,0,0,0.05); }
+.alert-bike-num { font-size: 12px; font-weight: 800; color: var(--gray-900); }
+.alert-bike-info { font-size: 11px; color: var(--gray-700); text-align: right; line-height: 1.4; }
 
+/* ══ EMPTY / UTILITY ═══════════════════════════════════════════════════ */
+.empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
@@ -208,12 +255,19 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .btn-delete  { background: var(--red-bg); color: var(--red); }
 
 /* ══ MODAL ════════════════════════════════════════════════════════════════ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 320px; box-shadow: var(--shadow-lg); }
 .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
 .modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
 .modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 .modal-btn-confirm { flex: 1; height: 46px; background: var(--green-ok); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+
+/* Shared utility */
+.btn-block { width: 100%; height: 48px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.btn-block.green { background: var(--green-ok); color: #fff; }
+.bike-cost-label { font-size: 12px; font-weight: 700; color: var(--green-ok); margin-bottom: 4px; }
+.bike-cost-value { font-size: 28px; font-weight: 900; color: var(--gray-900); line-height: 1; }
+.bike-cost-detail { font-size: 11px; color: var(--gray-500); text-align: right; }
 </style>
 </head>
 <body>
@@ -294,8 +348,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 <main id="main-view">
   <div id="alerts-container"></div>
   <div id="form-inserimento"></div>
-  <div class="stats-row" id="stats-row"></div>
-  <div id="bikes-container"></div>
+  <div id="active-rentals"></div>
+  <div id="bike-status"></div>
 </main>
 
 <main id="settings-view" class="hidden">
@@ -377,29 +431,15 @@ let hubSession       = null;
 let hubPermessi      = { sezioni: {} };
 let allowedSections  = new Set(SECTION_IDS);
 let currentOperatore = null;
-let bikesMap         = {};   // id -> { id, numero, tipologia, attiva, stato, clienteNome, clienteAlloggio, ritiroTs, ritiroOp, log }
-let expanded         = {};   // bici id -> bool (apertura della singola card)
-let catExpanded      = {};   // taglia (grande/piccola/media) -> bool (apertura della categoria)
-const TIPOLOGIE = [
-  { key:'grande',  label:'Grande'  },
-  { key:'piccola', label:'Piccola' },
-  { key:'media',   label:'Media'   },
-];
-function effCat(b) { return TIPOLOGIE.some(t => t.key === b.tipologia) ? b.tipologia : 'media'; }
-function bikesForCat(catKey) {
-  return Object.values(bikesMap).filter(b => effCat(b) === catKey).sort((a,b) => a.numero - b.numero);
-}
-function toggleCat(key) { catExpanded[key] = !catExpanded[key]; render(); }
+let bikesMap         = {};
 let alertsCollapsed  = {};
 let editingBike      = {};   // id -> bool
-let editingTemp      = {};   // id -> { nome, alloggio, costo?, rientroPrevistoTs? }
+let editingTemp      = {};   // id -> { nome, costo, ritiroTs, rientroPrevistoTs }
 let settingsOpen     = false;
-let activeFilter     = null; // null oppure una delle chiavi di STATUS_META
-// Valori digitati nel form "Assegna a cliente", per non perderli se arriva
-// un aggiornamento realtime da un altro dispositivo mentre si sta scrivendo.
-let formTemp         = { nome:'', fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
-let formBikeId       = null; // id della bici selezionata nel form in cima
-let alloggiList       = [];  // lista alloggi letta dalla collezione "alloggi", per il menu a tendina
+let optFieldsOpen    = false; // campi opzionali nel form di inserimento
+// Form inserimento — ora supporta più bici per anagrafica
+let formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
+let alloggiList = [];
 
 function alloggiOptionsHtml(selected) {
   if (!alloggiList.length) {
@@ -613,326 +653,283 @@ function doLogout() {
 }
 
 // ── RENDER ────────────────────────────────────────────────────────────────
-function render() { renderAlerts(); renderFormInserimento(); renderStats(); renderList(); if (settingsOpen) renderSettings(); }
+function render() {
+  renderFormInserimento();
+  renderActiveRentals();
+  renderBikeStatus();
+  if (settingsOpen) renderSettings();
+}
+
+// ── FORM INSERIMENTO ──────────────────────────────────────────────────────
+function toggleBikeChip(id) {
+  const idx = formTemp.bikeIds.indexOf(id);
+  if (idx >= 0) formTemp.bikeIds.splice(idx, 1);
+  else formTemp.bikeIds.push(id);
+  renderFormInserimento();
+}
 
 function renderFormInserimento() {
   const container = document.getElementById('form-inserimento');
   if (!container) return;
   const libere = Object.values(bikesMap).filter(b => effectiveStato(b) === 'libera').sort((a,b) => a.numero - b.numero);
-  if (!libere.length) { container.innerHTML = ''; return; }
   const t = formTemp;
   const r = calcolaSelezioneDurata(t);
-  const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  const costoBici = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  const nBici = t.bikeIds.length;
+  const totale = costoBici * (nBici || 1);
   const oreOn = !t.fasciaKey;
-  function cs(active) {
-    return 'height:36px;padding:0 14px;border:1.5px solid '+(active?'var(--green-700)':'var(--gray-300)')+
-      ';border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)'+
-      ';background:'+(active?'var(--green-700)':'var(--white)')+';color:'+(active?'#fff':'var(--gray-700)')+';white-space:nowrap';
+
+  // Chips bici libere
+  const bikeChipsHtml = libere.length
+    ? libere.map(b => {
+        const sel = t.bikeIds.includes(b.id);
+        return '<button class="bike-chip'+(sel?' selected':'')+'" onclick="toggleBikeChip(\''+b.id+'\')">'+
+          'N°'+b.numero+
+          '<span style="font-size:10px;opacity:.7">'+( TIPOLOGIE_BICI[b.tipologia]||'').slice(0,2).toUpperCase()+'</span>'+
+        '</button>';
+      }).join('')
+    : '<span style="font-size:12px;color:var(--gray-400)">Nessuna bici disponibile</span>';
+
+  // Selezione bici multi-info
+  let bikeSelInfo = '';
+  if (nBici === 0) {
+    bikeSelInfo = '<span style="color:var(--gray-400);font-size:12px">Nessuna bici selezionata</span>';
+  } else if (nBici === 1) {
+    const b = bikesMap[t.bikeIds[0]];
+    bikeSelInfo = '<span class="total-badge">Bici N°'+(b?b.numero:'?')+' selezionata</span>';
+  } else {
+    bikeSelInfo = '<span class="total-badge multi">'+nBici+' bici · tot. '+totale.toFixed(2).replace('.',',')+'€</span>';
   }
-  const opzioniHtml = libere.map(b =>
-    '<option value="'+b.id+'"'+(formBikeId===b.id?' selected':'')+'>Bici N°'+b.numero+' — '+(TIPOLOGIE_BICI[b.tipologia]||'Media')+'</option>'
-  ).join('');
+
   container.innerHTML =
-    '<div style="background:var(--white);border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:18px 16px 16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'+
-      '<div style="font-size:13px;font-weight:700;color:var(--gray-500);letter-spacing:.04em;margin-bottom:12px">NUOVO NOLEGGIO</div>'+
-      '<div class="form-row-2" style="margin-bottom:12px">'+
-        '<select onchange="formBikeId=this.value" style="flex:1;min-width:0;height:48px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white);cursor:pointer">'+
-          '<option value="" '+(formBikeId?'':'selected')+' disabled>Seleziona bici…</option>'+
-          opzioniHtml+
-        '</select>'+
-        '<input type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value" style="flex:1;min-width:0;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
+    '<div class="sec-label">Nuovo noleggio</div>'+
+    '<div class="insert-card">'+
+      '<div class="insert-card-title">Seleziona bici</div>'+
+      '<div class="bike-chips-grid">'+bikeChipsHtml+'</div>'+
+      '<div style="margin-bottom:12px">'+
+        '<div class="f-label">Cliente</div>'+
+        '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value">'+
       '</div>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'+
-        '<div style="display:flex;align-items:center;border:1.5px solid '+(oreOn?'var(--green-700)':'var(--gray-300)')+';border-radius:20px;background:'+(oreOn?'var(--green-50)':'var(--white)')+'">'+
-          '<button onclick="cambiaOre(-1)" style="width:36px;height:36px;border:none;background:none;font-size:18px;font-weight:700;cursor:pointer;color:'+(oreOn?'var(--green-700)':'var(--gray-400)')+';font-family:var(--font)">−</button>'+
-          '<span onclick="cambiaOre(0)" style="min-width:34px;text-align:center;font-size:14px;font-weight:800;cursor:pointer;color:'+(oreOn?'var(--green-700)':'var(--gray-600)')+'">'+( t.ore||1)+'h</span>'+
-          '<button onclick="cambiaOre(1)" style="width:36px;height:36px;border:none;background:none;font-size:18px;font-weight:700;cursor:pointer;color:'+(oreOn?'var(--green-700)':'var(--gray-400)')+';font-family:var(--font)">+</button>'+
+      '<div class="dur-row">'+
+        '<div class="ore-stepper'+(oreOn?' selected':'')+'">'+
+          '<button class="ore-btn" onclick="cambiaOre(-1)">−</button>'+
+          '<span class="ore-val" style="color:'+(oreOn?'var(--green-ok)':'var(--gray-900)')+'">'+( t.ore||1)+'h</span>'+
+          '<button class="ore-btn" onclick="cambiaOre(1)">+</button>'+
         '</div>'+
-        '<button onclick="selFascia(\'mezzaGiornata\')" style="'+cs(t.fasciaKey==='mezzaGiornata')+'">½ Giornata</button>'+
-        '<button onclick="selFascia(\'giornataIntera\')" style="'+cs(t.fasciaKey==='giornataIntera')+'">Giornata</button>'+
-        '<button onclick="selFascia(\'settimana\')" style="'+cs(t.fasciaKey==='settimana')+'">Settimana</button>'+
+        '<button class="dur-chip'+(t.fasciaKey==='mezzaGiornata'?' on':'')+'" onclick="selFascia(\'mezzaGiornata\')">½ Giornata</button>'+
+        '<button class="dur-chip'+(t.fasciaKey==='giornataIntera'?' on':'')+'" onclick="selFascia(\'giornataIntera\')">Giornata</button>'+
+        '<button class="dur-chip'+(t.fasciaKey==='settimana'?' on':'')+'" onclick="selFascia(\'settimana\')">Settimana</button>'+
       '</div>'+
-      '<div class="bike-cost-row" style="margin-bottom:12px">'+
-        '<div>'+
-          '<div class="bike-cost-label">Costo</div>'+
-          '<div style="display:flex;align-items:center;gap:6px">'+
-            '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
-              '<button onclick="stepCosto(-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
-              '<input type="number" min="0" step="0.5" value="'+costo.toFixed(2)+'" oninput="formTemp.costoManuale=parseFloat(this.value)||0" id="costo-input-form" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
-              '<button onclick="stepCosto(0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
-            '</div>'+
-            '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
+      '<div class="cost-row">'+
+        '<div class="cost-stepper">'+
+          '<button class="cost-btn minus" onclick="stepCosto(-0.5)">−</button>'+
+          '<input class="cost-input" type="number" min="0" step="0.5" id="costo-input-form" value="'+costoBici.toFixed(2)+'" oninput="formTemp.costoManuale=parseFloat(this.value)||0">'+
+          '<button class="cost-btn plus" onclick="stepCosto(0.5)">+</button>'+
+        '</div>'+
+        '<span style="font-size:24px;font-weight:900;color:var(--gray-700)">€</span>'+
+        '<div class="cost-meta">'+r.fascia+'<br><span style="color:var(--gray-400)">'+r.dettaglio+'</span></div>'+
+        '<div style="margin-left:auto">'+bikeSelInfo+'</div>'+
+      '</div>'+
+      '<div class="opt-toggle" onclick="optFieldsOpen=!optFieldsOpen;renderFormInserimento()">'+
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M'+(optFieldsOpen?'18 15l-6-6-6 6':'6 9l6 6 6-6')+'"/></svg>'+
+        (optFieldsOpen ? 'Nascondi campi opzionali' : 'Ora ritiro / Rientro previsto')+
+      '</div>'+
+      (optFieldsOpen ?
+        '<div class="opt-fields">'+
+          '<div>'+
+            '<div class="f-label" style="margin-top:10px">Ora ritiro <span style="opacity:.5">(vuoto = adesso)</span></div>'+
+            '<input class="f-input" type="datetime-local" value="'+(t.ritiroTs||'')+'" oninput="formTemp.ritiroTs=this.value">'+
           '</div>'+
-        '</div>'+
-        '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
-      '</div>'+
-      '<div class="form-row-2" style="margin-bottom:12px">'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:4px">Ora ritiro (vuoto = adesso)</div>'+
-          '<input type="datetime-local" value="'+(t.ritiroTs||'')+'" oninput="formTemp.ritiroTs=this.value" style="width:100%;height:44px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
-        '</div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:12px;color:var(--gray-500);font-weight:600;margin-bottom:4px">Rientro previsto (vuoto = timer live)</div>'+
-          '<input type="datetime-local" value="'+(t.rientroTs||'')+'" oninput="formTemp.rientroTs=this.value" style="width:100%;height:44px;padding:0 12px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
-        '</div>'+
-      '</div>'+
-      '<div class="form-row-2" style="margin-bottom:0">'+
-        '<button class="btn-block green" style="font-size:14px" onclick="segnalaRitiro(formBikeId)">Da riscuotere</button>'+
-        '<button class="btn-block green" style="background:var(--green-700);font-size:14px" onclick="segnalaRitiroPagato(formBikeId)">Ritiro Pagato</button>'+
-      '</div>'+
-    '</div>';
-}
-
-function renderAlerts() {
-  const container = document.getElementById('alerts-container');
-  if (!container) return;
-  const now = Date.now();
-  const bikes = Object.values(bikesMap);
-
-  // Bici già pagate e non ancora restituite (tutte)
-  const giaPagate = bikes.filter(b => effectiveStato(b) === 'occupata_pagata');
-  // Bici da riscuotere (occupata = "Da pagare")
-  const daRiscuotere = bikes.filter(b => effectiveStato(b) === 'occupata');
-
-  let html = '';
-
-  if (giaPagate.length) {
-    const collapsed = !!alertsCollapsed['giaPagate'];
-    const scaduteCount = giaPagate.filter(b => b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now).length;
-    const titolo = scaduteCount
-      ? giaPagate.length+' bici già pagate fuori · '+scaduteCount+' in ritardo'
-      : giaPagate.length+' bici già pagate fuori';
-    html += '<div class="alert-banner orange">'+
-      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'giaPagate\']=!alertsCollapsed[\'giaPagate\'];renderAlerts()">'+
-        '<span>'+titolo+'</span>'+
-        '<span style="font-size:13px;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
-      '</div>'+
-      (!collapsed ? giaPagate.map(b => {
-        const inRitardo = b.rientroPrevistoTs && new Date(b.rientroPrevistoTs).getTime() < now;
-        return '<div class="alert-bike-row">'+
-          '<span class="alert-bike-num" style="'+(inRitardo?'color:var(--red)':'')+'">Bici N°'+b.numero+(inRitardo?' ⚠':'')+'</span>'+
-          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'<br><span style="font-size:11px;color:var(--gray-500)">Rientro '+fmtTs(b.rientroPrevistoTs)+'</span></span>'+
-        '</div>';
-      }).join('') : '')+
-    '</div>';
-  }
-
-  if (daRiscuotere.length) {
-    const collapsed = !!alertsCollapsed['daRiscuotere'];
-    html += '<div class="alert-banner red">'+
-      '<div class="alert-banner-title" style="cursor:pointer;justify-content:space-between" onclick="alertsCollapsed[\'daRiscuotere\']=!alertsCollapsed[\'daRiscuotere\'];renderAlerts()">'+
-        '<span>'+daRiscuotere.length+' bici da restituire e pagare</span>'+
-        '<span style="font-size:13px;display:inline-block;transform:'+(collapsed?'rotate(0deg)':'rotate(180deg)')+'">&#9660;</span>'+
-      '</div>'+
-      (!collapsed ? daRiscuotere.map(b =>
-        '<div class="alert-bike-row">'+
-          '<span class="alert-bike-num">Bici N°'+b.numero+'</span>'+
-          '<span class="alert-bike-info">'+(b.clienteNome||'-')+'<br>'+(b.clienteAlloggio||'')+'</span>'+
+          '<div>'+
+            '<div class="f-label" style="margin-top:10px">Rientro previsto <span style="opacity:.5">(vuoto = timer)</span></div>'+
+            '<input class="f-input" type="datetime-local" value="'+(t.rientroTs||'')+'" oninput="formTemp.rientroTs=this.value">'+
+          '</div>'+
         '</div>'
-      ).join('') : '')+
+      : '')+
+      '<div class="cta-row">'+
+        '<button class="cta-btn green" onclick="segnalaRitiroMulti()">Da riscuotere'+(nBici>1?' ('+nBici+')':\'\')+'</button>'+
+        '<button class="cta-btn dark" onclick="segnalaRitiroPagatoMulti()">Già pagato'+(nBici>1?' ('+nBici+')':\'\')+'</button>'+
+      '</div>'+
     '</div>';
+}
+
+// ── ACTIVE RENTALS ────────────────────────────────────────────────────────
+function getRentalGroups() {
+  const bikes = Object.values(bikesMap);
+  const active = bikes.filter(b => {
+    const s = effectiveStato(b);
+    return s === 'occupata' || s === 'occupata_pagata';
+  });
+  const groups = {};
+  active.forEach(b => {
+    const key = b.gruppoId || ('solo_' + b.id);
+    if (!groups[key]) groups[key] = { key, bikes: [], gruppoId: b.gruppoId || null };
+    groups[key].bikes.push(b);
+  });
+  // Sort: occupata first, then occupata_pagata; within same type by ritiroTs
+  return Object.values(groups).sort((a, b) => {
+    const sA = effectiveStato(a.bikes[0]), sB = effectiveStato(b.bikes[0]);
+    if (sA !== sB) return sA === 'occupata' ? -1 : 1;
+    const tA = new Date(a.bikes[0].ritiroTs || 0).getTime();
+    const tB = new Date(b.bikes[0].ritiroTs || 0).getTime();
+    return tA - tB;
+  });
+}
+
+function fmtElapsed(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h === 0) return m + 'min';
+  return h + 'h ' + String(m).padStart(2,'0') + 'min';
+}
+function fmtHM(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+}
+
+function renderRentalCard(group) {
+  const bikes = group.bikes;
+  const b0 = bikes[0];
+  const stato = effectiveStato(b0);
+  const isPaid = stato === 'occupata_pagata';
+  const now = Date.now();
+  const ritiroTs = new Date(b0.ritiroTs || now).getTime();
+  const elapsed = now - ritiroTs;
+  const isLate = b0.rientroPrevistoTs && new Date(b0.rientroPrevistoTs).getTime() < now;
+  const cardClass = isLate ? 'late' : (isPaid ? 'paid' : 'occ');
+  const bikeNums = bikes.sort((a,b)=>a.numero-b.numero).map(b=>'N°'+b.numero).join(', ');
+  const tipoLabel = TIPOLOGIE_BICI[b0.tipologia] || 'Media';
+  const groupKey = group.key;
+
+  // Cost calculation per group
+  let costoDisplay, costoClass, costoLabel;
+  if (isPaid) {
+    const totPagato = bikes.reduce((s, b) => s + (b.costoAnticipato || 0), 0);
+    costoDisplay = totPagato.toFixed(2).replace('.',',') + '€';
+    costoLabel = 'Pagato';
+    costoClass = 'blue';
+  } else {
+    // Sum of individual costs
+    let totDovuto = 0;
+    bikes.forEach(b => {
+      if (b.rientroPrevistoTs) totDovuto += (b.costoPreselezionato || 0);
+      else totDovuto += calcolaCostoBici(elapsed).costo;
+    });
+    costoDisplay = totDovuto.toFixed(2).replace('.',',') + '€';
+    costoLabel = isLate ? 'In ritardo' : 'Da riscuotere';
+    costoClass = isLate ? 'late' : 'red';
   }
 
-  container.innerHTML = html;
-}
+  // Badge
+  const badgeClass = isLate ? 'badge-late' : (isPaid ? 'badge-paid' : 'badge-occ');
+  const badgeLabel = isLate ? 'IN RITARDO' : (isPaid ? 'Già pagata' : 'Da pagare');
 
-function renderStats() {
-  const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
-  Object.values(bikesMap).forEach(b => { counts[effectiveStato(b)]++; });
-  document.getElementById('stats-row').innerHTML = STATUS_KEYS.map(k => {
-    const m = STATUS_META[k];
-    const active = activeFilter === k;
-    return '<div class="stat-chip" onclick="toggleStatFilter(\''+k+'\')" style="'+(active?'box-shadow:0 0 0 2.5px '+m.color+';':'')+'"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
-  }).join('');
-}
-function toggleStatFilter(key) {
-  activeFilter = (activeFilter === key) ? null : key;
-  render();
-}
-function toggleBike(id) {
-  const b = bikesMap[id];
-  const s = b ? effectiveStato(b) : null;
-  if (s === 'non_disponibile' || s === 'libera') return;
-  expanded[id] = !expanded[id];
-  render();
-}
-function forceOpenBike(id) {
-  expanded[id] = true;
-  render();
-}
-
-function renderBikeBody(b) {
-  const stato = effectiveStato(b);
-  if (stato === 'libera') {
-    return '';
-  }
-  if (stato === 'occupata') {
-    const usaFisso = !!b.rientroPrevistoTs;
-    const r = usaFisso
-      ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
-      : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime());
-    if (editingBike[b.id]) {
-      const e = editingTemp[b.id] || {};
-      return '<div class="bike-body">'+
-        '<div class="bike-divider"></div>'+
-        '<div style="margin-bottom:14px">'+
-          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
-        '</div>'+
-        '<div class="form-row-2">'+
-          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
-          '<input type="datetime-local" value="'+(e.rientroPrevistoTs||'')+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
-        '</div>'+
-        '<div class="bike-cost-row" style="margin-top:14px;margin-bottom:18px">'+
+  // Edit form
+  let editHtml = '';
+  if (editingBike[b0.id]) {
+    const e = editingTemp[b0.id] || {};
+    editHtml =
+      '<div class="rental-edit">'+
+        '<div class="edit-row">'+
           '<div>'+
-            '<div class="bike-cost-label">Costo concordato</div>'+
-            '<div style="display:flex;align-items:center;gap:6px">'+
-              '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
-                '<button onclick="stepCostoEdit(\''+b.id+'\',-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
-                '<input type="number" min="0" step="0.5" value="'+((e.costo||0).toFixed(2))+'" id="costo-edit-'+b.id+'" oninput="editingTemp[\''+b.id+'\'].costo=parseFloat(this.value)||0" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
-                '<button onclick="stepCostoEdit(\''+b.id+'\',0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
-              '</div>'+
-              '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
-            '</div>'+
+            '<div class="f-label">Cliente</div>'+
+            '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b0.id+'\'].nome=this.value">'+
           '</div>'+
         '</div>'+
-        '<div class="form-row-2" style="margin-bottom:0">'+
-          '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
-          '<button class="btn-block green" onclick="salvaDatiNoleggio(\''+b.id+'\')">Salva</button>'+
-        '</div>'+
-      '</div>';
-    }
-    return '<div class="bike-body">'+
-      '<div class="bike-divider"></div>'+
-      '<div class="bike-info-row">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
-        '<div class="bike-info-col"><div class="bike-info-label">Orario attuale</div><div class="bike-info-value">'+fmtTs(new Date().toISOString())+'</div></div>'+
-      '</div>'+
-      '<div class="bike-info-row">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div></div>'+
-        (b.rientroPrevistoTs ? '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+fmtTs(b.rientroPrevistoTs)+'</div></div>' : '')+
-      '</div>'+
-      '<div class="bike-cost-row">'+
-        '<div><div class="bike-cost-label">'+(usaFisso?'Costo concordato':'Costo calcolato')+'</div><div class="bike-cost-value">'+r.costo.toFixed(2).replace('.',',')+'€</div></div>'+
-        '<div class="bike-cost-detail">'+r.fascia+'<br>'+r.dettaglio+'</div>'+
-      '</div>'+
-      '<div class="form-row-2" style="margin-bottom:0">'+
-        '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700);font-size:14px" onclick="attivaModificaBici(\''+b.id+'\')">Modifica dati</button>'+
-        '<button class="btn-block red" onclick="confermaRiscuoti(\''+b.id+'\')">Riscuoti</button>'+
-      '</div>'+
-    '</div>';
-  }
-  if (stato === 'occupata_pagata') {
-    if (editingBike[b.id]) {
-      const e = editingTemp[b.id] || {};
-      const rientroLocal = e.rientroPrevistoTs || '';
-      return '<div class="bike-body">'+
-        '<div class="bike-divider"></div>'+
-        '<div style="margin-bottom:14px">'+
-          '<input type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b.id+'\'].nome=this.value" style="width:100%;height:48px;padding:0 14px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)">'+
-        '</div>'+
-        '<div class="form-row-2">'+
-          '<input type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b.id+'\'].ritiroTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Ora ritiro">'+
-          '<input type="datetime-local" value="'+rientroLocal+'" oninput="editingTemp[\''+b.id+'\'].rientroPrevistoTs=this.value" style="flex:1;min-width:0;height:48px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);color:var(--gray-900);outline:none;background:var(--white)" title="Rientro previsto">'+
-        '</div>'+
-        '<div class="bike-cost-row" style="margin-top:14px;margin-bottom:18px">'+
+        '<div class="edit-row">'+
           '<div>'+
-            '<div class="bike-cost-label">Importo pagato</div>'+
-            '<div style="display:flex;align-items:center;gap:6px">'+
-              '<div style="display:flex;align-items:center;border:1.5px solid var(--gray-300);border-radius:10px;overflow:hidden">'+
-                '<button onclick="stepCostoEdit(\''+b.id+'\',-0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-right:1px solid var(--gray-300)">−</button>'+
-                '<input type="number" min="0" step="0.5" value="'+((e.costo||0).toFixed(2))+'" id="costo-edit-'+b.id+'" oninput="editingTemp[\''+b.id+'\'].costo=parseFloat(this.value)||0" style="width:72px;height:38px;font-size:20px;font-weight:800;border:none;padding:0 6px;text-align:center;font-family:var(--font);color:var(--gray-900);outline:none;-moz-appearance:textfield;appearance:textfield">'+
-                '<button onclick="stepCostoEdit(\''+b.id+'\',0.5)" style="width:36px;height:38px;border:none;background:var(--gray-50);font-size:18px;font-weight:700;cursor:pointer;color:var(--gray-700);font-family:var(--font);border-left:1px solid var(--gray-300)">+</button>'+
-              '</div>'+
-              '<span style="font-size:22px;font-weight:800;color:var(--gray-900)">€</span>'+
-            '</div>'+
+            '<div class="f-label">Ora ritiro</div>'+
+            '<input class="f-input" type="datetime-local" value="'+(e.ritiroTs||'')+'" oninput="editingTemp[\''+b0.id+'\'].ritiroTs=this.value">'+
+          '</div>'+
+          '<div>'+
+            '<div class="f-label">Rientro previsto</div>'+
+            '<input class="f-input" type="datetime-local" value="'+(e.rientroPrevistoTs||'')+'" oninput="editingTemp[\''+b0.id+'\'].rientroPrevistoTs=this.value">'+
           '</div>'+
         '</div>'+
-        '<div class="form-row-2" style="margin-bottom:0">'+
-          '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700)" onclick="annullaModificaBici(\''+b.id+'\')">Annulla</button>'+
-          '<button class="btn-block green" onclick="salvaDatiNoleggio(\''+b.id+'\')">Salva</button>'+
+        '<div class="edit-row" style="align-items:center;gap:8px">'+
+          '<div class="f-label" style="margin:0;white-space:nowrap">'+(isPaid?'Importo pagato':'Costo')+'</div>'+
+          '<div class="cost-stepper" style="height:38px">'+
+            '<button class="cost-btn minus" style="width:34px;height:38px" onclick="stepCostoEdit(\''+b0.id+'\',-0.5)">−</button>'+
+            '<input class="cost-input" type="number" min="0" step="0.5" id="costo-edit-'+b0.id+'" value="'+((e.costo||0).toFixed(2))+'" oninput="editingTemp[\''+b0.id+'\'].costo=parseFloat(this.value)||0" style="font-size:18px;width:60px">'+
+            '<button class="cost-btn plus" style="width:34px;height:38px" onclick="stepCostoEdit(\''+b0.id+'\',0.5)">+</button>'+
+          '</div>'+
+          '<span style="font-size:18px;font-weight:800;color:var(--gray-700)">€</span>'+
+        '</div>'+
+        '<div class="edit-actions">'+
+          '<button class="edit-btn cancel" onclick="annullaModificaBici(\''+b0.id+'\')">Annulla</button>'+
+          '<button class="edit-btn save" onclick="salvaDatiNoleggio(\''+b0.id+'\')">Salva</button>'+
         '</div>'+
       '</div>';
-    }
-    return '<div class="bike-body">'+
-      '<div class="bike-divider"></div>'+
-      '<div class="bike-info-row">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Bici ritirata alle ore</div><div class="bike-info-value">'+fmtTs(b.ritiroTs)+'</div></div>'+
-        '<div class="bike-info-col"><div class="bike-info-label">Rientro previsto</div><div class="bike-info-value">'+fmtTs(b.rientroPrevistoTs)+'</div></div>'+
-      '</div>'+
-      '<div class="bike-info-row">'+
-        '<div class="bike-info-col"><div class="bike-info-label">Ritirata da</div><div class="bike-info-value">'+(b.clienteNome||'-')+'</div><div class="bike-sub">'+(b.clienteAlloggio||'')+'</div></div>'+
-      '</div>'+
-      '<div class="bike-cost-row">'+
-        '<div><div class="bike-cost-label">Pagato al ritiro</div><div class="bike-cost-value">'+((b.costoAnticipato||0).toFixed(2).replace('.',','))+'€</div></div>'+
-        '<div class="bike-cost-detail">'+(b.fasciaAnticipata||'')+'<br>'+(b.dettaglioAnticipato||'')+'</div>'+
-      '</div>'+
-      '<div class="form-row-2" style="margin-bottom:0">'+
-        '<button class="btn-block" style="background:var(--gray-100);color:var(--gray-700);font-size:14px" onclick="attivaModificaBici(\''+b.id+'\')">Modifica dati</button>'+
-        '<button class="btn-block green" onclick="confermaRientro(\''+b.id+'\')">Segna rientro</button>'+
-      '</div>'+
-    '</div>';
   }
-  return '';
-}
 
-function renderBikeCard(b) {
-  const stato = effectiveStato(b);
-  const m = STATUS_META[stato];
-  const open = !!expanded[b.id];
-  const locked = stato === 'non_disponibile';
-  const noExpand = locked || stato === 'libera';
-  let rightHtml = '<span class="bike-status" style="color:'+m.color+'">'+m.label+'</span>';
-  if (!noExpand) rightHtml += '<span class="bike-chev'+(open?' open':'')+'">&#9660;</span>';
-  return '<div class="bike-card">'+
-    '<div class="bike-header'+(noExpand?' locked':'')+'" role="button" tabindex="0" '+(noExpand?'':'onclick="toggleBike(\''+b.id+'\')"')+'>'+
-      '<div class="bike-title-block"><div class="bike-title">Bici N°'+b.numero+'</div><div class="bike-sub">Taglia '+(TIPOLOGIE_BICI[b.tipologia]||'Media')+'</div></div>'+
-      '<div class="bike-header-right">'+rightHtml+'</div>'+
+  // Action buttons
+  let actionsHtml;
+  if (isPaid) {
+    actionsHtml =
+      '<button class="r-btn edit" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'+
+      '<button class="r-btn ret" onclick="confermaRientroGruppo(\''+groupKey+'\')">Segna rientro</button>';
+  } else {
+    actionsHtml =
+      '<button class="r-btn edit" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'+
+      '<button class="r-btn collect" onclick="confermaRiscuotiGruppo(\''+groupKey+'\')">Riscuoti e chiudi</button>';
+  }
+
+  return '<div class="rental-card '+cardClass+'">'+
+    '<div class="rental-header">'+
+      '<div class="rental-top">'+
+        '<div>'+
+          '<div class="rental-name">'+(b0.clienteNome||'—')+'</div>'+
+          '<div class="rental-bikes">Bici '+bikeNums+(bikes.length===1?' · '+tipoLabel:'')+'</div>'+
+        '</div>'+
+        '<span class="rental-badge '+badgeClass+'">'+badgeLabel+'</span>'+
+      '</div>'+
     '</div>'+
-    (open && !locked ? renderBikeBody(b) : '')+
+    '<div class="rental-stats">'+
+      '<div class="rental-stat">'+
+        '<div class="rental-stat-lbl">Fuori da</div>'+
+        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtHM(b0.ritiroTs)+'</div>'+
+      '</div>'+
+      '<div class="rental-stat">'+
+        '<div class="rental-stat-lbl">Tempo</div>'+
+        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtElapsed(elapsed)+'</div>'+
+      '</div>'+
+      (b0.rientroPrevistoTs ? '<div class="rental-stat"><div class="rental-stat-lbl">Rientro prev.</div><div class="rental-stat-val">'+fmtHM(b0.rientroPrevistoTs)+'</div></div>' : '')+
+      '<div class="rental-stat" style="margin-left:auto;text-align:right">'+
+        '<div class="rental-stat-lbl">'+costoLabel+'</div>'+
+        '<div class="rental-stat-val '+costoClass+'">'+costoDisplay+'</div>'+
+      '</div>'+
+    '</div>'+
+    (editHtml || ('<div class="rental-actions">'+actionsHtml+'</div>'))+
   '</div>';
 }
 
-function renderList() {
-  const container = document.getElementById('bikes-container');
-  if (!Object.keys(bikesMap).length) {
-    container.innerHTML = '<div class="empty-state">Nessuna bici configurata.<br>Aggiungine una dalle Impostazioni (icona ⚙️ in alto).</div>';
+function renderActiveRentals() {
+  const container = document.getElementById('active-rentals');
+  if (!container) return;
+  const groups = getRentalGroups();
+  if (!groups.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:28px 20px">Nessun noleggio attivo</div>';
     return;
   }
-  if (activeFilter) {
-    const m = STATUS_META[activeFilter];
-    const list = Object.values(bikesMap)
-      .filter(b => effectiveStato(b) === activeFilter)
-      .sort((a,b) => effCat(a).localeCompare(effCat(b)) || a.numero - b.numero);
-    let html = '<div class="filter-bar">'+
-      '<span class="filter-label" style="color:'+m.color+'">'+m.label+' · '+list.length+'</span>'+
-      '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
+  container.innerHTML =
+    '<div class="sec-label">Bici fuori ('+groups.reduce((s,g)=>s+g.bikes.length,0)+')</div>'+
+    groups.map(g => renderRentalCard(g)).join('');
+}
+
+function renderBikeStatus() {
+  const container = document.getElementById('bike-status');
+  if (!container) return;
+  const bikes = Object.values(bikesMap);
+  if (!bikes.length) { container.innerHTML = ''; return; }
+  const libere = bikes.filter(b => effectiveStato(b) === 'libera').length;
+  const nonDisp = bikes.filter(b => effectiveStato(b) === 'non_disponibile').length;
+  container.innerHTML =
+    '<div class="sec-label">Stato bici</div>'+
+    '<div class="status-row">'+
+      '<div class="status-chip"><div class="n" style="color:var(--green-ok)">'+libere+'</div><div class="l">Libere</div></div>'+
+      (nonDisp > 0 ? '<div class="status-chip"><div class="n" style="color:var(--gray-400)">'+nonDisp+'</div><div class="l">Non disp.</div></div>' : '')+
     '</div>';
-    html += list.length ? list.map(b => renderBikeCard(b)).join('') : '<div class="empty-filter">Nessuna bici in questo stato</div>';
-    container.innerHTML = html;
-    return;
-  }
-  const html = TIPOLOGIE.map(t => {
-    const open = !!catExpanded[t.key];
-    const bikes = bikesForCat(t.key);
-    const daPagare = bikes.filter(b => effectiveStato(b) === 'occupata').length;
-    let bikesHtml = '';
-    if (open) {
-      bikesHtml = bikes.length
-        ? bikes.map(b => renderBikeCard(b)).join('')
-        : '<div class="empty-filter">Nessuna bici in questa categoria</div>';
-    }
-    return '<div class="cat-block">'+
-      '<button class="cat-header" onclick="toggleCat(\''+t.key+'\')">'+
-        '<span class="nome">'+t.label+'</span>'+
-        '<span class="meta">'+
-          (daPagare > 0 ? '<span class="da-gestire">'+daPagare+' da pagare</span>' : '')+
-          '<span class="chev'+(open?' open':'')+'">&#9660;</span>'+
-        '</span>'+
-      '</button>'+
-      (open ? '<div class="cat-units">'+bikesHtml+'</div>' : '')+
-    '</div>';
-  }).join('');
-  container.innerHTML = html;
 }
 
 // ── AZIONI ────────────────────────────────────────────────────────────────
@@ -955,8 +952,7 @@ async function segnalaRitiro(id) {
   b.fasciaPreselezionata = r.fascia;
   b.dettaglioPreselezionato = r.dettaglio;
   b.rientroPrevistoTs = rientroPrevistoTs;
-  formTemp = { nome:'', fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
-  formBikeId = null;
+  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
   render();
   try {
     await waitForFirebase();
@@ -1021,6 +1017,129 @@ async function riscuoti(id) {
   }
 }
 
+// ── MULTI-BIKE ACTIONS ────────────────────────────────────────────────────
+async function segnalaRitiroMulti() {
+  const ids = formTemp.bikeIds;
+  if (!ids.length) { showToast('Seleziona almeno una bici'); return; }
+  const nome = (formTemp.nome || '').trim();
+  if (!nome) { showToast('Inserisci nome e cognome'); return; }
+  const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
+  for (const id of ids) await segnalaRitiroMultiExec(id, gruppoId);
+  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
+  render();
+  showToast(ids.length > 1 ? ids.length+' bici segnalate in uscita' : 'Bici segnalata in uscita');
+}
+
+async function segnalaRitiroMultiExec(id, gruppoId) {
+  const b = bikesMap[id];
+  if (!b) return;
+  const t = formTemp;
+  const nome = (t.nome || '').trim();
+  const r = calcolaSelezioneDurata(t);
+  const costoPreselezionato = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  const rientroPrevistoTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : null;
+  const nowIso = t.ritiroTs ? new Date(t.ritiroTs).toISOString() : new Date().toISOString();
+  b.stato = 'occupata'; b.clienteNome = nome; b.ritiroTs = nowIso;
+  b.ritiroOp = currentOperatore || 'Operatore';
+  b.costoPreselezionato = costoPreselezionato;
+  b.fasciaPreselezionata = r.fascia; b.dettaglioPreselezionato = r.dettaglio;
+  b.rientroPrevistoTs = rientroPrevistoTs;
+  if (gruppoId) b.gruppoId = gruppoId;
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc, deleteField } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'occupata', clienteNome: nome,
+      ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
+      costoPreselezionato, fasciaPreselezionata: r.fascia,
+      dettaglioPreselezionato: r.dettaglio,
+      rientroPrevistoTs: rientroPrevistoTs !== null ? rientroPrevistoTs : deleteField(),
+      ...(gruppoId ? { gruppoId } : {}),
+    });
+  } catch(e) { console.error('Errore segnalazione ritiro:', e); showToast('Errore di salvataggio'); }
+}
+
+function segnalaRitiroPagatoMulti() {
+  const ids = formTemp.bikeIds;
+  if (!ids.length) { showToast('Seleziona almeno una bici'); return; }
+  const nome = (formTemp.nome || '').trim();
+  if (!nome) { showToast('Inserisci nome e cognome'); return; }
+  const t = formTemp;
+  const r = calcolaSelezioneDurata(t);
+  const costo = (t.costoManuale !== null && t.costoManuale !== undefined) ? t.costoManuale : r.costo;
+  const totale = costo * ids.length;
+  const bikeNums = ids.map(id => bikesMap[id] ? 'N°'+bikesMap[id].numero : '?').join(', ');
+  const rientroTs = t.rientroTs ? new Date(t.rientroTs).toISOString() : null;
+  const ritiroTs = t.ritiroTs ? new Date(t.ritiroTs).toISOString() : new Date().toISOString();
+  showModal(
+    'Ritiro pagato — ' + (ids.length > 1 ? ids.length+' bici · tot. ' : '') + totale.toFixed(2).replace('.',',') + '€',
+    'Bici '+bikeNums+' — '+nome+'. '+r.fascia+': '+r.dettaglio+(ids.length>1?' · '+costo.toFixed(2).replace('.',',')+'€ cad':'')+'. Confermi di aver incassato il pagamento?',
+    'Conferma pagamento',
+    () => eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, { costo, fascia: r.fascia, dettaglio: r.dettaglio })
+  );
+}
+
+async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
+  const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
+  for (const id of ids) {
+    const b = bikesMap[id];
+    if (!b) continue;
+    const nowIso = ritiroTs || new Date().toISOString();
+    b.stato = 'occupata'; b.clienteNome = nome; b.ritiroTs = nowIso;
+    b.ritiroOp = currentOperatore || 'Operatore';
+    b.pagamentoAnticipato = true;
+    b.costoAnticipato = r.costo;
+    b.fasciaAnticipata = r.fascia; b.dettaglioAnticipato = r.dettaglio;
+    b.rientroPrevistoTs = rientroTs;
+    if (gruppoId) b.gruppoId = gruppoId;
+    try {
+      await waitForFirebase();
+      const { db, doc, updateDoc, deleteField } = window._fb;
+      await updateDoc(doc(db, 'bici', id), {
+        stato: 'occupata', clienteNome: nome,
+        ritiroTs: nowIso, ritiroOp: currentOperatore || 'Operatore',
+        pagamentoAnticipato: true, costoAnticipato: r.costo,
+        fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio,
+        rientroPrevistoTs: rientroTs !== null ? rientroTs : deleteField(),
+        ...(gruppoId ? { gruppoId } : {}),
+      });
+    } catch(e) { console.error('Errore ritiro pagato:', e); showToast('Errore di salvataggio'); }
+  }
+  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
+  render();
+  showToast('Incassati ' + (r.costo * ids.length).toFixed(2).replace('.',',') + '€ per ' + ids.length + ' bici');
+}
+
+function confermaRiscuotiGruppo(groupKey) {
+  const group = getRentalGroups().find(g => g.key === groupKey);
+  if (!group) return;
+  const bikes = group.bikes;
+  let totale = 0;
+  bikes.forEach(b => {
+    totale += !!b.rientroPrevistoTs ? (b.costoPreselezionato||0) : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime()).costo;
+  });
+  const bikeNums = bikes.sort((a,b)=>a.numero-b.numero).map(b=>'N°'+b.numero).join(', ');
+  showModal(
+    'Riscuoti ' + totale.toFixed(2).replace('.',',') + '€',
+    'Bici '+bikeNums+' — '+(bikes[0].clienteNome||'')+'. Confermi di aver incassato il pagamento?',
+    'Riscuoti',
+    () => { bikes.forEach(b => riscuoti(b.id)); }
+  );
+}
+
+function confermaRientroGruppo(groupKey) {
+  const group = getRentalGroups().find(g => g.key === groupKey);
+  if (!group) return;
+  const bikes = group.bikes;
+  const bikeNums = bikes.sort((a,b)=>a.numero-b.numero).map(b=>'N°'+b.numero).join(', ');
+  showModal(
+    'Segna rientro',
+    'Confermi il rientro delle bici '+bikeNums+'? Il pagamento è già stato incassato al ritiro.',
+    'Segna rientro',
+    () => { bikes.forEach(b => segnalaRientro(b.id)); }
+  );
+}
+
 function stepCosto(delta) {
   const t = formTemp;
   const r = calcolaSelezioneDurata(t);
@@ -1081,8 +1200,7 @@ async function eseguiRitiroPagato(id, nome, ritiroTs, rientroTs, r) {
   b.fasciaAnticipata = r.fascia;
   b.dettaglioAnticipato = r.dettaglio;
   b.rientroPrevistoTs = rientroTs;
-  formTemp = { nome:'', fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
-  formBikeId = null;
+  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'' };
   render();
   showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
   try {
@@ -1310,7 +1428,7 @@ async function toggleDisponibilitaBici(id) {
   if (b.stato === 'occupata') { showToast('Non puoi disattivare una bici occupata'); return; }
   const nuovo = b.attiva === false ? true : false;
   b.attiva = nuovo;
-  renderSettings(); renderStats(); renderList();
+  renderSettings(); render();
   try {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
