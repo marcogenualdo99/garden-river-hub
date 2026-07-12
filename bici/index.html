@@ -1509,7 +1509,7 @@ function showToast(msg) {
 
 // ── START ─────────────────────────────────────────────────────────────────
 async function start() {
-  render();
+  try { render(); } catch(e) { console.error('Errore render iniziale:', e); }
   initLogin();
   await waitForFirebase();
   if (window._fbAuthError) {
