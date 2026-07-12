@@ -1385,6 +1385,7 @@ function closeSettings() {
   document.getElementById('top-bar-main').classList.remove('hidden');
   document.getElementById('settings-view').classList.add('hidden');
   document.getElementById('main-view').classList.remove('hidden');
+  render();
 }
 function nextSuggestedNumero() {
   const nums = Object.values(bikesMap).map(b => b.numero);
