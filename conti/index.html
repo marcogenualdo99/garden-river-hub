@@ -759,6 +759,11 @@ let fbConnected      = false;
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+// Rende sicuro un valore da inserire dentro un attributo onclick="...('VALORE')" —
+// se l'id di un ospite/ordine contenesse un apice o un backslash (es. un
+// documento creato a mano con un id insolito), senza questo escaping il
+// pulsante smetterebbe di funzionare in silenzio (attributo HTML rotto).
+function escJs(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 function isAdmin()    { return !!hubSession && hubSession.ruolo === 'admin'; }
 function fmt(n)       { return n.toFixed(2).replace('.',',') + ' €'; }
 function fmtTs(ts) {
@@ -1144,8 +1149,8 @@ function controllaDuplicatiSync() {
         </div>
       </div>
       <div class="ospite-actions">
-        <button class="btn-action ghost" onclick="goDettaglio('${o.id}')">Apri questo conto</button>
-        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${o.id}')">Elimina duplicato</button>` : ''}
+        <button class="btn-action ghost" onclick="goDettaglio('${escJs(o.id)}')">Apri questo conto</button>
+        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${escJs(o.id)}')">Elimina duplicato</button>` : ''}
       </div>
     </div>`;
   }).filter(Boolean);
@@ -1184,10 +1189,10 @@ function controllaContiScaduti() {
           </div>
         </div>
         <div class="ospite-actions">
-          <button class="btn-action ghost" onclick="goDettaglio('${o.id}')">Apri conto</button>
+          <button class="btn-action ghost" onclick="goDettaglio('${escJs(o.id)}')">Apri conto</button>
           ${vuoto
-            ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${o.id}')">Elimina (vuoto)</button>`
-            : `<button class="btn-action primary" onclick="chiudiContoId('${o.id}')">Chiudi e incassa</button>`}
+            ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${escJs(o.id)}')">Elimina (vuoto)</button>`
+            : `<button class="btn-action primary" onclick="chiudiContoId('${escJs(o.id)}')">Chiudi e incassa</button>`}
         </div>
       </div>`;
     }).join('');
@@ -1454,7 +1459,7 @@ function renderOspiti() {
         : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
       const badgePiano = pianoBadgeHtml(o.piano);
       return `<div class="ospite-card" style="border-left:${borderLeft}">
-        <div class="ospite-header" onclick="goDettaglio('${o.id}')">
+        <div class="ospite-header" onclick="goDettaglio('${escJs(o.id)}')">
           <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
           <div class="ospite-info">
             <div class="ospite-nome">${o.cognome} ${o.nome}</div>
@@ -1467,8 +1472,8 @@ function renderOspiti() {
           </div>
         </div>
         <div class="ospite-actions">
-          <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
-          <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
+          <button class="btn-action primary" onclick="goDettaglio('${escJs(o.id)}')">Ordini</button>
+          <button class="btn-action ghost"   onclick="goReportDa('${escJs(o.id)}')">Resoconto attuale</button>
         </div>
       </div>`;
     }).join('');
@@ -1484,7 +1489,7 @@ function renderOspiti() {
       const badgePiano = pianoBadgeHtml(o.piano);
       const dataArrivo = new Date(o.checkin).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
       return `<div class="ospite-card" style="opacity:.7">
-        <div class="ospite-header" onclick="goDettaglio('${o.id}')">
+        <div class="ospite-header" onclick="goDettaglio('${escJs(o.id)}')">
           <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
           <div class="ospite-info">
             <div class="ospite-nome">${o.cognome} ${o.nome}</div>
@@ -1510,7 +1515,7 @@ function renderScadenze() {
     const g=giorniA(o.checkout); const tot=totOspite(o.id);
     const cls=g===0?'oggi':g<=2?'urgente':'';
     const badge=g===0?`<span class="badge red">Checkout oggi</span>`:g<=2?`<span class="badge orange">Tra ${g} giorni</span>`:`<span class="badge gray">Tra ${g} giorni</span>`;
-    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${o.id}')" style="cursor:pointer">
+    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${escJs(o.id)}')" style="cursor:pointer">
       <div class="ospite-avatar ${cls?'urgente':''}">${initials(o)}</div>
       <div class="scadenza-info"><div class="scadenza-nome">${o.cognome} ${o.nome}</div><div class="scadenza-sub">${o.alloggio}</div><div style="margin-top:5px">${badge}</div></div>
       <div class="scadenza-destra"><div class="importo">${fmt(tot)}</div><div class="data">${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>
@@ -1529,7 +1534,7 @@ function renderChiusi() {
     chiusi.map(o=>{
       const tot = totOspiteStorico(o.id);
       const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${o.id}')">
+      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${escJs(o.id)}')">
         <div class="ospite-header">
           <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
           <div class="ospite-info">
@@ -1541,7 +1546,7 @@ function renderChiusi() {
             <div class="importo" style="color:var(--gray-400);text-decoration:line-through">${fmt(tot)}</div>
             <div class="n-ordini">${nOrd} ordini</div>
           </div>
-          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${o.id}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
+          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${escJs(o.id)}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -1646,7 +1651,7 @@ function renderDettaglio() {
         </div>
         <div class="ordine-destra">
           <span class="ordine-importo">${fmt(ord.importo)}</span>
-          <button class="del-btn" onclick="deleteOrdine('${ord.id}')">&#10005;</button>
+          <button class="del-btn" onclick="deleteOrdine('${escJs(ord.id)}')">&#10005;</button>
         </div>
       </div>`).join('')}
     </div>`;
