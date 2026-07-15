@@ -632,6 +632,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         </div>
         <div class="form-group"><label>Data checkout</label><input type="date" id="mo-checkout"></div>
       </div>
+      <div class="form-group"><label>Cellulare</label><input type="tel" id="mo-tel" placeholder="es. 333 1234567"></div>
       <button class="btn-primary" onclick="salvaModificaOspite()">Salva modifiche</button>
     </div>
   </div>
@@ -1033,14 +1034,15 @@ async function sincronizzaFamigliaRistorazione(ospiteId, ospite) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
   if (ospite.piano !== 'mezza' && ospite.piano !== 'completa') {
-    // Conto libero: azzeriamo solo il trattamento della famiglia collegata.
-    try { await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), { trattamento: '' }, { merge: true }); }
+    // Conto libero: azzeriamo solo il trattamento della famiglia collegata
+    // (il cellulare resta comunque sincronizzato).
+    try { await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), { trattamento: '', tel: ospite.tel || '' }, { merge: true }); }
     catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
     return;
   }
   const trattamento  = ospite.piano === 'completa' ? 'PC' : 'MP';
   const nomeCompleto = [ospite.nome, ospite.cognome].filter(Boolean).join(' ');
-  const datiFamiglia = { nome: nomeCompleto, unita: ospite.alloggio || '', trattamento, checkout: ospite.checkout || '' };
+  const datiFamiglia = { nome: nomeCompleto, unita: ospite.alloggio || '', trattamento, checkout: ospite.checkout || '', tel: ospite.tel || '' };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), datiFamiglia, { merge: true });
   } catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
@@ -1080,7 +1082,7 @@ async function sincronizzaFamiglieEsistenti() {
           const nome     = parti[0] || '';
           const cognome  = parti.slice(1).join(' ');
           const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
-          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', famigliaId: fam.id };
+          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId: fam.id };
           let ospiteId = fam.ospiteId;
           if (!ospiteId) {
             ospiteId = 'osp_' + fam.id;
@@ -1619,7 +1621,7 @@ function renderDettaglio() {
   const o = ospiti.find(x=>x.id===currentOspiteId);
   if (!o) return;
   document.getElementById('det-nome').textContent   = `${o.cognome} ${o.nome}`;
-  document.getElementById('det-sub').textContent    = o.alloggio;
+  document.getElementById('det-sub').textContent    = o.alloggio + (o.tel ? ' · 📞 ' + o.tel : '');
   document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
   document.getElementById('btn-chiudi-conto').style.display = '';
   document.getElementById('btn-edit-ospite').style.display  = '';
@@ -2096,6 +2098,7 @@ function goModificaOspite() {
   populateAlloggioSelect(document.getElementById('mo-alloggio'), o.alloggio);
   document.getElementById('mo-piano').value    = o.piano || 'mezza';
   document.getElementById('mo-checkout').value = o.checkout;
+  document.getElementById('mo-tel').value      = o.tel || '';
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-modifica-ospite').classList.add('active');
 }
@@ -2107,8 +2110,9 @@ async function salvaModificaOspite() {
   const alloggio = document.getElementById('mo-alloggio').value.trim();
   const piano    = document.getElementById('mo-piano').value;
   const checkout = document.getElementById('mo-checkout').value;
+  const tel      = document.getElementById('mo-tel').value.trim();
   if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
-  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout };
+  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout, tel };
   try {
     await fsSetOspite(aggiornato);
     await sincronizzaFamigliaRistorazione(o.id, aggiornato);
