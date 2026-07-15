@@ -691,6 +691,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <p class="subtitle">Le famiglie inserite in Ristorazione con un trattamento (mezza o pensione completa) generano automaticamente il conto collegato qui in Conti. Usa questo pulsante solo per le famiglie inserite prima di questa funzione, o se sospetti che qualche conto sia rimasto disallineato.</p>
       <button id="btn-sync-famiglie" onclick="sincronizzaFamiglieEsistenti()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Sincronizza famiglie esistenti</button>
       <p id="sync-famiglie-esito" style="font-size:12px;color:var(--gray-500);margin-top:10px"></p>
+      <button id="btn-check-duplicati" onclick="controllaDuplicatiSync()" style="width:100%;height:44px;margin-top:14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Controlla conti duplicati</button>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:6px">Confronta i conti creati dalla sincronizzazione con quelli già esistenti (stesso nome e alloggio) e ti fa vedere solo quelli sospetti — non cancella nulla da solo.</p>
+      <div id="duplicati-list" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>Notifiche</h3>
@@ -1089,6 +1092,82 @@ async function sincronizzaFamiglieEsistenti() {
         showToast('Errore durante la sincronizzazione — riprova');
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Sincronizza famiglie esistenti'; }
+      }
+    }
+  );
+}
+
+// Chiave per confrontare due ospiti e capire se sono "la stessa persona":
+// stesso nome, cognome e alloggio (case-insensitive).
+function chiaveOspite(o) {
+  return `${(o.nome||'').trim().toLowerCase()}|${(o.cognome||'').trim().toLowerCase()}|${(o.alloggio||'').trim().toLowerCase()}`;
+}
+
+// Diagnostica di sola lettura: i conti creati dalla sincronizzazione hanno
+// sempre id nella forma "osp_fam_...". Per ciascuno di questi, cerca un
+// altro conto (creato a mano, prima di questa funzione) con stesso
+// nome+cognome+alloggio — probabile duplicato dello stesso ospite. Non
+// cancella nulla da sola: mostra solo un elenco su cui decidere.
+function controllaDuplicatiSync() {
+  const creatiDaSync = ospiti.filter(o => o.id.startsWith('osp_fam_'));
+  const wrap = document.getElementById('duplicati-list');
+  if (!creatiDaSync.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--gray-500)">Nessun conto creato dalla sincronizzazione trovato.</p>';
+    return;
+  }
+  const righe = creatiDaSync.map(o => {
+    const chiave = chiaveOspite(o);
+    const altri = ospiti.filter(x => x.id !== o.id && chiaveOspite(x) === chiave);
+    if (!altri.length) return null; // nessun possibile duplicato per questo conto
+    const nOrdini = ordini.filter(x => x.ospiteId === o.id).length;
+    const sicuro = nOrdini === 0;
+    return `<div class="ospite-card" style="border-left:4px solid var(--orange)">
+      <div class="ospite-header">
+        <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+        <div class="ospite-info">
+          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+          <div class="ospite-sub">${o.alloggio||'—'} · creato dalla sincronizzazione</div>
+          <div class="ospite-sub" style="margin-top:2px">Possibile duplicato di ${altri.length} altro/i conto/i con stesso nome e alloggio</div>
+          <div style="font-size:11px;font-weight:700;color:${sicuro?'var(--green-ok)':'var(--red)'};margin-top:4px">
+            ${sicuro ? 'Nessun ordine registrato su questo conto — sicuro da eliminare' : nOrdini+' ordini già registrati — NON eliminare, controlla prima a mano'}
+          </div>
+        </div>
+      </div>
+      <div class="ospite-actions">
+        <button class="btn-action ghost" onclick="goDettaglio('${o.id}')">Apri questo conto</button>
+        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaDuplicatoSync('${o.id}')">Elimina duplicato</button>` : ''}
+      </div>
+    </div>`;
+  }).filter(Boolean);
+  wrap.innerHTML = righe.length
+    ? `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${righe.length} possibile/i duplicato/i trovato/i, su ${creatiDaSync.length} conti creati dalla sincronizzazione</p>` + righe.join('')
+    : `<p style="font-size:13px;color:var(--gray-500)">${creatiDaSync.length} conti creati dalla sincronizzazione, nessun possibile duplicato trovato.</p>`;
+}
+
+// Elimina un conto duplicato creato dalla sincronizzazione — solo se non ha
+// ordini registrati (controllato di nuovo qui, non solo in UI) — e scollega
+// la famiglia in Ristorazione così un domani potrà essere ricollegata al
+// conto giusto (quello già esistente) invece di ricrearne uno nuovo identico.
+function eliminaDuplicatoSync(id) {
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const nOrdini = ordini.filter(x => x.ospiteId === id).length;
+  if (nOrdini > 0) { showToast('Questo conto ha ordini registrati: controllalo prima di eliminarlo'); return; }
+  showModal(
+    'Elimina duplicato',
+    `Eliminare il conto duplicato di ${o.cognome} ${o.nome} (${o.alloggio||'—'})? Non ha ordini registrati, quindi non si perde nessuna spesa. La famiglia collegata in Ristorazione verrà scollegata da questo conto.`,
+    'Elimina duplicato', 'var(--red)',
+    async () => {
+      try {
+        if (o.famigliaId) {
+          const { db, doc, setDoc } = window._fb;
+          await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), { ospiteId: '' }, { merge: true });
+        }
+        await fsDeleteOspite(id);
+        showToast('Duplicato eliminato');
+        controllaDuplicatiSync();
+      } catch(e) {
+        console.error('Errore eliminazione duplicato:', e);
+        showToast("Errore durante l'eliminazione — riprova");
       }
     }
   );
