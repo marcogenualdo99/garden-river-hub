@@ -1426,6 +1426,7 @@ function renderSettings() {
       '<div><div class="nome">Bici N°'+b.numero+' · taglia '+(TIPOLOGIE_BICI[b.tipologia]||'Media')+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
       '<div class="btns">'+
         '<button class="btn-toggle" '+(isOccupata?'disabled':'')+' onclick="toggleDisponibilitaBici(\''+b.id+'\')">'+(stato==='non_disponibile' ? 'Riattiva' : 'Rendi non disp.')+'</button>'+
+        '<button class="btn-toggle" '+(isOccupata?'disabled':'')+' onclick="requestRinumeraBici(\''+b.id+'\')">Rinumera</button>'+
         '<button class="btn-delete" '+(isOccupata?'disabled':'')+' onclick="requestDeleteBici(\''+b.id+'\')">Elimina</button>'+
       '</div>'+
     '</div>';
@@ -1448,6 +1449,47 @@ async function toggleDisponibilitaBici(id) {
     showToast('Errore durante l\'aggiornamento');
   }
 }
+function requestRinumeraBici(id) {
+  const b = bikesMap[id];
+  if (!b) return;
+  if (effectiveStato(b) === 'occupata' || effectiveStato(b) === 'occupata_pagata') {
+    showToast('Non puoi rinumerare una bici attualmente noleggiata');
+    return;
+  }
+  showModal(
+    'Rinumera Bici N°' + b.numero,
+    '<div style="margin-bottom:8px">Nuovo numero:</div>' +
+    '<input id="rinumera-input" type="number" min="1" value="' + b.numero + '" ' +
+    'style="width:100%;height:44px;padding:0 12px;border:1.5px solid var(--border);border-radius:10px;font-size:16px;font-family:var(--font)">',
+    'Rinumera',
+    () => {
+      const newN = parseInt(document.getElementById('rinumera-input').value, 10);
+      if (!newN || newN < 1) { showToast('Numero non valido'); return; }
+      if (newN === b.numero) { return; }
+      if (bikesMap[bikeId(newN)]) { showToast('Esiste già una bici con il numero ' + newN); return; }
+      eseguiRinumeraBici(id, newN);
+    }
+  );
+}
+
+async function eseguiRinumeraBici(oldId, newN) {
+  const b = bikesMap[oldId];
+  if (!b) return;
+  const newId = bikeId(newN);
+  const { id: _omit, ...dati } = b;
+  const nuoviDati = { ...dati, numero: newN };
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc, deleteDoc } = window._fb;
+    await setDoc(doc(db, 'bici', newId), nuoviDati);
+    await deleteDoc(doc(db, 'bici', oldId));
+    showToast('Bici rinumerata: N°' + b.numero + ' → N°' + newN);
+  } catch(e) {
+    console.error('Errore rinumerazione:', e);
+    showToast('Errore durante la rinumerazione — riprova');
+  }
+}
+
 async function addBici() {
   const tipologia = document.getElementById('add-tipo-select').value;
   const numInput = document.getElementById('add-num-input');
