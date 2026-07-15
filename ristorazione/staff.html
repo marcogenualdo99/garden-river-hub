@@ -703,6 +703,7 @@ let menuGiorno      = 1;          // 1-14
 let menuPasto       = 'pranzo';
 let cicloStart      = null;       // ISO date "YYYY-MM-DD"
 let unsubCucina     = null;
+let unsubFamiglie   = null;
 let menuDocs        = [];
 let famiglieDocs    = [];
 let _menuModalData  = null; // {data, tipo}
@@ -744,7 +745,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
 
   // Load static data
-  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi(), loadImpostazioni()]);
+  await Promise.all([loadMenu(), startFamiglie(), loadAlloggi(), loadImpostazioni()]);
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
@@ -1685,12 +1686,23 @@ async function loadAlloggi() {
 }
 
 // ── FAMIGLIE ──────────────────────────────────────────────────────────────────
-async function loadFamiglie() {
-  const { db, collection, getDocs } = window._fb;
-  try {
-    const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
-    famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
-  } catch(e) { console.error('loadFamiglie:', e); }
+// Ascolto realtime: se una famiglia viene creata/modificata da qui o dall'app
+// Conti Pensioni (conto collegato), la lista si aggiorna da sola ovunque sia
+// aperta questa pagina, senza bisogno di ricaricare.
+function startFamiglie() {
+  return new Promise((resolve) => {
+    const { db, collection, onSnapshot } = window._fb;
+    if (unsubFamiglie) { unsubFamiglie(); unsubFamiglie = null; }
+    let primaVolta = true;
+    unsubFamiglie = onSnapshot(collection(db, 'famiglie_ristorazione'), (snap) => {
+      famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+      renderFamiglie();
+      if (primaVolta) { primaVolta = false; resolve(); }
+    }, (err) => {
+      console.error('Famiglie snapshot:', err);
+      if (primaVolta) { primaVolta = false; resolve(); }
+    });
+  });
 }
 
 function renderFamiglie() {
@@ -1805,6 +1817,7 @@ async function aggiungiFamiglia() {
     await setDoc(doc(db, 'famiglie_ristorazione', id), { id, ...data });
     famiglieDocs.push({id, ...data});
     renderFamiglie();
+    await sincronizzaContoPensione(id, famiglieDocs[famiglieDocs.length - 1]);
     document.getElementById('f-nome').value = '';
     document.getElementById('f-alloggio').value = '';
     document.getElementById('f-checkin').value = '';
@@ -1819,6 +1832,44 @@ async function aggiungiFamiglia() {
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
+// Tiene collegati e sincronizzati la famiglia (collezione 'famiglie_ristorazione',
+// usata qui in Ristorazione) e il suo conto pensione (collezione 'ospiti', usata
+// dall'app Conti Pensioni) — stesso progetto Firestore, quindi la scrittura è
+// diretta. Il legame tra i due documenti è tenuto tramite i campi incrociati
+// fam.ospiteId <-> ospite.famigliaId: se non esiste ancora un conto collegato
+// ne viene creato uno nuovo, altrimenti quello esistente viene aggiornato —
+// così funziona sia alla creazione sia alla modifica della famiglia, senza
+// mai creare doppioni. Lo stato "chiuso"/incassato del conto non viene mai
+// toccato da qui: viene gestito solo dallo staff nell'app Conti.
+async function sincronizzaContoPensione(famigliaId, fam) {
+  const { db, doc, setDoc } = window._fb;
+  if (fam.trattamento !== 'PC' && fam.trattamento !== 'MP') {
+    // Nessun trattamento: se esiste già un conto collegato lo marchiamo come
+    // "conto libero", ma non lo creiamo né lo cancelliamo.
+    if (fam.ospiteId) {
+      try { await setDoc(doc(db, 'ospiti', fam.ospiteId), { piano: 'nessuno' }, { merge: true }); }
+      catch(e) { console.error('Errore sync conto pensione:', e); }
+    }
+    return;
+  }
+  const parti    = (fam.nome || '').trim().split(/\s+/);
+  const nome     = parti[0] || '';
+  const cognome  = parti.slice(1).join(' ');
+  const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', famigliaId };
+  try {
+    let ospiteId = fam.ospiteId;
+    if (!ospiteId) {
+      ospiteId = 'osp_' + famigliaId;
+      await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), { ospiteId }, { merge: true });
+      const idx = famiglieDocs.findIndex(f => f.id === famigliaId);
+      if (idx !== -1) famiglieDocs[idx].ospiteId = ospiteId;
+      datiOspite.chiuso = false; // nuovo conto: parte aperto
+    }
+    await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
+  } catch(e) { console.error('Errore creazione/sync conto pensione:', e); }
 }
 
 function apriEditFamiglia(idx) {
@@ -1881,6 +1932,7 @@ async function salvaEditFamiglia() {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
     if (idx !== -1) famiglieDocs[idx] = { ...famiglieDocs[idx], ...updates };
+    await sincronizzaContoPensione(id, idx !== -1 ? famiglieDocs[idx] : { id, ...updates });
     document.getElementById('modal-edit-fam').classList.add('hidden');
     renderFamiglie();
     showToast('Famiglia aggiornata');
@@ -1895,8 +1947,7 @@ async function eliminaFamiglia(idx) {
   const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
-    await loadFamiglie(); // ricarica da Firestore per garantire consistenza
-    renderFamiglie();
+    // La lista si aggiorna da sola tramite l'ascolto realtime (startFamiglie)
     showToast('Famiglia eliminata');
   } catch(e) {
     console.error('eliminaFamiglia:', e);
