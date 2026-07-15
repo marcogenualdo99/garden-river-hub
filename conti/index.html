@@ -694,6 +694,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button id="btn-check-duplicati" onclick="controllaDuplicatiSync()" style="width:100%;height:44px;margin-top:14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Controlla conti duplicati</button>
       <p style="font-size:11px;color:var(--gray-500);margin-top:6px">Confronta i conti creati dalla sincronizzazione con quelli già esistenti (stesso nome e alloggio) e ti fa vedere solo quelli sospetti — non cancella nulla da solo.</p>
       <div id="duplicati-list" style="margin-top:10px"></div>
+      <button id="btn-check-scaduti" onclick="controllaContiScaduti()" style="width:100%;height:44px;margin-top:14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Controlla conti di famiglie già partite</button>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:6px">Trova i conti ancora aperti con data di checkout già passata. Se sono vuoti puoi eliminarli, altrimenti chiudili e incassali normalmente.</p>
+      <div id="scaduti-list" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>Notifiche</h3>
@@ -1065,9 +1068,14 @@ async function sincronizzaFamiglieEsistenti() {
         const { db, collection, getDocs, doc, setDoc } = window._fb;
         const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
         const famiglie = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        let creati = 0, aggiornati = 0, saltati = 0;
+        let creati = 0, aggiornati = 0, saltati = 0, ignoratiPartiti = 0;
         for (const fam of famiglie) {
           if (fam.trattamento !== 'PC' && fam.trattamento !== 'MP') { saltati++; continue; }
+          // Se non esiste ancora un conto collegato e il checkout è già
+          // passato, la famiglia è già ripartita: non ha senso aprire ora un
+          // conto per lei. Se il conto esisteva già, invece, lo aggiorniamo
+          // comunque (potrebbe avere ancora un saldo da chiudere).
+          if (!fam.ospiteId && fam.checkout && fam.checkout < oggi()) { ignoratiPartiti++; continue; }
           const parti    = (fam.nome || '').trim().split(/\s+/);
           const nome     = parti[0] || '';
           const cognome  = parti.slice(1).join(' ');
@@ -1084,7 +1092,7 @@ async function sincronizzaFamiglieEsistenti() {
           }
           await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
         }
-        if (esito) esito.textContent = `Fatto: ${creati} conti creati, ${aggiornati} aggiornati, ${saltati} famiglie senza trattamento ignorate.`;
+        if (esito) esito.textContent = `Fatto: ${creati} conti creati, ${aggiornati} aggiornati, ${saltati} famiglie senza trattamento ignorate, ${ignoratiPartiti} famiglie già ripartite ignorate.`;
         showToast('Sincronizzazione completata!');
       } catch(e) {
         console.error('Errore sincronizzazione famiglie:', e);
@@ -1135,7 +1143,7 @@ function controllaDuplicatiSync() {
       </div>
       <div class="ospite-actions">
         <button class="btn-action ghost" onclick="goDettaglio('${o.id}')">Apri questo conto</button>
-        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaDuplicatoSync('${o.id}')">Elimina duplicato</button>` : ''}
+        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${o.id}')">Elimina duplicato</button>` : ''}
       </div>
     </div>`;
   }).filter(Boolean);
@@ -1144,18 +1152,76 @@ function controllaDuplicatiSync() {
     : `<p style="font-size:13px;color:var(--gray-500)">${creatiDaSync.length} conti creati dalla sincronizzazione, nessun possibile duplicato trovato.</p>`;
 }
 
-// Elimina un conto duplicato creato dalla sincronizzazione — solo se non ha
-// ordini registrati (controllato di nuovo qui, non solo in UI) — e scollega
-// la famiglia in Ristorazione così un domani potrà essere ricollegata al
-// conto giusto (quello già esistente) invece di ricrearne uno nuovo identico.
-function eliminaDuplicatoSync(id) {
+// Diagnostica di sola lettura: conti ancora aperti il cui checkout è già
+// passato — probabilmente famiglie già ripartite (magari il loro conto è
+// stato creato dalla sincronizzazione, che prima non controllava le date).
+// Se il conto ha ordini registrati va chiuso normalmente (incassa e sposta
+// tra i "Conti chiusi"); se è vuoto (mai usato) può essere eliminato del
+// tutto senza perdere nulla.
+function controllaContiScaduti() {
+  const scaduti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o) && o.checkout && giorniA(o.checkout) < 0)
+    .sort((a,b) => new Date(a.checkout) - new Date(b.checkout));
+  const wrap = document.getElementById('scaduti-list');
+  if (!scaduti.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--gray-500)">Nessun conto aperto con checkout già passato.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${scaduti.length} cont${scaduti.length===1?'o':'i'} con checkout già passato</p>` +
+    scaduti.map(o => {
+      const g = Math.abs(giorniA(o.checkout));
+      const tot = totOspite(o.id);
+      const nOrdini = ordiniAttivi(o.id).length;
+      const vuoto = nOrdini === 0;
+      return `<div class="ospite-card" style="border-left:4px solid var(--red)">
+        <div class="ospite-header">
+          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio||'—'} · checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'})} (${g} giorn${g===1?'o':'i'} fa)</div>
+            <div class="ospite-sub" style="margin-top:2px">${nOrdini} ordini · ${fmt(tot)} da incassare</div>
+          </div>
+        </div>
+        <div class="ospite-actions">
+          <button class="btn-action ghost" onclick="goDettaglio('${o.id}')">Apri conto</button>
+          ${vuoto
+            ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${o.id}')">Elimina (vuoto)</button>`
+            : `<button class="btn-action primary" onclick="chiudiContoId('${o.id}')">Chiudi e incassa</button>`}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// Chiude un conto per id senza navigare via dalla schermata Impostazioni
+// (usata dallo strumento "conti scaduti"). Identica a chiudiConto(), che
+// resta invariata per il pulsante nella scheda di dettaglio ospite.
+function chiudiContoId(id) {
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const tot = totOspite(o.id);
+  showModal(
+    'Chiudi conto', `Segna come incassato il conto di ${o.cognome} ${o.nome}?\nTotale: ${fmt(tot)}`,
+    'Chiudi e incassa', 'var(--green-700)',
+    async () => {
+      try {
+        await fsSetOspite({ ...o, chiuso: true });
+        showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
+        controllaContiScaduti();
+      } catch(e) { console.error(e); showToast('Errore durante la chiusura — riprova'); }
+    }
+  );
+}
+
+// Elimina un conto senza ordini registrati (controllato di nuovo qui, non
+// solo in UI) — usata sia per i duplicati sia per i conti vuoti di famiglie
+// già ripartite. Scollega anche la famiglia in Ristorazione, così un domani
+// potrà essere ricollegata correttamente invece di ricrearne una copia.
+function eliminaContoSenzaOrdini(id) {
   const o = ospiti.find(x => x.id === id); if (!o) return;
   const nOrdini = ordini.filter(x => x.ospiteId === id).length;
   if (nOrdini > 0) { showToast('Questo conto ha ordini registrati: controllalo prima di eliminarlo'); return; }
   showModal(
-    'Elimina duplicato',
-    `Eliminare il conto duplicato di ${o.cognome} ${o.nome} (${o.alloggio||'—'})? Non ha ordini registrati, quindi non si perde nessuna spesa. La famiglia collegata in Ristorazione verrà scollegata da questo conto.`,
-    'Elimina duplicato', 'var(--red)',
+    'Elimina conto',
+    `Eliminare il conto di ${o.cognome} ${o.nome} (${o.alloggio||'—'})? Non ha ordini registrati, quindi non si perde nessuna spesa. La famiglia collegata in Ristorazione verrà scollegata da questo conto.`,
+    'Elimina conto', 'var(--red)',
     async () => {
       try {
         if (o.famigliaId) {
@@ -1163,10 +1229,11 @@ function eliminaDuplicatoSync(id) {
           await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), { ospiteId: '' }, { merge: true });
         }
         await fsDeleteOspite(id);
-        showToast('Duplicato eliminato');
+        showToast('Conto eliminato');
         controllaDuplicatiSync();
+        controllaContiScaduti();
       } catch(e) {
-        console.error('Errore eliminazione duplicato:', e);
+        console.error('Errore eliminazione conto:', e);
         showToast("Errore durante l'eliminazione — riprova");
       }
     }
