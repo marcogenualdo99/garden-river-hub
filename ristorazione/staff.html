@@ -1854,11 +1854,16 @@ async function sincronizzaContoPensione(famigliaId, fam) {
     }
     return;
   }
+  // Se non esiste ancora un conto collegato e il checkout è già passato, la
+  // famiglia è già ripartita: non ha senso aprire ora un conto per lei. Se
+  // il conto esisteva già lo aggiorniamo comunque (potrebbe avere ancora un
+  // saldo da chiudere in Conti).
+  if (!fam.ospiteId && fam.checkout && fam.checkout < isoToday(0)) return;
   const parti    = (fam.nome || '').trim().split(/\s+/);
   const nome     = parti[0] || '';
   const cognome  = parti.slice(1).join(' ');
   const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
-  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', famigliaId };
+  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId };
   try {
     let ospiteId = fam.ospiteId;
     if (!ospiteId) {
@@ -2778,6 +2783,8 @@ async function stampaComanda(ord) {
   const nomeFam = (ord.famiglia_nome || '—').substring(0, W_WIDE);
   righe.push(banda(nomeFam, true));
   if (ord.unita) righe.push(`<text font="font_b"> Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>`);
+  const famTel = (famiglieDocs.find(f => f.id === ord.famiglia_id) || {}).tel;
+  if (famTel) righe.push(`<text font="font_b"> Tel: ${escXml(famTel)}</text><text>&#10;</text>`);
   righe.push('<text>&#10;</text>');
 
   // Note famiglia
