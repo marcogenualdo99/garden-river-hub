@@ -491,6 +491,10 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
     </div>
     <div id="ospiti-list"></div>
+    <div id="in-arrivo-wrap" style="display:none;margin-top:22px">
+      <p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">In arrivo — non ancora conteggiati tra i conti aperti</p>
+      <div id="in-arrivo-list"></div>
+    </div>
   </div>
 
   <!-- SCADENZE -->
@@ -556,9 +560,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
       <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
-      <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
     </div>
     <div id="ordini-list"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn-action" id="btn-azzera-conto" onclick="azzeraConto()" style="border-radius:var(--radius-xl);background:#FEF3C7;color:#B45309">Segna come pagato</button>
+      <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
+    </div>
   </div>
 
   <!-- REPORT -->
@@ -680,6 +687,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
     </div>
     <div class="card">
+      <h3>Famiglie Ristorazione</h3>
+      <p class="subtitle">Le famiglie inserite in Ristorazione con un trattamento (mezza o pensione completa) generano automaticamente il conto collegato qui in Conti. Usa questo pulsante solo per le famiglie inserite prima di questa funzione, o se sospetti che qualche conto sia rimasto disallineato.</p>
+      <button id="btn-sync-famiglie" onclick="sincronizzaFamiglieEsistenti()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Sincronizza famiglie esistenti</button>
+      <p id="sync-famiglie-esito" style="font-size:12px;color:var(--gray-500);margin-top:10px"></p>
+    </div>
+    <div class="card">
       <h3>Notifiche</h3>
       <p class="subtitle">Ricevi un avviso quando un conto aperto ha il checkout il giorno dopo.</p>
       <p id="notifiche-status" style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Verifica in corso...</p>
@@ -791,7 +804,25 @@ function refreshAlloggioSelects() {
     if (el) populateAlloggioSelect(el, el.value);
   });
 }
-function totOspite(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
+// Data/ora locale nello stesso formato "YYYY-MM-DDTHH:mm" usato dal campo
+// data/ora dell'ordine (or-ts), così il confronto tra stringhe funziona
+// correttamente in ordine cronologico.
+function nowLocalISO() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+// Ordini "correnti" di un ospite: se il conto è stato azzerato (pagatoFinoA),
+// esclude gli ordini precedenti a quel momento — sono già stati incassati e
+// restano solo nello storico, non vengono mai cancellati.
+function ordiniAttivi(ospiteId) {
+  const o = ospiti.find(x => x.id === ospiteId);
+  const soglia = o && o.pagatoFinoA;
+  return ordini.filter(x => x.ospiteId === ospiteId && (!soglia || x.ts > soglia));
+}
+// Totale corrente (da incassare adesso) di un conto aperto.
+function totOspite(id){ return ordiniAttivi(id).reduce((s,o)=>s+o.importo,0); }
+// Totale storico/lifetime di un conto (usato solo per i conti chiusi/incassati).
+function totOspiteStorico(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
 function pianoLabel(piano) {
   if (piano === 'completa') return 'Pensione completa';
   if (piano === 'nessuno')  return 'Conto libero';
@@ -984,6 +1015,85 @@ async function fsDeleteOrdine(id) {
   await deleteDoc(doc(db, 'ordini', id));
 }
 
+// Propaga le modifiche fatte qui in Conti verso la famiglia collegata in
+// Ristorazione (collezione 'famiglie_ristorazione', stesso progetto
+// Firestore), quando quel collegamento esiste già (ospite.famigliaId).
+// L'inserimento principale resta in Ristorazione: questa funzione NON crea
+// mai una nuova famiglia, aggiorna solo quella già collegata — così un
+// conto registrato qui manualmente (es. conto libero senza famiglia) resta
+// un conto indipendente, senza generare doppioni dall'altra parte.
+async function sincronizzaFamigliaRistorazione(ospiteId, ospite) {
+  if (!ospite.famigliaId) return;
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  if (ospite.piano !== 'mezza' && ospite.piano !== 'completa') {
+    // Conto libero: azzeriamo solo il trattamento della famiglia collegata.
+    try { await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), { trattamento: '' }, { merge: true }); }
+    catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
+    return;
+  }
+  const trattamento  = ospite.piano === 'completa' ? 'PC' : 'MP';
+  const nomeCompleto = [ospite.nome, ospite.cognome].filter(Boolean).join(' ');
+  const datiFamiglia = { nome: nomeCompleto, unita: ospite.alloggio || '', trattamento, checkout: ospite.checkout || '' };
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), datiFamiglia, { merge: true });
+  } catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
+}
+
+// Backfill una tantum: scorre TUTTE le famiglie di Ristorazione e crea (o
+// aggiorna) il conto pensione collegato per quelle con un trattamento —
+// serve per le famiglie inserite prima che questa sincronizzazione
+// esistesse, o se qualche conto è rimasto disallineato. Stessa identica
+// logica di sincronizzaContoPensione() in Ristorazione: nessun conto viene
+// mai cancellato o duplicato, i collegamenti già presenti vengono solo
+// aggiornati.
+async function sincronizzaFamiglieEsistenti() {
+  showModal(
+    'Sincronizza famiglie esistenti',
+    'Cerca tutte le famiglie di Ristorazione con un trattamento (mezza o pensione completa) e crea/aggiorna il conto pensione collegato. Non cancella né duplica nulla.',
+    'Sincronizza ora', 'var(--green-700)',
+    async () => {
+      const btn   = document.getElementById('btn-sync-famiglie');
+      const esito = document.getElementById('sync-famiglie-esito');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sincronizzazione in corso...'; }
+      if (esito) esito.textContent = '';
+      try {
+        await waitForFirebase();
+        const { db, collection, getDocs, doc, setDoc } = window._fb;
+        const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
+        const famiglie = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        let creati = 0, aggiornati = 0, saltati = 0;
+        for (const fam of famiglie) {
+          if (fam.trattamento !== 'PC' && fam.trattamento !== 'MP') { saltati++; continue; }
+          const parti    = (fam.nome || '').trim().split(/\s+/);
+          const nome     = parti[0] || '';
+          const cognome  = parti.slice(1).join(' ');
+          const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', famigliaId: fam.id };
+          let ospiteId = fam.ospiteId;
+          if (!ospiteId) {
+            ospiteId = 'osp_' + fam.id;
+            await setDoc(doc(db, 'famiglie_ristorazione', fam.id), { ospiteId }, { merge: true });
+            datiOspite.chiuso = false; // nuovo conto: parte aperto
+            creati++;
+          } else {
+            aggiornati++;
+          }
+          await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
+        }
+        if (esito) esito.textContent = `Fatto: ${creati} conti creati, ${aggiornati} aggiornati, ${saltati} famiglie senza trattamento ignorate.`;
+        showToast('Sincronizzazione completata!');
+      } catch(e) {
+        console.error('Errore sincronizzazione famiglie:', e);
+        if (esito) esito.textContent = 'Errore durante la sincronizzazione — riprova.';
+        showToast('Errore durante la sincronizzazione — riprova');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Sincronizza famiglie esistenti'; }
+      }
+    }
+  );
+}
+
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────────
 // ── SESSIONE HUB / PERMESSI SEZIONI ───────────────────────────────────────────
 function loadHubSession() {
@@ -1153,8 +1263,13 @@ function clearFilter() {
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function render() { renderAlerts(); renderOspiti(); renderScadenze(); renderChiusi(); }
 
+// Una famiglia inserita in anticipo (checkin futuro) non è ancora arrivata:
+// il suo conto pensione esiste già (collegato da Ristorazione) ma non deve
+// mischiarsi con i conti di chi sta soggiornando davvero in struttura ora.
+function nonAncoraArrivato(o) { return !!(o.checkin && o.checkin > oggi()); }
+
 function renderAlerts() {
-  const attivi = ospiti.filter(o=>!o.chiuso);
+  const attivi = ospiti.filter(o=>!o.chiuso && !nonAncoraArrivato(o));
   document.getElementById('cnt-oggi').textContent   = attivi.filter(o=>giorniA(o.checkout)===0).length;
   document.getElementById('cnt-breve').textContent  = attivi.filter(o=>{const g=giorniA(o.checkout);return g>0&&g<=2;}).length;
   document.getElementById('cnt-attivi').textContent = attivi.length;
@@ -1163,53 +1278,79 @@ function renderAlerts() {
 function renderOspiti() {
   const searchEl = document.getElementById('search-input');
   const q = (searchEl ? searchEl.value : '').toLowerCase();
-  let lista = ospiti.filter(o=>!o.chiuso);
+  const nonChiusi = ospiti.filter(o=>!o.chiuso);
+  let lista    = nonChiusi.filter(o => !nonAncoraArrivato(o));
+  let inArrivo = nonChiusi.filter(o => nonAncoraArrivato(o));
 
   if (activeFilter === 'oggi')  lista = lista.filter(o => giorniA(o.checkout) === 0);
   if (activeFilter === 'breve') lista = lista.filter(o => { const g=giorniA(o.checkout); return g>0&&g<=2; });
 
-  if (q) lista = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+  if (q) {
+    lista    = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+    inArrivo = inArrivo.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+  }
   lista.sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
 
   if (!lista.length) {
     document.getElementById('ospiti-list').innerHTML =
       `<div class="empty">Nessun ospite trovato.${!activeFilter?'<br>Premi "+ Ospite" per aggiungerne uno.':''}</div>`;
-    return;
+  } else {
+    document.getElementById('ospiti-list').innerHTML = lista.map(o => {
+      const g = giorniA(o.checkout); const tot = totOspite(o.id);
+      const nOrd = ordiniAttivi(o.id).length;
+      const urgente = g>=0&&g<=2; const isOggi = g===0;
+      const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
+      const badgeChk = isOggi
+        ? `<span class="badge red">Checkout oggi</span>`
+        : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
+        : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
+      const badgePiano = pianoBadgeHtml(o.piano);
+      return `<div class="ospite-card" style="border-left:${borderLeft}">
+        <div class="ospite-header" onclick="goDettaglio('${o.id}')">
+          <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio}</div>
+            <div class="ospite-badges">${badgeChk}${badgePiano}</div>
+          </div>
+          <div class="ospite-totale">
+            <div class="importo">${fmt(tot)}</div>
+            <div class="n-ordini">${nOrd} ordini</div>
+          </div>
+        </div>
+        <div class="ospite-actions">
+          <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
+          <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
-  document.getElementById('ospiti-list').innerHTML = lista.map(o => {
-    const g = giorniA(o.checkout); const tot = totOspite(o.id);
-    const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-    const urgente = g>=0&&g<=2; const isOggi = g===0;
-    const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
-    const badgeChk = isOggi
-      ? `<span class="badge red">Checkout oggi</span>`
-      : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
-      : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
-    const badgePiano = pianoBadgeHtml(o.piano);
-    return `<div class="ospite-card" style="border-left:${borderLeft}">
-      <div class="ospite-header" onclick="goDettaglio('${o.id}')">
-        <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
-        <div class="ospite-info">
-          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
-          <div class="ospite-sub">${o.alloggio}</div>
-          <div class="ospite-badges">${badgeChk}${badgePiano}</div>
+  const wrap = document.getElementById('in-arrivo-wrap');
+  if (!inArrivo.length) {
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    inArrivo.sort((a,b)=>new Date(a.checkin)-new Date(b.checkin));
+    document.getElementById('in-arrivo-list').innerHTML = inArrivo.map(o => {
+      const badgePiano = pianoBadgeHtml(o.piano);
+      const dataArrivo = new Date(o.checkin).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+      return `<div class="ospite-card" style="opacity:.7">
+        <div class="ospite-header" onclick="goDettaglio('${o.id}')">
+          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio}</div>
+            <div class="ospite-badges"><span class="badge gray">Arrivo ${dataArrivo}</span>${badgePiano}</div>
+          </div>
         </div>
-        <div class="ospite-totale">
-          <div class="importo">${fmt(tot)}</div>
-          <div class="n-ordini">${nOrd} ordini</div>
-        </div>
-      </div>
-      <div class="ospite-actions">
-        <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
-        <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  }
 }
 
 function renderScadenze() {
-  const attivi = ospiti.filter(o=>!o.chiuso&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
+  const attivi = ospiti.filter(o=>!o.chiuso&&!nonAncoraArrivato(o)&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
     .sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
   document.getElementById('scad-totale').textContent = fmt(attivi.reduce((s,o)=>s+totOspite(o.id),0));
   document.getElementById('scad-sub').textContent    = `${attivi.length} ospiti in scadenza`;
@@ -1238,7 +1379,7 @@ function renderChiusi() {
   document.getElementById('chiusi-list').innerHTML =
     `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conti incassati — tocca per vedere gli ordini</p>` +
     chiusi.map(o=>{
-      const tot = totOspite(o.id);
+      const tot = totOspiteStorico(o.id);
       const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
       return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${o.id}')">
         <div class="ospite-header">
@@ -1284,7 +1425,7 @@ function goDettaglioChiuso(id) {
   const o = ospiti.find(x=>x.id===id); if (!o) return;
   document.getElementById('chdet-nome').textContent   = `${o.cognome} ${o.nome}`;
   document.getElementById('chdet-sub').textContent    = o.alloggio;
-  document.getElementById('chdet-totale').textContent = fmt(totOspite(o.id));
+  document.getElementById('chdet-totale').textContent = fmt(totOspiteStorico(o.id));
   document.getElementById('btn-ripristina').style.display = '';
   const miei = ordini.filter(x=>x.ospiteId===o.id);
   if (!miei.length) {
@@ -1336,7 +1477,7 @@ function renderDettaglio() {
   document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
   document.getElementById('btn-chiudi-conto').style.display = '';
   document.getElementById('btn-edit-ospite').style.display  = '';
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  const miei = ordiniAttivi(o.id);
   if (!miei.length) {
     document.getElementById('ordini-list').innerHTML = '<div class="empty">Nessun ordine ancora.<br>Premi "Aggiungi ordine" per iniziare.</div>';
     return;
@@ -1366,7 +1507,7 @@ function renderDettaglio() {
 
 function _buildReportData(ospiteId) {
   const o = ospiti.find(x=>x.id===ospiteId); if (!o) return null;
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  const miei = ordiniAttivi(o.id);
   const tot  = miei.reduce((s,x)=>s+x.importo, 0);
   const now  = new Date().toLocaleString('it-IT');
   const rows = PUNTI_RISTORO.map(p=>{
@@ -1439,14 +1580,14 @@ function stampaReport() {
 }
 
 function stampaRiepilogoConti() {
-  const aperti = ospiti.filter(o => !o.chiuso).sort((a,b) =>
+  const aperti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o)).sort((a,b) =>
     (a.cognome||'').localeCompare(b.cognome||'', 'it'));
   if (!aperti.length) { alert('Nessun conto aperto da stampare.'); return; }
   const now = new Date().toLocaleString('it-IT');
   const totaleGlobale = aperti.reduce((s,o) => s + totOspite(o.id), 0);
 
   const contiHtml = aperti.map(o => {
-    const miei = ordini.filter(x => x.ospiteId === o.id);
+    const miei = ordiniAttivi(o.id);
     const tot  = miei.reduce((s,x) => s + x.importo, 0);
     const rows = PUNTI_RISTORO.map(p => {
       const po = miei.filter(x => x.punto === p); if (!po.length) return '';
@@ -1609,7 +1750,7 @@ ${comandi.filter(Boolean).join('\n')}
 async function stampaContoTermica() {
   const r = _buildReportData(currentOspiteId); if (!r) return;
   const { tot, o } = r;
-  const miei = ordini.filter(x => x.ospiteId === o.id);
+  const miei = ordiniAttivi(o.id);
   const now = new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
   const W = 42;
 
@@ -1668,7 +1809,7 @@ async function stampaContoTermica() {
 }
 
 async function stampaRiepilogoTermica() {
-  const aperti = ospiti.filter(o => !o.chiuso).sort((a, b) =>
+  const aperti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o)).sort((a, b) =>
     (a.cognome || '').localeCompare(b.cognome || '', 'it'));
   if (!aperti.length) { alert('Nessun conto aperto.'); return; }
   const W = 42;
@@ -1680,7 +1821,7 @@ async function stampaRiepilogoTermica() {
   righe.push('<text>&#10;</text>');
 
   for (const o of aperti) {
-    const miei = ordini.filter(x => x.ospiteId === o.id);
+    const miei = ordiniAttivi(o.id);
     const tot = miei.reduce((s, x) => s + x.importo, 0);
 
     const hdr = (' ' + `${o.cognome} ${o.nome}`).padEnd(W);
@@ -1789,6 +1930,9 @@ async function addOspite() {
   const ospite = { id: nuovoId, nome, cognome, alloggio, piano, checkout, chiuso: false };
   try {
     await fsSetOspite(ospite);
+    // Nessun collegamento a una famiglia: un conto creato qui manualmente è
+    // un conto libero indipendente (l'inserimento principale avviene da
+    // Ristorazione, che genera già il conto collegato automaticamente).
     ['no-nome','no-cognome','no-alloggio','no-checkout'].forEach(id=>document.getElementById(id).value='');
     showToast(`${cognome} ${nome} registrato!`);
     switchTab('ospiti');
@@ -1821,6 +1965,7 @@ async function salvaModificaOspite() {
   const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout };
   try {
     await fsSetOspite(aggiornato);
+    await sincronizzaFamigliaRistorazione(o.id, aggiornato);
     showToast('Anagrafica aggiornata!');
     goDettaglio(o.id);
   } catch(e) {
@@ -1876,6 +2021,33 @@ function chiudiConto() {
       await fsSetOspite(o);
       showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
       switchTab('ospiti');
+    }
+  );
+}
+
+// Segna come pagato il dovuto corrente senza chiudere il conto/l'anagrafica:
+// utile per chi soggiorna a lungo e salda periodicamente. Non cancella nulla:
+// gli ordini restano tutti in Firestore per lo storico, semplicemente non
+// vengono più conteggiati nel "totale corrente" perché precedenti alla
+// soglia pagatoFinoA (vedi ordiniAttivi/totOspite).
+function azzeraConto() {
+  const o = ospiti.find(x => x.id === currentOspiteId);
+  if (!o) return;
+  const daAzzerare = ordiniAttivi(o.id);
+  if (!daAzzerare.length) { showToast('Nessun importo da azzerare'); return; }
+  const tot = daAzzerare.reduce((s,x)=>s+x.importo,0);
+  showModal(
+    'Segna come pagato', `Segnare come pagato il conto di ${o.cognome} ${o.nome}?\nTotale incassato ora: ${fmt(tot)}\n\nIl conto resta aperto e riparte da zero: gli ordini restano salvati nello storico.`,
+    'Segna come pagato', 'var(--green-700)',
+    async () => {
+      try {
+        const aggiornato = { ...o, pagatoFinoA: nowLocalISO() };
+        await fsSetOspite(aggiornato);
+        showToast(`${fmt(tot)} segnati come pagati!`);
+      } catch(e) {
+        console.error(e);
+        showToast('Errore durante l\'azzeramento — riprova');
+      }
     }
   );
 }
