@@ -838,6 +838,16 @@ function renderRentalCard(group) {
             '<div class="f-label">Cliente</div>'+
             '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b0.id+'\'].nome=this.value">'+
           '</div>'+
+          '<div style="flex:0 0 auto;min-width:0">'+
+            '<div class="f-label">Bici</div>'+
+            '<select class="f-input" style="padding:0 10px" onchange="editingTemp[\''+b0.id+'\'].nuovaBiciId=this.value">'+
+              Object.values(bikesMap)
+                .filter(bk => bk.id === b0.id || effectiveStato(bk) === 'libera')
+                .sort((a,bk) => a.numero - bk.numero)
+                .map(bk => '<option value="'+bk.id+'"'+(bk.id === (e.nuovaBiciId||b0.id) ? ' selected' : '')+'>N°'+bk.numero+'</option>')
+                .join('')+
+            '</select>'+
+          '</div>'+
         '</div>'+
         '<div class="edit-row">'+
           '<div>'+
@@ -1287,6 +1297,7 @@ function attivaModificaBici(id) {
     costo: isPagata ? (b.costoAnticipato || 0) : (b.costoPreselezionato || 0),
     ritiroTs: toLocal(b.ritiroTs),
     rientroPrevistoTs: toLocal(b.rientroPrevistoTs),
+    nuovaBiciId: id,
   };
   render();
 }
@@ -1303,36 +1314,69 @@ async function salvaDatiNoleggio(id) {
   const e = editingTemp[id] || {};
   const nome = (e.nome || '').trim();
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
-  const updates = { clienteNome: nome };
-  b.clienteNome = nome;
-  if (e.ritiroTs) {
-    const ritiroIso = new Date(e.ritiroTs).toISOString();
-    updates.ritiroTs = ritiroIso;
-    b.ritiroTs = ritiroIso;
-  }
-  if (effectiveStato(b) === 'occupata_pagata') {
-    updates.costoAnticipato = e.costo || 0;
-    b.costoAnticipato = e.costo || 0;
-  } else if (effectiveStato(b) === 'occupata') {
-    updates.costoPreselezionato = e.costo || 0;
-    b.costoPreselezionato = e.costo || 0;
-  }
-  if (e.rientroPrevistoTs) {
-    const rientroIso = new Date(e.rientroPrevistoTs).toISOString();
-    updates.rientroPrevistoTs = rientroIso;
-    b.rientroPrevistoTs = rientroIso;
-  }
+
+  const nuovaBiciId = e.nuovaBiciId || id;
+  const cambiaBici = nuovaBiciId !== id;
+  if (cambiaBici && !bikesMap[nuovaBiciId]) { showToast('Bici non trovata'); return; }
+  if (cambiaBici && effectiveStato(bikesMap[nuovaBiciId]) !== 'libera') { showToast('La bici selezionata non è libera'); return; }
+
+  // Prepara i campi aggiornati
+  const ritiroIso = e.ritiroTs ? new Date(e.ritiroTs).toISOString() : b.ritiroTs;
+  const rientroIso = e.rientroPrevistoTs ? new Date(e.rientroPrevistoTs).toISOString() : (b.rientroPrevistoTs || null);
+  const isPagata = effectiveStato(b) === 'occupata_pagata';
+  const updates = {
+    clienteNome: nome,
+    ritiroTs: ritiroIso,
+    rientroPrevistoTs: rientroIso,
+    ...(isPagata ? { costoAnticipato: e.costo || 0 } : { costoPreselezionato: e.costo || 0 }),
+  };
+
   delete editingBike[id];
   delete editingTemp[id];
-  render();
-  showToast('Dati aggiornati');
-  try {
-    await waitForFirebase();
-    const { db, doc, updateDoc } = window._fb;
-    await updateDoc(doc(db, 'bici', id), updates);
-  } catch(e) {
-    console.error('Errore salvataggio modifica:', e);
-    showToast('Errore di salvataggio — riprova');
+
+  if (cambiaBici) {
+    // Copia il noleggio sulla nuova bici e libera la vecchia
+    const dest = bikesMap[nuovaBiciId];
+    Object.assign(dest, b, updates, { id: nuovaBiciId, numero: dest.numero, tipologia: dest.tipologia });
+    Object.assign(b, { stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
+      costoPreselezionato: null, fasciaPreselezionata: null, dettaglioPreselezionato: null,
+      rientroPrevistoTs: null, pagamentoAnticipato: false, costoAnticipato: null,
+      fasciaAnticipata: null, dettaglioAnticipato: null, note: null, gruppoId: null });
+    render();
+    showToast('Noleggio spostato su Bici N°' + dest.numero);
+    try {
+      await waitForFirebase();
+      const { db, doc, updateDoc, deleteField } = window._fb;
+      const destUpdates = { ...updates, stato: b.stato === 'occupata' ? 'occupata' : b.stato,
+        ritiroOp: b.ritiroOp, pagamentoAnticipato: b.pagamentoAnticipato || false,
+        ...(b.pagamentoAnticipato ? { fasciaAnticipata: b.fasciaAnticipata, dettaglioAnticipato: b.dettaglioAnticipato } :
+          { fasciaPreselezionata: b.fasciaPreselezionata, dettaglioPreselezionato: b.dettaglioPreselezionato }),
+        note: b.note || null, gruppoId: b.gruppoId || null };
+      await updateDoc(doc(db, 'bici', nuovaBiciId), destUpdates);
+      await updateDoc(doc(db, 'bici', id), {
+        stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
+        costoPreselezionato: null, fasciaPreselezionata: null, dettaglioPreselezionato: null,
+        rientroPrevistoTs: null, pagamentoAnticipato: false, costoAnticipato: null,
+        fasciaAnticipata: null, dettaglioAnticipato: null, note: null, gruppoId: deleteField(),
+      });
+    } catch(err) {
+      console.error('Errore cambio bici:', err);
+      showToast('Errore di salvataggio — riprova');
+    }
+  } else {
+    // Aggiornamento in-place
+    Object.assign(b, { clienteNome: nome, ritiroTs: ritiroIso, rientroPrevistoTs: rientroIso,
+      ...(isPagata ? { costoAnticipato: e.costo || 0 } : { costoPreselezionato: e.costo || 0 }) });
+    render();
+    showToast('Dati aggiornati');
+    try {
+      await waitForFirebase();
+      const { db, doc, updateDoc } = window._fb;
+      await updateDoc(doc(db, 'bici', id), updates);
+    } catch(err) {
+      console.error('Errore salvataggio modifica:', err);
+      showToast('Errore di salvataggio — riprova');
+    }
   }
 }
 
