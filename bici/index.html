@@ -792,10 +792,7 @@ function fmtHM(iso) {
 function fmtDT(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  const oggi = new Date();
-  const stessoGiorno = d.getDate()===oggi.getDate() && d.getMonth()===oggi.getMonth() && d.getFullYear()===oggi.getFullYear();
   const ora = d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
-  if (stessoGiorno) return ora;
   return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) + ' ' + ora;
 }
 
