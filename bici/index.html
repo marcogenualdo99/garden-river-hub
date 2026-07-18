@@ -789,6 +789,15 @@ function fmtHM(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
 }
+function fmtDT(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const oggi = new Date();
+  const stessoGiorno = d.getDate()===oggi.getDate() && d.getMonth()===oggi.getMonth() && d.getFullYear()===oggi.getFullYear();
+  const ora = d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  if (stessoGiorno) return ora;
+  return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit' }) + ' ' + ora;
+}
 
 function renderRentalCard(group) {
   const bikes = group.bikes;
@@ -900,14 +909,20 @@ function renderRentalCard(group) {
     '</div>'+
     '<div class="rental-stats">'+
       '<div class="rental-stat">'+
-        '<div class="rental-stat-lbl">Fuori da</div>'+
-        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtHM(b0.ritiroTs)+'</div>'+
+        '<div class="rental-stat-lbl">Ritiro</div>'+
+        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtDT(b0.ritiroTs)+'</div>'+
+        (b0.ritiroOp ? '<div style="font-size:10px;color:var(--gray-400);margin-top:1px">'+b0.ritiroOp+'</div>' : '')+
       '</div>'+
       '<div class="rental-stat">'+
         '<div class="rental-stat-lbl">Tempo</div>'+
         '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtElapsed(elapsed)+'</div>'+
       '</div>'+
-      (b0.rientroPrevistoTs ? '<div class="rental-stat"><div class="rental-stat-lbl">Rientro prev.</div><div class="rental-stat-val">'+fmtHM(b0.rientroPrevistoTs)+'</div></div>' : '')+
+      (b0.rientroPrevistoTs ?
+        '<div class="rental-stat">'+
+          '<div class="rental-stat-lbl">Rientro prev.</div>'+
+          '<div class="rental-stat-val">'+fmtDT(b0.rientroPrevistoTs)+'</div>'+
+        '</div>'
+      : '')+
       '<div class="rental-stat" style="margin-left:auto;text-align:right">'+
         '<div class="rental-stat-lbl">'+costoLabel+'</div>'+
         '<div class="rental-stat-val '+costoClass+'">'+costoDisplay+'</div>'+
