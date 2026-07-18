@@ -1089,6 +1089,18 @@ function updatePinDots() {
   }
 }
 
+document.addEventListener('keydown', (e) => {
+  const pinStep = document.getElementById('login-step-pin');
+  if (!pinStep || pinStep.style.display !== 'block') return;
+  if (e.key >= '0' && e.key <= '9') {
+    e.preventDefault();
+    pinPress(e.key);
+  } else if (e.key === 'Backspace' || e.key === 'Delete') {
+    e.preventDefault();
+    pinDel();
+  }
+});
+
 async function checkPin() {
   const opObj = operatori.find(o => o.nome === loginTargetOp);
   if (!opObj) { showToast('Operatore non trovato'); return; }
