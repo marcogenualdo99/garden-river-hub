@@ -15,7 +15,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, query, where }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, query, where }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -33,7 +33,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fbRisto = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, query, where };
+  window._fbRisto = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, query, where };
   window._fbRistoReady = false;
 
   function segnalaPronto() {
@@ -315,6 +315,15 @@ window.addEventListener('DOMContentLoaded', async()=>{
   if(!codice){ mostraErrore(); return; }
   try{
     await caricaFamiglia(codice);
+    // Ascolta in real-time le modifiche alla famiglia (es. sblocco_orario da staff)
+    const {db,doc,onSnapshot}=window._fbRisto;
+    onSnapshot(doc(db,'famiglie_ristorazione',famiglia.id), snap=>{
+      if(!snap.exists()) return;
+      const aggiornato = snap.data();
+      const cambiatoSblocco = aggiornato.sblocco_orario !== famiglia.sblocco_orario;
+      Object.assign(famiglia, aggiornato);
+      if(cambiatoSblocco) renderMenu();
+    });
     // Calcola primo giorno visibile: max(oggi, checkin)
     if(famiglia.checkin && famiglia.checkin > OGGI){
       PRIMO_GIORNO  = famiglia.checkin;
@@ -412,7 +421,7 @@ function recuperoMeals(){
   // Restituisce i pasti da recuperare se oggi è il giorno di partenza (entro le 10:00)
   if (!famiglia || famiglia.trattamento !== 'PC') return [];
   if (famiglia.checkout !== OGGI) return [];
-  if (new Date().getHours() >= 10) return []; // ordini chiusi dopo le 10:00
+  if (new Date().getHours() >= 10 && famiglia.sblocco_orario !== OGGI) return []; // ordini chiusi dopo le 10:00 senza sblocco staff
   if (famiglia.ora_arrivo === 'dopo_pranzo') return ['pranzo'];
   if (famiglia.ora_arrivo === 'sera') return ['pranzo','cena'];
   return [];
@@ -581,11 +590,11 @@ function buildMealCard(data,tipo,piatti){
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
-  // Blocca se: ordine già confermato, OPPURE la data è passata, OPPURE è oggi e sono già le 10:00
+  // Blocca se: ordine già confermato, OPPURE la data è passata, OPPURE è oggi dopo le 10:00 senza sblocco staff
   const oraAttuale = new Date().getHours();
   function scaduto(iso) {
-    if (iso < OGGI) return true;                          // data passata
-    if (iso === OGGI && oraAttuale >= 10) return true;    // oggi ma già passate le 10:00
+    if (iso < OGGI) return true;
+    if (iso === OGGI && oraAttuale >= 10 && famiglia.sblocco_orario !== OGGI) return true;
     return false;
   }
   const isLocked = !!ordiniEsistenti[key] || scaduto(data);
