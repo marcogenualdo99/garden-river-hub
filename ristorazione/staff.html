@@ -1194,8 +1194,6 @@ function renderCucina(ordini) {
           <div class="kds-badge">${totServiti}/${totPiatti}</div>
           <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
           <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
-          ${new Date().getHours()>=10?(famDoc?.sblocco_orario===isoToday(0)?'<button class="kds-edit-btn" disabled style="background:#16A34A;color:#fff;border-color:#16A34A;opacity:.8">✓ Sbloccato</button>':`<button class="kds-edit-btn" onclick="sbloccaOrario('${jsEsc(ord.famiglia_id)}')" style="background:#D97706;color:#fff;border-color:#D97706" title="Sblocca ordine fuori orario">🔓 Sblocca</button>`):''}
-
         </div>
       </div>
       <div class="kds-body">${piattiHtml}</div>
