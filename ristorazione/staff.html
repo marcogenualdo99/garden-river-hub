@@ -1324,7 +1324,6 @@ function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
         <span class="kds-fam-sub-nome">${esc(ord.famiglia_nome||'—')} <span style="font-weight:600;color:var(--gray-400,#9CA3AF)">· Alloggio ${esc(ord.unita||'—')}</span></span>
         <div style="display:flex;gap:6px">
           <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine" style="background:var(--gray-100);color:var(--gray-700)">MOD</button>
-          <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
       ${famNote}${notaHtml}
@@ -1353,7 +1352,10 @@ function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
         <div class="kds-nome">Tavolo ${esc(tavolo)}</div>
         <div class="kds-unita">${famNomiHead}</div>
       </div>
-      <div class="kds-badge">${totServiti}/${totPiatti}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="kds-badge">${totServiti}/${totPiatti}</div>
+        <button class="kds-edit-btn" onclick="stampaComandaGruppoById('${jsEsc(tavolo)}','${ordIdsCsv}')" title="Stampa comanda unica del tavolo" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+      </div>
     </div>
     <div class="kds-body">${piattiHtml}</div>
     ${famRighe}
@@ -2870,8 +2872,12 @@ function escXml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 
-async function stampaComanda(ord) {
+// Larghezze colonne in caratteri per la stampante termica: font_a normale = 42, double-width = 21
+const STAMPA_W_NORM = 42;
+const STAMPA_W_WIDE = 21;
 
+// Normalizza i piatti di un ordine per la stampa (stesso schema di estraiPiattiOrdine ma senza mid)
+function estraiPiattiPerStampa(ord) {
   const rawPiatti = ord.piatti || [];
   const piattiArr = [];
   if (Array.isArray(rawPiatti)) {
@@ -2895,6 +2901,72 @@ async function stampaComanda(ord) {
       }
     });
   }
+  return piattiArr;
+}
+
+// Banda nera (reverse) a larghezza piena con reset automatico dello stato
+function stampaBanda(testo, wide) {
+  const W = wide ? STAMPA_W_WIDE : STAMPA_W_NORM;
+  let padded;
+  if (wide) {
+    // centra manualmente con spazi
+    const inner = ' ' + testo + ' ';
+    const lp = Math.max(0, Math.floor((W - inner.length) / 2));
+    const rp = Math.max(0, W - inner.length - lp);
+    padded = escXml(' '.repeat(lp) + inner + ' '.repeat(rp));
+    return `<text reverse="true" font="font_a" height="2" width="2">${padded}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`;
+  }
+  padded = escXml((' ' + testo).padEnd(W));
+  return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
+}
+
+// Spezza il testo in righe senza tagliare le parole
+function stampaWordWrap(text, maxChars) {
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if (!cur) { cur = w; }
+    else if (cur.length + 1 + w.length <= maxChars) { cur += ' ' + w; }
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// Piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
+function stampaRigaPiatto(nome, qty) {
+  const nomeUp = nome.toUpperCase();
+  const qtyStr = 'x' + qty;
+  const NL = `<text font="font_a" height="1" width="1">&#10;</text>`;
+  const riga = (t, alignR) => `<text font="font_a" height="2" width="2" align="${alignR ? 'right' : 'left'}">${escXml(t)}</text>${NL}`;
+
+  // caso semplice: tutto su una riga
+  if (nomeUp.length + 1 + qtyStr.length <= STAMPA_W_WIDE) {
+    const sp = STAMPA_W_WIDE - nomeUp.length - qtyStr.length;
+    return riga(nomeUp + ' '.repeat(sp) + qtyStr, false);
+  }
+
+  // word-wrap del nome
+  const lines = stampaWordWrap(nomeUp, STAMPA_W_WIDE);
+  let out = '';
+  const last = lines[lines.length - 1];
+
+  if (last.length + 1 + qtyStr.length <= STAMPA_W_WIDE) {
+    // qty si attacca all'ultima riga
+    for (let i = 0; i < lines.length - 1; i++) out += riga(lines[i], false);
+    const sp = STAMPA_W_WIDE - last.length - qtyStr.length;
+    out += riga(last + ' '.repeat(sp) + qtyStr, false);
+  } else {
+    // qty su riga separata a destra
+    for (const l of lines) out += riga(l, false);
+    out += `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
+  }
+  return out;
+}
+
+async function stampaComanda(ord) {
+  const piattiArr = estraiPiattiPerStampa(ord);
 
   const cats = {};
   for (const p of piattiArr) {
@@ -2907,71 +2979,6 @@ async function stampaComanda(ord) {
   const dataOrdine = ord.data ? new Date(ord.data + 'T12:00:00') : now;
   const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
-  // larghezze colonne in caratteri: font_a normale = 42, double-width = 21
-  const W_NORM = 42;
-  const W_WIDE = 21;
-
-  // banda nera (reverse) a larghezza piena con reset automatico dello stato
-  function banda(testo, wide) {
-    const W = wide ? W_WIDE : W_NORM;
-    let padded;
-    if (wide) {
-      // centra manualmente con spazi
-      const inner = ' ' + testo + ' ';
-      const lp = Math.max(0, Math.floor((W - inner.length) / 2));
-      const rp = Math.max(0, W - inner.length - lp);
-      padded = escXml(' '.repeat(lp) + inner + ' '.repeat(rp));
-      return `<text reverse="true" font="font_a" height="2" width="2">${padded}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`;
-    }
-    padded = escXml((' ' + testo).padEnd(W));
-    return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
-  }
-
-  // spezza il testo in righe senza tagliare le parole
-  function wordWrap(text, maxChars) {
-    const words = text.split(' ');
-    const lines = [];
-    let cur = '';
-    for (const w of words) {
-      if (!cur) { cur = w; }
-      else if (cur.length + 1 + w.length <= maxChars) { cur += ' ' + w; }
-      else { lines.push(cur); cur = w; }
-    }
-    if (cur) lines.push(cur);
-    return lines;
-  }
-
-  // piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
-  function rigaPiatto(nome, qty) {
-    const nomeUp = nome.toUpperCase();
-    const qtyStr = 'x' + qty;
-    const NL = `<text font="font_a" height="1" width="1">&#10;</text>`;
-    const riga = (t, alignR) => `<text font="font_a" height="2" width="2" align="${alignR ? 'right' : 'left'}">${escXml(t)}</text>${NL}`;
-
-    // caso semplice: tutto su una riga
-    if (nomeUp.length + 1 + qtyStr.length <= W_WIDE) {
-      const sp = W_WIDE - nomeUp.length - qtyStr.length;
-      return riga(nomeUp + ' '.repeat(sp) + qtyStr, false);
-    }
-
-    // word-wrap del nome
-    const lines = wordWrap(nomeUp, W_WIDE);
-    let out = '';
-    const last = lines[lines.length - 1];
-
-    if (last.length + 1 + qtyStr.length <= W_WIDE) {
-      // qty si attacca all'ultima riga
-      for (let i = 0; i < lines.length - 1; i++) out += riga(lines[i], false);
-      const sp = W_WIDE - last.length - qtyStr.length;
-      out += riga(last + ' '.repeat(sp) + qtyStr, false);
-    } else {
-      // qty su riga separata a destra
-      for (const l of lines) out += riga(l, false);
-      out += `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
-    }
-    return out;
-  }
-
   const righe = [];
 
   // Intestazione
@@ -2981,8 +2988,8 @@ async function stampaComanda(ord) {
 
   // Famiglia
   righe.push(`<text font="font_a" em="true">Famiglia:</text><text>&#10;</text>`);
-  const nomeFam = (ord.famiglia_nome || '—').substring(0, W_WIDE);
-  righe.push(banda(nomeFam, true));
+  const nomeFam = (ord.famiglia_nome || '—').substring(0, STAMPA_W_WIDE);
+  righe.push(stampaBanda(nomeFam, true));
   if (ord.unita) righe.push(`<text font="font_b"> Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>`);
   const famTel = (famiglieDocs.find(f => f.id === ord.famiglia_id) || {}).tel;
   if (famTel) righe.push(`<text font="font_b"> Tel: ${escXml(famTel)}</text><text>&#10;</text>`);
@@ -2990,7 +2997,7 @@ async function stampaComanda(ord) {
 
   // Note famiglia
   if (ord.note_famiglia) {
-    righe.push(banda('Note Famiglia:', false));
+    righe.push(stampaBanda('Note Famiglia:', false));
     righe.push(`<text font="font_a"> ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
     righe.push(`<text>- - - - - - - - - - - - - - - - - - - - -</text><text>&#10;</text>`);
     righe.push('<text>&#10;</text>');
@@ -3001,7 +3008,7 @@ async function stampaComanda(ord) {
   for (const cat of catOrder) {
     righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
-      righe.push(rigaPiatto(p.piatto, p.qty));
+      righe.push(stampaRigaPiatto(p.piatto, p.qty));
       righe.push('<text>&#10;</text>');
     }
     righe.push('<text>&#10;</text>');
@@ -3010,8 +3017,86 @@ async function stampaComanda(ord) {
   // Note comanda
   const noteComanda = ord.note_comanda || ord.note || '';
   if (noteComanda) {
-    righe.push(banda('Note comanda:', false));
+    righe.push(stampaBanda('Note comanda:', false));
     righe.push(`<text font="font_a" height="2" width="2"> ${escXml(noteComanda)}</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
+  }
+
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  const { ok, err } = await inviaEpos(null, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+// Comanda unica per un tavolo condiviso da più famiglie: i piatti uguali vengono
+// sommati sullo scontrino, con la scomposizione per famiglia stampata sotto ogni
+// piatto (es. "2 Rossi · 4 Blu · 2 Verdi") così in cucina resta chiaro chi ha
+// ordinato cosa pur avendo un solo scontrino invece di uno per famiglia.
+async function stampaComandaGruppo(tavolo, ordsGroup) {
+  const dishMap = {}; // "cat|piatto" -> { piatto, cat, qty, parts:[{famNome, qty}] }
+  ordsGroup.forEach(ord => {
+    estraiPiattiPerStampa(ord).forEach(p => {
+      const key = p.cat + '|' + p.piatto;
+      if (!dishMap[key]) dishMap[key] = { piatto: p.piatto, cat: p.cat, qty: 0, parts: [] };
+      dishMap[key].qty += p.qty;
+      dishMap[key].parts.push({ famNome: ord.famiglia_nome || '—', qty: p.qty });
+    });
+  });
+
+  const cats = {};
+  Object.values(dishMap).forEach(d => {
+    if (!cats[d.cat]) cats[d.cat] = [];
+    cats[d.cat].push(d);
+  });
+
+  const now = new Date();
+  const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const primoOrd = ordsGroup[0] || {};
+  const dataOrdine = primoOrd.data ? new Date(primoOrd.data + 'T12:00:00') : now;
+  const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
+  const righe = [];
+
+  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(cucinaPasto.toUpperCase())}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Tavolo e famiglie che lo condividono
+  righe.push(`<text font="font_a" em="true">Tavolo:</text><text>&#10;</text>`);
+  righe.push(stampaBanda(String(tavolo).substring(0, STAMPA_W_WIDE), true));
+  ordsGroup.forEach(ord => {
+    const unitaTxt = ord.unita ? ` (Alloggio ${ord.unita})` : '';
+    righe.push(`<text font="font_b"> ${escXml(ord.famiglia_nome || '—')}${escXml(unitaTxt)}</text><text>&#10;</text>`);
+  });
+  righe.push('<text>&#10;</text>');
+
+  // Note famiglia/ordine, attribuite alla famiglia che le ha lasciate
+  ordsGroup.forEach(ord => {
+    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    if (famDoc?.note) {
+      righe.push(stampaBanda(`Nota ${ord.famiglia_nome || ''}:`, false));
+      righe.push(`<text font="font_a"> ${escXml(famDoc.note)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
+    if (ord.note) {
+      righe.push(stampaBanda(`Nota ordine ${ord.famiglia_nome || ''}:`, false));
+      righe.push(`<text font="font_a" height="2" width="2"> ${escXml(ord.note)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
+  });
+
+  // Piatti per categoria, sommati con scomposizione per famiglia
+  const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
+  for (const cat of catOrder) {
+    righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
+    for (const d of cats[cat]) {
+      righe.push(stampaRigaPiatto(d.piatto, d.qty));
+      const breakdown = d.parts.map(p => `${p.qty} ${p.famNome}`).join(' · ');
+      righe.push(`<text font="font_b" align="left">   ${escXml(breakdown)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
     righe.push('<text>&#10;</text>');
   }
 
@@ -3055,6 +3140,13 @@ function stampaComandaById(id) {
   const ord = _kdsOrdiniMap[id];
   if (!ord) { alert('Ordine non trovato. ID: ' + id); return; }
   stampaComanda(ord).catch(e => alert('Errore JS: ' + e.message));
+}
+
+function stampaComandaGruppoById(tavolo, ordIdsCsv) {
+  const ids = ordIdsCsv.split(',').filter(Boolean);
+  const ords = ids.map(id => _kdsOrdiniMap[id]).filter(Boolean);
+  if (!ords.length) { alert('Ordini non trovati per il tavolo ' + tavolo); return; }
+  stampaComandaGruppo(tavolo, ords).catch(e => alert('Errore JS: ' + e.message));
 }
 
 window.addEventListener('firebase-ready', aggiornaStatoStampante);
