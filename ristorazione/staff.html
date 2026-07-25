@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Ristorazione · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -1296,7 +1296,7 @@ async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   // Sezione sblocco orario — visibile solo dopo le 10:00
   const famDoc2 = famiglieDocs.find(f => f.id === famId);
   const sbloccoEl = document.getElementById('mos-sblocco');
-  if (new Date().getHours() >= 10) {
+  if (data === isoToday(0) && new Date().getHours() >= 10) {
     const giaSbloccato = famDoc2?.sblocco_orario === isoToday(0);
     sbloccoEl.innerHTML = giaSbloccato
       ? `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
