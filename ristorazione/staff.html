@@ -2917,7 +2917,7 @@ function stampaBanda(testo, wide) {
     return `<text reverse="true" font="font_a" height="2" width="2">${padded}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`;
   }
   padded = escXml((' ' + testo).padEnd(W));
-  return `<text reverse="true" font="font_a" em="true">${padded}</text><text reverse="false" font="font_a" em="false" align="left">&#10;</text>`;
+  return `<text reverse="true" font="font_a" em="true" height="1" width="1">${padded}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`;
 }
 
 // Spezza il testo in righe senza tagliare le parole
@@ -2998,7 +2998,7 @@ async function stampaComanda(ord) {
   // Note famiglia
   if (ord.note_famiglia) {
     righe.push(stampaBanda('Note Famiglia:', false));
-    righe.push(`<text font="font_a"> ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
+    righe.push(`<text font="font_a" height="1" width="1"> ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
     righe.push(`<text>- - - - - - - - - - - - - - - - - - - - -</text><text>&#10;</text>`);
     righe.push('<text>&#10;</text>');
   }
@@ -3006,7 +3006,7 @@ async function stampaComanda(ord) {
   // Piatti per categoria
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b" align="left" height="1" width="1"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
       righe.push(stampaRigaPiatto(p.piatto, p.qty));
       righe.push('<text>&#10;</text>');
@@ -3077,7 +3077,7 @@ async function stampaComandaGruppo(tavolo, ordsGroup) {
     const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
     if (famDoc?.note) {
       righe.push(stampaBanda(`Nota ${ord.famiglia_nome || ''}:`, false));
-      righe.push(`<text font="font_a"> ${escXml(famDoc.note)}</text><text>&#10;</text>`);
+      righe.push(`<text font="font_a" height="1" width="1"> ${escXml(famDoc.note)}</text><text>&#10;</text>`);
       righe.push('<text>&#10;</text>');
     }
     if (ord.note) {
@@ -3090,11 +3090,11 @@ async function stampaComandaGruppo(tavolo, ordsGroup) {
   // Piatti per categoria, sommati con scomposizione per famiglia
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b" align="left"> ${escXml(cat)}:</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b" align="left" height="1" width="1"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const d of cats[cat]) {
       righe.push(stampaRigaPiatto(d.piatto, d.qty));
       const breakdown = d.parts.map(p => `${p.qty} ${p.famNome}`).join(' · ');
-      righe.push(`<text font="font_b" align="left">   ${escXml(breakdown)}</text><text>&#10;</text>`);
+      righe.push(`<text font="font_b" align="left" height="1" width="1">   ${escXml(breakdown)}</text><text>&#10;</text>`);
       righe.push('<text>&#10;</text>');
     }
     righe.push('<text>&#10;</text>');
