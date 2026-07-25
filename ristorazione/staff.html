@@ -207,6 +207,10 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-extra-input:focus{border-color:var(--green-400)}
 .kds-extra-save{width:36px;height:36px;border-radius:50%;border:none;background:var(--green-700);color:#fff;font-size:20px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .kds-extra-save:active{opacity:.8}
+.kds-dish-breakdown{font-size:11px;font-weight:600;color:var(--gray-500);margin-top:2px}
+.kds-fam-sub{border-top:1px solid var(--gray-100);padding:10px 16px}
+.kds-fam-sub-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kds-fam-sub-nome{font-size:13px;font-weight:800;color:var(--gray-900)}
 .empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
 /* ── MENU SEZIONE ── */
@@ -1082,126 +1086,251 @@ function renderCucina(ordini) {
   const menuById = {};
   for (const m of menuOggi) menuById[m.id] = m;
 
+  // Raggruppa gli ordini per tavolo condiviso: se 2+ famiglie con ordine attivo
+  // siedono allo stesso tavolo, la comanda viene mostrata come un'unica card;
+  // altrimenti resta una card singola per famiglia (comportamento invariato).
+  const perTavolo = {};
+  const singoli = [];
+  ordini.forEach(ord => {
+    const fam = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    const tav = fam?.tavolo;
+    if (tav) {
+      if (!perTavolo[tav]) perTavolo[tav] = [];
+      perTavolo[tav].push(ord);
+    } else {
+      singoli.push(ord);
+    }
+  });
+
+  const unita = [];
+  Object.entries(perTavolo).forEach(([tav, ords]) => {
+    if (ords.length > 1) unita.push({ tipo: 'gruppo', tavolo: tav, ordini: ords });
+    else singoli.push(ords[0]);
+  });
+  singoli.forEach(ord => unita.push({ tipo: 'singolo', ord }));
+
   // Ordina: da servire prima
-  const sorted = [...ordini].sort((a,b) => {
-    const aDone = tuttoServito(a);
-    const bDone = tuttoServito(b);
+  unita.sort((a, b) => {
+    const aDone = a.tipo === 'gruppo' ? a.ordini.every(tuttoServito) : tuttoServito(a.ord);
+    const bDone = b.tipo === 'gruppo' ? b.ordini.every(tuttoServito) : tuttoServito(b.ord);
     return aDone === bDone ? 0 : aDone ? 1 : -1;
   });
 
-  el.innerHTML = sorted.map(ord => {
-    const serviti = ord.servito_piatti || {};
-    const isDone  = tuttoServito(ord);
+  el.innerHTML = unita.map(u => u.tipo === 'gruppo'
+    ? renderKdsCardGruppo(u.tavolo, u.ordini, menuById)
+    : renderKdsCardSingola(u.ord, menuById)
+  ).join('');
+}
 
-    // Normalizza piatti — gestisce tutti i formati possibili:
-    // 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
-    // 2. Oggetto mappa {menuId: qty}                     (formato legacy)
-    // 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
-    const rawPiatti = ord.piatti || [];
-    const piattiArr = [];
-    if (Array.isArray(rawPiatti)) {
-      rawPiatti.forEach(p => {
-        if (!p || typeof p !== 'object') return;
-        const qty = Number(p.quantita);
+// Normalizza i piatti di un ordine — gestisce tutti i formati possibili:
+// 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
+// 2. Oggetto mappa {menuId: qty}                     (formato legacy)
+// 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
+function estraiPiattiOrdine(ord, menuById) {
+  const rawPiatti = ord.piatti || [];
+  const piattiArr = [];
+  if (Array.isArray(rawPiatti)) {
+    rawPiatti.forEach(p => {
+      if (!p || typeof p !== 'object') return;
+      const qty = Number(p.quantita);
+      if (!(qty > 0)) return;
+      const id = p.menu_id;
+      piattiArr.push({
+        mid: id, qty,
+        piatto: p.piatto || menuById[id]?.piatto || id,
+        cat: p.categoria || menuById[id]?.categoria || 'Altro'
+      });
+    });
+  } else if (rawPiatti && typeof rawPiatti === 'object') {
+    Object.entries(rawPiatti).forEach(([k, v]) => {
+      if (typeof v === 'number') {
+        if (v <= 0) return;
+        const m = menuById[k];
+        piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
+      } else if (v && typeof v === 'object') {
+        const qty = Number(v.quantita);
         if (!(qty > 0)) return;
-        const id = p.menu_id;
+        const id = v.menu_id || k;
         piattiArr.push({
           mid: id, qty,
-          piatto: p.piatto || menuById[id]?.piatto || id,
-          cat: p.categoria || menuById[id]?.categoria || 'Altro'
+          piatto: v.piatto || menuById[id]?.piatto || id,
+          cat: v.categoria || menuById[id]?.categoria || 'Altro'
         });
-      });
-    } else if (rawPiatti && typeof rawPiatti === 'object') {
-      Object.entries(rawPiatti).forEach(([k, v]) => {
-        if (typeof v === 'number') {
-          if (v <= 0) return;
-          const m = menuById[k];
-          piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
-        } else if (v && typeof v === 'object') {
-          const qty = Number(v.quantita);
-          if (!(qty > 0)) return;
-          const id = v.menu_id || k;
-          piattiArr.push({
-            mid: id, qty,
-            piatto: v.piatto || menuById[id]?.piatto || id,
-            cat: v.categoria || menuById[id]?.categoria || 'Altro'
-          });
-        }
-      });
-    }
+      }
+    });
+  }
+  return piattiArr;
+}
 
-    // Raggruppa per categoria
-    const cats = {};
-    for (const p of piattiArr) {
-      if (!cats[p.cat]) cats[p.cat] = [];
-      cats[p.cat].push(p);
-    }
+function renderKdsCardSingola(ord, menuById) {
+  const serviti = ord.servito_piatti || {};
+  const isDone  = tuttoServito(ord);
+  const piattiArr = estraiPiattiOrdine(ord, menuById);
 
-    const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+  // Raggruppa per categoria
+  const cats = {};
+  for (const p of piattiArr) {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push(p);
+  }
 
-    const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
-    const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
-    const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
-    const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
+  const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
 
-    const piattiHtml = catKeys.map(cat => `
-      <div class="kds-cat">${cat}</div>
-      ${cats[cat].map(p => {
-        const served = Math.min(Number(serviti[p.mid]||0), p.qty);
-        const done   = served >= p.qty;
-        const isExtra = p.mid.startsWith('extra_');
-        return `<div class="kds-dish${done?' done':''}">
-          <div class="kds-qty-badge">${p.qty}</div>
-          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${jsEsc(ord.id)}','${jsEsc(p.mid)}')" title="Elimina">✕</button>`:''}</div>
-          <div class="kds-dish-ctrl">
-            <button class="kds-btn" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
-            <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
-            <button class="kds-btn plus" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
-          </div>
-        </div>`;
-      }).join('')}`
-    ).join('');
+  const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
+  const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
+  const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
+  const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
 
-    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
-    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
-    const tavoloId = famDoc?.tavolo;
-    const compagniTavolo = tavoloId ? famiglieDocs.filter(f => f.tavolo === tavoloId && f.id !== ord.famiglia_id).map(f => esc(f.nome)) : [];
-    const tavoloHtml = tavoloId ? `<div class="kds-note" style="background:#F0FDF4;border-left:3px solid var(--green-700);margin-bottom:4px"><strong style="color:var(--green-700)">Tavolo ${esc(tavoloId)}</strong>${compagniTavolo.length ? ` · con ${compagniTavolo.join(', ')}` : ''}</div>` : '';
-    const recuperoHtml = '';
-    const notaHtml = ord.note
-      ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
-
-    const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
-    const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
-      <div class="kds-log-title">Modifiche staff</div>
-      ${modifiche.slice().reverse().map(m => {
-        const dt = new Date(m.quando);
-        const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
-      }).join('')}
-    </div>`;
-
-    const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
-    const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
-
-    return `<div class="kds-card${isDone?' servita':''}">
-      <div class="kds-head ${headCls}">
-        <div>
-          <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
-          <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
+  const piattiHtml = catKeys.map(cat => `
+    <div class="kds-cat">${cat}</div>
+    ${cats[cat].map(p => {
+      const served = Math.min(Number(serviti[p.mid]||0), p.qty);
+      const done   = served >= p.qty;
+      const isExtra = p.mid.startsWith('extra_');
+      return `<div class="kds-dish${done?' done':''}">
+        <div class="kds-qty-badge">${p.qty}</div>
+        <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${jsEsc(ord.id)}','${jsEsc(p.mid)}')" title="Elimina">✕</button>`:''}</div>
+        <div class="kds-dish-ctrl">
+          <button class="kds-btn" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
+          <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
+          <button class="kds-btn plus" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="kds-badge">${totServiti}/${totPiatti}</div>
-          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+      </div>`;
+    }).join('')}`
+  ).join('');
+
+  const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+  const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
+  const tavoloId = famDoc?.tavolo;
+  const compagniTavolo = tavoloId ? famiglieDocs.filter(f => f.tavolo === tavoloId && f.id !== ord.famiglia_id).map(f => esc(f.nome)) : [];
+  const tavoloHtml = tavoloId ? `<div class="kds-note" style="background:#F0FDF4;border-left:3px solid var(--green-700);margin-bottom:4px"><strong style="color:var(--green-700)">Tavolo ${esc(tavoloId)}</strong>${compagniTavolo.length ? ` · con ${compagniTavolo.join(', ')} (in attesa del loro ordine)` : ''}</div>` : '';
+  const recuperoHtml = '';
+  const notaHtml = ord.note
+    ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
+
+  const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
+  const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
+    <div class="kds-log-title">Modifiche staff</div>
+    ${modifiche.slice().reverse().map(m => {
+      const dt = new Date(m.quando);
+      const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
+    }).join('')}
+  </div>`;
+
+  const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+  const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+
+  return `<div class="kds-card${isDone?' servita':''}">
+    <div class="kds-head ${headCls}">
+      <div>
+        <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
+        <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="kds-badge">${totServiti}/${totPiatti}</div>
+        <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+        <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+      </div>
+    </div>
+    <div class="kds-body">${piattiHtml}</div>
+    ${recuperoHtml}${tavoloHtml}${famNote}${notaHtml}
+    ${logHtml}
+    <div class="kds-extra" id="extra-${ord.id}">
+      <div class="kds-extra-row">
+        <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <button class="kds-btn" onclick="kdsExtraStep('${jsEsc(ord.id)}',-1)">−</button>
+          <span class="kds-served" id="extra-qty-${ord.id}">1</span>
+          <button class="kds-btn plus" onclick="kdsExtraStep('${jsEsc(ord.id)}',+1)">+</button>
+        </div>
+        <button class="kds-extra-save" onclick="salvaExtra('${jsEsc(ord.id)}','${jsEsc(ord.famiglia_id)}')">+</button>
+      </div>
+    </div>
+    <div class="kds-foot">
+      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
+    </div>
+  </div>`;
+}
+
+// Card unificata per un tavolo condiviso da più famiglie: i piatti uguali vengono
+// sommati, ma ogni riga riporta la ripartizione per famiglia (es. "2 Rossi · 4 Blu")
+// così lo staff sa sempre chi ha ordinato cosa. I controlli +/- e il pulsante
+// "servito" agiscono comunque sui singoli ordini sottostanti (nessuna modifica al
+// modello dati: restano ordini separati in 'ordini_ristorazione', solo la vista è unificata).
+function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
+  const groupKey = 'g' + String(tavolo).replace(/[^a-zA-Z0-9]/g, '_');
+
+  const dishMap = {}; // mid -> { piatto, cat, parts:[{ordId, famNome, qty, served}] }
+  ordsGroup.forEach(ord => {
+    const serviti = ord.servito_piatti || {};
+    estraiPiattiOrdine(ord, menuById).forEach(p => {
+      if (!dishMap[p.mid]) dishMap[p.mid] = { piatto: p.piatto, cat: p.cat, parts: [] };
+      dishMap[p.mid].parts.push({
+        ordId: ord.id,
+        famNome: ord.famiglia_nome || '—',
+        qty: p.qty,
+        served: Math.min(Number(serviti[p.mid]||0), p.qty)
+      });
+    });
+  });
+
+  // Salva le parti in una mappa globale così i controlli +/- possono risalire
+  // a quale ordine incrementare/decrementare senza serializzare JSON negli onclick.
+  Object.entries(dishMap).forEach(([mid, d]) => { _kdsGruppoParts[`${groupKey}:${mid}`] = d.parts; });
+
+  const cats = {};
+  Object.entries(dishMap).forEach(([mid, d]) => {
+    if (!cats[d.cat]) cats[d.cat] = [];
+    cats[d.cat].push({ mid, ...d });
+  });
+  const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+
+  let totPiatti = 0, totServiti = 0;
+  Object.values(dishMap).forEach(d => d.parts.forEach(p => { totPiatti += p.qty; totServiti += p.served; }));
+
+  const isDoneGroup = ordsGroup.every(tuttoServito);
+  const inProgress  = !isDoneGroup && totServiti > 0;
+  const headCls     = isDoneGroup ? 'done' : inProgress ? 'in-progress' : '';
+
+  const piattiHtml = catKeys.map(cat => `
+    <div class="kds-cat">${cat}</div>
+    ${cats[cat].map(d => {
+      const totQty = d.parts.reduce((s,p)=>s+p.qty,0);
+      const totServitiDish = d.parts.reduce((s,p)=>s+p.served,0);
+      const doneDish = totServitiDish >= totQty;
+      const isExtra = d.mid.startsWith('extra_');
+      const breakdown = d.parts.map(p => `${p.qty} ${esc(p.famNome)}`).join(' · ');
+      return `<div class="kds-dish${doneDish?' done':''}">
+        <div class="kds-qty-badge">${totQty}</div>
+        <div class="kds-dish-name">${esc(d.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtraGruppo('${groupKey}','${jsEsc(d.mid)}')" title="Elimina">✕</button>`:''}
+          <div class="kds-dish-breakdown">${breakdown}</div>
+        </div>
+        <div class="kds-dish-ctrl">
+          <button class="kds-btn" onclick="incrementServitoGruppo('${groupKey}','${jsEsc(d.mid)}',-1)" ${totServitiDish<=0?'disabled':''} title="Rimuovi 1">−</button>
+          <span class="kds-served${doneDish?' done':''}">${totServitiDish}/${totQty}</span>
+          <button class="kds-btn plus" onclick="incrementServitoGruppo('${groupKey}','${jsEsc(d.mid)}',1)" ${doneDish?'disabled':''} title="Aggiungi 1">+</button>
+        </div>
+      </div>`;
+    }).join('')}`
+  ).join('');
+
+  const famRighe = ordsGroup.map(ord => {
+    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444"><strong style="color:#DC2626">⚠ ${esc(ord.famiglia_nome||'')}:</strong> ${esc(famDoc.note)}</div>` : '';
+    const notaHtml = ord.note ? `<div class="kds-note"><strong>Nota ${esc(ord.famiglia_nome||'')}:</strong> ${esc(ord.note)}</div>` : '';
+    return `<div class="kds-fam-sub">
+      <div class="kds-fam-sub-head">
+        <span class="kds-fam-sub-nome">${esc(ord.famiglia_nome||'—')} <span style="font-weight:600;color:var(--gray-400,#9CA3AF)">· Alloggio ${esc(ord.unita||'—')}</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine" style="background:var(--gray-100);color:var(--gray-700)">MOD</button>
           <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
         </div>
       </div>
-      <div class="kds-body">${piattiHtml}</div>
-      ${recuperoHtml}${tavoloHtml}${famNote}${notaHtml}
-      ${logHtml}
-      <div class="kds-extra" id="extra-${ord.id}">
+      ${famNote}${notaHtml}
+      <div class="kds-extra" id="extra-${ord.id}" style="padding:8px 0 0;border-top:none">
         <div class="kds-extra-row">
-          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo per ${esc(ord.famiglia_nome||'')}…" autocomplete="off">
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
             <button class="kds-btn" onclick="kdsExtraStep('${jsEsc(ord.id)}',-1)">−</button>
             <span class="kds-served" id="extra-qty-${ord.id}">1</span>
@@ -1210,11 +1339,28 @@ function renderCucina(ordini) {
           <button class="kds-extra-save" onclick="salvaExtra('${jsEsc(ord.id)}','${jsEsc(ord.famiglia_id)}')">+</button>
         </div>
       </div>
-      <div class="kds-foot">
-        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
-      </div>
     </div>`;
   }).join('');
+
+  const doneBtnCls = isDoneGroup ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+  const doneBtnTxt = isDoneGroup ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+  const ordIdsCsv = ordsGroup.map(o => o.id).join(',');
+  const famNomiHead = ordsGroup.map(o => esc(o.famiglia_nome || '—')).join(' · ');
+
+  return `<div class="kds-card${isDoneGroup?' servita':''}">
+    <div class="kds-head ${headCls}">
+      <div>
+        <div class="kds-nome">Tavolo ${esc(tavolo)}</div>
+        <div class="kds-unita">${famNomiHead}</div>
+      </div>
+      <div class="kds-badge">${totServiti}/${totPiatti}</div>
+    </div>
+    <div class="kds-body">${piattiHtml}</div>
+    ${famRighe}
+    <div class="kds-foot">
+      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServitoGruppo('${ordIdsCsv}',${isDoneGroup})">${doneBtnTxt}</button>
+    </div>
+  </div>`;
 }
 
 // ── CAMPO LIBERO CUCINA ──────────────────────────────────────────────────────
@@ -1441,6 +1587,36 @@ async function segnaServito(ordId, isAlreadyDone) {
       await updateDoc(doc(db,'ordini_ristorazione',ordId), { servito: true });
     }
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
+}
+
+// ── CARD UNIFICATA PER TAVOLO CONDIVISO ──────────────────────────────────────
+// Mappa gruppoKey:menuId -> parti [{ordId, famNome, qty, served}], popolata a
+// ogni render di renderKdsCardGruppo(); serve ai controlli +/- per risalire
+// all'ordine giusto da aggiornare senza passare JSON dentro gli onclick.
+const _kdsGruppoParts = {};
+
+// Incrementa/decrementa il servito di un piatto aggregato per tavolo: sceglie
+// la prima famiglia con una porzione ancora da servire (per +1) o l'ultima con
+// una porzione già servita (per -1) e aggiorna solo quell'ordine sottostante.
+async function incrementServitoGruppo(groupKey, mid, delta) {
+  const parts = _kdsGruppoParts[`${groupKey}:${mid}`];
+  if (!parts || !parts.length) return;
+  const target = delta > 0
+    ? parts.find(p => p.served < p.qty)
+    : [...parts].reverse().find(p => p.served > 0);
+  if (!target) return;
+  await incrementServito(target.ordId, mid, target.served, delta > 0 ? target.qty : -1);
+}
+
+async function eliminaExtraGruppo(groupKey, mid) {
+  const parts = _kdsGruppoParts[`${groupKey}:${mid}`];
+  if (!parts || !parts.length) return;
+  await eliminaExtra(parts[0].ordId, mid);
+}
+
+async function segnaServitoGruppo(ordIdsCsv, isAlreadyDone) {
+  const ids = ordIdsCsv.split(',').filter(Boolean);
+  for (const id of ids) await segnaServito(id, isAlreadyDone);
 }
 
 // ── MENU ──────────────────────────────────────────────────────────────────────
