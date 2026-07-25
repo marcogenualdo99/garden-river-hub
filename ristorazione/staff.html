@@ -596,6 +596,7 @@ input[type="date"].finput{font-size:13px}
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
     <div class="modal-title" id="mos-title">Modifica ordine</div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px" id="mos-sub"></p>
+    <div id="mos-sblocco" style="margin-bottom:12px"></div>
     <div id="mos-body"></div>
     <div style="margin-top:14px">
       <button onclick="resetComandaStaff()" style="width:100%;height:44px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)">Reset comanda</button>
@@ -1291,6 +1292,30 @@ async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
 
   document.getElementById('mos-title').textContent = `Ordine: ${famNome}`;
   document.getElementById('mos-sub').textContent = `${tipo.charAt(0).toUpperCase()+tipo.slice(1)} del ${data} · max ${max} per categoria`;
+
+  // Sezione sblocco orario — visibile solo dopo le 10:00
+  const famDoc2 = famiglieDocs.find(f => f.id === famId);
+  const sbloccoEl = document.getElementById('mos-sblocco');
+  if (new Date().getHours() >= 10) {
+    const giaSbloccato = famDoc2?.sblocco_orario === isoToday(0);
+    sbloccoEl.innerHTML = giaSbloccato
+      ? `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
+           <span style="font-size:18px">🔓</span>
+           <div>
+             <div style="font-size:13px;font-weight:700;color:#16A34A">Ordine sbloccato</div>
+             <div style="font-size:12px;color:#15803D">Il cliente può compilare la comanda fuori orario</div>
+           </div>
+         </div>`
+      : `<div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:10px;padding:10px 14px">
+           <div style="flex:1">
+             <div style="font-size:13px;font-weight:700;color:#92400E">Ordini chiusi (dopo le 10:00)</div>
+             <div style="font-size:12px;color:#B45309">Il cliente non può compilare. Sblocca per permettergli di ordinare oggi.</div>
+           </div>
+           <button onclick="sbloccaOrarioModal('${jsEsc(famId)}')" style="flex-shrink:0;height:36px;padding:0 14px;background:#D97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">🔓 Sblocca</button>
+         </div>`;
+  } else {
+    sbloccoEl.innerHTML = '';
+  }
 
   // Costruisci UI per categoria
   const byCat = {};
@@ -2828,6 +2853,26 @@ async function sbloccaOrario(famId) {
   const { db, doc, setDoc } = window._fb;
   try {
     await setDoc(doc(db,'famiglie_ristorazione',famId), { sblocco_orario: isoToday(0) }, { merge: true });
+    const f = famiglieDocs.find(x => x.id === famId);
+    if (f) f.sblocco_orario = isoToday(0);
+    showToast('Ordine sbloccato — il cliente può ora compilare');
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+async function sbloccaOrarioModal(famId) {
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db,'famiglie_ristorazione',famId), { sblocco_orario: isoToday(0) }, { merge: true });
+    const f = famiglieDocs.find(x => x.id === famId);
+    if (f) f.sblocco_orario = isoToday(0);
+    document.getElementById('mos-sblocco').innerHTML =
+      `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
+         <span style="font-size:18px">🔓</span>
+         <div>
+           <div style="font-size:13px;font-weight:700;color:#16A34A">Ordine sbloccato</div>
+           <div style="font-size:12px;color:#15803D">Il cliente può compilare la comanda fuori orario</div>
+         </div>
+       </div>`;
     showToast('Ordine sbloccato — il cliente può ora compilare');
   } catch(e) { console.error(e); showToast('Errore — riprova'); }
 }
