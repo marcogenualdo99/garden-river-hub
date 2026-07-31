@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Ristorazione · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -294,6 +294,7 @@ function toggleMenuBambini(){
 }
 
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
+function dopoOrarioLimite(){ const n=new Date(); return n.getHours()>8 || (n.getHours()===8 && n.getMinutes()>=30); }
 const OGGI=isoDate(0), DOMANI=isoDate(1);
 // PRIMO_GIORNO e SECONDO_GIORNO vengono calcolati dopo il caricamento famiglia
 let PRIMO_GIORNO=OGGI, SECONDO_GIORNO=DOMANI;
@@ -418,10 +419,10 @@ function renderApp(){
 }
 
 function recuperoMeals(){
-  // Restituisce i pasti da recuperare se oggi è il giorno di partenza (entro le 10:00)
+  // Restituisce i pasti da recuperare se oggi è il giorno di partenza (entro le 8:30)
   if (!famiglia || famiglia.trattamento !== 'PC') return [];
   if (famiglia.checkout !== OGGI) return [];
-  if (new Date().getHours() >= 10 && famiglia.sblocco_orario !== OGGI) return []; // ordini chiusi dopo le 10:00 senza sblocco staff
+  if (dopoOrarioLimite() && famiglia.sblocco_orario !== OGGI) return []; // ordini chiusi dopo le 8:30 senza sblocco staff
   if (famiglia.ora_arrivo === 'dopo_pranzo') return ['pranzo'];
   if (famiglia.ora_arrivo === 'sera') return ['pranzo','cena'];
   return [];
@@ -459,7 +460,7 @@ function renderMenu(){
     c.appendChild(banner);
     const note=document.createElement('div');
     note.style.cssText='font-size:13px;color:#92400E;background:#FFF8E7;padding:6px 16px 12px;margin-bottom:4px';
-    note.textContent='In base al tuo piano puoi recuperare i seguenti pasti. Ordina entro le 10:00.';
+    note.textContent='In base al tuo piano puoi recuperare i seguenti pasti. Ordina entro le 8:30.';
     c.appendChild(note);
     const tipiOggi={};
     menuOggi.forEach(v=>{ if(!tipiOggi[v.tipo])tipiOggi[v.tipo]=[]; tipiOggi[v.tipo].push(v); });
@@ -590,11 +591,11 @@ function buildMealCard(data,tipo,piatti){
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
-  // Blocca se: ordine già confermato, OPPURE la data è passata, OPPURE è oggi dopo le 10:00 senza sblocco staff
-  const oraAttuale = new Date().getHours();
+  // Blocca se: ordine già confermato, OPPURE la data è passata, OPPURE è oggi dopo le 8:30 senza sblocco staff
+  const oraLimiteSuperata = dopoOrarioLimite();
   function scaduto(iso) {
     if (iso < OGGI) return true;
-    if (iso === OGGI && oraAttuale >= 10 && famiglia.sblocco_orario !== OGGI) return true;
+    if (iso === OGGI && oraLimiteSuperata && famiglia.sblocco_orario !== OGGI) return true;
     return false;
   }
   const isLocked = !!ordiniEsistenti[key] || scaduto(data);
@@ -603,7 +604,7 @@ function buildMealCard(data,tipo,piatti){
   card.className='meal-card'+(isLocked?' locked':'');
   const tipoIcon =tipo==='pranzo'?'☀️':'🌙';
   const tipoNome =tipo==='pranzo'?'Pranzo':'Cena';
-  const tipoSub  =tipo==='pranzo'?'Mezzogiorno · ordina entro le 10:00':'Sera · ordina entro le 10:00';
+  const tipoSub  =tipo==='pranzo'?'Mezzogiorno · ordina entro le 8:30':'Sera · ordina entro le 8:30';
   // Calcola lock MP iniziale
   const oppTipo = tipo==='pranzo'?'cena':'pranzo';
   const oppKey  = `${data}_${oppTipo}`;
