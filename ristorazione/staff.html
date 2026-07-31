@@ -1439,10 +1439,11 @@ async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   document.getElementById('mos-title').textContent = `Ordine: ${famNome}`;
   document.getElementById('mos-sub').textContent = `${tipo.charAt(0).toUpperCase()+tipo.slice(1)} del ${data} · max ${max} per categoria`;
 
-  // Sezione sblocco orario — visibile solo dopo le 10:00
+  // Sezione sblocco orario — visibile solo dopo le 8:30
   const famDoc2 = famiglieDocs.find(f => f.id === famId);
   const sbloccoEl = document.getElementById('mos-sblocco');
-  if (data === isoToday(0) && new Date().getHours() >= 10) {
+  const _oraOra = new Date();
+  if (data === isoToday(0) && (_oraOra.getHours()>8 || (_oraOra.getHours()===8 && _oraOra.getMinutes()>=30))) {
     const giaSbloccato = famDoc2?.sblocco_orario === isoToday(0);
     sbloccoEl.innerHTML = giaSbloccato
       ? `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
@@ -1454,7 +1455,7 @@ async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
          </div>`
       : `<div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:10px;padding:10px 14px">
            <div style="flex:1">
-             <div style="font-size:13px;font-weight:700;color:#92400E">Ordini chiusi (dopo le 10:00)</div>
+             <div style="font-size:13px;font-weight:700;color:#92400E">Ordini chiusi (dopo le 8:30)</div>
              <div style="font-size:12px;color:#B45309">Il cliente non può compilare. Sblocca per permettergli di ordinare oggi.</div>
            </div>
            <button onclick="sbloccaOrarioModal('${jsEsc(famId)}')" style="flex-shrink:0;height:36px;padding:0 14px;background:#D97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">🔓 Sblocca</button>
@@ -2758,7 +2759,7 @@ function scaricaQRSelezionati() {
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&color=1a5c32&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
     return `<div class="qr-card">
         <div class="qr-istr">Scansiona il Qrcode<br>e compila il menù</div>
-        <div class="qr-deadline">Entro le ore 10:00<br>del giorno stesso</div>
+        <div class="qr-deadline">Entro le ore 8:30<br>del giorno stesso</div>
         <img class="qr-img" src="${qrSrc}" alt="QR ${f.nome}" crossorigin="anonymous">
         <div class="qr-nome">${f.nome}</div>
       </div>`;
