@@ -844,26 +844,17 @@ function renderRentalCard(group) {
             '<div class="f-label">Cliente</div>'+
             '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(e.nome||'').replace(/"/g,'&quot;')+'" oninput="editingTemp[\''+b0.id+'\'].nome=this.value">'+
           '</div>'+
-          '<div style="flex:0 0 auto;min-width:0">'+
-            '<div class="f-label">Bici</div>'+
-            '<select class="f-input" style="padding:0 10px" onchange="editingTemp[\''+b0.id+'\'].nuovaBiciId=this.value">'+
-              Object.values(bikesMap)
-                .filter(bk => {
-                  if (bk.id === b0.id) return true;
-                  const s = effectiveStato(bk);
-                  if (s === 'libera') return true;
-                  if (b0.gruppoId && bk.gruppoId === b0.gruppoId) return true;
-                  return false;
-                })
-                .sort((a,bk) => a.numero - bk.numero)
-                .map(bk => {
-                  const inGruppo = b0.gruppoId && bk.gruppoId === b0.gruppoId && bk.id !== b0.id;
-                  const label = 'N°'+bk.numero+(inGruppo ? ' (stesso gruppo)' : effectiveStato(bk)==='libera'&&bk.id!==b0.id ? ' (libera)' : '');
-                  return '<option value="'+bk.id+'"'+(bk.id === (e.nuovaBiciId||b0.id) ? ' selected' : '')+'>'+label+'</option>';
-                })
-                .join('')+
-            '</select>'+
-          '</div>'+
+        '</div>'+
+        '<div class="f-label" style="margin-bottom:5px">Bici nel noleggio <span style="opacity:.5;font-weight:400">(tocca per aggiungere/rimuovere)</span></div>'+
+        '<div class="bike-chips-grid" style="margin-bottom:10px">'+
+          Object.values(bikesMap)
+            .filter(bk => (e.bikeIds||[]).includes(bk.id) || effectiveStato(bk) === 'libera')
+            .sort((a,bk) => a.numero - bk.numero)
+            .map(bk => {
+              const sel = (e.bikeIds||[]).includes(bk.id);
+              return '<button class="bike-chip'+(sel?' selected':'')+'" onclick="toggleEditChip(\''+b0.id+'\',\''+bk.id+'\')">N°'+bk.numero+'</button>';
+            })
+            .join('')+
         '</div>'+
         '<div class="edit-row">'+
           '<div>'+
@@ -1314,13 +1305,31 @@ function attivaModificaBici(id) {
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
   const isPagata = effectiveStato(b) === 'occupata_pagata';
+  // Raccoglie tutte le bici del gruppo (o solo questa se non ha gruppoId)
+  const gruppoCorrente = b.gruppoId
+    ? Object.values(bikesMap).filter(bk => bk.gruppoId === b.gruppoId).map(bk => bk.id)
+    : [id];
   editingTemp[id] = {
     nome: b.clienteNome || '',
     costo: isPagata ? (b.costoAnticipato || 0) : (b.costoPreselezionato || 0),
     ritiroTs: toLocal(b.ritiroTs),
     rientroPrevistoTs: toLocal(b.rientroPrevistoTs),
-    nuovaBiciId: id,
+    bikeIds: gruppoCorrente,
+    bikeIdsOriginali: [...gruppoCorrente],
   };
+  render();
+}
+
+function toggleEditChip(leadId, bikeId) {
+  const e = editingTemp[leadId];
+  if (!e) return;
+  const idx = e.bikeIds.indexOf(bikeId);
+  if (idx >= 0) {
+    if (e.bikeIds.length <= 1) { showToast('Deve restare almeno una bici'); return; }
+    e.bikeIds.splice(idx, 1);
+  } else {
+    e.bikeIds.push(bikeId);
+  }
   render();
 }
 
@@ -1336,69 +1345,67 @@ async function salvaDatiNoleggio(id) {
   const e = editingTemp[id] || {};
   const nome = (e.nome || '').trim();
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
+  const nuoviBikeIds = e.bikeIds || [id];
+  if (!nuoviBikeIds.length) { showToast('Seleziona almeno una bici'); return; }
 
-  const nuovaBiciId = e.nuovaBiciId || id;
-  const cambiaBici = nuovaBiciId !== id;
-  if (cambiaBici && !bikesMap[nuovaBiciId]) { showToast('Bici non trovata'); return; }
-  if (cambiaBici && effectiveStato(bikesMap[nuovaBiciId]) !== 'libera') { showToast('La bici selezionata non è libera'); return; }
+  const originali = new Set(e.bikeIdsOriginali || [id]);
+  const nuovi = new Set(nuoviBikeIds);
+  const daAggiungere = nuoviBikeIds.filter(bid => !originali.has(bid));
+  const daRimuovere = [...originali].filter(bid => !nuovi.has(bid));
 
-  // Prepara i campi aggiornati
   const ritiroIso = e.ritiroTs ? new Date(e.ritiroTs).toISOString() : b.ritiroTs;
   const rientroIso = e.rientroPrevistoTs ? new Date(e.rientroPrevistoTs).toISOString() : (b.rientroPrevistoTs || null);
   const isPagata = effectiveStato(b) === 'occupata_pagata';
-  const updates = {
-    clienteNome: nome,
-    ritiroTs: ritiroIso,
-    rientroPrevistoTs: rientroIso,
-    ...(isPagata ? { costoAnticipato: e.costo || 0 } : { costoPreselezionato: e.costo || 0 }),
-  };
+  const nuovoGruppoId = nuoviBikeIds.length > 1 ? (b.gruppoId || ('g_' + Date.now())) : null;
 
   delete editingBike[id];
   delete editingTemp[id];
 
-  if (cambiaBici) {
-    // Copia il noleggio sulla nuova bici e libera la vecchia
-    const dest = bikesMap[nuovaBiciId];
-    Object.assign(dest, b, updates, { id: nuovaBiciId, numero: dest.numero, tipologia: dest.tipologia });
-    Object.assign(b, { stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
-      costoPreselezionato: null, fasciaPreselezionata: null, dettaglioPreselezionato: null,
-      rientroPrevistoTs: null, pagamentoAnticipato: false, costoAnticipato: null,
-      fasciaAnticipata: null, dettaglioAnticipato: null, note: null, gruppoId: null });
-    render();
-    showToast('Noleggio spostato su Bici N°' + dest.numero);
-    try {
-      await waitForFirebase();
-      const { db, doc, updateDoc, deleteField } = window._fb;
-      const destUpdates = { ...updates, stato: b.stato === 'occupata' ? 'occupata' : b.stato,
-        ritiroOp: b.ritiroOp, pagamentoAnticipato: b.pagamentoAnticipato || false,
-        ...(b.pagamentoAnticipato ? { fasciaAnticipata: b.fasciaAnticipata, dettaglioAnticipato: b.dettaglioAnticipato } :
-          { fasciaPreselezionata: b.fasciaPreselezionata, dettaglioPreselezionato: b.dettaglioPreselezionato }),
-        note: b.note || null, gruppoId: b.gruppoId || null };
-      await updateDoc(doc(db, 'bici', nuovaBiciId), destUpdates);
-      await updateDoc(doc(db, 'bici', id), {
-        stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
-        costoPreselezionato: null, fasciaPreselezionata: null, dettaglioPreselezionato: null,
-        rientroPrevistoTs: null, pagamentoAnticipato: false, costoAnticipato: null,
-        fasciaAnticipata: null, dettaglioAnticipato: null, note: null, gruppoId: deleteField(),
-      });
-    } catch(err) {
-      console.error('Errore cambio bici:', err);
-      showToast('Errore di salvataggio — riprova');
-    }
-  } else {
-    // Aggiornamento in-place
-    Object.assign(b, { clienteNome: nome, ritiroTs: ritiroIso, rientroPrevistoTs: rientroIso,
-      ...(isPagata ? { costoAnticipato: e.costo || 0 } : { costoPreselezionato: e.costo || 0 }) });
-    render();
-    showToast('Dati aggiornati');
-    try {
-      await waitForFirebase();
-      const { db, doc, updateDoc } = window._fb;
-      await updateDoc(doc(db, 'bici', id), updates);
-    } catch(err) {
-      console.error('Errore salvataggio modifica:', err);
-      showToast('Errore di salvataggio — riprova');
-    }
+  // Aggiorna locale
+  nuoviBikeIds.forEach(bid => {
+    const bk = bikesMap[bid];
+    if (!bk) return;
+    bk.stato = b.stato;
+    bk.clienteNome = nome;
+    bk.ritiroTs = ritiroIso;
+    bk.ritiroOp = b.ritiroOp;
+    bk.rientroPrevistoTs = rientroIso;
+    bk.pagamentoAnticipato = b.pagamentoAnticipato;
+    bk.gruppoId = nuovoGruppoId;
+    if (isPagata) { bk.costoAnticipato = e.costo || 0; bk.fasciaAnticipata = b.fasciaAnticipata; bk.dettaglioAnticipato = b.dettaglioAnticipato; }
+    else { bk.costoPreselezionato = e.costo || 0; bk.fasciaPreselezionata = b.fasciaPreselezionata; bk.dettaglioPreselezionato = b.dettaglioPreselezionato; }
+  });
+  daRimuovere.forEach(bid => {
+    const bk = bikesMap[bid];
+    if (bk) Object.assign(bk, { stato:'libera', clienteNome:null, ritiroTs:null, ritiroOp:null,
+      costoPreselezionato:null, fasciaPreselezionata:null, dettaglioPreselezionato:null,
+      rientroPrevistoTs:null, pagamentoAnticipato:false, costoAnticipato:null,
+      fasciaAnticipata:null, dettaglioAnticipato:null, note:null, gruppoId:null });
+  });
+  render();
+  showToast('Noleggio aggiornato');
+
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc, deleteField } = window._fb;
+    const baseUpdate = {
+      stato: b.stato, clienteNome: nome, ritiroTs: ritiroIso, ritiroOp: b.ritiroOp,
+      rientroPrevistoTs: rientroIso || deleteField(),
+      pagamentoAnticipato: b.pagamentoAnticipato || false,
+      gruppoId: nuovoGruppoId || deleteField(),
+      ...(isPagata ? { costoAnticipato: e.costo||0, fasciaAnticipata: b.fasciaAnticipata, dettaglioAnticipato: b.dettaglioAnticipato }
+                   : { costoPreselezionato: e.costo||0, fasciaPreselezionata: b.fasciaPreselezionata, dettaglioPreselezionato: b.dettaglioPreselezionato }),
+    };
+    for (const bid of nuoviBikeIds) await updateDoc(doc(db,'bici',bid), baseUpdate);
+    for (const bid of daRimuovere) await updateDoc(doc(db,'bici',bid), {
+      stato:'libera', clienteNome:null, ritiroTs:null, ritiroOp:null,
+      costoPreselezionato:null, fasciaPreselezionata:null, dettaglioPreselezionato:null,
+      rientroPrevistoTs:null, pagamentoAnticipato:false, costoAnticipato:null,
+      fasciaAnticipata:null, dettaglioAnticipato:null, note:null, gruppoId:deleteField(),
+    });
+  } catch(err) {
+    console.error('Errore salvataggio modifica:', err);
+    showToast('Errore di salvataggio — riprova');
   }
 }
 
