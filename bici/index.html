@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Noleggio Bici · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -848,9 +848,19 @@ function renderRentalCard(group) {
             '<div class="f-label">Bici</div>'+
             '<select class="f-input" style="padding:0 10px" onchange="editingTemp[\''+b0.id+'\'].nuovaBiciId=this.value">'+
               Object.values(bikesMap)
-                .filter(bk => bk.id === b0.id || effectiveStato(bk) === 'libera')
+                .filter(bk => {
+                  if (bk.id === b0.id) return true;
+                  const s = effectiveStato(bk);
+                  if (s === 'libera') return true;
+                  if (b0.gruppoId && bk.gruppoId === b0.gruppoId) return true;
+                  return false;
+                })
                 .sort((a,bk) => a.numero - bk.numero)
-                .map(bk => '<option value="'+bk.id+'"'+(bk.id === (e.nuovaBiciId||b0.id) ? ' selected' : '')+'>N°'+bk.numero+'</option>')
+                .map(bk => {
+                  const inGruppo = b0.gruppoId && bk.gruppoId === b0.gruppoId && bk.id !== b0.id;
+                  const label = 'N°'+bk.numero+(inGruppo ? ' (stesso gruppo)' : effectiveStato(bk)==='libera'&&bk.id!==b0.id ? ' (libera)' : '');
+                  return '<option value="'+bk.id+'"'+(bk.id === (e.nuovaBiciId||b0.id) ? ' selected' : '')+'>'+label+'</option>';
+                })
                 .join('')+
             '</select>'+
           '</div>'+
