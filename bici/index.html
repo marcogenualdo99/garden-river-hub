@@ -1353,9 +1353,15 @@ async function salvaDatiNoleggio(id) {
   const daAggiungere = nuoviBikeIds.filter(bid => !originali.has(bid));
   const daRimuovere = [...originali].filter(bid => !nuovi.has(bid));
 
+  // Cattura tutti i valori PRIMA di qualsiasi mutazione locale
   const ritiroIso = e.ritiroTs ? new Date(e.ritiroTs).toISOString() : b.ritiroTs;
   const rientroIso = e.rientroPrevistoTs ? new Date(e.rientroPrevistoTs).toISOString() : (b.rientroPrevistoTs || null);
   const isPagata = effectiveStato(b) === 'occupata_pagata';
+  const statoOccupata = b.stato;
+  const ritiroOp = b.ritiroOp;
+  const pagAnticipato = b.pagamentoAnticipato || false;
+  const fasciaA = isPagata ? b.fasciaAnticipata : b.fasciaPreselezionata;
+  const dettaglioA = isPagata ? b.dettaglioAnticipato : b.dettaglioPreselezionato;
   const nuovoGruppoId = nuoviBikeIds.length > 1 ? (b.gruppoId || ('g_' + Date.now())) : null;
 
   delete editingBike[id];
@@ -1365,15 +1371,15 @@ async function salvaDatiNoleggio(id) {
   nuoviBikeIds.forEach(bid => {
     const bk = bikesMap[bid];
     if (!bk) return;
-    bk.stato = b.stato;
+    bk.stato = statoOccupata;
     bk.clienteNome = nome;
     bk.ritiroTs = ritiroIso;
-    bk.ritiroOp = b.ritiroOp;
+    bk.ritiroOp = ritiroOp;
     bk.rientroPrevistoTs = rientroIso;
-    bk.pagamentoAnticipato = b.pagamentoAnticipato;
+    bk.pagamentoAnticipato = pagAnticipato;
     bk.gruppoId = nuovoGruppoId;
-    if (isPagata) { bk.costoAnticipato = e.costo || 0; bk.fasciaAnticipata = b.fasciaAnticipata; bk.dettaglioAnticipato = b.dettaglioAnticipato; }
-    else { bk.costoPreselezionato = e.costo || 0; bk.fasciaPreselezionata = b.fasciaPreselezionata; bk.dettaglioPreselezionato = b.dettaglioPreselezionato; }
+    if (isPagata) { bk.costoAnticipato = e.costo || 0; bk.fasciaAnticipata = fasciaA; bk.dettaglioAnticipato = dettaglioA; }
+    else { bk.costoPreselezionato = e.costo || 0; bk.fasciaPreselezionata = fasciaA; bk.dettaglioPreselezionato = dettaglioA; }
   });
   daRimuovere.forEach(bid => {
     const bk = bikesMap[bid];
@@ -1389,12 +1395,12 @@ async function salvaDatiNoleggio(id) {
     await waitForFirebase();
     const { db, doc, updateDoc, deleteField } = window._fb;
     const baseUpdate = {
-      stato: b.stato, clienteNome: nome, ritiroTs: ritiroIso, ritiroOp: b.ritiroOp,
+      stato: statoOccupata, clienteNome: nome, ritiroTs: ritiroIso, ritiroOp: ritiroOp,
       rientroPrevistoTs: rientroIso || deleteField(),
-      pagamentoAnticipato: b.pagamentoAnticipato || false,
+      pagamentoAnticipato: pagAnticipato,
       gruppoId: nuovoGruppoId || deleteField(),
-      ...(isPagata ? { costoAnticipato: e.costo||0, fasciaAnticipata: b.fasciaAnticipata, dettaglioAnticipato: b.dettaglioAnticipato }
-                   : { costoPreselezionato: e.costo||0, fasciaPreselezionata: b.fasciaPreselezionata, dettaglioPreselezionato: b.dettaglioPreselezionato }),
+      ...(isPagata ? { costoAnticipato: e.costo||0, fasciaAnticipata: fasciaA, dettaglioAnticipato: dettaglioA }
+                   : { costoPreselezionato: e.costo||0, fasciaPreselezionata: fasciaA, dettaglioPreselezionato: dettaglioA }),
     };
     for (const bid of nuoviBikeIds) await updateDoc(doc(db,'bici',bid), baseUpdate);
     for (const bid of daRimuovere) await updateDoc(doc(db,'bici',bid), {
