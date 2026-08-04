@@ -115,7 +115,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
     padding: 20px 14px; overflow-y: auto;
   }
   .main-col { flex: 1; min-width: 0; }
-  main { max-width: 1000px; margin: 0; padding: 20px 24px 40px; }
+  main { max-width: none; margin: 0; padding: 20px 28px 40px; }
   .header-inner { max-width: none; margin: 0; }
 }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--gray-100); }
@@ -322,6 +322,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
     <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="24" width="72" height="62" rx="8"/><path d="M14 42 L86 42"/><path d="M32 14 L32 30 M68 14 L68 30"/></svg>
     Calendario
   </a>
+  <a class="sidebar-item" href="../alloggi/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
+    Alloggi
+  </a>
+
+  <div class="sidebar-label">Ristorazione</div>
   <a class="sidebar-item" href="../magazzino/">
     <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 44 L50 13 L90 44"/><path d="M18 44 L18 84 L82 84 L82 44"/><rect x="39" y="58" width="22" height="14"/><rect x="32" y="69" width="36" height="15"/></svg>
     Magazzino
@@ -330,25 +336,24 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
     <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="26" r="13"/><circle cx="64" cy="20" r="13"/><path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/><path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/><path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/></svg>
     Conti
   </a>
-  <a class="sidebar-item" href="../alloggi/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
-    Alloggi
-  </a>
-  <a class="sidebar-item" href="../bici/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
-    Bici
-  </a>
   <a class="sidebar-item" href="../ristorazione/staff.html">
     <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 L20 50 Q20 62 32 62 L50 62"/><path d="M50 20 L50 62"/><path d="M80 20 L80 36 Q80 50 65 50 L60 50"/><path d="M35 62 L35 85"/><path d="M25 85 L75 85"/><path d="M65 62 L65 85"/></svg>
     Ristorazione
   </a>
-  <a class="sidebar-item" href="../manutenzione/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
-    Manutenzione
+
+  <div class="sidebar-label">Servizi</div>
+  <a class="sidebar-item" href="../bici/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
+    Bici
   </a>
   <a class="sidebar-item" href="../spiaggia/">
     <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20 L50 72"/><path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/><path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/><path d="M30 72 Q50 64 70 72"/><path d="M20 82 L80 82"/><path d="M60 72 Q65 58 76 60 Q78 70 70 72"/></svg>
     Spiaggia
+  </a>
+
+  <a class="sidebar-item" href="../manutenzione/" style="margin-top:10px">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
+    Manutenzione
   </a>
 
   <div class="sidebar-label">Generale</div>
@@ -556,7 +561,22 @@ const HUB_URL     = '../';
 const MODULE_ID   = 'calendario';
 const SECTION_IDS = ['calendario'];
 const DAY_W       = 46;   // deve combaciare con la variabile CSS --day-w
-const VIEW_DAYS   = 21;   // 3 settimane visibili
+const VIEW_DAYS_MOBILE = 21; // sotto i 960px la vista resta fissa a 3 settimane, scrollabile
+const VIEW_DAYS_MIN    = 14;
+const VIEW_DAYS_MAX    = 45;
+let VIEW_DAYS = VIEW_DAYS_MOBILE; // ricalcolato ad ogni render in base allo spazio disponibile
+
+// Su desktop la vista si allarga per riempire tutto lo schermo (più giorni
+// visibili, non celle più larghe) invece di restare fissa a 3 settimane con
+// spazio vuoto a destra. Sotto i 960px (mobile/tablet) resta fissa e scrollabile.
+function calcolaViewDays() {
+  if (window.innerWidth < 960) return VIEW_DAYS_MOBILE;
+  const scroll = document.getElementById('cal-scroll');
+  const available = (scroll ? scroll.clientWidth : 0) - 152 /* --label-w */;
+  const giorni = Math.floor(available / DAY_W);
+  if (!giorni || giorni < VIEW_DAYS_MIN) return VIEW_DAYS_MIN;
+  return Math.min(giorni, VIEW_DAYS_MAX);
+}
 
 let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSections = new Set();
 let alloggiList  = [];   // [{id, categoria, categoriaLabel, numero, nome, stato}] — SOLA LETTURA
@@ -702,6 +722,15 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 window.addEventListener('online', () => forceRefresh(false));
 window.addEventListener('focus',  () => forceRefresh(false));
 
+// Ridisegna la griglia quando cambia lo spazio disponibile (resize finestra,
+// rotazione, apertura/chiusura sidebar) così il numero di giorni visibili si
+// riadatta sempre a riempire tutta la larghezza, senza spazi vuoti a destra.
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderGrid, 150);
+});
+
 function setSyncStatus(state) {
   const dot = document.getElementById('sync-dot');
   const map = { connecting:'#60A5FA', live:'#4ADE80', saving:'#FCD34D', error:'#F87171', offline:'rgba(255,255,255,0.3)' };
@@ -767,6 +796,8 @@ function goToday()    { viewStart = isoToday(0); renderGrid(); }
 // ── RENDER GRIGLIA ────────────────────────────────────────────────────────
 function renderGrid() {
   const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+  VIEW_DAYS = calcolaViewDays();
   const days = Array.from({length: VIEW_DAYS}, (_,i) => addDaysIso(viewStart, i));
   document.getElementById('range-label').textContent = fmtRangeLabel(viewStart, days[days.length-1]);
 
