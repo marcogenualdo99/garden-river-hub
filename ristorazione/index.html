@@ -832,6 +832,7 @@ async function salvaOrdini(targetData){
   try{
     const {db,collection,doc,setDoc}=window._fbRisto;
     const promises=[];
+    const notificheDaInviare=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const idx = key.lastIndexOf('_');
       const data = key.slice(0, idx);
@@ -849,10 +850,19 @@ async function salvaOrdini(targetData){
       });
       if(!piatti.length) continue;
       const docId=`${famiglia.id}_${data}_${tipo}`;
-      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,notified:false,timestamp:new Date().toISOString()},{merge:true}));
+      const note=sel.note||'';
+      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note,servito:false,notified:false,timestamp:new Date().toISOString()},{merge:true}));
+      notificheDaInviare.push({evento:'ordine',doc_id:docId,famiglia_nome:famiglia.nome,unita:famiglia.unita,tipo,piatti,note});
     }
     if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
+    // Notifica push istantanea allo staff — best effort: se fallisce, il cron di
+    // fallback ogni 5 minuti invierà comunque la notifica leggendo notified:false.
+    for(const payload of notificheDaInviare){
+      fetch('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+      }).catch(()=>{});
+    }
     showToast('Ordine salvato ✓');
     setTimeout(()=>location.reload(), 1200);
   }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
