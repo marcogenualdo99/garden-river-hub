@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Manutenzione · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -19,8 +19,6 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getMessaging, getToken }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -31,14 +29,9 @@
     appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
 
-  // VAPID key pubblica del progetto garden-river-conti-febed
-  // (stessa usata in conti/index.html — stesso progetto Firebase)
-  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
-
   const fbApp    = initializeApp(firebaseConfig);
   const db       = getFirestore(fbApp);
   const auth     = getAuth(fbApp);
-  const messaging = getMessaging(fbApp);
 
   window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
   window._fbReady = false;
@@ -51,51 +44,6 @@
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
   signInAnonymously(auth).catch(() => { window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); });
   setTimeout(segnalaPronto, 8000);
-
-  // ── Attiva notifiche FCM (stesso pattern di conti/index.html) ───────────
-  window._abilitaNotifichePush = async function(operatoreNome) {
-    try {
-      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
-
-      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-      if (!token) return { ok: false, motivo: 'nessun-token' };
-
-      const vecchioToken = localStorage.getItem('gcm_token');
-      const vecchioOp    = localStorage.getItem('gcm_operatore');
-
-      // Rimuovi token obsoleto dall'operatore precedente
-      if (vecchioToken && vecchioToken !== token) {
-        const opDaRipulire = vecchioOp || operatoreNome;
-        try {
-          const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-          await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) });
-        } catch(e) {}
-      }
-      if (vecchioOp && vecchioOp !== operatoreNome) {
-        try {
-          const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-          await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) });
-        } catch(e) {}
-      }
-
-      const { arrayUnion, setDoc: setDocFn } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await setDocFn(doc(db, 'staffTokens', operatoreNome), {
-        tokens: arrayUnion(token),
-        notifiche: true,
-        aggiornato: Date.now()
-      }, { merge: true });
-
-      localStorage.setItem('gcm_token',     token);
-      localStorage.setItem('gcm_operatore', operatoreNome);
-      return { ok: true };
-    } catch(e) {
-      console.error('Errore attivazione notifiche push:', e);
-      return { ok: false, motivo: 'errore', dettaglio: e.message };
-    }
-  };
 </script>
 
 <style>
@@ -521,38 +469,8 @@ main { max-width: 750px; margin: 0 auto; padding: 20px 16px 100px; }
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button id="btn-settings" onclick="openSettings()" title="Impostazioni" style="display:none;width:38px;height:38px;border-radius:50%;background:var(--gray-100);border:none;cursor:pointer;align-items:center;justify-content:center;color:var(--gray-700);-webkit-tap-highlight-color:transparent" aria-label="Impostazioni">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
       <div class="header-avatar" id="header-avatar">??</div>
     </div>
-  </div>
-</div>
-
-<!-- Impostazioni sheet -->
-<div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
-<div class="settings-sheet" id="settings-sheet">
-  <div class="settings-handle"></div>
-  <div class="settings-sheet-title">Impostazioni notifiche</div>
-  <div class="settings-notif-card">
-    <div class="settings-notif-row">
-      <div class="settings-notif-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </div>
-      <div>
-        <div style="font-size:14px;font-weight:800;color:var(--gray-900)">Notifiche push</div>
-        <div style="font-size:12px;color:var(--gray-500);margin-top:2px">Ricevi un avviso quando arriva un nuovo ticket</div>
-      </div>
-    </div>
-    <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
-    <button id="btn-notif" onclick="attivaNotifiche()" class="btn-submit" style="margin-top:0">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      Attiva notifiche
-    </button>
-    <button id="btn-disattiva-notif" onclick="disattivaNotifiche()" class="btn-submit" style="margin-top:8px;background:var(--gray-200);color:var(--gray-700);display:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M17.73 17.73A10 10 0 0 1 6.27 6.27M6 8a6 6 0 0 0-.27 2c0 7-3 9-3 9h14"/><path d="M9.9 4.24A6 6 0 0 1 18 8c0 4.67 1.5 7.11 2.53 8.27M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      Disattiva notifiche
-    </button>
   </div>
 </div>
 
@@ -781,21 +699,6 @@ function computeAllowedSections() {
 function applyRole() {
   document.getElementById('header-avatar').textContent = (currentOperatore || '?').slice(0, 2).toUpperCase();
   document.getElementById('header-role').textContent = isAdmin() ? 'Amministratore' : 'Operatore';
-  // Bottone impostazioni (ingranaggio) visibile solo a chi gestisce i ticket
-  const btnSettings = document.getElementById('btn-settings');
-  if (btnSettings) btnSettings.style.display = canManage ? 'flex' : 'none';
-  if (canManage) aggiornaStatoNotifiche();
-}
-
-function openSettings() {
-  document.getElementById('settings-overlay').classList.add('open');
-  document.getElementById('settings-sheet').classList.add('open');
-  aggiornaStatoNotifiche();
-}
-
-function closeSettings() {
-  document.getElementById('settings-overlay').classList.remove('open');
-  document.getElementById('settings-sheet').classList.remove('open');
 }
 
 function initLogin() {
@@ -1031,42 +934,6 @@ async function changeStatus(id, solved) {
   });
 }
 
-// ── NOTIFICHE PUSH ────────────────────────────────────────────────────────
-function aggiornaStatoNotifiche() {
-  const el  = document.getElementById('notif-status-txt');
-  const btn = document.getElementById('btn-notif');
-  if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Non supportate su questo browser.';
-    if (btn) btn.style.display = 'none';
-    return;
-  }
-  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
-  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
-  el.style.color = attive ? 'var(--green-ok)' : 'var(--gray-500)';
-  if (btn) btn.style.display = attive ? 'none' : '';
-  const btnDis = document.getElementById('btn-disattiva-notif');
-  if (btnDis) btnDis.style.display = attive ? '' : 'none';
-}
-
-async function attivaNotifiche() {
-  const btn = document.getElementById('btn-notif');
-  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
-  const res = await window._abilitaNotifichePush(currentOperatore);
-  if (res.ok) {
-    showToast('Notifiche attivate!');
-  } else {
-    const msg = {
-      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
-      'non-supportato': 'Il tuo browser non supporta le notifiche push',
-      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
-    };
-    showToast(msg[res.motivo] || 'Errore, riprova');
-  }
-  aggiornaStatoNotifiche();
-  if (btn) { btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Attiva notifiche`; }
-}
-
 async function deleteTicket(id) {
   if (!canManage) return;
   showModal('Elimina ticket', 'Il ticket verrà eliminato definitivamente. Questa azione non è reversibile.', 'Elimina', 'var(--red,#ef4444)', async () => {
@@ -1081,20 +948,6 @@ async function deleteTicket(id) {
       showToast('Errore eliminazione');
     }
   });
-}
-
-async function disattivaNotifiche() {
-  const token = localStorage.getItem('gcm_token');
-  if (token && currentOperatore) {
-    try {
-      const { db, doc, updateDoc } = window._fb;
-      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await updateDoc(doc(db, 'staffTokens', currentOperatore), { tokens: arrayRemove(token) });
-    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
-  }
-  localStorage.removeItem('gcm_token');
-  showToast('Notifiche disattivate');
-  aggiornaStatoNotifiche();
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
