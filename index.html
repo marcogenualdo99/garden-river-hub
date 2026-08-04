@@ -66,6 +66,8 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken, onMessage }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const dataFirebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -76,9 +78,13 @@
     appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
 
-  const dataApp  = initializeApp(dataFirebaseConfig, "datiSuite");
-  const dataDb   = getFirestore(dataApp);
-  const dataAuth = getAuth(dataApp);
+  const dataApp   = initializeApp(dataFirebaseConfig, "datiSuite");
+  const dataDb    = getFirestore(dataApp);
+  const dataAuth  = getAuth(dataApp);
+  const messaging = getMessaging(dataApp);
+
+  // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in tutta la suite)
+  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
   window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
   window._fbDataReady = false;
@@ -95,6 +101,57 @@
     segnalaDatiPronti();
   });
   setTimeout(segnalaDatiPronti, 8000);
+
+  // ── Attiva notifiche FCM (unica attivazione per tutta la suite) ─────────
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    try {
+      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      const { arrayRemove, arrayUnion: arrUnion, setDoc: setDocFn } =
+        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+
+      const vecchioToken = localStorage.getItem('gcm_token');
+      const vecchioOp    = localStorage.getItem('gcm_operatore');
+
+      if (vecchioToken && vecchioToken !== token) {
+        const opDaRipulire = vecchioOp || operatoreNome;
+        try { await updateDoc(doc(dataDb, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
+      }
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try { await updateDoc(doc(dataDb, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
+      }
+
+      await setDocFn(doc(dataDb, 'staffTokens', operatoreNome), {
+        tokens: arrUnion(token),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      localStorage.setItem('gcm_token',     token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
+      return { ok: true };
+    } catch(e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
+
+  // Quando la Hub è aperta e in primo piano, FCM non mostra la notifica in automatico
+  // (si aspetta che sia la pagina a gestirla) — la mostriamo qui a mano.
+  onMessage(messaging, (payload) => {
+    const title = payload.notification?.title || 'Notifica';
+    const body  = payload.notification?.body || '';
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg) reg.showNotification(title, { body, icon: 'logo-hub-app.jpg', badge: 'logo-hub-app.jpg' });
+      else if (Notification.permission === 'granted') new Notification(title, { body });
+    });
+  });
 </script>
 <!-- Terzo collegamento Firebase: Magazzino Bar vive nel SUO progetto separato
      "garden-river-magazzino" (diverso da quello di Conti/Alloggi/Bici), quindi
@@ -538,6 +595,9 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
       <button class="hbtn ghost icon" id="btn-search" onclick="toggleSearch()" title="Cerca">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
+      <button class="hbtn ghost icon" id="btn-notifiche" onclick="openNotifiche()" title="Notifiche">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
       <button class="hbtn ghost icon" id="btn-settings" onclick="openSettings()" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -591,6 +651,23 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
         <option value="">— Seleziona operatore —</option>
       </select>
       <div id="permessi-form"></div>
+    </div>
+  </div>
+
+  <!-- ══ NOTIFICHE (tutti gli operatori) ════════════════════════════════════════ -->
+  <div id="sec-notifiche" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="closeNotifiche()">&#8592;</button>
+      <div class="back-title">Notifiche</div>
+    </div>
+
+    <div class="card">
+      <h3>Notifiche push</h3>
+      <p class="subtitle">Ricevi un avviso su questo dispositivo per ordini di ristorazione, ticket di manutenzione e checkout in scadenza — un'unica attivazione vale per tutta la suite.</p>
+      <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
+      <button id="btn-notif" onclick="attivaNotificheHub()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
+      <button id="btn-disattiva-notif" onclick="disattivaNotificheHub()" style="width:100%;height:44px;margin-top:8px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Disattiva notifiche</button>
+      <button id="btn-test-notif" onclick="inviaNotificaTestHub()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Invia notifica di test</button>
     </div>
   </div>
 
@@ -1277,6 +1354,22 @@ function applyHeader() {
   document.getElementById('header-name').textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings').style.display = admin ? '' : 'none';
+
+  // Rinnova silenziosamente il token push se le notifiche erano già attive su questo
+  // dispositivo — al massimo una volta al giorno, TRANNE quando è appena cambiato
+  // l'operatore collegato (dispositivo condiviso): in quel caso riassegna subito
+  // il token al nuovo operatore senza aspettare il giorno successivo.
+  const storedOp        = localStorage.getItem('gcm_operatore');
+  const operatoreCambiato = !!storedOp && storedOp !== currentOperatore;
+  const ultimoRefresh    = Number(localStorage.getItem('gcm_last_refresh') || 0);
+  const giornoInMs       = 24 * 60 * 60 * 1000;
+  if (window._abilitaNotifichePush && 'Notification' in window && Notification.permission === 'granted'
+      && localStorage.getItem('gcm_token')
+      && (operatoreCambiato || (Date.now() - ultimoRefresh) > giornoInMs)) {
+    window._abilitaNotifichePush(currentOperatore || 'Staff')
+      .then(() => localStorage.setItem('gcm_last_refresh', String(Date.now())))
+      .catch(() => {});
+  }
 }
 
 function maybeOpenDeepLink() {
@@ -1413,6 +1506,93 @@ function closeSettings() {
   document.getElementById('sec-settings').classList.remove('active');
   document.getElementById('sec-home').classList.add('active');
   renderHome();
+}
+
+// ── NOTIFICHE (tutti gli operatori) ───────────────────────────────────────
+function openNotifiche() {
+  document.getElementById('sec-home').classList.remove('active');
+  document.getElementById('sec-notifiche').classList.add('active');
+  aggiornaStatoNotifiche();
+}
+function closeNotifiche() {
+  document.getElementById('sec-notifiche').classList.remove('active');
+  document.getElementById('sec-home').classList.add('active');
+  renderHome();
+}
+
+function aggiornaStatoNotifiche() {
+  const el     = document.getElementById('notif-status-txt');
+  const btn    = document.getElementById('btn-notif');
+  const btnDis = document.getElementById('btn-disattiva-notif');
+  const btnTest = document.getElementById('btn-test-notif');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser.';
+    if (btn) btn.style.display = 'none';
+    if (btnTest) btnTest.style.display = 'none';
+    return;
+  }
+  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
+  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  el.style.color = attive ? 'var(--green-ok, #16A34A)' : 'var(--gray-500)';
+  if (btn) btn.style.display = attive ? 'none' : '';
+  if (btnDis) btnDis.style.display = attive ? '' : 'none';
+  if (btnTest) btnTest.style.display = attive ? '' : 'none';
+}
+
+async function attivaNotificheHub() {
+  const btn = document.getElementById('btn-notif');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
+  const res = await window._abilitaNotifichePush(currentOperatore || 'Staff');
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const msg = {
+      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
+    };
+    showToast(msg[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
+}
+
+async function disattivaNotificheHub() {
+  const token = localStorage.getItem('gcm_token');
+  const operatore = localStorage.getItem('gcm_operatore');
+  if (token && operatore) {
+    try {
+      const { db, doc, updateDoc } = window._fbData;
+      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await updateDoc(doc(db, 'staffTokens', operatore), { tokens: arrayRemove(token) });
+    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
+  }
+  localStorage.removeItem('gcm_token');
+  localStorage.removeItem('gcm_operatore');
+  showToast('Notifiche disattivate');
+  aggiornaStatoNotifiche();
+}
+
+async function inviaNotificaTestHub() {
+  const btn = document.getElementById('btn-test-notif');
+  if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
+  try {
+    const res = await fetch('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ evento: 'test', richiesto_da: currentOperatore || 'Staff' })
+    });
+    const out = await res.json().catch(() => ({}));
+    if (res.ok && out.ok) {
+      showToast(out.inviate > 0 ? `Notifica inviata a ${out.inviate} dispositivo/i` : 'Nessun operatore con notifiche attive');
+    } else {
+      showToast('Errore invio test');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Errore invio test: ' + (e.message || e.code));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Invia notifica di test'; }
 }
 
 function renderOperatoriList() {
