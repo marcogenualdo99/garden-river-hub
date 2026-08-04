@@ -17,7 +17,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getMessaging, getToken }
+  import { getMessaging, getToken, onMessage }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const cfg = {
@@ -35,6 +35,18 @@
 
   // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in conti/manutenzione)
   const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
+
+  // Quando questa pagina è aperta e in primo piano, FCM non mostra la notifica in
+  // automatico (si aspetta che sia la pagina a gestirla) — la mostriamo qui a mano,
+  // così il pulsante "Invia notifica di test" funziona anche testando dalla stessa scheda.
+  onMessage(messaging, (payload) => {
+    const title = payload.notification?.title || 'Notifica';
+    const body  = payload.notification?.body || '';
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg) reg.showNotification(title, { body, icon: '../logo-hub-app.jpg', badge: '../logo-hub-app.jpg' });
+      else if (Notification.permission === 'granted') new Notification(title, { body });
+    });
+  });
 
   window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
 
