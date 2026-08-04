@@ -219,6 +219,37 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .hbtn.ghost   { background: var(--gray-100); color: var(--gray-700); border: none; }
 .hbtn:active  { opacity: .8; }
 
+/* ══ SIDEBAR (solo desktop) ═══════════════════════════════════════════════
+   Sotto i 960px resta tutto come prima (solo top-bar, nessuna sidebar): qui
+   aggiungiamo un menu rapido verso tutti i moduli per chi lavora da desktop,
+   stesso pattern già usato in calendario/index.html. */
+.sidebar { display: none; }
+@media (min-width: 960px) {
+  .app-shell { display: flex; align-items: flex-start; }
+  .sidebar {
+    display: flex; flex-direction: column;
+    width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    background: var(--white); border-right: 1px solid var(--gray-100);
+    padding: 20px 14px; overflow-y: auto;
+  }
+  .main-col { flex: 1; min-width: 0; }
+  main { max-width: none; margin: 0; padding: 24px 32px 60px; }
+  .header-inner, .search-header-inner { max-width: none; margin: 0; }
+  .home-headline { font-size: 40px; }
+  .module-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
+}
+.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--gray-100); }
+.sidebar-brand img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; flex-shrink: 0; }
+.sidebar-brand-title { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+.sidebar-brand-sub { font-size: 10.5px; color: var(--gray-500); font-weight: 600; margin-top: 1px; }
+.sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-400); text-transform: uppercase; margin: 16px 10px 6px; }
+.sidebar-label:first-of-type { margin-top: 6px; }
+.sidebar-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: var(--radius-sm); color: var(--gray-500); font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 2px; border-left: 3px solid transparent; transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent; }
+.sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-item:hover { background: var(--gray-50); color: var(--gray-700); }
+.sidebar-item.active { background: var(--green-bg); color: var(--green-700); border-left-color: var(--green-ok); font-weight: 800; }
+.sidebar-spacer { flex: 1; }
+
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .home-headline { font-size: 36px; font-weight: 800; color: var(--gray-900); line-height: 1.2; margin: 4px 0 24px; }
@@ -424,6 +455,72 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
   </div>
 </div>
 
+<div class="app-shell">
+
+<!-- ══ SIDEBAR (solo desktop) — scorciatoie verso tutti i moduli della Hub ══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Hub</div>
+    </div>
+  </div>
+
+  <div class="sidebar-label">Menu</div>
+  <a class="sidebar-item active" href="index.html" onclick="event.preventDefault();closeSettings()">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 46 L50 16 L85 46"/><path d="M22 40 L22 84 L78 84 L78 40"/><path d="M40 84 L40 58 L60 58 L60 84"/></svg>
+    Home
+  </a>
+  <a class="sidebar-item" href="calendario/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="24" width="72" height="62" rx="8"/><path d="M14 42 L86 42"/><path d="M32 14 L32 30 M68 14 L68 30"/></svg>
+    Calendario
+  </a>
+  <a class="sidebar-item" href="alloggi/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
+    Alloggi
+  </a>
+
+  <div class="sidebar-label">Ristorazione</div>
+  <a class="sidebar-item" href="magazzino/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 44 L50 13 L90 44"/><path d="M18 44 L18 84 L82 84 L82 44"/><rect x="39" y="58" width="22" height="14"/><rect x="32" y="69" width="36" height="15"/></svg>
+    Magazzino
+  </a>
+  <a class="sidebar-item" href="conti/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="26" r="13"/><circle cx="64" cy="20" r="13"/><path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/><path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/><path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/></svg>
+    Conti
+  </a>
+  <a class="sidebar-item" href="ristorazione/staff.html">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 L20 50 Q20 62 32 62 L50 62"/><path d="M50 20 L50 62"/><path d="M80 20 L80 36 Q80 50 65 50 L60 50"/><path d="M35 62 L35 85"/><path d="M25 85 L75 85"/><path d="M65 62 L65 85"/></svg>
+    Ristorazione
+  </a>
+
+  <div class="sidebar-label">Servizi</div>
+  <a class="sidebar-item" href="bici/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
+    Bici
+  </a>
+  <a class="sidebar-item" href="spiaggia/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20 L50 72"/><path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/><path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/><path d="M30 72 Q50 64 70 72"/><path d="M20 82 L80 82"/><path d="M60 72 Q65 58 76 60 Q78 70 70 72"/></svg>
+    Spiaggia
+  </a>
+
+  <a class="sidebar-item" href="manutenzione/" style="margin-top:10px">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
+    Manutenzione
+  </a>
+
+  <div class="sidebar-label">Generale</div>
+  <a class="sidebar-item" onclick="doLogout()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+    Esci
+  </a>
+
+  <div class="sidebar-spacer"></div>
+</aside>
+
+<div class="main-col">
+
 <!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
 <div class="top-bar">
   <div class="header-inner">
@@ -498,6 +595,9 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
   </div>
 
 </main>
+
+</div>
+</div>
 
 <!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
 <div id="modal-overlay" class="modal-overlay hidden">
