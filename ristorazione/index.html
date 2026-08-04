@@ -852,7 +852,7 @@ async function salvaOrdini(targetData){
       const docId=`${famiglia.id}_${data}_${tipo}`;
       const note=sel.note||'';
       promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note,servito:false,notified:false,timestamp:new Date().toISOString()},{merge:true}));
-      notificheDaInviare.push({evento:'ordine',doc_id:docId,famiglia_nome:famiglia.nome,unita:famiglia.unita,tipo,piatti,note});
+      notificheDaInviare.push({evento:'ordine',doc_id:docId,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note});
     }
     if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
