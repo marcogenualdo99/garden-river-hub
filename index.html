@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Garden Hub</title>
 <link rel="apple-touch-icon" href="logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="logo-hub-app.jpg">
@@ -582,6 +582,12 @@ const ICON_SPIAGGIA = `<svg viewBox="0 0 100 100" fill="none" stroke="currentCol
   <path d="M60 72 Q65 58 76 60 Q78 70 70 72"/>
 </svg>`;
 
+const ICON_CALENDAR = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <rect x="14" y="24" width="72" height="62" rx="8"/>
+  <path d="M14 42 L86 42"/>
+  <path d="M32 14 L32 30 M68 14 L68 30"/>
+</svg>`;
+
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
@@ -680,6 +686,17 @@ const MODULES = [
     statKey: 'spiaggia',
     sezioni: [
       { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
+    ],
+  },
+  {
+    id: 'calendario',
+    nome: 'Calendario Prenotazioni',
+    titolo: 'Calendario',
+    url: 'calendario/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_CALENDAR,
+    tile: 'dark',
+    sezioni: [
+      { id: 'calendario', nome: 'Planning prenotazioni' },
     ],
   },
 ];
@@ -1205,6 +1222,7 @@ function clearSearch() {
 let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null };
 
 function statoModulo(mod) {
+  if (!mod.statKey) return { sub: '', badge: null };
   const s = homeStats[mod.statKey];
   if (!s) return { sub: '<span class="stat-loading"></span>', badge: null };
   if (mod.statKey === 'magazzino') {
