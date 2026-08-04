@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Calendario · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calendario">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // Stesso progetto Firestore già usato dalle altre app della suite: qui
+  // usiamo solo una nuova collezione ("prenotazioni"), non serve nessun
+  // progetto Firebase nuovo. La collezione "alloggi" viene solo letta.
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  --green-900: #0D2B1E; --green-700: #1B4332; --green-500: #2D6A4F; --green-400: #40916C; --green-200: #95D5B2; --green-100: #D8F3DC; --green-50: #F0FAF4;
+  --gray-900: #0F172A; --gray-700: #334155; --gray-500: #64748B; --gray-400: #94A3B8; --gray-300: #CBD5E1; --gray-200: #E2E8F0; --gray-100: #F1F5F9; --gray-50: #F8FAFC; --white: #FFFFFF;
+  --orange: #D97706; --orange-bg: #FFFBEB;
+  --red: #DC2626; --red-bg: #FEF2F2; --red-light: #FCA5A5;
+  --blue: #2563EB; --blue-bg: #EFF6FF; --blue-light: #93C5FD;
+  --green-ok: #16A34A; --green-bg: #F0FDF4; --green-light: #86EFAC;
+  --radius-xs: 8px; --radius-sm: 12px; --radius: 16px; --radius-lg: 20px; --radius-xl: 32px;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow:    0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
+  --shadow-lg: 0 10px 30px rgba(15,23,42,0.12), 0 4px 8px rgba(15,23,42,0.06);
+  --border: #E2E8F0;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --day-w: 46px;
+  --label-w: 152px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+.hidden { display: none !important; }
+@keyframes gr-spin { to { transform: rotate(360deg); } }
+
+/* ══ LOGIN (gestito centralmente dalla Hub, identico agli altri moduli) ══ */
+.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
+.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
+.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.btn-primary:active { opacity: .85; }
+
+/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
+.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-200); padding-top: env(safe-area-inset-top); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; padding: 10px 16px; }
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
+.header-name  { font-size: 14px; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
+.header-role  { font-size: 10px; color: var(--gray-500); font-weight: 500; margin-top: 1px; }
+.header-btns  { display: flex; align-items: center; gap: 6px; }
+.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: background .15s; }
+.hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); }
+.hbtn.ghost:hover { background: var(--gray-200); }
+.hbtn:active { opacity: .8; }
+
+main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
+
+/* ══ SIDEBAR (solo desktop) ═══════════════════════════════════════════════
+   Sotto la soglia resta tutto come prima (top-bar in cima, nessuna sidebar):
+   qui aggiungiamo solo un menu rapido verso gli altri moduli della Hub per
+   chi lavora da desktop, senza cambiare nulla nell'esperienza mobile. */
+.sidebar { display: none; }
+@media (min-width: 960px) {
+  .app-shell { display: flex; align-items: flex-start; }
+  .sidebar {
+    display: flex; flex-direction: column;
+    width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    background: var(--white); border-right: 1px solid var(--gray-200);
+    padding: 20px 14px; overflow-y: auto;
+  }
+  .main-col { flex: 1; min-width: 0; }
+  main { max-width: 1000px; margin: 0; padding: 20px 24px 40px; }
+  .header-inner { max-width: none; margin: 0; }
+}
+.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--gray-100); }
+.sidebar-brand img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; flex-shrink: 0; }
+.sidebar-brand-title { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
+.sidebar-brand-sub { font-size: 10.5px; color: var(--gray-500); font-weight: 600; margin-top: 1px; }
+.sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-400); text-transform: uppercase; margin: 16px 10px 6px; }
+.sidebar-label:first-of-type { margin-top: 6px; }
+.sidebar-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: var(--radius-sm); color: var(--gray-500); font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 2px; border-left: 3px solid transparent; transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent; }
+.sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+.sidebar-item:hover { background: var(--gray-50); color: var(--gray-700); }
+.sidebar-item.active { background: var(--green-bg); color: var(--green-700); border-left-color: var(--green-ok); font-weight: 800; }
+.sidebar-spacer { flex: 1; }
+
+/* ══ TOOLBAR ══════════════════════════════════════════════════════════════ */
+.cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.cal-nav { display: flex; align-items: center; gap: 6px; }
+.cal-range-label { font-size: 13px; font-weight: 800; color: var(--gray-900); min-width: 170px; text-align: center; }
+.cal-nav-btn { width: 34px; height: 34px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: var(--radius-xs); cursor: pointer; font-size: 16px; font-weight: 700; color: var(--gray-700); display: flex; align-items: center; justify-content: center; font-family: var(--font); }
+.cal-nav-btn:hover { border-color: var(--green-400); color: var(--green-500); }
+.cal-today-btn { height: 34px; padding: 0 12px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--gray-700); cursor: pointer; font-family: var(--font); }
+.cal-add-btn { height: 34px; padding: 0 16px; border: none; background: var(--green-ok); color: #fff; border-radius: 20px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+
+/* ══ LEGENDA ══════════════════════════════════════════════════════════════ */
+.cal-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; font-size: 11px; color: var(--gray-500); font-weight: 600; }
+.cal-legend-item { display: flex; align-items: center; gap: 5px; }
+.cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* ══ GRIGLIA PLANNING ═════════════════════════════════════════════════════ */
+.cal-scroll { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
+.cal-header-row { display: flex; position: sticky; top: 0; z-index: 5; background: var(--white); border-bottom: 2px solid var(--gray-200); }
+.cal-corner { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 6; background: var(--white); border-right: 1px solid var(--gray-200); display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .04em; }
+.cal-daycol-head { flex: none; text-align: center; padding: 6px 2px; font-size: 10px; color: var(--gray-500); font-weight: 700; border-right: 1px solid var(--gray-100); }
+.cal-daycol-head .dow { text-transform: uppercase; letter-spacing: .03em; font-size: 9px; color: var(--gray-400); }
+.cal-daycol-head .num { font-size: 13px; color: var(--gray-900); margin-top: 2px; }
+.cal-daycol-head.weekend { background: var(--gray-50); }
+.cal-daycol-head.today .num { color: var(--white); background: var(--green-ok); border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+
+.cal-cat-row { display: flex; background: var(--green-50); border-bottom: 1px solid var(--gray-100); }
+.cal-cat-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 3; background: var(--green-50); padding: 6px 12px; font-size: 11px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--gray-200); }
+.cal-cat-fill { flex: none; }
+
+.cal-row { display: flex; border-bottom: 1px solid var(--gray-100); }
+.cal-row-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 2; background: var(--white); border-right: 1px solid var(--gray-200); padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; }
+.cal-row-track { flex: none; position: relative; height: 54px; }
+.cal-daycell { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--gray-100); cursor: pointer; }
+.cal-daycell:hover { background: var(--green-50); }
+.cal-daycell.weekend { background: rgba(148,163,184,0.08); }
+.cal-daycell.today { background: rgba(22,163,74,0.07); }
+
+.cal-bar { position: absolute; top: 6px; height: 42px; border-radius: 10px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: #fff; overflow: hidden; cursor: pointer; box-shadow: var(--shadow-sm); z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: transform .1s; }
+.cal-bar:hover { transform: translateY(-1px); }
+.cal-bar .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+.cal-bar .meta { font-size: 9.5px; font-weight: 600; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+.cal-bar.tr-pc { background: var(--green-700); }
+.cal-bar.tr-mp { background: var(--green-500); }
+.cal-bar.tr-no { background: var(--gray-500); }
+.cal-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,0.28); font-size: 8.5px; font-weight: 800; margin-right: 3px; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ MODALE CONFERMA ══════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+/* La conferma (eliminazione/sovrapposizione) può aprirsi sopra al form
+   prenotazione già visibile (es. "salva comunque?"): deve stare più in alto. */
+#modal-overlay { z-index: 1100; }
+#schedina-modal-overlay { z-index: 1100; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 340px; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
+.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm { flex: 1; height: 46px; background: var(--green-ok); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm.danger { background: var(--red); }
+
+/* ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ */
+.form-modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.form-modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+.f-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.f-row > div { flex: 1; min-width: 0; }
+.f-label { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 5px; letter-spacing: .02em; display: block; }
+.f-input, .f-select, .f-textarea { width: 100%; height: 44px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); color: var(--gray-900); background: var(--gray-50); outline: none; transition: border-color .15s; }
+.f-input:focus, .f-select:focus, .f-textarea:focus { border-color: var(--green-400); background: var(--white); }
+.f-textarea { height: auto; padding: 10px 12px; resize: vertical; min-height: 56px; }
+.f-check-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.f-check { display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--gray-600); cursor: pointer; user-select: none; }
+.f-check input { width: 15px; height: 15px; accent-color: var(--green-ok); }
+.f-check.on { border-color: var(--green-ok); background: var(--green-bg); color: var(--green-ok); }
+.kit-section { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 12px; margin-bottom: 12px; background: var(--gray-50); }
+.kit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
+.kit-row:last-child { border-bottom: none; }
+.kit-label { font-size: 13px; font-weight: 700; color: var(--gray-700); }
+.qty-stepper { display: flex; align-items: center; border: 1.5px solid var(--gray-200); border-radius: 20px; overflow: hidden; height: 34px; background: var(--white); }
+.qty-btn { width: 32px; height: 34px; border: none; background: var(--gray-50); font-size: 16px; font-weight: 700; cursor: pointer; font-family: var(--font); color: var(--gray-700); transition: background .15s, color .15s; }
+.qty-btn:hover { background: var(--green-bg); color: var(--green-ok); }
+.qty-val { width: 36px; height: 34px; border: none; text-align: center; font-size: 14px; font-weight: 800; color: var(--gray-900); font-family: var(--font); background: var(--white); -moz-appearance: textfield; }
+.qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.form-actions { display: flex; gap: 8px; margin-top: 16px; }
+.form-actions .del-btn { flex: none; height: 46px; padding: 0 16px; background: var(--red-bg); color: var(--red); border: none; border-radius: var(--radius-xl); font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+
+/* ══ SEZIONE OSPITI (Alloggiati Web) ══════════════════════════════════════ */
+.section-block { margin-bottom: 14px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+.section-title { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--gray-700); text-transform: uppercase; }
+.section-hint { font-size: 11.5px; color: var(--gray-500); line-height: 1.5; margin-bottom: 10px; }
+.f-label .req { color: var(--red); margin-left: 2px; }
+
+.ospite-card { background: var(--white); border: 1.5px solid var(--gray-200); border-left: 3px solid var(--gray-300); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin-bottom: 10px; }
+.ospite-card.capo { border-left-color: var(--green-ok); background: var(--green-bg); }
+.ospite-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.ospite-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.ospite-badge.capo { background: var(--green-ok); color: #fff; }
+.ospite-badge.familiare { background: var(--gray-200); color: var(--gray-700); }
+.ospite-remove-btn { width: 28px; height: 28px; border: none; border-radius: 50%; background: transparent; color: var(--gray-400); font-size: 15px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
+.ospite-remove-btn:hover { background: var(--red-bg); color: var(--red); }
+.ospite-doc-fields { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--gray-300); }
+.ospite-doc-label { font-size: 10.5px; font-weight: 700; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.ospite-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 12px; }
+.ospite-fields-doc { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 12px; }
+
+.add-ospite-btn { width: 100%; height: 42px; border: 1.5px dashed var(--gray-300); border-radius: var(--radius-sm); background: transparent; color: var(--gray-600); font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: border-color .15s, color .15s, background .15s; }
+.add-ospite-btn:hover { border-color: var(--green-ok); color: var(--green-ok); background: var(--green-bg); }
+
+.schedina-btn { width: 100%; height: 44px; border: none; border-radius: var(--radius-sm); background: var(--gray-900); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.schedina-btn:hover { opacity: .9; }
+
+/* ══ MODALE ANTEPRIMA SCHEDINA ═════════════════════════════════════════════ */
+.schedina-modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.schedina-draft-note { display: flex; gap: 8px; align-items: flex-start; background: var(--amber-bg); border: 1px solid #FDE68A; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: #92600A; line-height: 1.5; margin-bottom: 16px; }
+.schedina-summary-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
+.schedina-summary-row:last-child { border-bottom: none; }
+.schedina-summary-name { font-weight: 700; color: var(--gray-900); }
+.schedina-summary-meta { color: var(--gray-500); font-size: 11.5px; }
+.schedina-block { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px; margin-top: 14px; overflow-x: auto; }
+.schedina-line { display: flex; gap: 10px; align-items: baseline; font-family: 'SF Mono', 'Menlo', 'Consolas', ui-monospace, monospace; font-size: 11.5px; line-height: 1.8; color: var(--gray-900); white-space: pre; }
+.schedina-line .len { flex: none; font-family: var(--font); font-size: 9.5px; font-weight: 700; color: var(--gray-400); white-space: nowrap; }
+.schedina-line .len.ok { color: var(--green-ok); }
+.schedina-line .len.bad { color: var(--red); }
+
+/* ══ MODALI PRENOTAZIONE — LAYOUT ORIZZONTALE DESKTOP ═════════════════════
+   Sotto i 960px tutto resta impilato in verticale (come su mobile); da 960px
+   in su le modali si allargano e i campi si dispongono su più colonne, così
+   la sezione ospiti non diventa un lunghissimo scroll verticale. */
+@media (min-width: 960px) {
+  .form-modal-box { max-width: 880px; }
+  .schedina-modal-box { max-width: 920px; }
+  .ospite-fields { grid-template-columns: repeat(4, 1fr); }
+  .ospite-fields-doc { grid-template-columns: repeat(3, 1fr); }
+  .kit-section { display: flex; gap: 20px; padding: 14px 16px; }
+  .kit-row { flex: 1; flex-direction: column; align-items: flex-start; gap: 8px; border-bottom: none; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Calendario</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Calendario</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<div class="app-shell">
+
+<!-- ══ SIDEBAR (solo desktop) — scorciatoie verso gli altri moduli della Hub ══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Calendario</div>
+    </div>
+  </div>
+
+  <div class="sidebar-label">Menu</div>
+  <a class="sidebar-item active" href="../calendario/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="24" width="72" height="62" rx="8"/><path d="M14 42 L86 42"/><path d="M32 14 L32 30 M68 14 L68 30"/></svg>
+    Calendario
+  </a>
+  <a class="sidebar-item" href="../magazzino/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 44 L50 13 L90 44"/><path d="M18 44 L18 84 L82 84 L82 44"/><rect x="39" y="58" width="22" height="14"/><rect x="32" y="69" width="36" height="15"/></svg>
+    Magazzino
+  </a>
+  <a class="sidebar-item" href="../conti/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="26" r="13"/><circle cx="64" cy="20" r="13"/><path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/><path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/><path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/></svg>
+    Conti
+  </a>
+  <a class="sidebar-item" href="../alloggi/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
+    Alloggi
+  </a>
+  <a class="sidebar-item" href="../bici/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
+    Bici
+  </a>
+  <a class="sidebar-item" href="../ristorazione/staff.html">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 L20 50 Q20 62 32 62 L50 62"/><path d="M50 20 L50 62"/><path d="M80 20 L80 36 Q80 50 65 50 L60 50"/><path d="M35 62 L35 85"/><path d="M25 85 L75 85"/><path d="M65 62 L65 85"/></svg>
+    Ristorazione
+  </a>
+  <a class="sidebar-item" href="../manutenzione/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
+    Manutenzione
+  </a>
+  <a class="sidebar-item" href="../spiaggia/">
+    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20 L50 72"/><path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/><path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/><path d="M30 72 Q50 64 70 72"/><path d="M20 82 L80 82"/><path d="M60 72 Q65 58 76 60 Q78 70 70 72"/></svg>
+    Spiaggia
+  </a>
+
+  <div class="sidebar-label">Generale</div>
+  <a class="sidebar-item" href="../">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Torna alla Hub
+  </a>
+  <a class="sidebar-item" onclick="doLogout()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+    Esci
+  </a>
+
+  <div class="sidebar-spacer"></div>
+</aside>
+
+<div class="main-col">
+
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<div class="top-bar" id="top-bar-main">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
+      <button class="hbtn ghost icon" onclick="forceRefresh(true)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+    </div>
+  </div>
+</div>
+
+<main id="main-view">
+  <div class="cal-toolbar">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="navWeek(-1)" title="Settimana precedente">&#8592;</button>
+      <div class="cal-range-label" id="range-label"></div>
+      <button class="cal-nav-btn" onclick="navWeek(1)" title="Settimana successiva">&#8594;</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="cal-today-btn" onclick="goToday()">Oggi</button>
+      <button class="cal-add-btn" onclick="openNuovaPrenotazione()">+ Nuova prenotazione</button>
+    </div>
+  </div>
+  <div class="cal-legend">
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-700)"></span>Pensione completa</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-500)"></span>Mezza pensione</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-500)"></span>Nessun trattamento</div>
+    <div class="cal-legend-item">B = biancheria · C = bici · S = spiaggia</div>
+  </div>
+  <div class="cal-scroll" id="cal-scroll">
+    <div id="cal-grid"></div>
+  </div>
+</main>
+
+</div>
+</div>
+
+<!-- ══ MODALE CONFERMA (eliminazione / sovrapposizione) ═══════════════════ -->
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="modal-btn-cancel" id="modal-cancel-btn">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="form-modal-overlay">
+  <div class="form-modal-box">
+    <div class="form-modal-title" id="form-modal-title">Nuova prenotazione</div>
+
+    <div class="f-row">
+      <div>
+        <label class="f-label">Alloggio</label>
+        <select class="f-select" id="f-alloggio"></select>
+      </div>
+    </div>
+    <div class="f-row">
+      <div>
+        <label class="f-label">Nome ospite</label>
+        <input class="f-input" id="f-nome" type="text" placeholder="Es. Famiglia Rossi">
+      </div>
+      <div>
+        <label class="f-label">Telefono</label>
+        <input class="f-input" id="f-tel" type="tel" placeholder="Opzionale">
+      </div>
+    </div>
+    <div class="f-row">
+      <div>
+        <label class="f-label">Check-in</label>
+        <input class="f-input" id="f-checkin" type="date">
+      </div>
+      <div>
+        <label class="f-label">Check-out</label>
+        <input class="f-input" id="f-checkout" type="date">
+      </div>
+    </div>
+    <div class="f-row">
+      <div>
+        <label class="f-label">Adulti</label>
+        <input class="f-input" id="f-adulti" type="number" min="0" value="2">
+      </div>
+      <div>
+        <label class="f-label">Bambini</label>
+        <input class="f-input" id="f-bambini" type="number" min="0" value="0">
+      </div>
+      <div>
+        <label class="f-label">Trattamento ristorazione</label>
+        <select class="f-select" id="f-trattamento">
+          <option value="no">Nessuno</option>
+          <option value="PC">Pensione completa</option>
+          <option value="MP">Mezza pensione</option>
+        </select>
+      </div>
+    </div>
+
+    <label class="f-label">Biancheria</label>
+    <div class="kit-section">
+      <div class="kit-row">
+        <span class="kit-label">Kit bagno</span>
+        <div class="qty-stepper">
+          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-bagno',-1)">−</button>
+          <input class="qty-val" id="f-kit-bagno" type="number" min="0" value="0" readonly>
+          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-bagno',1)">+</button>
+        </div>
+      </div>
+      <div class="kit-row">
+        <span class="kit-label">Kit singolo</span>
+        <div class="qty-stepper">
+          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-singolo',-1)">−</button>
+          <input class="qty-val" id="f-kit-singolo" type="number" min="0" value="0" readonly>
+          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-singolo',1)">+</button>
+        </div>
+      </div>
+      <div class="kit-row">
+        <span class="kit-label">Kit matrimoniale</span>
+        <div class="qty-stepper">
+          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-matrimoniale',-1)">−</button>
+          <input class="qty-val" id="f-kit-matrimoniale" type="number" min="0" value="0" readonly>
+          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-matrimoniale',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <label class="f-label">Altri servizi</label>
+    <div class="f-check-row">
+      <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
+      <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia"> Spiaggia</label>
+    </div>
+
+    <div class="section-block">
+      <div class="section-head">
+        <span class="section-title">Ospiti da censire (Alloggiati Web)</span>
+      </div>
+      <p class="section-hint">Il primo ospite è il Capofamiglia/Ospite singolo (richiede documento); gli altri sono Familiari e non lo richiedono, come previsto dalla normativa.</p>
+      <div id="ospiti-list"></div>
+      <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
+      <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
+    </div>
+
+    <div>
+      <label class="f-label">Note</label>
+      <textarea class="f-textarea" id="f-note" placeholder="Note interne (facoltativo)"></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button class="del-btn hidden" id="btn-elimina" onclick="eliminaPrenotazioneCorrente()">Elimina</button>
+      <button class="modal-btn-cancel" style="flex:1" onclick="closeFormModal()">Annulla</button>
+      <button class="modal-btn-confirm" style="flex:1" onclick="salvaPrenotazione()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE ANTEPRIMA SCHEDINA ALLOGGIATI WEB (bozza, nessun invio reale) ══ -->
+<div class="modal-overlay hidden" id="schedina-modal-overlay">
+  <div class="schedina-modal-box">
+    <div class="form-modal-title">Anteprima schedina Alloggiati Web</div>
+    <div class="schedina-draft-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+      <span>Bozza: nessuna chiamata reale viene effettuata. I codici (comune/stato/documento) sono testo libero — la mappatura ai codici ufficiali Alloggiati Web verrà completata quando collegheremo l'invio automatico.</span>
+    </div>
+    <div id="schedina-summary"></div>
+    <div class="schedina-block" id="schedina-block"></div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiAnteprimaSchedina()">Chiudi</button>
+      <button class="modal-btn-confirm" style="flex:1" onclick="simulaInvioAlloggiatiWeb()">Simula invio</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL     = '../';
+const MODULE_ID   = 'calendario';
+const SECTION_IDS = ['calendario'];
+const DAY_W       = 46;   // deve combaciare con la variabile CSS --day-w
+const VIEW_DAYS   = 21;   // 3 settimane visibili
+
+let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSections = new Set();
+let alloggiList  = [];   // [{id, categoria, categoriaLabel, numero, nome, stato}] — SOLA LETTURA
+let prenotazioni = [];   // [{id, alloggio_id, alloggio_nome, nome, checkin, checkout, ...}]
+let viewStart    = isoToday(0);
+let editingId    = null;
+
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once:true });
+  });
+}
+
+// ── UTILITY DATE ─────────────────────────────────────────────────────────
+function isoToday(offset) {
+  const d = new Date(); d.setDate(d.getDate() + (offset||0));
+  return d.toISOString().slice(0,10);
+}
+function addDaysIso(iso, n) {
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function diffDays(a, b) {
+  return Math.round((new Date(b+'T12:00:00') - new Date(a+'T12:00:00')) / 86400000);
+}
+function isWeekend(iso) {
+  const dow = new Date(iso+'T12:00:00').getDay();
+  return dow === 0 || dow === 6;
+}
+const DOW_LABELS   = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+const MONTH_LABELS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+function fmtDayLabel(iso) {
+  const d = new Date(iso+'T12:00:00');
+  return { dow: DOW_LABELS[d.getDay()], num: d.getDate() };
+}
+function fmtRangeLabel(startIso, endIso) {
+  const s = new Date(startIso+'T12:00:00'), e = new Date(endIso+'T12:00:00');
+  const sameYear  = s.getFullYear() === e.getFullYear();
+  const sameMonth = sameYear && s.getMonth() === e.getMonth();
+  const startStr = sameMonth ? `${s.getDate()}` : `${s.getDate()} ${MONTH_LABELS[s.getMonth()]}${sameYear?'':' '+s.getFullYear()}`;
+  const endStr   = `${e.getDate()} ${MONTH_LABELS[e.getMonth()]} ${e.getFullYear()}`;
+  return `${startStr} – ${endStr}`;
+}
+function esc(s) {
+  return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function generaCodice() {
+  return Math.random().toString(36).slice(2,8).toUpperCase();
+}
+
+// ── LOGIN / PERMESSI (single sign-on dalla Hub — identico agli altri moduli) ─
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+function computeAllowedSections() {
+  const admin = isAdmin();
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = admin || sez[id] !== false;
+    if (ok) allowedSections.add(id);
+  });
+}
+function applyRole() {
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = isAdmin() ? 'Amministratore' : 'Operatore';
+}
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    maybeHideLoading();
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (allowedSections.size === 0) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    maybeHideLoading();
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applyRole();
+  maybeHideLoading();
+}
+function doLogout() {
+  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_permessi');
+  location.href = HUB_URL;
+}
+
+// ── SINCRONIZZAZIONE FIRESTORE ───────────────────────────────────────────
+// "alloggi" viene solo letta (mai scritta) per generare le righe del
+// planning; "prenotazioni" è l'unica collezione su cui questo modulo scrive.
+let _unsubAlloggi = null, _unsubPrenotazioni = null;
+async function startRealtimeSync() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  setSyncStatus('connecting');
+  try {
+    _unsubAlloggi = onSnapshot(collection(db, 'alloggi'), (snap) => {
+      alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderGrid();
+    }, (err) => { console.error('Errore lettura alloggi:', err); setSyncStatus('error'); });
+  } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
+  try {
+    _unsubPrenotazioni = onSnapshot(collection(db, 'prenotazioni'), (snap) => {
+      prenotazioni = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSyncStatus('live');
+      renderGrid();
+      _dataReady = true;
+      maybeHideLoading();
+    }, (err) => { console.error('Errore lettura prenotazioni:', err); setSyncStatus('error'); });
+  } catch(e) { console.error('Errore avvio sync prenotazioni:', e); setSyncStatus('error'); }
+}
+async function forceRefresh(manual) {
+  await waitForFirebase();
+  const { db, collection, getDocs } = window._fb;
+  try {
+    const [snapA, snapP] = await Promise.all([getDocs(collection(db,'alloggi')), getDocs(collection(db,'prenotazioni'))]);
+    alloggiList  = snapA.docs.map(d => ({ id: d.id, ...d.data() }));
+    prenotazioni = snapP.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSyncStatus('live');
+    renderGrid();
+    if (manual) showToast('Aggiornato');
+  } catch(e) { console.error('Errore refresh:', e); setSyncStatus('error'); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') forceRefresh(false); });
+window.addEventListener('online', () => forceRefresh(false));
+window.addEventListener('focus',  () => forceRefresh(false));
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const map = { connecting:'#60A5FA', live:'#4ADE80', saving:'#FCD34D', error:'#F87171', offline:'rgba(255,255,255,0.3)' };
+  if (dot) dot.style.background = map[state] || map.offline;
+}
+
+// ── AUTO-RECOVERY connessione Firestore (stesso pattern degli altri moduli) ─
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'prenotazioni'), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    setSyncStatus('error');
+    await kickFirestoreConnection();
+    forceRefresh(false);
+  }
+}
+setInterval(checkConnessione, 30000);
+
+// ── RAGGRUPPAMENTO ALLOGGI PER CATEGORIA ─────────────────────────────────
+function groupedAlloggi() {
+  const map = {};
+  alloggiList.forEach(a => {
+    const key = a.categoria || 'altro';
+    if (!map[key]) map[key] = { label: a.categoriaLabel || key, items: [] };
+    map[key].items.push(a);
+  });
+  const cats = Object.values(map);
+  cats.forEach(c => c.items.sort((x,y) => (x.numero||0) - (y.numero||0)));
+  cats.sort((a,b) => a.label.localeCompare(b.label));
+  return cats;
+}
+
+// ── BIANCHERIA (kit bagno / singolo / matrimoniale) ──────────────────────
+function descrizioneKit(p) {
+  const parti = [];
+  if (p.biancheria_kit_matrimoniale) parti.push(`${p.biancheria_kit_matrimoniale} matrimoniale`);
+  if (p.biancheria_kit_singolo)      parti.push(`${p.biancheria_kit_singolo} singolo`);
+  if (p.biancheria_kit_bagno)        parti.push(`${p.biancheria_kit_bagno} bagno`);
+  return parti.join(', ');
+}
+
+// ── NAVIGAZIONE TIMELINE ─────────────────────────────────────────────────
+function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); }
+function goToday()    { viewStart = isoToday(0); renderGrid(); }
+
+// ── RENDER GRIGLIA ────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('cal-grid');
+  const days = Array.from({length: VIEW_DAYS}, (_,i) => addDaysIso(viewStart, i));
+  document.getElementById('range-label').textContent = fmtRangeLabel(viewStart, days[days.length-1]);
+
+  const trackWidth = VIEW_DAYS * DAY_W;
+  const today = isoToday(0);
+  let html = '';
+
+  html += `<div class="cal-header-row"><div class="cal-corner">Alloggio</div>`;
+  days.forEach(iso => {
+    const { dow, num } = fmtDayLabel(iso);
+    const cls = ['cal-daycol-head'];
+    if (isWeekend(iso)) cls.push('weekend');
+    if (iso === today) cls.push('today');
+    html += `<div class="${cls.join(' ')}" style="width:${DAY_W}px"><div class="dow">${dow}</div><div class="num">${num}</div></div>`;
+  });
+  html += `</div>`;
+
+  const cats = groupedAlloggi();
+  if (!cats.length) {
+    html += `<div class="empty-state">Nessun alloggio trovato nella collezione "alloggi". Verifica che il modulo Alloggi sia stato aperto almeno una volta (inizializza i dati automaticamente).</div>`;
+  }
+
+  cats.forEach(cat => {
+    html += `<div class="cal-cat-row"><div class="cal-cat-label">${esc(cat.label)}</div><div class="cal-cat-fill" style="width:${trackWidth}px"></div></div>`;
+    cat.items.forEach(a => {
+      html += `<div class="cal-row">
+        <div class="cal-row-label">${esc(a.nome || a.id)}</div>
+        <div class="cal-row-track" style="width:${trackWidth}px" onclick="onTrackClick(event,'${esc(a.id)}')">`;
+      days.forEach((iso,i) => {
+        const cls = ['cal-daycell'];
+        if (isWeekend(iso)) cls.push('weekend');
+        if (iso === today) cls.push('today');
+        html += `<div class="${cls.join(' ')}" style="left:${i*DAY_W}px;width:${DAY_W}px"></div>`;
+      });
+      const bookings = prenotazioni.filter(p => p.alloggio_id === a.id);
+      bookings.forEach(p => {
+        const startOffset = diffDays(viewStart, p.checkin);
+        const endOffset   = diffDays(viewStart, p.checkout);
+        if (endOffset <= 0 || startOffset >= VIEW_DAYS) return; // fuori dalla vista corrente
+        const clampedStart = Math.max(startOffset, 0);
+        const clampedEnd   = Math.min(endOffset, VIEW_DAYS);
+        const left  = clampedStart * DAY_W + 2;
+        const width = Math.max((clampedEnd - clampedStart) * DAY_W - 4, DAY_W - 4);
+        const trCls = p.trattamento_ristorazione === 'PC' ? 'tr-pc' : (p.trattamento_ristorazione === 'MP' ? 'tr-mp' : 'tr-no');
+        const kitDesc = descrizioneKit(p);
+        const flags = [];
+        if (kitDesc)      flags.push(`<span class="cal-flag" title="Biancheria: ${esc(kitDesc)}">B</span>`);
+        if (p.bici)       flags.push('<span class="cal-flag" title="Bici">C</span>');
+        if (p.spiaggia)   flags.push('<span class="cal-flag" title="Spiaggia">S</span>');
+        const titleParts = [`${p.nome} · ${p.checkin} → ${p.checkout}`];
+        if (kitDesc) titleParts.push(`Biancheria: ${kitDesc}`);
+        html += `<div class="cal-bar ${trCls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}" onclick="event.stopPropagation();apriModificaPrenotazione('${esc(p.id)}')">
+          <div class="nome">${esc(p.nome||'—')}</div>
+          <div class="meta">${flags.join('')}${p.adulti||0}+${p.bambini||0}</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+  });
+
+  grid.innerHTML = html;
+}
+
+function onTrackClick(ev, alloggioId) {
+  const rect = ev.currentTarget.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const dayIndex = Math.max(0, Math.min(VIEW_DAYS-1, Math.floor(x / DAY_W)));
+  const clickedIso = addDaysIso(viewStart, dayIndex);
+  openNuovaPrenotazione(alloggioId, clickedIso);
+}
+
+// ── MODALE FORM PRENOTAZIONE ──────────────────────────────────────────────
+function populateAlloggioSelect(selectedId) {
+  const sel = document.getElementById('f-alloggio');
+  const cats = groupedAlloggi();
+  sel.innerHTML = cats.map(cat =>
+    `<optgroup label="${esc(cat.label)}">${cat.items.map(a =>
+      `<option value="${esc(a.id)}" data-nome="${esc(a.nome||a.id)}">${esc(a.nome||a.id)}</option>`
+    ).join('')}</optgroup>`
+  ).join('');
+  if (selectedId) sel.value = selectedId;
+}
+function setCheck(id, val) {
+  const el = document.getElementById(id);
+  el.checked = val;
+  el.closest('.f-check').classList.toggle('on', val);
+}
+['f-bici','f-spiaggia'].forEach(id => {
+  document.getElementById(id).addEventListener('change', e => {
+    e.target.closest('.f-check').classList.toggle('on', e.target.checked);
+  });
+});
+function setQty(id, val) { document.getElementById(id).value = val || 0; }
+function adjustQty(id, delta) {
+  const el = document.getElementById(id);
+  el.value = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
+}
+
+// ── OSPITI DA CENSIRE (Alloggiati Web — bozza) ────────────────────────────
+// Il primo ospite della lista è sempre il "capo" (Ospite Singolo/Capofamiglia/
+// Capogruppo, richiede il documento); tutti gli altri sono "familiare" (niente
+// documento, come previsto dalla normativa per i componenti del gruppo).
+const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+function ospiteCardHtml(i, o) {
+  o = o || {};
+  const isCapo = i === 0;
+  return `<div class="ospite-card ${isCapo ? 'capo' : ''}" data-idx="${i}">
+    <div class="ospite-card-head">
+      <span class="ospite-badge ${isCapo ? 'capo' : 'familiare'}">${isCapo ? 'Capo' : 'Familiare'}</span>
+      <button type="button" class="ospite-remove-btn" title="Rimuovi ospite" onclick="removeOspiteRow(${i})">${XICON}</button>
+    </div>
+    <div class="ospite-fields">
+      <div>
+        <label class="f-label">Cognome<span class="req">*</span></label>
+        <input class="f-input osp-cognome" type="text" value="${esc(o.cognome||'')}">
+      </div>
+      <div>
+        <label class="f-label">Nome<span class="req">*</span></label>
+        <input class="f-input osp-nome" type="text" value="${esc(o.nome||'')}">
+      </div>
+      <div>
+        <label class="f-label">Sesso<span class="req">*</span></label>
+        <select class="f-select osp-sesso">
+          <option value="M" ${o.sesso==='F'?'':'selected'}>Maschio</option>
+          <option value="F" ${o.sesso==='F'?'selected':''}>Femmina</option>
+        </select>
+      </div>
+      <div>
+        <label class="f-label">Data di nascita<span class="req">*</span></label>
+        <input class="f-input osp-data-nascita" type="date" value="${esc(o.data_nascita||'')}">
+      </div>
+      <div>
+        <label class="f-label">Nato a (comune o stato)<span class="req">*</span></label>
+        <input class="f-input osp-comune-nascita" type="text" placeholder="Es. Milano" value="${esc(o.comune_nascita||'')}">
+      </div>
+      <div>
+        <label class="f-label">Provincia</label>
+        <input class="f-input osp-provincia-nascita" type="text" maxlength="2" placeholder="Es. MI" value="${esc(o.provincia_nascita||'')}">
+      </div>
+      <div>
+        <label class="f-label">Stato di nascita<span class="req">*</span></label>
+        <input class="f-input osp-stato-nascita" type="text" placeholder="Es. Italia" value="${esc(o.stato_nascita||'')}">
+      </div>
+      <div>
+        <label class="f-label">Cittadinanza<span class="req">*</span></label>
+        <input class="f-input osp-cittadinanza" type="text" placeholder="Es. Italiana" value="${esc(o.cittadinanza||'')}">
+      </div>
+    </div>
+    ${isCapo ? `
+    <div class="ospite-doc-fields">
+      <div class="ospite-doc-label">Documento di identità (obbligatorio per il capofamiglia)</div>
+      <div class="ospite-fields-doc">
+        <div>
+          <label class="f-label">Tipo documento<span class="req">*</span></label>
+          <input class="f-input osp-tipo-documento" type="text" placeholder="Es. Carta d'identità" value="${esc(o.tipo_documento||'')}">
+        </div>
+        <div>
+          <label class="f-label">Numero documento<span class="req">*</span></label>
+          <input class="f-input osp-numero-documento" type="text" value="${esc(o.numero_documento||'')}">
+        </div>
+        <div>
+          <label class="f-label">Luogo di rilascio<span class="req">*</span></label>
+          <input class="f-input osp-luogo-rilascio" type="text" value="${esc(o.luogo_rilascio_documento||'')}">
+        </div>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+function renderOspitiList(list) {
+  const wrap = document.getElementById('ospiti-list');
+  wrap.innerHTML = (list && list.length ? list : [{}]).map((o,i) => ospiteCardHtml(i,o)).join('');
+}
+function raccogliOspitiDaForm() {
+  return Array.from(document.querySelectorAll('#ospiti-list .ospite-card')).map((card, i) => {
+    const val = sel => { const el = card.querySelector(sel); return el ? el.value.trim() : ''; };
+    const o = {
+      ruolo: i === 0 ? 'capo' : 'familiare',
+      cognome: val('.osp-cognome'),
+      nome: val('.osp-nome'),
+      sesso: val('.osp-sesso') || 'M',
+      data_nascita: val('.osp-data-nascita'),
+      comune_nascita: val('.osp-comune-nascita'),
+      provincia_nascita: val('.osp-provincia-nascita').toUpperCase(),
+      stato_nascita: val('.osp-stato-nascita'),
+      cittadinanza: val('.osp-cittadinanza'),
+    };
+    if (i === 0) {
+      o.tipo_documento = val('.osp-tipo-documento');
+      o.numero_documento = val('.osp-numero-documento');
+      o.luogo_rilascio_documento = val('.osp-luogo-rilascio');
+    }
+    return o;
+  });
+}
+function addOspiteRow() {
+  const current = raccogliOspitiDaForm();
+  current.push({});
+  renderOspitiList(current);
+}
+function removeOspiteRow(i) {
+  const current = raccogliOspitiDaForm();
+  if (current.length <= 1) { showToast('Deve rimanere almeno un ospite'); return; }
+  current.splice(i, 1);
+  renderOspitiList(current);
+}
+function resetOspitiRows(count) {
+  renderOspitiList(Array.from({ length: Math.max(1, count) }, () => ({})));
+}
+
+function openNuovaPrenotazione(alloggioId, checkinIso) {
+  editingId = null;
+  document.getElementById('form-modal-title').textContent = 'Nuova prenotazione';
+  document.getElementById('btn-elimina').classList.add('hidden');
+  populateAlloggioSelect(alloggioId);
+  const ci = checkinIso || isoToday(0);
+  document.getElementById('f-nome').value = '';
+  document.getElementById('f-tel').value = '';
+  document.getElementById('f-checkin').value  = ci;
+  document.getElementById('f-checkout').value = addDaysIso(ci, 7);
+  document.getElementById('f-adulti').value   = 2;
+  document.getElementById('f-bambini').value  = 0;
+  document.getElementById('f-trattamento').value = 'no';
+  setQty('f-kit-bagno', 0);
+  setQty('f-kit-singolo', 0);
+  setQty('f-kit-matrimoniale', 0);
+  setCheck('f-bici', false);
+  setCheck('f-spiaggia', false);
+  document.getElementById('f-note').value = '';
+  resetOspitiRows(2);
+  document.getElementById('form-modal-overlay').classList.remove('hidden');
+}
+function apriModificaPrenotazione(id) {
+  const p = prenotazioni.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
+  document.getElementById('btn-elimina').classList.remove('hidden');
+  populateAlloggioSelect(p.alloggio_id);
+  document.getElementById('f-nome').value = p.nome || '';
+  document.getElementById('f-tel').value  = p.tel  || '';
+  document.getElementById('f-checkin').value  = p.checkin  || '';
+  document.getElementById('f-checkout').value = p.checkout || '';
+  document.getElementById('f-adulti').value  = p.adulti  || 0;
+  document.getElementById('f-bambini').value = p.bambini || 0;
+  document.getElementById('f-trattamento').value = p.trattamento_ristorazione || 'no';
+  setQty('f-kit-bagno', p.biancheria_kit_bagno);
+  setQty('f-kit-singolo', p.biancheria_kit_singolo);
+  setQty('f-kit-matrimoniale', p.biancheria_kit_matrimoniale);
+  setCheck('f-bici', !!p.bici);
+  setCheck('f-spiaggia', !!p.spiaggia);
+  document.getElementById('f-note').value = p.note || '';
+  renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : Array.from({ length: Math.max(1, (p.adulti||0)+(p.bambini||0)) }, () => ({})));
+  document.getElementById('form-modal-overlay').classList.remove('hidden');
+}
+function closeFormModal() {
+  document.getElementById('form-modal-overlay').classList.add('hidden');
+  editingId = null;
+}
+
+function trovaOverlap(alloggioId, checkin, checkout, excludeId) {
+  return prenotazioni.find(p => {
+    if (p.id === excludeId) return false;
+    if (p.alloggio_id !== alloggioId) return false;
+    // Il turnover stesso giorno (checkout di una == checkin dell'altra) è
+    // normale e ammesso: overlap vero solo se i periodi si intersecano.
+    return checkin < p.checkout && checkout > p.checkin;
+  });
+}
+
+async function salvaPrenotazione() {
+  const alloggioSel  = document.getElementById('f-alloggio');
+  const alloggioId   = alloggioSel.value;
+  const alloggioNome = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.nome : alloggioId;
+  const nome     = document.getElementById('f-nome').value.trim();
+  const checkin  = document.getElementById('f-checkin').value;
+  const checkout = document.getElementById('f-checkout').value;
+
+  if (!alloggioId) { showToast('Seleziona un alloggio'); return; }
+  if (!nome)       { showToast('Inserisci il nome ospite'); return; }
+  if (!checkin || !checkout || checkout <= checkin) { showToast('Date non valide'); return; }
+
+  const overlap = trovaOverlap(alloggioId, checkin, checkout, editingId);
+  if (overlap) {
+    const conferma = await confermaAsync(
+      'Sovrapposizione rilevata',
+      `${esc(alloggioNome)} risulta già prenotato da <strong>${esc(overlap.nome)}</strong> (${esc(overlap.checkin)} → ${esc(overlap.checkout)}) in un periodo che si sovrappone. Salvare comunque?`
+    );
+    if (!conferma) return;
+  }
+
+  const data = {
+    alloggio_id: alloggioId,
+    alloggio_nome: alloggioNome,
+    nome, checkin, checkout,
+    tel: document.getElementById('f-tel').value.trim(),
+    adulti:  parseInt(document.getElementById('f-adulti').value,  10) || 0,
+    bambini: parseInt(document.getElementById('f-bambini').value, 10) || 0,
+    trattamento_ristorazione: document.getElementById('f-trattamento').value,
+    biancheria_kit_bagno:        parseInt(document.getElementById('f-kit-bagno').value, 10) || 0,
+    biancheria_kit_singolo:      parseInt(document.getElementById('f-kit-singolo').value, 10) || 0,
+    biancheria_kit_matrimoniale: parseInt(document.getElementById('f-kit-matrimoniale').value, 10) || 0,
+    bici:       document.getElementById('f-bici').checked,
+    spiaggia:   document.getElementById('f-spiaggia').checked,
+    note: document.getElementById('f-note').value.trim(),
+    ospiti: raccogliOspitiDaForm(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const { db, doc, setDoc, updateDoc } = window._fb;
+  try {
+    if (editingId) {
+      await updateDoc(doc(db, 'prenotazioni', editingId), data);
+      showToast('Prenotazione aggiornata');
+    } else {
+      const id = `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
+      await setDoc(doc(db, 'prenotazioni', id), { ...data, codice: generaCodice(), createdAt: new Date().toISOString() });
+      showToast('Prenotazione creata');
+    }
+    closeFormModal();
+  } catch(e) {
+    console.error('Errore salvataggio prenotazione:', e);
+    showToast('Errore: ' + e.message);
+  }
+}
+
+function eliminaPrenotazioneCorrente() {
+  if (!editingId) return;
+  const id = editingId;
+  apriModaleConferma('Eliminare prenotazione', 'Vuoi eliminare definitivamente questa prenotazione? L\'operazione non è reversibile.', async () => {
+    const { db, doc, deleteDoc } = window._fb;
+    try {
+      await deleteDoc(doc(db, 'prenotazioni', id));
+      showToast('Prenotazione eliminata');
+      closeFormModal();
+    } catch(e) {
+      console.error('Errore eliminazione:', e);
+      showToast('Errore: ' + e.message);
+    }
+  }, 'Elimina', true);
+}
+
+// ── SCHEDINA ALLOGGIATI WEB (bozza — solo generazione/anteprima, nessun invio reale) ─
+// Tracciato fisso a 168 caratteri per ospite, come da manuale WS_ALLOGGIATI §4:
+// tipo alloggiato(2) + data arrivo(10) + permanenza(2) + cognome(50) + nome(30) +
+// sesso(1) + data nascita(10) + comune nascita(9) + provincia(2) + stato nascita(9) +
+// cittadinanza(9) [+ tipo doc(5) + numero doc(20) + luogo rilascio(9) solo per il capo].
+// I codici di 2/9/5 caratteri sono qui testo libero troncato/imbottito: i codici
+// numerici ufficiali (comuni, stati, documenti) richiedono le tabelle scaricabili
+// dal portale via credenziali WS, non ancora disponibili in questa fase di bozza.
+function padR(str, len) { str = (str==null?'':String(str)); return str.length >= len ? str.slice(0,len) : str + ' '.repeat(len - str.length); }
+function padL(str, len, ch) { str = (str==null?'':String(str)); ch = ch || '0'; return str.length >= len ? str.slice(-len) : ch.repeat(len - str.length) + str; }
+function fmtDataIt(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+
+function validaOspiti(ospiti) {
+  const errori = [];
+  ospiti.forEach((o, i) => {
+    const chi = i === 0 ? 'Capofamiglia' : `Familiare ${i}`;
+    if (!o.cognome) errori.push(`${chi}: cognome mancante`);
+    if (!o.nome) errori.push(`${chi}: nome mancante`);
+    if (!o.data_nascita) errori.push(`${chi}: data di nascita mancante`);
+    if (!o.comune_nascita) errori.push(`${chi}: luogo di nascita mancante`);
+    if (!o.stato_nascita) errori.push(`${chi}: stato di nascita mancante`);
+    if (!o.cittadinanza) errori.push(`${chi}: cittadinanza mancante`);
+    if (i === 0) {
+      if (!o.tipo_documento)   errori.push(`${chi}: tipo documento mancante`);
+      if (!o.numero_documento) errori.push(`${chi}: numero documento mancante`);
+      if (!o.luogo_rilascio_documento) errori.push(`${chi}: luogo di rilascio documento mancante`);
+    }
+  });
+  return errori;
+}
+
+function generaRigaSchedina(o, checkinIso, permanenza) {
+  const isCapo = o.ruolo === 'capo';
+  let riga = '';
+  riga += padR(isCapo ? 'C_' : 'F_', 2); // placeholder — da mappare al Codice Tabella Tipo Alloggiati reale
+  riga += padR(fmtDataIt(checkinIso), 10);
+  riga += padL(String(permanenza), 2);
+  riga += padR(o.cognome, 50);
+  riga += padR(o.nome, 30);
+  riga += (o.sesso === 'F' ? '2' : '1');
+  riga += padR(fmtDataIt(o.data_nascita), 10);
+  riga += padR(o.comune_nascita, 9);
+  riga += padR(o.provincia_nascita, 2);
+  riga += padR(o.stato_nascita, 9);
+  riga += padR(o.cittadinanza, 9);
+  if (isCapo) {
+    riga += padR(o.tipo_documento, 5);
+    riga += padR(o.numero_documento, 20);
+    riga += padR(o.luogo_rilascio_documento, 9);
+  } else {
+    riga += ' '.repeat(34);
+  }
+  return riga;
+}
+
+function apriAnteprimaSchedina() {
+  const checkin  = document.getElementById('f-checkin').value;
+  const checkout = document.getElementById('f-checkout').value;
+  if (!checkin || !checkout || checkout <= checkin) { showToast('Imposta prima date di check-in/check-out valide'); return; }
+
+  const ospiti = raccogliOspitiDaForm();
+  const errori = validaOspiti(ospiti);
+  if (errori.length) {
+    showToast(errori[0] + (errori.length > 1 ? ` (+${errori.length-1} altri campi mancanti)` : ''));
+    return;
+  }
+
+  const permanenzaReale = diffDays(checkin, checkout);
+  const permanenza = Math.min(30, permanenzaReale);
+  const righe = ospiti.map(o => generaRigaSchedina(o, checkin, permanenza));
+
+  document.getElementById('schedina-summary').innerHTML = ospiti.map((o,i) =>
+    `<div class="schedina-summary-row"><span class="schedina-summary-name">${esc(o.cognome)} ${esc(o.nome)}</span><span class="schedina-summary-meta">${i===0 ? 'Capofamiglia/Ospite singolo' : 'Familiare'} · nato il ${esc(fmtDataIt(o.data_nascita))}</span></div>`
+  ).join('') + (permanenzaReale > 30 ? `<div class="schedina-summary-row"><span class="schedina-summary-meta" style="color:var(--red)">Permanenza di ${permanenzaReale} giorni supera il massimo di 30gg previsto per una singola schedina — andrà gestita separatamente in fase di invio reale.</span></div>` : '');
+
+  document.getElementById('schedina-block').innerHTML = righe.map(r =>
+    `<div class="schedina-line"><span>${esc(r)}</span><span class="len ${r.length===168 ? 'ok' : 'bad'}">${r.length}/168</span></div>`
+  ).join('');
+
+  document.getElementById('schedina-modal-overlay').classList.remove('hidden');
+}
+function chiudiAnteprimaSchedina() {
+  document.getElementById('schedina-modal-overlay').classList.add('hidden');
+}
+async function simulaInvioAlloggiatiWeb() {
+  if (!editingId) {
+    showToast('Salva prima la prenotazione, poi genera l\'invio simulato');
+    return;
+  }
+  const { db, doc, updateDoc } = window._fb;
+  try {
+    await updateDoc(doc(db, 'prenotazioni', editingId), {
+      ospiti: raccogliOspitiDaForm(),
+      alloggiati_web: { stato: 'simulato', generato_il: new Date().toISOString() },
+    });
+    showToast('Invio simulato — nessuna chiamata reale effettuata');
+    chiudiAnteprimaSchedina();
+  } catch(e) {
+    console.error('Errore simulazione invio Alloggiati Web:', e);
+    showToast('Errore: ' + e.message);
+  }
+}
+
+// ── MODALE CONFERMA GENERICA ──────────────────────────────────────────────
+let _modalConfirmCb = null, _modalCancelCb = null;
+function apriModaleConferma(title, bodyHtml, onConfirm, confirmLabel, danger, onCancel) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  const btn = document.getElementById('modal-confirm');
+  btn.textContent = confirmLabel || 'Conferma';
+  btn.className = 'modal-btn-confirm' + (danger ? ' danger' : '');
+  _modalConfirmCb = onConfirm || null;
+  _modalCancelCb  = onCancel  || null;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  _modalConfirmCb = null; _modalCancelCb = null;
+}
+document.getElementById('modal-confirm').addEventListener('click', () => {
+  const cb = _modalConfirmCb; closeModal(); if (cb) cb();
+});
+document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+  const cb = _modalCancelCb; closeModal(); if (cb) cb();
+});
+function confermaAsync(title, bodyHtml) {
+  return new Promise(resolve => {
+    apriModaleConferma(title, bodyHtml, () => resolve(true), 'Salva comunque', false, () => resolve(false));
+  });
+}
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+let _dataReady = false, _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+function maybeHideLoading() {
+  const loginVisible    = !document.getElementById('login-screen').classList.contains('hidden');
+  const noAccessVisible = !document.getElementById('no-access-screen').classList.contains('hidden');
+  if (loginVisible || noAccessVisible || _dataReady) hideLoadingScreen();
+}
+setTimeout(async () => {
+  if (_dataReady || _loadingHidden) return;
+  console.warn('Caricamento lento, provo a forzare la riconnessione...');
+  await kickFirestoreConnection();
+  forceRefresh(false);
+}, 8000);
+setTimeout(hideLoadingScreen, 18000);
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── START ─────────────────────────────────────────────────────────────────
+async function start() {
+  try { renderGrid(); } catch(e) { console.error('Errore render iniziale:', e); }
+  initLogin();
+  await waitForFirebase();
+  if (window._fbAuthError) {
+    setSyncStatus('error');
+    showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
+  }
+  startRealtimeSync();
+}
+start();
+</script>
+</body>
+</html>
