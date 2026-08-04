@@ -555,7 +555,7 @@ input[type="date"].finput{font-size:13px}
       <button id="btn-notif" onclick="attivaNotifiche()" style="width:100%;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
       <button id="btn-disattiva-notif" onclick="disattivaNotifiche()" style="width:100%;height:44px;margin-top:8px;background:var(--gray-200);color:var(--gray-700);border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Disattiva notifiche</button>
       <button id="btn-test-notif" onclick="inviaNotificaTest()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Invia notifica di test</button>
-      <p id="test-notif-hint" style="font-size:11px;color:var(--gray-400);margin:8px 0 0;line-height:1.5;display:none">Arriva entro 5 minuti (schedulazione GitHub Actions), oppure subito se lanci manualmente il workflow "Notifiche Ordini Ristorazione" dalla tab Actions su GitHub.</p>
+      <p id="test-notif-hint" style="font-size:11px;color:var(--gray-400);margin:8px 0 0;line-height:1.5;display:none">Arriva istantaneamente su tutti i dispositivi con notifiche attive.</p>
     </div>
 
     <div class="add-fam-card" style="margin-top:16px">
@@ -2331,19 +2331,23 @@ async function disattivaNotifiche() {
   aggiornaStatoNotifiche();
 }
 
+const CLOUD_FN_NOTIFICHE = 'https://invia-notifica-ristorazione-113994721180.europe-west1.run.app';
+
 async function inviaNotificaTest() {
   const btn = document.getElementById('btn-test-notif');
   const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
   if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
   try {
-    const { db, doc, setDoc } = window._fb;
-    const testId = `test-${Date.now()}`;
-    await setDoc(doc(db, 'test_notifiche', testId), {
-      richiesto_da: sess.nome || 'Staff',
-      notified: false,
-      timestamp: new Date().toISOString()
+    const res = await fetch(CLOUD_FN_NOTIFICHE, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ evento: 'test', richiesto_da: sess.nome || 'Staff' })
     });
-    showToast('Richiesta inviata — controlla il dispositivo entro 5 minuti');
+    const out = await res.json().catch(() => ({}));
+    if (res.ok && out.ok) {
+      showToast(out.inviate > 0 ? `Notifica inviata a ${out.inviate} dispositivo/i` : 'Nessun operatore con notifiche attive');
+    } else {
+      showToast('Errore invio test');
+    }
   } catch(e) {
     console.error(e);
     showToast('Errore invio test: ' + (e.message || e.code));
