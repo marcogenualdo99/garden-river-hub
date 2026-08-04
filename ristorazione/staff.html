@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Ristorazione · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -17,6 +17,8 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const cfg = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -29,6 +31,10 @@
   const app  = initializeApp(cfg, "staff-risto");
   const db   = getFirestore(app);
   const auth = getAuth(app);
+  const messaging = getMessaging(app);
+
+  // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in conti/manutenzione)
+  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
   window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
 
@@ -40,6 +46,46 @@
   onAuthStateChanged(auth, u => { if (u) ready(); });
   signInAnonymously(auth).catch(() => ready());
   setTimeout(ready, 8000);
+
+  // ── Attiva notifiche FCM (stesso pattern di manutenzione/conti) ─────────
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    try {
+      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      const { arrayRemove, arrayUnion: arrUnion, setDoc: setDocFn } =
+        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+
+      const vecchioToken = localStorage.getItem('gcm_token');
+      const vecchioOp    = localStorage.getItem('gcm_operatore');
+
+      if (vecchioToken && vecchioToken !== token) {
+        const opDaRipulire = vecchioOp || operatoreNome;
+        try { await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
+      }
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
+      }
+
+      await setDocFn(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrUnion(token),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      localStorage.setItem('gcm_token',     token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
+      return { ok: true };
+    } catch(e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
 </script>
 
 <style>
@@ -47,7 +93,7 @@
   --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
   --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
   --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
-  --gray-300:#D1D5DB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
+  --gray-300:#D1D5DB; --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
   --orange:#E07B00; --orange-bg:#FFF8F0;
   --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
   --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
@@ -172,7 +218,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-dish.done .kds-qty-badge{background:var(--green-100);color:var(--green-500)}
 .kds-dish-name{font-size:14px;font-weight:700;color:var(--gray-900);flex:1;line-height:1.3}
 .kds-dish-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.kds-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200,#E5E7EB);background:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1}
+.kds-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--gray-200);background:#fff;font-size:17px;font-weight:700;cursor:pointer;font-family:var(--font);color:var(--gray-700);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;line-height:1}
 .kds-btn:active{background:var(--gray-100)}
 .kds-btn.plus{border-color:var(--green-400);color:var(--green-500)}
 .kds-btn.plus:active{background:var(--green-50)}
@@ -203,10 +249,14 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-log-quando{color:var(--gray-400,#9CA3AF)}
 .kds-extra{padding:10px 16px;border-top:1px solid var(--gray-100)}
 .kds-extra-row{display:flex;align-items:center;gap:6px}
-.kds-extra-input{flex:1;height:36px;padding:0 10px;border:1.5px solid var(--gray-200,#E5E7EB);border-radius:10px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
+.kds-extra-input{flex:1;height:36px;padding:0 10px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
 .kds-extra-input:focus{border-color:var(--green-400)}
 .kds-extra-save{width:36px;height:36px;border-radius:50%;border:none;background:var(--green-700);color:#fff;font-size:20px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
 .kds-extra-save:active{opacity:.8}
+.kds-dish-breakdown{font-size:11px;font-weight:600;color:var(--gray-500);margin-top:2px}
+.kds-fam-sub{border-top:1px solid var(--gray-100);padding:10px 16px}
+.kds-fam-sub-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kds-fam-sub-nome{font-size:13px;font-weight:800;color:var(--gray-900)}
 .empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
 /* ── MENU SEZIONE ── */
@@ -259,7 +309,7 @@ input[type="date"].finput{font-size:13px}
 .btn-add:active{opacity:.85}
 .btn-stampa{width:100%;height:48px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-stampa:active{opacity:.8}
-.btn-duplica{width:100%;height:48px;background:#fff;color:var(--gray-600,#4B5563);border:1.5px solid var(--gray-200,#E5E7EB);border-radius:var(--radius-xl);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-duplica{width:100%;height:48px;background:#fff;color:var(--gray-600,#4B5563);border:1.5px solid var(--gray-200);border-radius:var(--radius-xl);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-duplica:active{opacity:.8}
 
 /* ── STAMPA ──────────────────────────────────────────────────────── */
@@ -309,7 +359,7 @@ input[type="date"].finput{font-size:13px}
 /* ── MODAL ADD DISH ── */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center}
 #modal.hidden{display:none}
-.modal-box{background:#fff;border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px}
+.modal-box{background:#fff;border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:90dvh;overflow-y:auto}
 .modal-title{font-size:16px;font-weight:800;margin-bottom:16px}
 .mlabel{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-bottom:5px}
 .minput{width:100%;height:48px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:15px;font-family:var(--font);padding:0 14px;margin-bottom:12px;outline:none;color:var(--gray-900)}
@@ -322,7 +372,7 @@ input[type="date"].finput{font-size:13px}
 .msave:active,.mcancel:active{opacity:.8}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:#fff;padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--gray-900);color:#fff;padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* ── CHECK SVG ── */
@@ -404,8 +454,9 @@ input[type="date"].finput{font-size:13px}
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
     <div id="report-body"></div>
-    <div id="report-print-bar" style="display:none;margin-top:16px">
-      <button class="btn-stampa" onclick="scaricaReport()">⬇ Scarica report</button>
+    <div id="report-print-bar" style="display:none;margin-top:16px;gap:10px">
+      <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
+      <button class="btn-stampa" onclick="stampaReportTermica().catch(e=>alert('Errore JS: '+e.message))">Stampa termica</button>
     </div>
   </div>
 
@@ -415,12 +466,6 @@ input[type="date"].finput{font-size:13px}
     <div class="seg-row" style="margin-top:-4px">
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:flex-end;margin:4px 0 2px">
-      <button onclick="apriImpostazioniStampante()" style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-size:12px;font-weight:700;color:var(--gray-500);font-family:var(--font);padding:4px 0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-        <span id="printer-status-label">Stampante termica</span>
-      </button>
     </div>
     <div id="cucina-body"></div>
   </div>
@@ -463,18 +508,30 @@ input[type="date"].finput{font-size:13px}
         <select class="fselect" id="f-alloggio"><option value="">Alloggio</option></select>
       </div>
       <div class="form-row">
+        <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
+        <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
+      </div>
+      <div class="form-row">
         <select class="fselect" id="f-trattamento">
           <option value="">Trattamento</option>
           <option value="PC">Pensione completa</option>
           <option value="MP">Mezza pensione</option>
         </select>
+        <select class="fselect" id="f-ora-arrivo">
+          <option value="">Primo pasto</option>
+          <option value="mattina">Mattina (colazione)</option>
+          <option value="dopo_pranzo">Dopo pranzo (cena)</option>
+          <option value="sera">Sera (nessun pasto)</option>
+        </select>
       </div>
       <div class="form-row">
-        <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
-        <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
+        <input class="finput" id="f-adulti"  type="number" placeholder="Adulti"   min="0" max="20">
+        <input class="finput" id="f-bambini" type="number" placeholder="Bambini"  min="0" max="10" oninput="aggiornaBambiniFields('f-bambini-ages','f-bambini')">
       </div>
-      <div class="form-row" style="grid-template-columns:1fr">
-        <input class="finput" id="f-pax" type="number" placeholder="Numero pax" min="1" max="20">
+      <div id="f-bambini-ages"></div>
+      <div class="form-row">
+        <input class="finput" id="f-tel"   type="tel"  placeholder="Telefono">
+        <input class="finput" id="f-tavolo" type="text" placeholder="N. Tavolo (opzionale)">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
@@ -484,9 +541,38 @@ input[type="date"].finput{font-size:13px}
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="sec-label" style="margin-bottom:0">Famiglie inserite</div>
-      <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">⬇ Scarica foglio QR</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="apriReportFamiglie()">Report</button>
+        <button class="btn-stampa" style="width:auto;height:36px;padding:0 14px;font-size:13px" onclick="scaricaFoglioQR()">QR</button>
+      </div>
     </div>
     <div id="famiglie-list"></div>
+
+    <div class="add-fam-card" style="margin-top:16px">
+      <h3>Notifiche push</h3>
+      <p style="font-size:12px;color:var(--gray-500);margin:0 0 12px;line-height:1.5">Ricevi un avviso su questo dispositivo quando un ospite conferma un ordine.</p>
+      <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
+      <button id="btn-notif" onclick="attivaNotifiche()" style="width:100%;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
+      <button id="btn-disattiva-notif" onclick="disattivaNotifiche()" style="width:100%;height:44px;margin-top:8px;background:var(--gray-200);color:var(--gray-700);border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Disattiva notifiche</button>
+      <button id="btn-test-notif" onclick="inviaNotificaTest()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Invia notifica di test</button>
+      <p id="test-notif-hint" style="font-size:11px;color:var(--gray-400);margin:8px 0 0;line-height:1.5;display:none">Arriva entro 5 minuti (schedulazione GitHub Actions), oppure subito se lanci manualmente il workflow "Notifiche Ordini Ristorazione" dalla tab Actions su GitHub.</p>
+    </div>
+
+    <div class="add-fam-card" style="margin-top:16px">
+      <h3>Stampante termica</h3>
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP</div>
+      <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.5" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
+      <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:12px;line-height:1.6">
+        Stampante collegata direttamente via HTTPS. Assicurati di aver installato il certificato sul dispositivo.
+      </div>
+      <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
+      <div style="display:flex;gap:10px">
+        <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
+        <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -517,7 +603,7 @@ input[type="date"].finput{font-size:13px}
 
 <!-- MODAL MODIFICA FAMIGLIA -->
 <div id="modal-edit-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
-  <div class="modal-box">
+  <div class="modal-box" style="max-height:90vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
     <div class="modal-title">Modifica famiglia</div>
     <input type="hidden" id="ef-id">
     <div class="mlabel">Nome Cognome</div>
@@ -534,8 +620,23 @@ input[type="date"].finput{font-size:13px}
     <input class="minput" id="ef-checkin" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
     <div class="mlabel">Data check-out</div>
     <input class="minput" id="ef-checkout" type="date" style="font-size:13px;width:100%;box-sizing:border-box">
-    <div class="mlabel">Numero pax</div>
-    <input class="minput" id="ef-pax" type="number" min="1" max="20" placeholder="N. pax">
+    <div class="mlabel">Primo pasto</div>
+    <select class="minput" id="ef-ora-arrivo">
+      <option value="">Seleziona</option>
+      <option value="mattina">Mattina (colazione)</option>
+      <option value="dopo_pranzo">Dopo pranzo (cena)</option>
+      <option value="sera">Sera (nessun pasto)</option>
+    </select>
+    <div class="mlabel">Adulti e bambini</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <input class="minput" id="ef-adulti"  type="number" min="0" max="20" placeholder="Adulti" style="margin-bottom:0">
+      <input class="minput" id="ef-bambini" type="number" min="0" max="10" placeholder="Bambini" style="margin-bottom:0" oninput="aggiornaBambiniFields('ef-bambini-ages','ef-bambini')">
+    </div>
+    <div id="ef-bambini-ages" style="margin-bottom:8px"></div>
+    <div class="mlabel">Telefono</div>
+    <input class="minput" id="ef-tel" type="tel" placeholder="Telefono">
+    <div class="mlabel">N. Tavolo</div>
+    <input class="minput" id="ef-tavolo" type="text" placeholder="es. 5 (lascia vuoto se nessun tavolo condiviso)">
     <div class="mlabel">Note</div>
     <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
@@ -555,8 +656,12 @@ input[type="date"].finput{font-size:13px}
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
     <div class="modal-title" id="mos-title">Modifica ordine</div>
     <p style="font-size:12px;color:var(--gray-500);margin-bottom:14px" id="mos-sub"></p>
+    <div id="mos-sblocco" style="margin-bottom:12px"></div>
     <div id="mos-body"></div>
-    <div class="mbtns" style="margin-top:18px">
+    <div style="margin-top:14px">
+      <button onclick="resetComandaStaff()" style="width:100%;height:44px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)">Reset comanda</button>
+    </div>
+    <div class="mbtns" style="margin-top:10px">
       <button class="mcancel" onclick="document.getElementById('modal-ordine-staff').classList.add('hidden')">Annulla</button>
       <button class="msave" onclick="salvaOrdineStaff()">Salva modifica</button>
     </div>
@@ -579,6 +684,69 @@ input[type="date"].finput{font-size:13px}
   </div>
 </div>
 
+<!-- MODAL SELEZIONE QR -->
+<div id="modal-qr-panel" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title">Foglio QR</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere</p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Filtra per periodo di soggiorno</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Dal</div>
+          <input id="qr-dal" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Al</div>
+          <input id="qr-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+      </div>
+      <button onclick="applicaFiltroDateQR()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="selezionaTutteQR(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
+      <button onclick="selezionaTutteQR(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
+    </div>
+    <div id="qr-panel-list"></div>
+    <div class="mbtns" style="margin-top:16px">
+      <button class="mcancel" onclick="document.getElementById('modal-qr-panel').classList.add('hidden')">Annulla</button>
+      <button class="msave" style="background:#fff;color:var(--green-700);border:2px solid var(--green-700)" onclick="scaricaListaLink()">Scarica lista link</button>
+      <button class="msave" onclick="scaricaQRSelezionati()">Scarica QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REPORT FAMIGLIE -->
+<div id="modal-report-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title">Report famiglie</div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px">Seleziona le famiglie da includere nel report</p>
+    <div style="background:#f8f8f8;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px">Filtra per periodo di soggiorno</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Dal</div>
+          <input id="rf-dal" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:4px">Al</div>
+          <input id="rf-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
+        </div>
+      </div>
+      <button onclick="applicaFiltroDate()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button onclick="selezionaTutteFamiglie(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
+      <button onclick="selezionaTutteFamiglie(false)" style="flex:1;height:36px;background:var(--gray-100);color:var(--gray-700);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Deseleziona tutti</button>
+    </div>
+    <div id="rf-list"></div>
+    <div class="mbtns" style="margin-top:16px">
+      <button class="mcancel" onclick="document.getElementById('modal-report-fam').classList.add('hidden')">Annulla</button>
+      <button class="msave" onclick="scaricaReportFamiglie()">Scarica report</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -596,6 +764,7 @@ let menuGiorno      = 1;          // 1-14
 let menuPasto       = 'pranzo';
 let cicloStart      = null;       // ISO date "YYYY-MM-DD"
 let unsubCucina     = null;
+let unsubFamiglie   = null;
 let menuDocs        = [];
 let famiglieDocs    = [];
 let _menuModalData  = null; // {data, tipo}
@@ -633,11 +802,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('hdr-name').textContent   = sess.nome || '';
   document.getElementById('hdr-role').textContent   = sess.ruolo === 'admin' ? 'Amministratore' : 'Operatore';
 
+  // Rinnova silenziosamente il token push se le notifiche erano già attive su questo
+  // dispositivo — evita che smettano di funzionare per un token scaduto/ruotato
+  // senza che l'operatore debba ripremere "Attiva notifiche".
+  if ('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('gcm_token')) {
+    window._abilitaNotifichePush(sess.nome || 'Staff').catch(() => {});
+  }
+
   // Set pasto cucina tab buttons
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
 
   // Load static data
-  await Promise.all([loadMenu(), loadFamiglie(), loadAlloggi(), loadImpostazioni()]);
+  await Promise.all([loadMenu(), startFamiglie(), loadAlloggi(), loadImpostazioni()]);
 
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
@@ -736,10 +912,29 @@ async function renderReport() {
     return;
   }
 
-  // Alert famiglie senza ordine — considera trattamento
+  // Recuperi pasti: PC che partono oggi e hanno pasti da recuperare e non li hanno ancora ordinati
+  const recuperiOggi = famiglieDocs.filter(f => {
+    if (f.checkout !== targetDate) return false;
+    if (f.trattamento !== 'PC') return false;
+    if (f.ora_arrivo === 'dopo_pranzo') return true;  // recupera colazione + pranzo
+    if (f.ora_arrivo === 'sera')        return true;  // recupera colazione + pranzo + cena
+    return false;
+  }).filter(f => {
+    // Filtra per pasto corrente: dopo_pranzo recupera pranzo (e colazione); sera recupera pranzo e cena
+    if (f.ora_arrivo === 'dopo_pranzo') return reportPasto === 'pranzo';
+    if (f.ora_arrivo === 'sera')        return true; // sia pranzo che cena
+    return false;
+  }).filter(f => !ordini.some(o => o.famiglia_id === f.id)); // escludi chi ha già ordinato
+
+  // Alert famiglie senza ordine — considera trattamento e giorno di arrivo/partenza
   const famiglieSenzaOrdine = famiglieDocs.filter(f => {
     if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
-    if (f.checkout && f.checkout < targetDate) return false; // già partite
+    if (f.checkout && f.checkout <= targetDate) return false; // partono oggi o già partite
+    // Famiglie che arrivano oggi: escludi se non mangiano questo pasto
+    if (f.checkin === targetDate) {
+      if (f.ora_arrivo === 'dopo_pranzo' && reportPasto === 'pranzo') return false;
+      if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
+    }
     const haPastoCorrente = ordini.some(o => o.famiglia_id === f.id);
     if (f.trattamento === 'MP') {
       // MP: ok se ha compilato almeno uno tra pranzo e cena
@@ -749,6 +944,24 @@ async function renderReport() {
     // PC (o senza trattamento): deve avere questo specifico pasto
     return !haPastoCorrente;
   });
+  const recuperoLabel = f => f.ora_arrivo === 'dopo_pranzo' ? 'Colazione + Pranzo' : 'Colazione + Pranzo + Cena';
+  let recuperiHtml = '';
+  if (recuperiOggi.length) {
+    recuperiHtml = `<div class="report-alert" style="border-left:4px solid #D97706;background:#FFFBEB">
+      <div class="report-alert-head">
+        <div class="report-alert-icon" style="color:#D97706">!</div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count" style="color:#D97706">${recuperiOggi.length}</span>
+            <span class="report-alert-label">recuper${recuperiOggi.length===1?'o':'i'} pasti (partenz${recuperiOggi.length===1?'a':'e'} oggi)</span>
+          </div>
+        </div>
+      </div>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${recuperiOggi.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${recuperoLabel(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
+    </div>`;
+  }
+
   let alertHtml = '';
   if (famiglieSenzaOrdine.length) {
     alertHtml = `<div class="report-alert">
@@ -762,7 +975,7 @@ async function renderReport() {
         </div>
       </div>
       <div class="report-alert-divider"></div>
-      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${esc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
+      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
     </div>`;
   }
 
@@ -823,7 +1036,7 @@ async function renderReport() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="fam-detail-qty">${r.qty}</div>
-                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${esc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${jsEsc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
                 </button>
               </div>
@@ -839,11 +1052,11 @@ async function renderReport() {
     </div>`;
   }
 
-  el.innerHTML = alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
+  el.innerHTML = recuperiHtml + alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 
   // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
   _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
-  document.getElementById('report-print-bar').style.display = 'block';
+  document.getElementById('report-print-bar').style.display = 'flex';
 }
 
 function toggleDetail(id) {
@@ -936,135 +1149,283 @@ function renderCucina(ordini) {
   const menuById = {};
   for (const m of menuOggi) menuById[m.id] = m;
 
+  // Raggruppa gli ordini per tavolo condiviso: se 2+ famiglie con ordine attivo
+  // siedono allo stesso tavolo, la comanda viene mostrata come un'unica card;
+  // altrimenti resta una card singola per famiglia (comportamento invariato).
+  const perTavolo = {};
+  const singoli = [];
+  ordini.forEach(ord => {
+    const fam = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    const tav = fam?.tavolo;
+    if (tav) {
+      if (!perTavolo[tav]) perTavolo[tav] = [];
+      perTavolo[tav].push(ord);
+    } else {
+      singoli.push(ord);
+    }
+  });
+
+  const unita = [];
+  Object.entries(perTavolo).forEach(([tav, ords]) => {
+    if (ords.length > 1) unita.push({ tipo: 'gruppo', tavolo: tav, ordini: ords });
+    else singoli.push(ords[0]);
+  });
+  singoli.forEach(ord => unita.push({ tipo: 'singolo', ord }));
+
   // Ordina: da servire prima
-  const sorted = [...ordini].sort((a,b) => {
-    const aDone = tuttoServito(a);
-    const bDone = tuttoServito(b);
+  unita.sort((a, b) => {
+    const aDone = a.tipo === 'gruppo' ? a.ordini.every(tuttoServito) : tuttoServito(a.ord);
+    const bDone = b.tipo === 'gruppo' ? b.ordini.every(tuttoServito) : tuttoServito(b.ord);
     return aDone === bDone ? 0 : aDone ? 1 : -1;
   });
 
-  el.innerHTML = sorted.map(ord => {
-    const serviti = ord.servito_piatti || {};
-    const isDone  = tuttoServito(ord);
+  el.innerHTML = unita.map(u => u.tipo === 'gruppo'
+    ? renderKdsCardGruppo(u.tavolo, u.ordini, menuById)
+    : renderKdsCardSingola(u.ord, menuById)
+  ).join('');
+}
 
-    // Normalizza piatti — gestisce tutti i formati possibili:
-    // 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
-    // 2. Oggetto mappa {menuId: qty}                     (formato legacy)
-    // 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
-    const rawPiatti = ord.piatti || [];
-    const piattiArr = [];
-    if (Array.isArray(rawPiatti)) {
-      rawPiatti.forEach(p => {
-        if (!p || typeof p !== 'object') return;
-        const qty = Number(p.quantita);
+// Normalizza i piatti di un ordine — gestisce tutti i formati possibili:
+// 1. Array [{menu_id, piatto, quantita, categoria}]  (formato corrente)
+// 2. Oggetto mappa {menuId: qty}                     (formato legacy)
+// 3. Oggetto con chiavi numeriche {"0":{...},...}    (artefatto Firestore merge)
+function estraiPiattiOrdine(ord, menuById) {
+  const rawPiatti = ord.piatti || [];
+  const piattiArr = [];
+  if (Array.isArray(rawPiatti)) {
+    rawPiatti.forEach(p => {
+      if (!p || typeof p !== 'object') return;
+      const qty = Number(p.quantita);
+      if (!(qty > 0)) return;
+      const id = p.menu_id;
+      piattiArr.push({
+        mid: id, qty,
+        piatto: p.piatto || menuById[id]?.piatto || id,
+        cat: p.categoria || menuById[id]?.categoria || 'Altro'
+      });
+    });
+  } else if (rawPiatti && typeof rawPiatti === 'object') {
+    Object.entries(rawPiatti).forEach(([k, v]) => {
+      if (typeof v === 'number') {
+        if (v <= 0) return;
+        const m = menuById[k];
+        piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
+      } else if (v && typeof v === 'object') {
+        const qty = Number(v.quantita);
         if (!(qty > 0)) return;
-        const id = p.menu_id;
+        const id = v.menu_id || k;
         piattiArr.push({
           mid: id, qty,
-          piatto: p.piatto || menuById[id]?.piatto || id,
-          cat: p.categoria || menuById[id]?.categoria || 'Altro'
+          piatto: v.piatto || menuById[id]?.piatto || id,
+          cat: v.categoria || menuById[id]?.categoria || 'Altro'
         });
+      }
+    });
+  }
+  return piattiArr;
+}
+
+function renderKdsCardSingola(ord, menuById) {
+  const serviti = ord.servito_piatti || {};
+  const isDone  = tuttoServito(ord);
+  const piattiArr = estraiPiattiOrdine(ord, menuById);
+
+  // Raggruppa per categoria
+  const cats = {};
+  for (const p of piattiArr) {
+    if (!cats[p.cat]) cats[p.cat] = [];
+    cats[p.cat].push(p);
+  }
+
+  const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+
+  const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
+  const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
+  const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
+  const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
+
+  const piattiHtml = catKeys.map(cat => `
+    <div class="kds-cat">${cat}</div>
+    ${cats[cat].map(p => {
+      const served = Math.min(Number(serviti[p.mid]||0), p.qty);
+      const done   = served >= p.qty;
+      const isExtra = p.mid.startsWith('extra_');
+      return `<div class="kds-dish${done?' done':''}">
+        <div class="kds-qty-badge">${p.qty}</div>
+        <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${jsEsc(ord.id)}','${jsEsc(p.mid)}')" title="Elimina">✕</button>`:''}</div>
+        <div class="kds-dish-ctrl">
+          <button class="kds-btn" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
+          <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
+          <button class="kds-btn plus" onclick="incrementServito('${jsEsc(ord.id)}','${jsEsc(p.mid)}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
+        </div>
+      </div>`;
+    }).join('')}`
+  ).join('');
+
+  const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+  const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
+  const tavoloId = famDoc?.tavolo;
+  const compagniTavolo = tavoloId ? famiglieDocs.filter(f => f.tavolo === tavoloId && f.id !== ord.famiglia_id).map(f => esc(f.nome)) : [];
+  const tavoloHtml = tavoloId ? `<div class="kds-note" style="background:#F0FDF4;border-left:3px solid var(--green-700);margin-bottom:4px"><strong style="color:var(--green-700)">Tavolo ${esc(tavoloId)}</strong>${compagniTavolo.length ? ` · con ${compagniTavolo.join(', ')} (in attesa del loro ordine)` : ''}</div>` : '';
+  const recuperoHtml = '';
+  const notaHtml = ord.note
+    ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
+
+  const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
+  const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
+    <div class="kds-log-title">Modifiche staff</div>
+    ${modifiche.slice().reverse().map(m => {
+      const dt = new Date(m.quando);
+      const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
+    }).join('')}
+  </div>`;
+
+  const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+  const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+
+  return `<div class="kds-card${isDone?' servita':''}">
+    <div class="kds-head ${headCls}">
+      <div>
+        <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
+        <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="kds-badge">${totServiti}/${totPiatti}</div>
+        <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
+        <button class="kds-edit-btn" onclick="stampaComandaById('${jsEsc(ord.id)}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+      </div>
+    </div>
+    <div class="kds-body">${piattiHtml}</div>
+    ${recuperoHtml}${tavoloHtml}${famNote}${notaHtml}
+    ${logHtml}
+    <div class="kds-extra" id="extra-${ord.id}">
+      <div class="kds-extra-row">
+        <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <button class="kds-btn" onclick="kdsExtraStep('${jsEsc(ord.id)}',-1)">−</button>
+          <span class="kds-served" id="extra-qty-${ord.id}">1</span>
+          <button class="kds-btn plus" onclick="kdsExtraStep('${jsEsc(ord.id)}',+1)">+</button>
+        </div>
+        <button class="kds-extra-save" onclick="salvaExtra('${jsEsc(ord.id)}','${jsEsc(ord.famiglia_id)}')">+</button>
+      </div>
+    </div>
+    <div class="kds-foot">
+      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
+    </div>
+  </div>`;
+}
+
+// Card unificata per un tavolo condiviso da più famiglie: i piatti uguali vengono
+// sommati, ma ogni riga riporta la ripartizione per famiglia (es. "2 Rossi · 4 Blu")
+// così lo staff sa sempre chi ha ordinato cosa. I controlli +/- e il pulsante
+// "servito" agiscono comunque sui singoli ordini sottostanti (nessuna modifica al
+// modello dati: restano ordini separati in 'ordini_ristorazione', solo la vista è unificata).
+function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
+  const groupKey = 'g' + String(tavolo).replace(/[^a-zA-Z0-9]/g, '_');
+
+  const dishMap = {}; // mid -> { piatto, cat, parts:[{ordId, famNome, qty, served}] }
+  ordsGroup.forEach(ord => {
+    const serviti = ord.servito_piatti || {};
+    estraiPiattiOrdine(ord, menuById).forEach(p => {
+      if (!dishMap[p.mid]) dishMap[p.mid] = { piatto: p.piatto, cat: p.cat, parts: [] };
+      dishMap[p.mid].parts.push({
+        ordId: ord.id,
+        famNome: ord.famiglia_nome || '—',
+        qty: p.qty,
+        served: Math.min(Number(serviti[p.mid]||0), p.qty)
       });
-    } else if (rawPiatti && typeof rawPiatti === 'object') {
-      Object.entries(rawPiatti).forEach(([k, v]) => {
-        if (typeof v === 'number') {
-          if (v <= 0) return;
-          const m = menuById[k];
-          piattiArr.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' });
-        } else if (v && typeof v === 'object') {
-          const qty = Number(v.quantita);
-          if (!(qty > 0)) return;
-          const id = v.menu_id || k;
-          piattiArr.push({
-            mid: id, qty,
-            piatto: v.piatto || menuById[id]?.piatto || id,
-            cat: v.categoria || menuById[id]?.categoria || 'Altro'
-          });
-        }
-      });
-    }
+    });
+  });
 
-    // Raggruppa per categoria
-    const cats = {};
-    for (const p of piattiArr) {
-      if (!cats[p.cat]) cats[p.cat] = [];
-      cats[p.cat].push(p);
-    }
+  // Salva le parti in una mappa globale così i controlli +/- possono risalire
+  // a quale ordine incrementare/decrementare senza serializzare JSON negli onclick.
+  Object.entries(dishMap).forEach(([mid, d]) => { _kdsGruppoParts[`${groupKey}:${mid}`] = d.parts; });
 
-    const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
+  const cats = {};
+  Object.entries(dishMap).forEach(([mid, d]) => {
+    if (!cats[d.cat]) cats[d.cat] = [];
+    cats[d.cat].push({ mid, ...d });
+  });
+  const catKeys = [...CAT_ORDER, ...Object.keys(cats).filter(c => !CAT_ORDER.includes(c))].filter(c => cats[c]);
 
-    const inProgress = !isDone && piattiArr.some(p => Number(serviti[p.mid]||0) > 0);
-    const headCls    = isDone ? 'done' : inProgress ? 'in-progress' : '';
-    const totPiatti  = piattiArr.reduce((s,p)=>s+p.qty,0);
-    const totServiti = piattiArr.reduce((s,p)=>s+Math.min(Number(serviti[p.mid]||0),p.qty),0);
+  let totPiatti = 0, totServiti = 0;
+  Object.values(dishMap).forEach(d => d.parts.forEach(p => { totPiatti += p.qty; totServiti += p.served; }));
 
-    const piattiHtml = catKeys.map(cat => `
-      <div class="kds-cat">${cat}</div>
-      ${cats[cat].map(p => {
-        const served = Math.min(Number(serviti[p.mid]||0), p.qty);
-        const done   = served >= p.qty;
-        const isExtra = p.mid.startsWith('extra_');
-        return `<div class="kds-dish${done?' done':''}">
-          <div class="kds-qty-badge">${p.qty}</div>
-          <div class="kds-dish-name">${esc(p.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtra('${ord.id}','${p.mid}')" title="Elimina">✕</button>`:''}</div>
-          <div class="kds-dish-ctrl">
-            <button class="kds-btn" onclick="incrementServito('${ord.id}','${p.mid}',${served},-1)" ${served<=0?'disabled':''} title="Rimuovi 1">−</button>
-            <span class="kds-served${done?' done':''}">${served}/${p.qty}</span>
-            <button class="kds-btn plus" onclick="incrementServito('${ord.id}','${p.mid}',${served},${p.qty})" ${done?'disabled':''} title="Aggiungi 1">+</button>
-          </div>
-        </div>`;
-      }).join('')}`
-    ).join('');
+  const isDoneGroup = ordsGroup.every(tuttoServito);
+  const inProgress  = !isDoneGroup && totServiti > 0;
+  const headCls     = isDoneGroup ? 'done' : inProgress ? 'in-progress' : '';
 
+  const piattiHtml = catKeys.map(cat => `
+    <div class="kds-cat">${cat}</div>
+    ${cats[cat].map(d => {
+      const totQty = d.parts.reduce((s,p)=>s+p.qty,0);
+      const totServitiDish = d.parts.reduce((s,p)=>s+p.served,0);
+      const doneDish = totServitiDish >= totQty;
+      const isExtra = d.mid.startsWith('extra_');
+      const breakdown = d.parts.map(p => `${p.qty} ${esc(p.famNome)}`).join(' · ');
+      return `<div class="kds-dish${doneDish?' done':''}">
+        <div class="kds-qty-badge">${totQty}</div>
+        <div class="kds-dish-name">${esc(d.piatto)}${isExtra?` <button class="kds-del-extra" onclick="eliminaExtraGruppo('${groupKey}','${jsEsc(d.mid)}')" title="Elimina">✕</button>`:''}
+          <div class="kds-dish-breakdown">${breakdown}</div>
+        </div>
+        <div class="kds-dish-ctrl">
+          <button class="kds-btn" onclick="incrementServitoGruppo('${groupKey}','${jsEsc(d.mid)}',-1)" ${totServitiDish<=0?'disabled':''} title="Rimuovi 1">−</button>
+          <span class="kds-served${doneDish?' done':''}">${totServitiDish}/${totQty}</span>
+          <button class="kds-btn plus" onclick="incrementServitoGruppo('${groupKey}','${jsEsc(d.mid)}',1)" ${doneDish?'disabled':''} title="Aggiungi 1">+</button>
+        </div>
+      </div>`;
+    }).join('')}`
+  ).join('');
+
+  const famRighe = ordsGroup.map(ord => {
     const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
-    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444;margin-bottom:4px"><strong style="color:#DC2626">⚠ Note famiglia:</strong> ${esc(famDoc.note)}</div>` : '';
-    const notaHtml = ord.note
-      ? `<div class="kds-note"><strong>Nota ordine:</strong> ${esc(ord.note)}</div>` : '';
-
-    const modifiche = Array.isArray(ord.modifiche) ? ord.modifiche : [];
-    const logHtml = modifiche.length === 0 ? '' : `<div class="kds-log">
-      <div class="kds-log-title">Modifiche staff</div>
-      ${modifiche.slice().reverse().map(m => {
-        const dt = new Date(m.quando);
-        const label = isNaN(dt) ? m.quando : dt.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        return `<div class="kds-log-row"><span class="kds-log-chi">${esc(m.chi||'Staff')}</span><span class="kds-log-quando">${label}</span></div>`;
-      }).join('')}
-    </div>`;
-
-    const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
-    const doneBtnTxt = isDone ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
-
-    return `<div class="kds-card${isDone?' servita':''}">
-      <div class="kds-head ${headCls}">
-        <div>
-          <div class="kds-nome">${esc(ord.famiglia_nome||'—')}</div>
-          <div class="kds-unita">Alloggio ${esc(ord.unita||'—')}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div class="kds-badge">${totServiti}/${totPiatti}</div>
-          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${ord.famiglia_id}','${esc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine">MOD</button>
-          <button class="kds-edit-btn" onclick="stampaComandaById('${ord.id}')" title="Stampa comanda" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+    const famNote = famDoc?.note ? `<div class="kds-note" style="background:#FEE2E2;border-left:3px solid #EF4444"><strong style="color:#DC2626">⚠ ${esc(ord.famiglia_nome||'')}:</strong> ${esc(famDoc.note)}</div>` : '';
+    const notaHtml = ord.note ? `<div class="kds-note"><strong>Nota ${esc(ord.famiglia_nome||'')}:</strong> ${esc(ord.note)}</div>` : '';
+    return `<div class="kds-fam-sub">
+      <div class="kds-fam-sub-head">
+        <span class="kds-fam-sub-nome">${esc(ord.famiglia_nome||'—')} <span style="font-weight:600;color:var(--gray-400,#9CA3AF)">· Alloggio ${esc(ord.unita||'—')}</span></span>
+        <div style="display:flex;gap:6px">
+          <button class="kds-edit-btn" onclick="apriModificaOrdineStaff('${jsEsc(ord.famiglia_id)}','${jsEsc(ord.famiglia_nome||'')}','${ord.data}','${ord.tipo}')" title="Modifica ordine" style="background:var(--gray-100);color:var(--gray-700)">MOD</button>
         </div>
       </div>
-      <div class="kds-body">${piattiHtml}</div>
       ${famNote}${notaHtml}
-      ${logHtml}
-      <div class="kds-extra" id="extra-${ord.id}">
+      <div class="kds-extra" id="extra-${ord.id}" style="padding:8px 0 0;border-top:none">
         <div class="kds-extra-row">
-          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo…" autocomplete="off">
+          <input class="kds-extra-input" id="extra-txt-${ord.id}" type="text" placeholder="Piatto aggiuntivo per ${esc(ord.famiglia_nome||'')}…" autocomplete="off">
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-            <button class="kds-btn" onclick="kdsExtraStep('${ord.id}',-1)">−</button>
+            <button class="kds-btn" onclick="kdsExtraStep('${jsEsc(ord.id)}',-1)">−</button>
             <span class="kds-served" id="extra-qty-${ord.id}">1</span>
-            <button class="kds-btn plus" onclick="kdsExtraStep('${ord.id}',+1)">+</button>
+            <button class="kds-btn plus" onclick="kdsExtraStep('${jsEsc(ord.id)}',+1)">+</button>
           </div>
-          <button class="kds-extra-save" onclick="salvaExtra('${ord.id}','${ord.famiglia_id}')">+</button>
+          <button class="kds-extra-save" onclick="salvaExtra('${jsEsc(ord.id)}','${jsEsc(ord.famiglia_id)}')">+</button>
         </div>
-      </div>
-      <div class="kds-foot">
-        <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${ord.id}',${isDone})">${doneBtnTxt}</button>
       </div>
     </div>`;
   }).join('');
+
+  const doneBtnCls = isDoneGroup ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
+  const doneBtnTxt = isDoneGroup ? '✓ Servito' : totServiti===totPiatti ? '✓ Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+  const ordIdsCsv = ordsGroup.map(o => o.id).join(',');
+  const famNomiHead = ordsGroup.map(o => esc(o.famiglia_nome || '—')).join(' · ');
+
+  return `<div class="kds-card${isDoneGroup?' servita':''}">
+    <div class="kds-head ${headCls}">
+      <div>
+        <div class="kds-nome">Tavolo ${esc(tavolo)}</div>
+        <div class="kds-unita">${famNomiHead}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="kds-badge">${totServiti}/${totPiatti}</div>
+        <button class="kds-edit-btn" onclick="stampaComandaGruppoById('${jsEsc(tavolo)}','${ordIdsCsv}')" title="Stampa comanda unica del tavolo" style="background:var(--green-700);color:#fff;border-color:var(--green-700)">🖨</button>
+      </div>
+    </div>
+    <div class="kds-body">${piattiHtml}</div>
+    ${famRighe}
+    <div class="kds-foot">
+      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServitoGruppo('${ordIdsCsv}',${isDoneGroup})">${doneBtnTxt}</button>
+    </div>
+  </div>`;
 }
 
 // ── CAMPO LIBERO CUCINA ──────────────────────────────────────────────────────
@@ -1141,6 +1502,31 @@ async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   document.getElementById('mos-title').textContent = `Ordine: ${famNome}`;
   document.getElementById('mos-sub').textContent = `${tipo.charAt(0).toUpperCase()+tipo.slice(1)} del ${data} · max ${max} per categoria`;
 
+  // Sezione sblocco orario — visibile solo dopo le 8:30
+  const famDoc2 = famiglieDocs.find(f => f.id === famId);
+  const sbloccoEl = document.getElementById('mos-sblocco');
+  const _oraOra = new Date();
+  if (data === isoToday(0) && (_oraOra.getHours()>8 || (_oraOra.getHours()===8 && _oraOra.getMinutes()>=30))) {
+    const giaSbloccato = famDoc2?.sblocco_orario === isoToday(0);
+    sbloccoEl.innerHTML = giaSbloccato
+      ? `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
+           <span style="font-size:18px">🔓</span>
+           <div>
+             <div style="font-size:13px;font-weight:700;color:#16A34A">Ordine sbloccato</div>
+             <div style="font-size:12px;color:#15803D">Il cliente può compilare la comanda fuori orario</div>
+           </div>
+         </div>`
+      : `<div style="display:flex;align-items:center;gap:10px;background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:10px;padding:10px 14px">
+           <div style="flex:1">
+             <div style="font-size:13px;font-weight:700;color:#92400E">Ordini chiusi (dopo le 8:30)</div>
+             <div style="font-size:12px;color:#B45309">Il cliente non può compilare. Sblocca per permettergli di ordinare oggi.</div>
+           </div>
+           <button onclick="sbloccaOrarioModal('${jsEsc(famId)}')" style="flex-shrink:0;height:36px;padding:0 14px;background:#D97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">🔓 Sblocca</button>
+         </div>`;
+  } else {
+    sbloccoEl.innerHTML = '';
+  }
+
   // Costruisci UI per categoria
   const byCat = {};
   menuItems.forEach(m => { const c=m.categoria||'Altro'; if(!byCat[c])byCat[c]=[]; byCat[c].push(m); });
@@ -1179,6 +1565,19 @@ function mosStep(menuId, cat, delta) {
   _mosData.selezioni[menuId] = cur + delta;
   const el = document.getElementById(`mosv-${menuId}`);
   if (el) el.textContent = _mosData.selezioni[menuId];
+}
+
+async function resetComandaStaff() {
+  if (!_mosData) return;
+  if (!confirm(`Eliminare la comanda ${_mosData.tipo} di ${_mosData.famNome}?`)) return;
+  const { db, doc, deleteDoc } = window._fb;
+  const ordId = `${_mosData.famId}_${_mosData.data}_${_mosData.tipo}`;
+  try {
+    await deleteDoc(doc(db, 'ordini_ristorazione', ordId));
+    document.getElementById('modal-ordine-staff').classList.add('hidden');
+    showToast('Comanda eliminata');
+    renderReport();
+  } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
 }
 
 async function salvaOrdineStaff() {
@@ -1254,6 +1653,36 @@ async function segnaServito(ordId, isAlreadyDone) {
       await updateDoc(doc(db,'ordini_ristorazione',ordId), { servito: true });
     }
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
+}
+
+// ── CARD UNIFICATA PER TAVOLO CONDIVISO ──────────────────────────────────────
+// Mappa gruppoKey:menuId -> parti [{ordId, famNome, qty, served}], popolata a
+// ogni render di renderKdsCardGruppo(); serve ai controlli +/- per risalire
+// all'ordine giusto da aggiornare senza passare JSON dentro gli onclick.
+const _kdsGruppoParts = {};
+
+// Incrementa/decrementa il servito di un piatto aggregato per tavolo: sceglie
+// la prima famiglia con una porzione ancora da servire (per +1) o l'ultima con
+// una porzione già servita (per -1) e aggiorna solo quell'ordine sottostante.
+async function incrementServitoGruppo(groupKey, mid, delta) {
+  const parts = _kdsGruppoParts[`${groupKey}:${mid}`];
+  if (!parts || !parts.length) return;
+  const target = delta > 0
+    ? parts.find(p => p.served < p.qty)
+    : [...parts].reverse().find(p => p.served > 0);
+  if (!target) return;
+  await incrementServito(target.ordId, mid, target.served, delta > 0 ? target.qty : -1);
+}
+
+async function eliminaExtraGruppo(groupKey, mid) {
+  const parts = _kdsGruppoParts[`${groupKey}:${mid}`];
+  if (!parts || !parts.length) return;
+  await eliminaExtra(parts[0].ordId, mid);
+}
+
+async function segnaServitoGruppo(ordIdsCsv, isAlreadyDone) {
+  const ids = ordIdsCsv.split(',').filter(Boolean);
+  for (const id of ids) await segnaServito(id, isAlreadyDone);
 }
 
 // ── MENU ──────────────────────────────────────────────────────────────────────
@@ -1524,12 +1953,23 @@ async function loadAlloggi() {
 }
 
 // ── FAMIGLIE ──────────────────────────────────────────────────────────────────
-async function loadFamiglie() {
-  const { db, collection, getDocs } = window._fb;
-  try {
-    const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
-    famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
-  } catch(e) { console.error('loadFamiglie:', e); }
+// Ascolto realtime: se una famiglia viene creata/modificata da qui o dall'app
+// Conti Pensioni (conto collegato), la lista si aggiorna da sola ovunque sia
+// aperta questa pagina, senza bisogno di ricaricare.
+function startFamiglie() {
+  return new Promise((resolve) => {
+    const { db, collection, onSnapshot } = window._fb;
+    if (unsubFamiglie) { unsubFamiglie(); unsubFamiglie = null; }
+    let primaVolta = true;
+    unsubFamiglie = onSnapshot(collection(db, 'famiglie_ristorazione'), (snap) => {
+      famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+      renderFamiglie();
+      if (primaVolta) { primaVolta = false; resolve(); }
+    }, (err) => {
+      console.error('Famiglie snapshot:', err);
+      if (primaVolta) { primaVolta = false; resolve(); }
+    });
+  });
 }
 
 function renderFamiglie() {
@@ -1556,7 +1996,7 @@ function renderFamiglie() {
       <div class="fam-av ${avatarClass}">${ini}</div>
       <div class="fam-info">
         <div class="fam-nome">${esc(f.nome)}</div>
-        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.max_ospiti||1} pax · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+        <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''}  · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}${f.tavolo?` · <strong style="color:var(--green-700)">Tavolo ${esc(f.tavolo)}</strong>`:''}</div>
         ${f.note?`<div style="font-size:11px;color:#DC2626;margin-top:2px">⚠ ${esc(f.note)}</div>`:''}
         <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
       </div>
@@ -1574,19 +2014,49 @@ function renderFamiglie() {
   let html = '';
 
   if (soggiornanti.length) {
-    html += `<div class="fam-group-label" style="color:var(--green-700)">🏕 In struttura (${soggiornanti.length})</div>`;
+    html += `<div class="fam-group-label" style="color:var(--green-700)">In struttura (${soggiornanti.length})</div>`;
     html += soggiornanti.map(([f,idx]) => rigaFam(f, idx, '')).join('');
   }
   if (inArrivo.length) {
-    html += `<div class="fam-group-label" style="color:#3B82F6">✈ In arrivo (${inArrivo.length})</div>`;
+    html += `<div class="fam-group-label" style="color:#3B82F6">In arrivo (${inArrivo.length})</div>`;
     html += inArrivo.map(([f,idx]) => rigaFam(f, idx, 'arrivo')).join('');
   }
   if (partite.length) {
-    html += `<div class="fam-group-label" style="color:var(--gray-400)">↩ Partite (${partite.length})</div>`;
+    html += `<div class="fam-group-label" style="color:var(--gray-400)">Partite (${partite.length})</div>`;
     html += partite.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
   }
 
   el.innerHTML = html;
+}
+
+function recuperoPastiLabel(f) {
+  if (f.trattamento !== 'PC' || !f.ora_arrivo) return '';
+  // Pasti non consumati il giorno di arrivo = pasti da recuperare alla partenza
+  if (f.ora_arrivo === 'dopo_pranzo') return 'Recupero: Colazione + Pranzo';
+  if (f.ora_arrivo === 'sera')        return 'Recupero: Colazione + Pranzo + Cena';
+  return ''; // mattina = nessun recupero
+}
+
+function aggiornaBambiniFields(containerId, inputId) {
+  const n = parseInt(document.getElementById(inputId).value) || 0;
+  const c = document.getElementById(containerId);
+  const existing = [...c.querySelectorAll('select')].map(s => s.value);
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const val = existing[i] || '';
+    html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:13px;color:var(--gray-500);min-width:72px">Bambino ${i+1}</span>
+      <select class="finput" style="height:38px;font-size:13px;flex:1">
+        <option value="">Età</option>
+        ${Array.from({length:18},(_,i)=>`<option value="${i}"${val==i?' selected':''}>${i===0?'< 1 anno':i+' ann'+(i===1?'o':'i')}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  c.innerHTML = n ? `<div style="background:#f8f8f8;border-radius:8px;padding:10px 12px;margin-bottom:8px">${html}</div>` : '';
+}
+
+function getBambiniEta(containerId) {
+  return [...document.getElementById(containerId).querySelectorAll('select')].map(s => parseInt(s.value)||0);
 }
 
 async function aggiungiFamiglia() {
@@ -1595,29 +2065,83 @@ async function aggiungiFamiglia() {
   const tratt    = document.getElementById('f-trattamento').value;
   const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
-  const pax      = parseInt(document.getElementById('f-pax').value) || 1;
+  const adulti   = parseInt(document.getElementById('f-adulti').value) || 0;
+  const bambini  = getBambiniEta('f-bambini-ages');
 
   if (!nome) { showToast('Inserisci il nome della famiglia'); return; }
 
-  const codice = generaCodice();
-  const id     = 'fam_' + nome.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now().toString(36);
-  const note   = document.getElementById('f-note').value.trim();
-  const data   = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, codice, note };
+  const codice     = generaCodice();
+  const id         = 'fam_' + nome.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') + '_' + Date.now().toString(36);
+  const note       = document.getElementById('f-note').value.trim();
+  const tel        = document.getElementById('f-tel').value.trim();
+  const tavolo     = document.getElementById('f-tavolo').value.trim();
+  const ora_arrivo = document.getElementById('f-ora-arrivo').value;
+  const max_ospiti = adulti + bambini.length;
+  const data       = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, ora_arrivo, adulti, bambini, max_ospiti, tel, tavolo, codice, note };
 
   const { db, doc, setDoc } = window._fb;
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), { id, ...data });
     famiglieDocs.push({id, ...data});
     renderFamiglie();
+    await sincronizzaContoPensione(id, famiglieDocs[famiglieDocs.length - 1]);
     document.getElementById('f-nome').value = '';
     document.getElementById('f-alloggio').value = '';
     document.getElementById('f-checkin').value = '';
     document.getElementById('f-checkout').value = '';
-    document.getElementById('f-pax').value = '';
+    document.getElementById('f-adulti').value = '';
+    document.getElementById('f-bambini').value = '';
+    document.getElementById('f-bambini-ages').innerHTML = '';
     document.getElementById('f-trattamento').value = '';
+    document.getElementById('f-tel').value = '';
+    document.getElementById('f-tavolo').value = '';
+    document.getElementById('f-ora-arrivo').value = '';
     document.getElementById('f-note').value = '';
     mostraQR(nome, codice);
   } catch(e) { showToast('Errore: ' + e.message); console.error(e); }
+}
+
+// Tiene collegati e sincronizzati la famiglia (collezione 'famiglie_ristorazione',
+// usata qui in Ristorazione) e il suo conto pensione (collezione 'ospiti', usata
+// dall'app Conti Pensioni) — stesso progetto Firestore, quindi la scrittura è
+// diretta. Il legame tra i due documenti è tenuto tramite i campi incrociati
+// fam.ospiteId <-> ospite.famigliaId: se non esiste ancora un conto collegato
+// ne viene creato uno nuovo, altrimenti quello esistente viene aggiornato —
+// così funziona sia alla creazione sia alla modifica della famiglia, senza
+// mai creare doppioni. Lo stato "chiuso"/incassato del conto non viene mai
+// toccato da qui: viene gestito solo dallo staff nell'app Conti.
+async function sincronizzaContoPensione(famigliaId, fam) {
+  const { db, doc, setDoc } = window._fb;
+  if (fam.trattamento !== 'PC' && fam.trattamento !== 'MP') {
+    // Nessun trattamento: se esiste già un conto collegato lo marchiamo come
+    // "conto libero", ma non lo creiamo né lo cancelliamo.
+    if (fam.ospiteId) {
+      try { await setDoc(doc(db, 'ospiti', fam.ospiteId), { piano: 'nessuno' }, { merge: true }); }
+      catch(e) { console.error('Errore sync conto pensione:', e); }
+    }
+    return;
+  }
+  // Se non esiste ancora un conto collegato e il checkout è già passato, la
+  // famiglia è già ripartita: non ha senso aprire ora un conto per lei. Se
+  // il conto esisteva già lo aggiorniamo comunque (potrebbe avere ancora un
+  // saldo da chiudere in Conti).
+  if (!fam.ospiteId && fam.checkout && fam.checkout < isoToday(0)) return;
+  const parti    = (fam.nome || '').trim().split(/\s+/);
+  const nome     = parti[0] || '';
+  const cognome  = parti.slice(1).join(' ');
+  const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId };
+  try {
+    let ospiteId = fam.ospiteId;
+    if (!ospiteId) {
+      ospiteId = 'osp_' + famigliaId;
+      await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), { ospiteId }, { merge: true });
+      const idx = famiglieDocs.findIndex(f => f.id === famigliaId);
+      if (idx !== -1) famiglieDocs[idx].ospiteId = ospiteId;
+      datiOspite.chiuso = false; // nuovo conto: parte aperto
+    }
+    await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
+  } catch(e) { console.error('Errore creazione/sync conto pensione:', e); }
 }
 
 function apriEditFamiglia(idx) {
@@ -1629,8 +2153,16 @@ function apriEditFamiglia(idx) {
   document.getElementById('ef-trattamento').value = f.trattamento || '';
   document.getElementById('ef-checkin').value     = f.checkin  || '';
   document.getElementById('ef-checkout').value    = f.checkout || '';
-  document.getElementById('ef-pax').value         = f.max_ospiti || 1;
+  document.getElementById('ef-adulti').value      = f.adulti  ?? (f.max_ospiti || 1);
+  document.getElementById('ef-bambini').value     = (f.bambini||[]).length;
+  document.getElementById('ef-tel').value           = f.tel          || '';
+  document.getElementById('ef-tavolo').value        = f.tavolo        || '';
+  document.getElementById('ef-ora-arrivo').value = f.ora_arrivo || '';
   document.getElementById('ef-note').value        = f.note || '';
+  // Popola età bambini
+  aggiornaBambiniFields('ef-bambini-ages','ef-bambini');
+  const ages = f.bambini || [];
+  [...document.getElementById('ef-bambini-ages').querySelectorAll('select')].forEach((s,i) => { if(ages[i]) s.value = ages[i]; });
   const src = document.getElementById('f-alloggio');
   const dst = document.getElementById('ef-alloggio');
   dst.innerHTML = src.innerHTML;
@@ -1657,16 +2189,22 @@ async function salvaEditFamiglia() {
   const tratt    = document.getElementById('ef-trattamento').value;
   const checkin  = document.getElementById('ef-checkin').value;
   const checkout = document.getElementById('ef-checkout').value;
-  const pax      = parseInt(document.getElementById('ef-pax').value) || 1;
+  const adulti   = parseInt(document.getElementById('ef-adulti').value) || 0;
+  const bambini  = getBambiniEta('ef-bambini-ages');
   if (!nome) { showToast('Inserisci il nome'); return; }
 
   const { db, doc, setDoc } = window._fb;
-  const note     = document.getElementById('ef-note').value.trim();
-  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, max_ospiti: pax, note };
+  const note       = document.getElementById('ef-note').value.trim();
+  const tel        = document.getElementById('ef-tel').value.trim();
+  const tavolo     = document.getElementById('ef-tavolo').value.trim();
+  const ora_arrivo = document.getElementById('ef-ora-arrivo').value;
+  const max_ospiti = adulti + bambini.length;
+  const updates = { nome, unita: alloggio, trattamento: tratt, checkin, checkout, ora_arrivo, adulti, bambini, max_ospiti, tel, tavolo, note };
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', id), updates, { merge: true });
     const idx = famiglieDocs.findIndex(f => f.id === id);
     if (idx !== -1) famiglieDocs[idx] = { ...famiglieDocs[idx], ...updates };
+    await sincronizzaContoPensione(id, idx !== -1 ? famiglieDocs[idx] : { id, ...updates });
     document.getElementById('modal-edit-fam').classList.add('hidden');
     renderFamiglie();
     showToast('Famiglia aggiornata');
@@ -1681,8 +2219,7 @@ async function eliminaFamiglia(idx) {
   const { db, doc, deleteDoc } = window._fb;
   try {
     await deleteDoc(doc(db, 'famiglie_ristorazione', id));
-    await loadFamiglie(); // ricarica da Firestore per garantire consistenza
-    renderFamiglie();
+    // La lista si aggiorna da sola tramite l'ascolto realtime (startFamiglie)
     showToast('Famiglia eliminata');
   } catch(e) {
     console.error('eliminaFamiglia:', e);
@@ -1726,6 +2263,92 @@ function openSettings() {
   document.getElementById('top-bar-main').style.display = 'none';
   document.getElementById('top-bar-settings').style.display = 'block';
   renderFamiglie();
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
+  document.getElementById('printer-ip-input').value = ip;
+  document.getElementById('printer-dev-input').value = dev;
+  document.getElementById('printer-test-result').textContent = '';
+  aggiornaStatoNotifiche();
+}
+
+// ── NOTIFICHE PUSH ────────────────────────────────────────────────────────────
+function aggiornaStatoNotifiche() {
+  const el     = document.getElementById('notif-status-txt');
+  const btn    = document.getElementById('btn-notif');
+  const btnDis = document.getElementById('btn-disattiva-notif');
+  const btnTest = document.getElementById('btn-test-notif');
+  const testHint = document.getElementById('test-notif-hint');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser.';
+    if (btn) btn.style.display = 'none';
+    if (btnTest) btnTest.style.display = 'none';
+    if (testHint) testHint.style.display = 'none';
+    return;
+  }
+  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
+  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  el.style.color = attive ? 'var(--green-700)' : 'var(--gray-500)';
+  if (btn) btn.style.display = attive ? 'none' : '';
+  if (btnDis) btnDis.style.display = attive ? '' : 'none';
+  if (btnTest) btnTest.style.display = attive ? '' : 'none';
+  if (testHint) testHint.style.display = attive ? '' : 'none';
+}
+
+async function attivaNotifiche() {
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  const operatore = sess.nome || 'Staff';
+  const btn = document.getElementById('btn-notif');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
+  const res = await window._abilitaNotifichePush(operatore);
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const msg = {
+      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
+    };
+    showToast(msg[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
+}
+
+async function disattivaNotifiche() {
+  const token = localStorage.getItem('gcm_token');
+  const operatore = localStorage.getItem('gcm_operatore');
+  if (token && operatore) {
+    try {
+      const { db, doc, updateDoc } = window._fb;
+      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await updateDoc(doc(db, 'staffTokens', operatore), { tokens: arrayRemove(token) });
+    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
+  }
+  localStorage.removeItem('gcm_token');
+  localStorage.removeItem('gcm_operatore');
+  showToast('Notifiche disattivate');
+  aggiornaStatoNotifiche();
+}
+
+async function inviaNotificaTest() {
+  const btn = document.getElementById('btn-test-notif');
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const testId = `test-${Date.now()}`;
+    await setDoc(doc(db, 'test_notifiche', testId), {
+      richiesto_da: sess.nome || 'Staff',
+      notified: false,
+      timestamp: new Date().toISOString()
+    });
+    showToast('Richiesta inviata — controlla il dispositivo entro 5 minuti');
+  } catch(e) {
+    console.error(e);
+    showToast('Errore invio test: ' + (e.message || e.code));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Invia notifica di test'; }
 }
 function closeSettings() {
   document.getElementById('main-view').classList.remove('hidden');
@@ -1743,6 +2366,10 @@ function doLogout() {
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Escape per nomi usati dentro stringhe JS in attributi onclick (apostrofo → \')
+function jsEsc(s) {
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 }
 
 let _toastTimer;
@@ -1912,17 +2539,371 @@ function scaricaReport() {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function scaricaFoglioQR() {
-  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
-  const famiglie = famiglieDocs.filter(f => f.codice);
-  if (!famiglie.length) { showToast('Nessuna famiglia con codice QR'); return; }
+async function stampaReportTermica() {
+  if (!_printData) return;
+  const { targetDate, pasto, ordini, menuItems } = _printData;
 
+  const dataLabel = new Date(targetDate + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  const pastoLabel = pasto.toUpperCase();
+
+  const W_NORM = 42;
+  const W_WIDE = 21;
+
+  function banda(testo) {
+    const padded = escXml((' ' + testo).padEnd(W_NORM));
+    return `<text reverse="true" font="font_a" em="true" height="1" width="1">${padded}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`;
+  }
+
+  // Ricostruisce byPiatto: menuId → [{nome, unita, qty, nota}]
+  const _mById = {};
+  for (const m of menuItems) _mById[m.id] = m;
+
+  const byPiatto = {}; // menuId → {piatto, cat, famiglie:[]}
+  for (const ord of ordini) {
+    const raw = ord.piatti || [];
+    const items = [];
+    if (Array.isArray(raw)) {
+      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({ mid: p.menu_id, qty: Number(p.quantita), piatto: p.piatto, cat: p.categoria }); });
+    } else if (typeof raw === 'object') {
+      Object.entries(raw).forEach(([k, v]) => {
+        if (typeof v === 'number' && v > 0) { const m = _mById[k]; items.push({ mid: k, qty: v, piatto: m?.piatto || k, cat: m?.categoria || 'Altro' }); }
+        else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({ mid: v.menu_id || k, qty: Number(v.quantita), piatto: v.piatto || k, cat: v.categoria || 'Altro' });
+      });
+    }
+    for (const it of items) {
+      if (!byPiatto[it.mid]) byPiatto[it.mid] = { piatto: it.piatto, cat: it.cat || 'Altro', famiglie: [] };
+      byPiatto[it.mid].famiglie.push({ nome: ord.famiglia_nome || '—', unita: ord.unita || '', qty: it.qty, nota: ord.note || '' });
+    }
+  }
+
+  const catOrd = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []),
+    ...Object.values(byPiatto).map(p => p.cat).filter((c, i, a) => a.indexOf(c) === i && !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))
+  ];
+
+  const righe = [];
+  righe.push(`<text font="font_a" align="center" height="2" width="2">RESOCONTO ${escXml(pastoLabel)}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center">Data: ${dataLabel}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const cat of catOrd) {
+    const piatti = Object.values(byPiatto).filter(p => p.cat === cat);
+    if (!piatti.length) continue;
+
+    righe.push(banda(cat.toUpperCase()));
+
+    for (const { piatto, famiglie } of piatti) {
+      const totale = famiglie.reduce((s, f) => s + f.qty, 0);
+      const nomeUp = piatto.toUpperCase();
+      const qtyStr = 'x' + totale;
+      const sp = W_WIDE - nomeUp.length - qtyStr.length;
+      const titolo = sp > 0
+        ? nomeUp + ' '.repeat(sp) + qtyStr
+        : nomeUp.substring(0, W_WIDE - qtyStr.length - 1) + ' ' + qtyStr;
+      righe.push(`<text font="font_a" height="2" width="2" align="left">${escXml(titolo)}</text><text font="font_a" height="1" width="1">&#10;</text>`);
+
+      for (const f of famiglie) {
+        const famLine = `  ${f.nome}`;
+        const qStr = 'x' + f.qty;
+        const spaces = Math.max(1, W_NORM - famLine.length - qStr.length);
+        righe.push(`<text font="font_b">${escXml(famLine + ' '.repeat(spaces) + qStr)}</text><text>&#10;</text>`);
+        if (f.nota) righe.push(`<text font="font_b">  → ${escXml(f.nota)}</text><text>&#10;</text>`);
+      }
+      righe.push('<text>&#10;</text>');
+    }
+  }
+
+  righe.push('<text>&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), 'local_printer');
+  const { ok, err } = await inviaEpos(null, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+function apriReportFamiglie() {
+  const oggi = isoToday(0);
+  const gruppi = { soggiornanti: [], inArrivo: [], partite: [] };
+  famiglieDocs.forEach(f => {
+    const ci = f.checkin || '', co = f.checkout || '';
+    if (co && co < oggi) gruppi.partite.push(f);
+    else if (ci && ci > oggi) gruppi.inArrivo.push(f);
+    else gruppi.soggiornanti.push(f);
+  });
+
+  const sezioni = [
+    { label: 'In struttura', list: gruppi.soggiornanti },
+    { label: 'In arrivo',    list: gruppi.inArrivo },
+    { label: 'Partite',      list: gruppi.partite },
+  ];
+
+  let html = '';
+  sezioni.forEach(({ label, list }) => {
+    if (!list.length) return;
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:10px 0 6px">${label}</div>`;
+    list.forEach(f => {
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f9f9f9;border-radius:8px;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" class="rf-check" data-id="${f.id}" checked style="width:16px;height:16px;accent-color:var(--green-700)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-900)">${esc(f.nome)}</div>
+          <div style="font-size:11px;color:var(--gray-500)">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''} · ${esc(f.trattamento||'—')}</div>
+        </div>
+      </label>`;
+    });
+  });
+
+  document.getElementById('rf-list').innerHTML = html || '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:16px">Nessuna famiglia</div>';
+  document.getElementById('modal-report-fam').classList.remove('hidden');
+}
+
+function selezionaTutteFamiglie(val) {
+  document.querySelectorAll('.rf-check').forEach(c => c.checked = val);
+}
+
+function applicaFiltroDate() {
+  const dal = document.getElementById('rf-dal').value;
+  const al  = document.getElementById('rf-al').value;
+  if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
+  const checks = document.querySelectorAll('.rf-check');
+  if (!checks.length) { showToast('Nessun elemento trovato'); return; }
+  let selezionate = 0;
+  checks.forEach(c => {
+    const fid = c.dataset.id;
+    const f = famiglieDocs.find(x => x.id === fid);
+    if (!f) { c.checked = false; return; }
+    const ci = (f.checkin  || '').trim();
+    const co = (f.checkout || '').trim();
+    if (!ci && !co) { c.checked = true; selezionate++; return; } // senza date: sempre inclusa
+    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
+    c.checked = !fuoriRange;
+    if (!fuoriRange) selezionate++;
+  });
+  showToast(`${selezionate} / ${checks.length} famiglie nel periodo`);
+}
+
+function applicaFiltroDateQR() {
+  const dal = document.getElementById('qr-dal').value;
+  const al  = document.getElementById('qr-al').value;
+  if (!dal && !al) { showToast('Inserisci almeno una data'); return; }
+  const checks = document.querySelectorAll('.qr-check');
+  if (!checks.length) { showToast('Nessun elemento trovato'); return; }
+  let selezionate = 0;
+  checks.forEach(c => {
+    const fid = c.dataset.id;
+    const f = famiglieDocs.find(x => x.id === fid);
+    if (!f) { c.checked = false; return; }
+    const ci = (f.checkin  || '').trim();
+    const co = (f.checkout || '').trim();
+    if (!ci && !co) { c.checked = true; selezionate++; return; } // senza date: sempre inclusa
+    const fuoriRange = (dal && co && co < dal) || (al && ci && ci > al);
+    c.checked = !fuoriRange;
+    if (!fuoriRange) selezionate++;
+  });
+  showToast(`${selezionate} / ${checks.length} famiglie nel periodo`);
+}
+
+function scaricaReportFamiglie() {
+  const selezionati = new Set([...document.querySelectorAll('.rf-check:checked')].map(c => c.dataset.id));
+  const fams = famiglieDocs.filter(f => selezionati.has(f.id));
+  if (!fams.length) { showToast('Seleziona almeno una famiglia'); return; }
+
+  const oggi = isoToday(0);
+  function gruppoLabel(f) {
+    const ci = f.checkin||'', co = f.checkout||'';
+    if (co && co < oggi) return 'Partite';
+    if (ci && ci > oggi) return 'In arrivo';
+    return 'In struttura';
+  }
+
+  const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
+  const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
+
+  const thead = `<thead><tr>
+    <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Recupero pasti</th><th>Note</th>
+  </tr></thead>`;
+
+  function rigaFam(f) {
+    const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
+    const dateStr = [fmtData(f.checkin), fmtData(f.checkout)].filter(Boolean).join(' → ');
+    return `<tr>
+      <td>${esc(f.nome)}</td>
+      <td>${esc(f.unita||'—')}</td>
+      <td>${esc(f.tel||'—')}</td>
+      <td>${esc(trattLabel(f.trattamento))}</td>
+      <td style="text-align:center">${f.adulti||0}</td>
+      <td style="text-align:center">${(f.bambini||[]).length}</td>
+      <td>${bambiniStr||'—'}</td>
+      <td>${dateStr||'—'}</td>
+      <td style="color:#B45309;font-weight:700">${esc(recuperoPastiLabel(f)||'—')}</td>
+      <td style="color:#DC2626">${esc(f.note||'—')}</td>
+    </tr>`;
+  }
+
+  // Gruppi per tavolo
+  const tavoliMap = {};
+  fams.filter(f => f.tavolo).forEach(f => {
+    if (!tavoliMap[f.tavolo]) tavoliMap[f.tavolo] = [];
+    tavoliMap[f.tavolo].push(f);
+  });
+  const tavoliOrdinati = Object.keys(tavoliMap).sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+  const senzaTavolo = fams.filter(f => !f.tavolo);
+
+  // Sezione recuperi pasti
+  const famiglieConRecupero = fams.filter(f => recuperoPastiLabel(f));
+  let recuperiBlock = '';
+  if (famiglieConRecupero.length) {
+    recuperiBlock = `<div style="border:2px solid #D97706;border-radius:8px;padding:12px 16px;margin-bottom:20px;background:#FFFBEB;break-inside:avoid">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#D97706;margin-bottom:10px">Recupero pasti</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Famiglia</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Alloggio</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Check-out</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Pasti da recuperare</th>
+        </tr></thead>
+        <tbody>${famiglieConRecupero.map(f => `<tr>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.nome)}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.unita||'—')}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${fmtData(f.checkout)||'—'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A;font-weight:700;color:#B45309">${esc(recuperoPastiLabel(f))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  let blocchi = recuperiBlock;
+
+  // Riquadri tratteggiati per tavoli condivisi
+  tavoliOrdinati.forEach(t => {
+    const gruppo = tavoliMap[t];
+    blocchi += `<div class="tavolo-box">
+      <div class="tavolo-label">Tavolo ${esc(t)}</div>
+      <table>${thead}<tbody>${gruppo.map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  });
+
+  // Famiglie senza tavolo
+  if (senzaTavolo.length) {
+    blocchi += `<div style="margin-top:${tavoliOrdinati.length?'20px':'0'}">
+      ${tavoliOrdinati.length ? '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Altre famiglie</div>' : ''}
+      <table>${thead}<tbody>${senzaTavolo.map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  }
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>Report Famiglie — Garden River</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Montserrat',sans-serif;padding:10mm 14mm;font-size:11px;color:#111}
+    h1{font-size:18px;font-weight:800;color:#1a5c32;margin-bottom:4px}
+    .sub{font-size:11px;color:#666;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1a5c32;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left}
+    td{padding:6px 8px;border-bottom:1px solid #e5e7eb;vertical-align:top}
+    .tavolo-box{border:2px dashed #1a5c32;border-radius:6px;padding:10px 12px;margin-bottom:16px;break-inside:avoid}
+    .tavolo-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1a5c32;margin-bottom:8px}
+    @page{size:A4 landscape;margin:10mm 12mm}
+    @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+  </style></head><body>
+  <h1>Report Famiglie · Garden River</h1>
+  <div class="sub">Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})} · ${fams.length} famiglie</div>
+  ${blocchi}
+  <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>
+  </body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'report-famiglie.html';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  document.getElementById('modal-report-fam').classList.add('hidden');
+}
+
+function scaricaFoglioQR() {
+  apriPanelQR();
+}
+
+function apriPanelQR() {
+  const oggi = isoToday(0);
+  const gruppi = { soggiornanti: [], inArrivo: [], partite: [] };
+  famiglieDocs.filter(f => f.codice).forEach(f => {
+    const ci = f.checkin||'', co = f.checkout||'';
+    if (co && co < oggi) gruppi.partite.push(f);
+    else if (ci && ci > oggi) gruppi.inArrivo.push(f);
+    else gruppi.soggiornanti.push(f);
+  });
+
+  const sezioni = [
+    { label: 'In struttura', list: gruppi.soggiornanti },
+    { label: 'In arrivo',    list: gruppi.inArrivo },
+    { label: 'Partite',      list: gruppi.partite },
+  ];
+
+  let html = '';
+  sezioni.forEach(({ label, list }) => {
+    if (!list.length) return;
+    html += `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin:10px 0 6px">${label}</div>`;
+    list.forEach(f => {
+      html += `<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f9f9f9;border-radius:8px;margin-bottom:6px;cursor:pointer">
+        <input type="checkbox" class="qr-check" data-id="${f.id}" checked style="width:16px;height:16px;accent-color:var(--green-700)">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--gray-900)">${esc(f.nome)}</div>
+          <div style="font-size:11px;color:var(--gray-500)">Alloggio ${esc(f.unita||'—')} · ${esc(f.trattamento||'—')}</div>
+        </div>
+      </label>`;
+    });
+  });
+
+  document.getElementById('qr-panel-list').innerHTML = html || '<div style="color:var(--gray-400);font-size:13px;text-align:center;padding:16px">Nessuna famiglia con QR</div>';
+  document.getElementById('modal-qr-panel').classList.remove('hidden');
+}
+
+function selezionaTutteQR(val) {
+  document.querySelectorAll('.qr-check').forEach(c => c.checked = val);
+}
+
+function scaricaListaLink() {
+  const selezionati = new Set([...document.querySelectorAll('.qr-check:checked')].map(c => c.dataset.id));
+  const famiglie = famiglieDocs.filter(f => f.codice && selezionati.has(f.id));
+  if (!famiglie.length) { showToast('Seleziona almeno una famiglia'); return; }
+
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
+  const testo = famiglie.map(f => {
+    const url = `${base}?f=${f.codice}`;
+    return `*${f.nome}*\n${url}`;
+  }).join('\n\n');
+
+  navigator.clipboard.writeText(testo).then(() => {
+    showToast('Testo copiato — incollalo su WhatsApp');
+    document.getElementById('modal-qr-panel').classList.add('hidden');
+  }).catch(() => {
+    // fallback: mostra textarea selezionabile
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;width:100%;max-width:480px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--gray-900)">Copia il testo</div>
+      <textarea style="width:100%;height:200px;font-size:12px;font-family:monospace;border:1px solid var(--gray-300);border-radius:8px;padding:10px;resize:none" readonly>${testo}</textarea>
+      <button onclick="this.closest('div[style]').remove()" style="margin-top:10px;width:100%;height:38px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Chiudi</button>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('textarea').select();
+  });
+}
+
+function scaricaQRSelezionati() {
+  const selezionati = new Set([...document.querySelectorAll('.qr-check:checked')].map(c => c.dataset.id));
+  const famiglie = famiglieDocs.filter(f => f.codice && selezionati.has(f.id));
+  if (!famiglie.length) { showToast('Seleziona almeno una famiglia'); return; }
+
+  const base = location.origin + location.pathname.replace('staff.html', 'index.html');
   const cards = famiglie.map(f => {
     const url = `${base}?f=${f.codice}`;
     const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&color=1a5c32&bgcolor=ffffff&data=${encodeURIComponent(url)}`;
-    return `
-      <div class="qr-card">
+    return `<div class="qr-card">
         <div class="qr-istr">Scansiona il Qrcode<br>e compila il menù</div>
+        <div class="qr-deadline">Entro le ore 8:30<br>del giorno stesso</div>
         <img class="qr-img" src="${qrSrc}" alt="QR ${f.nome}" crossorigin="anonymous">
         <div class="qr-nome">${f.nome}</div>
       </div>`;
@@ -1939,6 +2920,7 @@ function scaricaFoglioQR() {
     .qr-istr{font-size:13px;font-weight:800;color:#E07B39;text-transform:uppercase;letter-spacing:.03em;line-height:1.3;margin-bottom:10px}
     .qr-img{width:100%;max-width:180px;height:auto;display:block}
     .qr-nome{font-size:18px;font-weight:800;color:#1a5c32;margin-top:8px;letter-spacing:-.2px}
+    .qr-deadline{font-size:11px;font-weight:700;color:#666;margin-bottom:12px;line-height:1.4}
     @media print{body{padding:4mm}@page{size:A4;margin:10mm}}
   </style></head><body>
   <div class="grid">${cards}</div>
@@ -1948,12 +2930,11 @@ function scaricaFoglioQR() {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const objUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = objUrl;
-  a.download = 'qr-famiglie.html';
-  document.body.appendChild(a);
-  a.click();
+  a.href = objUrl; a.download = 'qr-famiglie.html';
+  document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(objUrl), 2000);
+  document.getElementById('modal-qr-panel').classList.add('hidden');
 }
 
 // ── MAPPA ORDINI CUCINA (per stampa) ────────────────────────────────────────
@@ -1962,22 +2943,18 @@ const _kdsOrdiniMap = {};
 // ── STAMPANTE TERMICA EPSON ──────────────────────────────────────────────────
 
 function apriImpostazioniStampante() {
-  const ip = localStorage.getItem('epson_printer_ip') || '192.168.5.85';
+  openSettings();
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
   document.getElementById('printer-ip-input').value = ip;
   document.getElementById('printer-dev-input').value = dev;
   document.getElementById('printer-test-result').textContent = '';
-  document.getElementById('modal-stampante').classList.remove('hidden');
-}
-
-function chiudiImpostazioniStampante() {
-  document.getElementById('modal-stampante').classList.add('hidden');
 }
 
 function salvaImpostazioniStampante() {
   const ip = document.getElementById('printer-ip-input').value.trim();
   const dev = document.getElementById('printer-dev-input').value.trim() || 'local_printer';
-  localStorage.setItem('epson_printer_ip', ip || '192.168.5.85');
+  localStorage.setItem('epson_printer_ip', ip || '192.168.1.5');
   localStorage.setItem('epson_printer_dev', dev);
   aggiornaStatoStampante();
   chiudiImpostazioniStampante();
@@ -2020,7 +2997,8 @@ ${comandi.join('\n')}
 }
 
 async function inviaEpos(ip, xml) {
-  const endpoint = `https://192.168.5.85/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+  const printerIp = ip || localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const endpoint = `https://${printerIp}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
   try {
     const r = await fetch(endpoint, {
       method: 'POST',
@@ -2039,8 +3017,12 @@ function escXml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 
-async function stampaComanda(ord) {
+// Larghezze colonne in caratteri per la stampante termica: font_a normale = 42, double-width = 21
+const STAMPA_W_NORM = 42;
+const STAMPA_W_WIDE = 21;
 
+// Normalizza i piatti di un ordine per la stampa (stesso schema di estraiPiattiOrdine ma senza mid)
+function estraiPiattiPerStampa(ord) {
   const rawPiatti = ord.piatti || [];
   const piattiArr = [];
   if (Array.isArray(rawPiatti)) {
@@ -2064,6 +3046,72 @@ async function stampaComanda(ord) {
       }
     });
   }
+  return piattiArr;
+}
+
+// Banda nera (reverse) a larghezza piena con reset automatico dello stato
+function stampaBanda(testo, wide) {
+  const W = wide ? STAMPA_W_WIDE : STAMPA_W_NORM;
+  let padded;
+  if (wide) {
+    // centra manualmente con spazi
+    const inner = ' ' + testo + ' ';
+    const lp = Math.max(0, Math.floor((W - inner.length) / 2));
+    const rp = Math.max(0, W - inner.length - lp);
+    padded = escXml(' '.repeat(lp) + inner + ' '.repeat(rp));
+    return `<text reverse="true" font="font_a" height="2" width="2">${padded}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`;
+  }
+  padded = escXml((' ' + testo).padEnd(W));
+  return `<text reverse="true" font="font_a" em="true" height="1" width="1">${padded}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`;
+}
+
+// Spezza il testo in righe senza tagliare le parole
+function stampaWordWrap(text, maxChars) {
+  const words = text.split(' ');
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    if (!cur) { cur = w; }
+    else if (cur.length + 1 + w.length <= maxChars) { cur += ' ' + w; }
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// Piatto grande con qty a destra sulla stessa riga se ci sta, altrimenti qty sotto
+function stampaRigaPiatto(nome, qty) {
+  const nomeUp = nome.toUpperCase();
+  const qtyStr = 'x' + qty;
+  const NL = `<text font="font_a" height="1" width="1">&#10;</text>`;
+  const riga = (t, alignR) => `<text font="font_a" height="2" width="2" align="${alignR ? 'right' : 'left'}">${escXml(t)}</text>${NL}`;
+
+  // caso semplice: tutto su una riga
+  if (nomeUp.length + 1 + qtyStr.length <= STAMPA_W_WIDE) {
+    const sp = STAMPA_W_WIDE - nomeUp.length - qtyStr.length;
+    return riga(nomeUp + ' '.repeat(sp) + qtyStr, false);
+  }
+
+  // word-wrap del nome
+  const lines = stampaWordWrap(nomeUp, STAMPA_W_WIDE);
+  let out = '';
+  const last = lines[lines.length - 1];
+
+  if (last.length + 1 + qtyStr.length <= STAMPA_W_WIDE) {
+    // qty si attacca all'ultima riga
+    for (let i = 0; i < lines.length - 1; i++) out += riga(lines[i], false);
+    const sp = STAMPA_W_WIDE - last.length - qtyStr.length;
+    out += riga(last + ' '.repeat(sp) + qtyStr, false);
+  } else {
+    // qty su riga separata a destra
+    for (const l of lines) out += riga(l, false);
+    out += `<text font="font_a" height="2" width="2" align="right">${escXml(qtyStr)}</text><text font="font_a" height="1" width="1" align="left">&#10;</text>`;
+  }
+  return out;
+}
+
+async function stampaComanda(ord) {
+  const piattiArr = estraiPiattiPerStampa(ord);
 
   const cats = {};
   for (const p of piattiArr) {
@@ -2073,35 +3121,50 @@ async function stampaComanda(ord) {
 
   const now = new Date();
   const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-  const data = now.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  const dataOrdine = ord.data ? new Date(ord.data + 'T12:00:00') : now;
+  const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
-  const righe = [
-    '<text font="font_a" align="center" height="2" width="2">COMANDA</text>',
-    '<text>&#10;</text>',
-    `<text align="center">${data}  ${ora}  ${cucinaPasto.toUpperCase()}</text>`,
-    '<text>&#10;</text>',
-    '<text>--------------------------------</text>',
-    '<text>&#10;</text>',
-    `<text font="font_a" height="2" width="2">${escXml((ord.famiglia_nome || '—').substring(0, 20))}</text>`,
-    '<text>&#10;</text>',
-    ord.unita ? `<text>Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>` : '',
-    '<text>&#10;</text>',
-    '<text>--------------------------------</text>',
-    '<text>&#10;</text>',
-  ];
+  const righe = [];
 
+  // Intestazione
+  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(cucinaPasto.toUpperCase())}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Famiglia
+  righe.push(`<text font="font_a" em="true">Famiglia:</text><text>&#10;</text>`);
+  const nomeFam = (ord.famiglia_nome || '—').substring(0, STAMPA_W_WIDE);
+  righe.push(stampaBanda(nomeFam, true));
+  if (ord.unita) righe.push(`<text font="font_b"> Alloggio: ${escXml(ord.unita)}</text><text>&#10;</text>`);
+  const famTel = (famiglieDocs.find(f => f.id === ord.famiglia_id) || {}).tel;
+  if (famTel) righe.push(`<text font="font_b"> Tel: ${escXml(famTel)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Note famiglia
+  if (ord.note_famiglia) {
+    righe.push(stampaBanda('Note Famiglia:', false));
+    righe.push(`<text font="font_a" height="1" width="1"> ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
+    righe.push(`<text>- - - - - - - - - - - - - - - - - - - - -</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
+  }
+
+  // Piatti per categoria
   const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
   for (const cat of catOrder) {
-    righe.push(`<text font="font_b">${escXml(cat.toUpperCase())}</text><text>&#10;</text>`);
+    righe.push(`<text font="font_b" align="left" height="1" width="1"> ${escXml(cat)}:</text><text>&#10;</text>`);
     for (const p of cats[cat]) {
-      righe.push(`<text font="font_a" height="2" width="2">${p.qty}x </text><text font="font_a" height="2" width="2">${escXml(p.piatto.substring(0, 18))}</text><text>&#10;</text>`);
+      righe.push(stampaRigaPiatto(p.piatto, p.qty));
+      righe.push('<text>&#10;</text>');
     }
     righe.push('<text>&#10;</text>');
   }
 
-  if (ord.note_famiglia) {
-    righe.push('<text>--------------------------------</text><text>&#10;</text>');
-    righe.push(`<text>NOTE: ${escXml(ord.note_famiglia)}</text><text>&#10;</text>`);
+  // Note comanda
+  const noteComanda = ord.note_comanda || ord.note || '';
+  if (noteComanda) {
+    righe.push(stampaBanda('Note comanda:', false));
+    righe.push(`<text font="font_a" height="2" width="2"> ${escXml(noteComanda)}</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
   }
 
   righe.push('<text>&#10;&#10;</text>');
@@ -2112,36 +3175,128 @@ async function stampaComanda(ord) {
   if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
+// Comanda unica per un tavolo condiviso da più famiglie: i piatti uguali vengono
+// sommati sullo scontrino, con la scomposizione per famiglia stampata sotto ogni
+// piatto (es. "2 Rossi · 4 Blu · 2 Verdi") così in cucina resta chiaro chi ha
+// ordinato cosa pur avendo un solo scontrino invece di uno per famiglia.
+async function stampaComandaGruppo(tavolo, ordsGroup) {
+  const dishMap = {}; // "cat|piatto" -> { piatto, cat, qty, parts:[{famNome, qty}] }
+  ordsGroup.forEach(ord => {
+    estraiPiattiPerStampa(ord).forEach(p => {
+      const key = p.cat + '|' + p.piatto;
+      if (!dishMap[key]) dishMap[key] = { piatto: p.piatto, cat: p.cat, qty: 0, parts: [] };
+      dishMap[key].qty += p.qty;
+      dishMap[key].parts.push({ famNome: ord.famiglia_nome || '—', qty: p.qty });
+    });
+  });
+
+  const cats = {};
+  Object.values(dishMap).forEach(d => {
+    if (!cats[d.cat]) cats[d.cat] = [];
+    cats[d.cat].push(d);
+  });
+
+  const now = new Date();
+  const ora = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const primoOrd = ordsGroup[0] || {};
+  const dataOrdine = primoOrd.data ? new Date(primoOrd.data + 'T12:00:00') : now;
+  const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+
+  const righe = [];
+
+  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(cucinaPasto.toUpperCase())}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  // Tavolo e famiglie che lo condividono
+  righe.push(`<text font="font_a" em="true">Tavolo:</text><text>&#10;</text>`);
+  righe.push(stampaBanda(String(tavolo).substring(0, STAMPA_W_WIDE), true));
+  ordsGroup.forEach(ord => {
+    const unitaTxt = ord.unita ? ` (Alloggio ${ord.unita})` : '';
+    righe.push(`<text font="font_b"> ${escXml(ord.famiglia_nome || '—')}${escXml(unitaTxt)}</text><text>&#10;</text>`);
+  });
+  righe.push('<text>&#10;</text>');
+
+  // Note famiglia/ordine, attribuite alla famiglia che le ha lasciate
+  ordsGroup.forEach(ord => {
+    const famDoc = famiglieDocs.find(f => f.id === ord.famiglia_id);
+    if (famDoc?.note) {
+      righe.push(stampaBanda(`Nota ${ord.famiglia_nome || ''}:`, false));
+      righe.push(`<text font="font_a" height="1" width="1"> ${escXml(famDoc.note)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
+    if (ord.note) {
+      righe.push(stampaBanda(`Nota ordine ${ord.famiglia_nome || ''}:`, false));
+      righe.push(`<text font="font_a" height="2" width="2"> ${escXml(ord.note)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
+  });
+
+  // Piatti per categoria, sommati con scomposizione per famiglia
+  const catOrder = [...(typeof CAT_ORDER !== 'undefined' ? CAT_ORDER : []), ...Object.keys(cats).filter(c => !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))].filter(c => cats[c]);
+  for (const cat of catOrder) {
+    righe.push(`<text font="font_b" align="left" height="1" width="1"> ${escXml(cat)}:</text><text>&#10;</text>`);
+    for (const d of cats[cat]) {
+      righe.push(stampaRigaPiatto(d.piatto, d.qty));
+      const breakdown = d.parts.map(p => `${p.qty} ${p.famNome}`).join(' · ');
+      righe.push(`<text font="font_b" align="left" height="1" width="1">   ${escXml(breakdown)}</text><text>&#10;</text>`);
+      righe.push('<text>&#10;</text>');
+    }
+    righe.push('<text>&#10;</text>');
+  }
+
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  const { ok, err } = await inviaEpos(null, xml);
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+async function sbloccaOrario(famId) {
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db,'famiglie_ristorazione',famId), { sblocco_orario: isoToday(0) }, { merge: true });
+    const f = famiglieDocs.find(x => x.id === famId);
+    if (f) f.sblocco_orario = isoToday(0);
+    showToast('Ordine sbloccato — il cliente può ora compilare');
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
+async function sbloccaOrarioModal(famId) {
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db,'famiglie_ristorazione',famId), { sblocco_orario: isoToday(0) }, { merge: true });
+    const f = famiglieDocs.find(x => x.id === famId);
+    if (f) f.sblocco_orario = isoToday(0);
+    document.getElementById('mos-sblocco').innerHTML =
+      `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:10px;padding:10px 14px">
+         <span style="font-size:18px">🔓</span>
+         <div>
+           <div style="font-size:13px;font-weight:700;color:#16A34A">Ordine sbloccato</div>
+           <div style="font-size:12px;color:#15803D">Il cliente può compilare la comanda fuori orario</div>
+         </div>
+       </div>`;
+    showToast('Ordine sbloccato — il cliente può ora compilare');
+  } catch(e) { console.error(e); showToast('Errore — riprova'); }
+}
+
 function stampaComandaById(id) {
   const ord = _kdsOrdiniMap[id];
   if (!ord) { alert('Ordine non trovato. ID: ' + id); return; }
   stampaComanda(ord).catch(e => alert('Errore JS: ' + e.message));
 }
 
+function stampaComandaGruppoById(tavolo, ordIdsCsv) {
+  const ids = ordIdsCsv.split(',').filter(Boolean);
+  const ords = ids.map(id => _kdsOrdiniMap[id]).filter(Boolean);
+  if (!ords.length) { alert('Ordini non trovati per il tavolo ' + tavolo); return; }
+  stampaComandaGruppo(tavolo, ords).catch(e => alert('Errore JS: ' + e.message));
+}
+
 window.addEventListener('firebase-ready', aggiornaStatoStampante);
 </script>
 
-<!-- MODAL STAMPANTE TERMICA -->
-<div id="modal-stampante" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center;padding:0">
-  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;box-sizing:border-box">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-      <div style="font-size:17px;font-weight:800;color:var(--gray-900)">Stampante termica</div>
-      <button onclick="chiudiImpostazioniStampante()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray-400);line-height:1">×</button>
-    </div>
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP stampante</div>
-    <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.100" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
-    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Device ID (default: local_printer)</div>
-    <input id="printer-dev-input" type="text" placeholder="local_printer" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:16px">
-    <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;font-size:12px;color:#166534;margin-bottom:16px;line-height:1.6">
-      Stampante collegata direttamente via HTTPS — nessun proxy necessario. Assicurati di aver installato il certificato sul dispositivo.
-    </div>
-    <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
-    <div style="display:flex;gap:10px">
-      <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
-      <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
