@@ -17,6 +17,8 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getMessaging, getToken }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const cfg = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -29,6 +31,10 @@
   const app  = initializeApp(cfg, "staff-risto");
   const db   = getFirestore(app);
   const auth = getAuth(app);
+  const messaging = getMessaging(app);
+
+  // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in conti/manutenzione)
+  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
   window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
 
@@ -40,6 +46,46 @@
   onAuthStateChanged(auth, u => { if (u) ready(); });
   signInAnonymously(auth).catch(() => ready());
   setTimeout(ready, 8000);
+
+  // ── Attiva notifiche FCM (stesso pattern di manutenzione/conti) ─────────
+  window._abilitaNotifichePush = async function(operatoreNome) {
+    try {
+      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
+
+      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return { ok: false, motivo: 'nessun-token' };
+
+      const { arrayRemove, arrayUnion: arrUnion, setDoc: setDocFn } =
+        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+
+      const vecchioToken = localStorage.getItem('gcm_token');
+      const vecchioOp    = localStorage.getItem('gcm_operatore');
+
+      if (vecchioToken && vecchioToken !== token) {
+        const opDaRipulire = vecchioOp || operatoreNome;
+        try { await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
+      }
+      if (vecchioOp && vecchioOp !== operatoreNome) {
+        try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
+      }
+
+      await setDocFn(doc(db, 'staffTokens', operatoreNome), {
+        tokens: arrUnion(token),
+        notifiche: true,
+        aggiornato: Date.now()
+      }, { merge: true });
+
+      localStorage.setItem('gcm_token',     token);
+      localStorage.setItem('gcm_operatore', operatoreNome);
+      return { ok: true };
+    } catch(e) {
+      console.error('Errore attivazione notifiche push:', e);
+      return { ok: false, motivo: 'errore', dettaglio: e.message };
+    }
+  };
 </script>
 
 <style>
@@ -503,6 +549,16 @@ input[type="date"].finput{font-size:13px}
     <div id="famiglie-list"></div>
 
     <div class="add-fam-card" style="margin-top:16px">
+      <h3>Notifiche push</h3>
+      <p style="font-size:12px;color:var(--gray-500);margin:0 0 12px;line-height:1.5">Ricevi un avviso su questo dispositivo quando un ospite conferma un ordine.</p>
+      <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
+      <button id="btn-notif" onclick="attivaNotifiche()" style="width:100%;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
+      <button id="btn-disattiva-notif" onclick="disattivaNotifiche()" style="width:100%;height:44px;margin-top:8px;background:var(--gray-200);color:var(--gray-700);border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Disattiva notifiche</button>
+      <button id="btn-test-notif" onclick="inviaNotificaTest()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Invia notifica di test</button>
+      <p id="test-notif-hint" style="font-size:11px;color:var(--gray-400);margin:8px 0 0;line-height:1.5;display:none">Arriva entro 5 minuti (schedulazione GitHub Actions), oppure subito se lanci manualmente il workflow "Notifiche Ordini Ristorazione" dalla tab Actions su GitHub.</p>
+    </div>
+
+    <div class="add-fam-card" style="margin-top:16px">
       <h3>Stampante termica</h3>
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP</div>
       <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.5" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
@@ -745,6 +801,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('hdr-avatar').textContent = iniziali;
   document.getElementById('hdr-name').textContent   = sess.nome || '';
   document.getElementById('hdr-role').textContent   = sess.ruolo === 'admin' ? 'Amministratore' : 'Operatore';
+
+  // Rinnova silenziosamente il token push se le notifiche erano già attive su questo
+  // dispositivo — evita che smettano di funzionare per un token scaduto/ruotato
+  // senza che l'operatore debba ripremere "Attiva notifiche".
+  if ('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('gcm_token')) {
+    window._abilitaNotifichePush(sess.nome || 'Staff').catch(() => {});
+  }
 
   // Set pasto cucina tab buttons
   setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
@@ -2205,6 +2268,87 @@ function openSettings() {
   document.getElementById('printer-ip-input').value = ip;
   document.getElementById('printer-dev-input').value = dev;
   document.getElementById('printer-test-result').textContent = '';
+  aggiornaStatoNotifiche();
+}
+
+// ── NOTIFICHE PUSH ────────────────────────────────────────────────────────────
+function aggiornaStatoNotifiche() {
+  const el     = document.getElementById('notif-status-txt');
+  const btn    = document.getElementById('btn-notif');
+  const btnDis = document.getElementById('btn-disattiva-notif');
+  const btnTest = document.getElementById('btn-test-notif');
+  const testHint = document.getElementById('test-notif-hint');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.textContent = 'Non supportate su questo browser.';
+    if (btn) btn.style.display = 'none';
+    if (btnTest) btnTest.style.display = 'none';
+    if (testHint) testHint.style.display = 'none';
+    return;
+  }
+  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
+  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  el.style.color = attive ? 'var(--green-700)' : 'var(--gray-500)';
+  if (btn) btn.style.display = attive ? 'none' : '';
+  if (btnDis) btnDis.style.display = attive ? '' : 'none';
+  if (btnTest) btnTest.style.display = attive ? '' : 'none';
+  if (testHint) testHint.style.display = attive ? '' : 'none';
+}
+
+async function attivaNotifiche() {
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  const operatore = sess.nome || 'Staff';
+  const btn = document.getElementById('btn-notif');
+  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
+  const res = await window._abilitaNotifichePush(operatore);
+  if (res.ok) {
+    showToast('Notifiche attivate!');
+  } else {
+    const msg = {
+      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
+      'non-supportato': 'Il tuo browser non supporta le notifiche push',
+      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
+    };
+    showToast(msg[res.motivo] || 'Errore, riprova');
+  }
+  aggiornaStatoNotifiche();
+  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
+}
+
+async function disattivaNotifiche() {
+  const token = localStorage.getItem('gcm_token');
+  const operatore = localStorage.getItem('gcm_operatore');
+  if (token && operatore) {
+    try {
+      const { db, doc, updateDoc } = window._fb;
+      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+      await updateDoc(doc(db, 'staffTokens', operatore), { tokens: arrayRemove(token) });
+    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
+  }
+  localStorage.removeItem('gcm_token');
+  localStorage.removeItem('gcm_operatore');
+  showToast('Notifiche disattivate');
+  aggiornaStatoNotifiche();
+}
+
+async function inviaNotificaTest() {
+  const btn = document.getElementById('btn-test-notif');
+  const sess = (() => { try { return JSON.parse(sessionStorage.getItem('gr_session')||'{}'); } catch { return {}; } })();
+  if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const testId = `test-${Date.now()}`;
+    await setDoc(doc(db, 'test_notifiche', testId), {
+      richiesto_da: sess.nome || 'Staff',
+      notified: false,
+      timestamp: new Date().toISOString()
+    });
+    showToast('Richiesta inviata — controlla il dispositivo entro 5 minuti');
+  } catch(e) {
+    console.error(e);
+    showToast('Errore invio test: ' + (e.message || e.code));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Invia notifica di test'; }
 }
 function closeSettings() {
   document.getElementById('main-view').classList.remove('hidden');
