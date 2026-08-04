@@ -849,7 +849,7 @@ async function salvaOrdini(targetData){
       });
       if(!piatti.length) continue;
       const docId=`${famiglia.id}_${data}_${tipo}`;
-      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,timestamp:new Date().toISOString()},{merge:true}));
+      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note:sel.note||'',servito:false,notified:false,timestamp:new Date().toISOString()},{merge:true}));
     }
     if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
