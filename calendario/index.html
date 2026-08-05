@@ -17,10 +17,12 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
   // Stesso progetto Firestore già usato dalle altre app della suite: qui
   // usiamo solo una nuova collezione ("prenotazioni"), non serve nessun
@@ -35,10 +37,15 @@
   };
 
   const fbApp = initializeApp(firebaseConfig);
-  const db    = getFirestore(fbApp);
-  const auth  = getAuth(fbApp);
+  const db      = getFirestore(fbApp);
+  const auth    = getAuth(fbApp);
+  const storage = getStorage(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, limit, enableNetwork, disableNetwork };
+  // Per i documenti allegati alla prenotazione: richiede Firebase Storage
+  // attivo sul progetto (Console Firebase → Storage) e le relative regole di
+  // sicurezza — non ancora configurate quando questo modulo è stato scritto.
+  window._storage = { storage, ref, uploadBytes, getDownloadURL, deleteObject };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -191,6 +198,41 @@
 .listino-save-btn { height: 46px; padding: 0 22px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-weight: 700; font-size: 14px; cursor: pointer; font-family: var(--font); }
 .generali-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .generali-row .f-input { flex: 1; }
+/* Conto inline: si clicca direttamente sull'importo (o sull'etichetta, se la
+   voce è manuale) per modificarlo — niente input con bordi finché non ci si
+   interagisce, per sembrare testo normale a colpo d'occhio. */
+.conto-row-inline { display: flex; align-items: center; gap: 4px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
+.conto-row-inline:first-child { border-top: none; }
+.conto-label-inline, .conto-importo-inline { border: none; background: transparent; font-family: var(--font); padding: 4px 6px; border-radius: 6px; color: var(--gray-900); }
+.conto-label-inline { flex: 1; font-size: 12.5px; }
+.conto-label-inline[readonly] { color: var(--gray-700); }
+.conto-importo-inline { width: 92px; text-align: right; font-size: 12.5px; font-weight: 700; }
+.conto-label-inline:not([readonly]):hover, .conto-importo-inline:hover { background: var(--white); box-shadow: inset 0 0 0 1.5px var(--gray-200); }
+.conto-label-inline:focus, .conto-importo-inline:focus { background: var(--white); outline: none; box-shadow: inset 0 0 0 1.5px var(--green-400); }
+.conto-remove-btn { width: 22px; height: 22px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.conto-remove-btn:hover { background: var(--red-bg); color: var(--red); }
+.conto-azioni { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 6px; }
+.conto-link-btn { background: none; border: none; padding: 0; font-size: 11.5px; font-weight: 700; color: var(--green-700); cursor: pointer; font-family: var(--font); text-decoration: underline; }
+.conto-pagato-btn { flex-shrink: 0; height: 24px; padding: 0 10px; border: none; border-radius: 14px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; cursor: pointer; font-family: var(--font); }
+.conto-pagato-btn.pagato { background: var(--green-ok); color: #fff; }
+.conto-pagato-btn.da-pagare { background: var(--red); color: #fff; }
+.conto-saldo { font-size: 12px; font-weight: 800; color: var(--red); text-align: right; padding: 0 2px; }
+.documento-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 8px; }
+.documento-row .doc-nome { flex: 1; font-size: 13px; font-weight: 700; color: var(--gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.documento-row .doc-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--green-700); background: var(--green-bg); padding: 3px 9px; border-radius: 10px; flex-shrink: 0; }
+.documento-row .doc-btn { height: 30px; padding: 0 10px; border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 16px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); color: var(--gray-700); white-space: nowrap; }
+
+/* ══ RICERCA PRENOTAZIONI — sempre visibile in cima al contenuto, niente
+   pulsante da premere prima di poter scrivere (.search-wrap ecc. vengono da
+   assets/theme.css, qui solo il contenitore e il menu a tendina). ══ */
+.cal-search-row { position: relative; margin-bottom: 16px; }
+.search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-lg); max-height: 320px; overflow-y: auto; z-index: 50; }
+.search-result-row { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--gray-100); }
+.search-result-row:hover { background: var(--gray-50); }
+.search-result-row:last-child { border-bottom: none; }
+.search-result-nome { font-size: 13px; font-weight: 800; color: var(--gray-900); }
+.search-result-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+.search-result-empty { padding: 14px; text-align: center; color: var(--gray-500); font-size: 12px; }
 .listino-save-btn:active { opacity: .85; }
 .kit-section { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 12px; margin-bottom: 12px; background: var(--gray-50); }
 .kit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
@@ -222,7 +264,12 @@
 .presenza-row { display: flex; gap: 6px; margin-bottom: 12px; }
 .presenza-btn { flex: 1; height: 32px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: 20px; font-size: 11px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); transition: background .15s, color .15s, border-color .15s; }
 .presenza-btn:hover { border-color: var(--green-400); }
-.presenza-btn.active { background: var(--green-ok); border-color: var(--green-ok); color: #fff; }
+/* Stesso significato dei colori usati per lo stato prenotazione: ambra =
+   ancora da fare, verde = fatto/presente, grigio = concluso. Così il colore
+   comunica la funzione anche senza leggere l'etichetta. */
+.presenza-btn[data-val="in_arrivo"].active { background: var(--terracotta-2); border-color: var(--terracotta-2); color: #4A3208; }
+.presenza-btn[data-val="arrivato"].active   { background: var(--green-ok); border-color: var(--green-ok); color: #fff; }
+.presenza-btn[data-val="partito"].active    { background: var(--gray-400); border-color: var(--gray-400); color: #fff; }
 .ospite-doc-fields { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--gray-300); }
 .ospite-doc-label { font-size: 10.5px; font-weight: 700; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
 .ospite-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 12px; }
@@ -239,6 +286,11 @@
 .ospiti-btn { width: 100%; height: 46px; border: 1.5px solid var(--green-ok); border-radius: var(--radius-sm); background: var(--green-bg); color: var(--green-700); font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); margin: 4px 0 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .ospiti-btn:hover { background: var(--green-100); }
 .ospiti-btn-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--white); color: var(--green-700); }
+.note-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.note-tab { height: 30px; padding: 0 12px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: 16px; font-size: 11.5px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 5px; }
+.note-tab.active { background: var(--green-700); border-color: var(--green-700); color: #fff; }
+.note-tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--terracotta); flex-shrink: 0; }
+.note-tab.active .dot { background: #fff; }
 .schedina-btn:hover { opacity: .9; }
 
 /* ══ MODALE ANTEPRIMA SCHEDINA ═════════════════════════════════════════════ */
@@ -425,6 +477,14 @@
 </div>
 
 <main id="main-view">
+  <div class="cal-search-row" id="search-prenotazioni-row">
+    <div class="search-wrap">
+      <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+      <input type="text" id="search-prenotazioni-input" placeholder="Cerca per nome, telefono o targa…" oninput="cercaPrenotazioni()">
+      <span class="search-clear hidden" id="search-prenotazioni-clear" onclick="pulisciRicercaPrenotazioni()">&times;</span>
+    </div>
+    <div id="search-prenotazioni-results" class="search-results hidden"></div>
+  </div>
   <div class="page-head">
     <div class="page-eyebrow">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
@@ -525,6 +585,10 @@
             <label class="f-label">Provenienza</label>
             <select class="f-select" id="f-provenienza"></select>
           </div>
+          <div>
+            <label class="f-label">Targa auto</label>
+            <input class="f-input" id="f-targa" type="text" placeholder="Es. AB123CD" style="text-transform:uppercase">
+          </div>
         </div>
         <div class="f-row">
           <div>
@@ -609,13 +673,18 @@
       </div>
 
       <div class="form-col">
-        <div class="prev-box" id="preventivo-box">
+        <div class="prev-box" id="conto-box">
           <div class="prev-head">
-            <span>Preventivo stimato</span>
-            <span class="prev-total" id="prev-totale"></span>
+            <span>Conto</span>
+            <span class="prev-total" id="conto-totale-inline">€ 0,00</span>
           </div>
-          <div id="prev-righe"></div>
-          <div class="prev-note">Voci come nel listino, senza raggruppamenti — utile per confrontarle poi con lo scarico da Mrpreno. Verifica sempre lì prima di comunicare il prezzo al cliente.</div>
+          <div id="conto-list-inline"></div>
+          <div class="conto-saldo hidden" id="conto-saldo-inline"></div>
+          <div class="conto-azioni">
+            <button type="button" class="conto-link-btn" onclick="aggiungiVoceConto()">+ Aggiungi voce</button>
+            <button type="button" class="conto-link-btn" onclick="ricaricaContoDaPreventivo()" title="Cancella tutte le voci del conto e le sostituisce con quelle attuali del preventivo stimato">&#8635; Riparti dal preventivo (annulla le modifiche fatte a mano)</button>
+          </div>
+          <div class="prev-note">Le voci partono dal listino in base ai dati inseriti a sinistra — clicca su un importo per correggerlo. Voci come nel listino, senza raggruppamenti, per confrontarle poi con lo scarico da Mrpreno.</div>
         </div>
 
         <button type="button" class="ospiti-btn" id="btn-apri-ospiti" onclick="apriOspitiModal()">
@@ -623,9 +692,15 @@
           <span class="ospiti-btn-badge" id="ospiti-btn-badge"></span>
         </button>
 
+        <button type="button" class="ospiti-btn" id="btn-apri-documenti" onclick="apriDocumentiModal()" style="background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)">
+          Documenti
+          <span class="ospiti-btn-badge" id="documenti-btn-badge" style="background:var(--white);color:var(--gray-700)"></span>
+        </button>
+
         <div>
           <label class="f-label">Note</label>
-          <textarea class="f-textarea" id="f-note" placeholder="Note interne (facoltativo)"></textarea>
+          <div class="note-tabs" id="note-tabs"></div>
+          <textarea class="f-textarea" id="f-note-testo" placeholder="Note per questa categoria (facoltativo)" oninput="salvaTestoNotaCorrente()"></textarea>
         </div>
       </div>
     </div>
@@ -650,6 +725,32 @@
     <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiOspitiModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE CONTO — parte dal preventivo ma è modificabile a mano, per
+     scostamenti reali (sconti, extra concordati, ecc.) rispetto al listino ══ -->
+<!-- ══ MODALE DOCUMENTI — richiede Firebase Storage attivo sul progetto
+     (Console Firebase → Storage) più le relative regole di sicurezza. ══ -->
+<div class="modal-overlay hidden" id="documenti-modal-overlay">
+  <div class="form-modal-box">
+    <div class="form-modal-title">Documenti</div>
+    <p class="section-hint">Carica, visualizza o stampa i documenti legati a questa prenotazione (documento d'identità, contratto, ricevute...). Serve aver salvato la prenotazione almeno una volta.</p>
+    <div class="f-row">
+      <div>
+        <label class="f-label">Tipo documento</label>
+        <select class="f-select" id="doc-tag"></select>
+      </div>
+      <div>
+        <label class="f-label">File</label>
+        <input class="f-input" id="doc-file" type="file">
+      </div>
+    </div>
+    <button type="button" class="ospiti-btn" onclick="caricaDocumento()">Carica documento</button>
+    <div id="documenti-list" style="margin-top:14px"></div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiDocumentiModal()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -771,6 +872,8 @@ let listini = { villini: null, campeggio: null }; // caricati da Firestore
 // (collezione "impostazioni", un doc per modulo) già usato da ristorazione.
 const IMPOSTAZIONI_CALENDARIO_DEFAULT = {
   provenienze: ['Telefonata', 'Email', 'Sito web', 'Diretta (walk-in)', 'Agenzia', 'OTA / Booking', 'Social', 'Passaparola', 'Altro'],
+  documentiTag: ['Documento d\'identità', 'Contratto', 'Fattura', 'Ricevuta caparra', 'Altro'],
+  categorieNote: ['Generali', 'Ristorazione', 'Pulizie', 'Bar', 'OTA'],
 };
 let impostazioniCalendario = null; // caricate da Firestore
 
@@ -915,10 +1018,7 @@ function startImpostazioniCalendarioSync() {
   waitForFirebase().then(() => {
     const { db, doc, onSnapshot } = window._fb;
     _unsubImpostazioniCalendario = onSnapshot(doc(db, 'impostazioni', 'calendario'), (snap) => {
-      impostazioniCalendario = snap.exists() ? snap.data() : null;
-      if (!impostazioniCalendario || !impostazioniCalendario.provenienze) {
-        impostazioniCalendario = { ...IMPOSTAZIONI_CALENDARIO_DEFAULT, ...(impostazioniCalendario||{}) };
-      }
+      impostazioniCalendario = { ...IMPOSTAZIONI_CALENDARIO_DEFAULT, ...(snap.exists() ? snap.data() : {}) };
       populateProvenienzaSelect();
       if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
     }, (err) => console.error('Errore lettura impostazioni calendario:', err));
@@ -951,6 +1051,41 @@ function toggleNavGroup(btn) {
 function toggleDrawer(open) {
   document.getElementById('drawer').classList.toggle('open', open);
   document.getElementById('drawer-overlay').classList.toggle('open', open);
+}
+
+// ── RICERCA PRENOTAZIONI (nome, telefono, targa) — sempre visibile, niente
+//    pulsante da premere prima ──────────────────────────────────────────────
+function pulisciRicercaPrenotazioni() {
+  document.getElementById('search-prenotazioni-input').value = '';
+  document.getElementById('search-prenotazioni-clear').classList.add('hidden');
+  document.getElementById('search-prenotazioni-results').classList.add('hidden');
+}
+function cercaPrenotazioni() {
+  const q = document.getElementById('search-prenotazioni-input').value.trim().toLowerCase();
+  const clearBtn = document.getElementById('search-prenotazioni-clear');
+  const resultsEl = document.getElementById('search-prenotazioni-results');
+  clearBtn.classList.toggle('hidden', !q);
+  if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
+  const match = prenotazioni.filter(p =>
+    (p.nome||'').toLowerCase().includes(q) ||
+    (p.tel||'').toLowerCase().includes(q) ||
+    (p.targa||'').toLowerCase().includes(q)
+  ).slice(0, 20);
+  resultsEl.innerHTML = match.length ? match.map(p => `
+    <div class="search-result-row" onclick="vaiAPrenotazione('${esc(p.id)}')">
+      <div class="search-result-nome">${esc(p.nome||'—')}</div>
+      <div class="search-result-meta">${esc(p.alloggio_nome||'')} · ${esc(p.checkin)} → ${esc(p.checkout)}${p.tel?' · '+esc(p.tel):''}${p.targa?' · '+esc(p.targa):''}</div>
+    </div>`).join('') : '<div class="search-result-empty">Nessun risultato</div>';
+  resultsEl.classList.remove('hidden');
+}
+function vaiAPrenotazione(id) {
+  const p = prenotazioni.find(x => x.id === id);
+  if (!p) return;
+  pulisciRicercaPrenotazioni();
+  document.getElementById('search-prenotazioni-input').value = '';
+  viewStart = p.checkin;
+  renderGrid();
+  apriModificaPrenotazione(id);
 }
 
 let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSections = new Set();
@@ -1423,20 +1558,16 @@ function leggiDatiPreventivoDaForm() {
 }
 function aggiornaPreventivo() {
   aggiornaBadgeOspiti();
-  const box = document.getElementById('preventivo-box');
-  if (!box) return;
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
-  const righeEl = document.getElementById('prev-righe');
-  const totaleEl = document.getElementById('prev-totale');
-  if (!risultato.disponibile) {
-    righeEl.innerHTML = `<div class="prev-riga prev-riga-vuota">${esc(risultato.motivo)}</div>`;
-    totaleEl.textContent = '';
-    return;
+  // Finché il conto non è stato toccato a mano resta agganciato al listino:
+  // spuntare Animali/Spiaggia, cambiare adulti, ecc. lo aggiorna subito. Lo
+  // stato "pagato" già impostato si conserva abbinando le voci per etichetta.
+  if (risultato.disponibile && !contoModificatoManualmente) {
+    const pagatoPerLabel = {};
+    contoCorrente.forEach(r => { pagatoPerLabel[r.label] = r.pagato; });
+    contoCorrente = risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato: !!pagatoPerLabel[r.label] }));
   }
-  righeEl.innerHTML = risultato.righe.map(r =>
-    `<div class="prev-riga"><span>${esc(r.label)}</span><span>€ ${r.importo.toFixed(2)}</span></div>`
-  ).join('');
-  totaleEl.textContent = `€ ${risultato.totale.toFixed(2)}`;
+  renderContoInline(risultato.disponibile ? null : risultato.motivo);
 }
 
 // ── OSPITI DA CENSIRE (Alloggiati Web — bozza) ────────────────────────────
@@ -1615,6 +1746,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   const ci = checkinIso || isoToday(0);
   document.getElementById('f-nome').value = '';
   document.getElementById('f-tel').value = '';
+  document.getElementById('f-targa').value = '';
   populateProvenienzaSelect('Telefonata');
   document.getElementById('f-checkin').value  = ci;
   document.getElementById('f-checkout').value = addDaysIso(ci, 7);
@@ -1631,7 +1763,9 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   setCheck('f-spiaggia', false);
   setCheck('f-animali', false);
   setCheck('f-pacchetto-servizi', false);
-  document.getElementById('f-note').value = '';
+  impostaNote([]);
+  impostaConto(null);
+  document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
@@ -1647,6 +1781,7 @@ function apriModificaPrenotazione(id) {
   populateAlloggioSelect(p.alloggio_id);
   document.getElementById('f-nome').value = p.nome || '';
   document.getElementById('f-tel').value  = p.tel  || '';
+  document.getElementById('f-targa').value = p.targa || '';
   populateProvenienzaSelect(p.provenienza || 'Telefonata');
   document.getElementById('f-checkin').value  = p.checkin  || '';
   document.getElementById('f-checkout').value = p.checkout || '';
@@ -1663,7 +1798,9 @@ function apriModificaPrenotazione(id) {
   setCheck('f-spiaggia', !!p.spiaggia);
   setCheck('f-animali', !!p.animali);
   setCheck('f-pacchetto-servizi', !!p.pacchetto_servizi);
-  document.getElementById('f-note').value = p.note || '';
+  impostaNote(p.note || []);
+  impostaConto(p.conto);
+  document.getElementById('documenti-btn-badge').textContent = (p.documenti && p.documenti.length) || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
@@ -1690,6 +1827,234 @@ function aggiornaBadgeOspiti() {
   badge.textContent = `${numOspiti}/${totalePersone}`;
   badge.style.background = numOspiti >= totalePersone ? 'var(--green-ok)' : 'var(--white)';
   badge.style.color = numOspiti >= totalePersone ? '#fff' : 'var(--green-700)';
+}
+
+// ── NOTE PER CATEGORIA (Generali/Ristorazione/Pulizie/ecc., configurabili
+//    dalle Impostazioni → Generali). Oggi restano solo dentro la prenotazione:
+//    farle comparire anche nelle anagrafiche di Ristorazione/Pulizie richiede
+//    un collegamento con quei moduli che non esiste ancora — v. nota altrove. ─
+let noteCorrenti = [];      // [{categoria, testo}]
+let noteCategoriaAttiva = 'Generali';
+
+function categorieNoteDisponibili() {
+  return (impostazioniCalendario && impostazioniCalendario.categorieNote) || IMPOSTAZIONI_CALENDARIO_DEFAULT.categorieNote;
+}
+// Riporta la lista di note del form a coprire esattamente le categorie oggi
+// configurate, conservando il testo già scritto per quelle che esistevano.
+// Accetta anche il vecchio formato (una singola stringa in "Generali"), per
+// le prenotazioni salvate prima di questa modifica.
+function impostaNote(list) {
+  if (typeof list === 'string') list = list ? [{ categoria:'Generali', testo:list }] : [];
+  const categorie = categorieNoteDisponibili();
+  const esistenti = {};
+  (list||[]).forEach(n => { esistenti[n.categoria] = n.testo; });
+  noteCorrenti = categorie.map(c => ({ categoria: c, testo: esistenti[c] || '' }));
+  noteCategoriaAttiva = categorie[0];
+  renderNoteTabs();
+}
+// Aggiorna solo i pallini delle tab, senza toccare il valore della textarea:
+// altrimenti riscrivere .value mentre l'utente sta scrivendo sposta il cursore
+// alla fine a ogni carattere digitato.
+function renderNoteTabsSoloPallini() {
+  const tabsEl = document.getElementById('note-tabs');
+  if (!tabsEl) return;
+  tabsEl.innerHTML = noteCorrenti.map(n => `
+    <button type="button" class="note-tab ${n.categoria===noteCategoriaAttiva?'active':''}" onclick="selezionaNotaCategoria('${esc(n.categoria)}')">
+      ${n.testo ? '<span class="dot"></span>' : ''}${esc(n.categoria)}
+    </button>`).join('');
+}
+function renderNoteTabs() {
+  renderNoteTabsSoloPallini();
+  const attuale = noteCorrenti.find(n => n.categoria === noteCategoriaAttiva);
+  document.getElementById('f-note-testo').value = attuale ? attuale.testo : '';
+}
+function selezionaNotaCategoria(categoria) {
+  noteCategoriaAttiva = categoria;
+  renderNoteTabs();
+}
+function salvaTestoNotaCorrente() {
+  const n = noteCorrenti.find(n => n.categoria === noteCategoriaAttiva);
+  if (n) n.testo = document.getElementById('f-note-testo').value;
+  renderNoteTabsSoloPallini();
+}
+function raccogliNote() {
+  salvaTestoNotaCorrente();
+  return noteCorrenti.filter(n => n.testo.trim());
+}
+
+// ── CONTO (parte dal preventivo, poi modificabile a mano) ─────────────────
+let contoCorrente = []; // [{label, importo}]
+// Finché il conto non è stato toccato a mano (importo/etichetta modificati,
+// voce aggiunta o rimossa), resta agganciato al calcolo del listino: così
+// spuntare Animali/Spiaggia o cambiare adulti aggiorna subito il conto.
+// Appena l'utente lo modifica davvero, si stacca per non perdere le correzioni.
+let contoModificatoManualmente = false;
+
+function impostaConto(conto) {
+  contoCorrente = (conto && conto.righe) ? conto.righe.map(r => ({...r})) : [];
+  contoModificatoManualmente = contoCorrente.length > 0;
+}
+function contoDaPreventivo() {
+  const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
+  return risultato.disponibile ? risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato:false })) : [];
+}
+// Le voci del preventivo sono di sola lettura sull'etichetta (si clicca solo
+// l'importo, per non rischiare di storpiare un nome che deve poi confrontarsi
+// col listino); le voci aggiunte a mano hanno anche l'etichetta modificabile.
+// Ogni voce ha anche uno stato di pagamento (verde pagato/rosso da pagare),
+// che si inverte con un click sulla pillola.
+function renderContoInline(motivoNonDisponibile) {
+  const wrap = document.getElementById('conto-list-inline');
+  if (!wrap) return;
+  if (!contoCorrente.length) {
+    wrap.innerHTML = `<div class="prev-riga-vuota">${esc(motivoNonDisponibile || 'Nessuna voce — usa "+ Aggiungi voce" per iniziare.')}</div>`;
+    aggiornaTotaleConto();
+    return;
+  }
+  wrap.innerHTML = contoCorrente.map((r,i) => `
+    <div class="conto-row-inline" data-idx="${i}">
+      <button type="button" class="conto-pagato-btn ${r.pagato?'pagato':'da-pagare'}" onclick="toggleContoPagato(${i})" title="Clicca per segnare come ${r.pagato?'da pagare':'pagato'}">${r.pagato?'Pagato':'Da pagare'}</button>
+      <input class="conto-label-inline" type="text" value="${esc(r.label)}" ${r.manuale ? '' : 'readonly'} oninput="aggiornaVoceConto(${i})">
+      <input class="conto-importo-inline" type="number" step="0.01" value="${r.importo}" oninput="aggiornaVoceConto(${i})">
+      <button type="button" class="conto-remove-btn" title="Rimuovi voce" onclick="rimuoviVoceConto(${i})">${XICON}</button>
+    </div>`).join('');
+  aggiornaTotaleConto();
+}
+function aggiornaVoceConto(i) {
+  const row = document.querySelector(`#conto-list-inline .conto-row-inline[data-idx="${i}"]`);
+  if (!row) return;
+  contoCorrente[i].label   = row.querySelector('.conto-label-inline').value;
+  contoCorrente[i].importo = parseFloat(row.querySelector('.conto-importo-inline').value) || 0;
+  contoModificatoManualmente = true;
+  aggiornaTotaleConto();
+}
+function toggleContoPagato(i) {
+  contoCorrente[i].pagato = !contoCorrente[i].pagato;
+  renderContoInline();
+}
+function aggiornaTotaleConto() {
+  const totale = contoCorrente.reduce((s,r) => s + (r.importo||0), 0);
+  const daPagare = contoCorrente.reduce((s,r) => s + (r.pagato ? 0 : (r.importo||0)), 0);
+  const el = document.getElementById('conto-totale-inline');
+  if (el) el.textContent = `€ ${totale.toFixed(2)}`;
+  const saldoEl = document.getElementById('conto-saldo-inline');
+  if (saldoEl) {
+    if (daPagare > 0.004) {
+      saldoEl.textContent = `Da pagare: € ${daPagare.toFixed(2)}`;
+      saldoEl.classList.remove('hidden');
+    } else {
+      saldoEl.classList.add('hidden');
+    }
+  }
+  return totale;
+}
+function aggiungiVoceConto() {
+  contoCorrente.push({ label:'Voce manuale', importo:0, manuale:true, pagato:false });
+  contoModificatoManualmente = true;
+  renderContoInline();
+}
+function rimuoviVoceConto(i) {
+  contoCorrente.splice(i,1);
+  contoModificatoManualmente = true;
+  renderContoInline();
+}
+async function ricaricaContoDaPreventivo() {
+  if (contoCorrente.length) {
+    const conferma = await confermaAsync('Ricaricare dal preventivo?', 'Le modifiche fatte a mano al conto andranno perse e sostituite con i valori attuali del preventivo stimato.');
+    if (!conferma) return;
+  }
+  contoCorrente = contoDaPreventivo();
+  contoModificatoManualmente = false; // torna ad aggiornarsi da solo finché non lo si ritocca a mano
+  renderContoInline();
+}
+function raccogliConto() {
+  return { righe: contoCorrente, totale: Math.round(contoCorrente.reduce((s,r) => s + (r.importo||0), 0)*100)/100 };
+}
+
+// ── DOCUMENTI (Firebase Storage) ───────────────────────────────────────────
+function popolaDocTagSelect() {
+  const sel = document.getElementById('doc-tag');
+  if (!sel) return;
+  const lista = (impostazioniCalendario && impostazioniCalendario.documentiTag) || IMPOSTAZIONI_CALENDARIO_DEFAULT.documentiTag;
+  sel.innerHTML = lista.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+}
+function apriDocumentiModal() {
+  if (!editingId) { showToast('Salva prima la prenotazione, poi carica i documenti'); return; }
+  popolaDocTagSelect();
+  document.getElementById('doc-file').value = '';
+  renderDocumentiList();
+  document.getElementById('documenti-modal-overlay').classList.remove('hidden');
+}
+function chiudiDocumentiModal() {
+  document.getElementById('documenti-modal-overlay').classList.add('hidden');
+}
+function renderDocumentiList() {
+  const wrap = document.getElementById('documenti-list');
+  const p = prenotazioni.find(x => x.id === editingId);
+  const documenti = (p && p.documenti) || [];
+  const badge = document.getElementById('documenti-btn-badge');
+  if (badge) badge.textContent = documenti.length || '';
+  if (!documenti.length) { wrap.innerHTML = '<p class="section-hint">Nessun documento caricato.</p>'; return; }
+  wrap.innerHTML = documenti.map((d,i) => `
+    <div class="documento-row">
+      <span class="doc-tag">${esc(d.tag)}</span>
+      <span class="doc-nome" title="${esc(d.nome)}">${esc(d.nome)}</span>
+      <button type="button" class="doc-btn" onclick="window.open('${esc(d.url)}','_blank')">Visualizza</button>
+      <button type="button" class="doc-btn" onclick="stampaDocumento('${esc(d.url)}')">Stampa</button>
+      <button type="button" class="doc-btn" style="color:var(--red);border-color:var(--red-bd)" onclick="eliminaDocumento(${i})">Elimina</button>
+    </div>`).join('');
+}
+function stampaDocumento(url) {
+  const w = window.open(url, '_blank');
+  if (!w) return;
+  w.addEventListener('load', () => { try { w.print(); } catch(e) {} });
+}
+async function caricaDocumento() {
+  if (!editingId) { showToast('Salva prima la prenotazione'); return; }
+  const fileInput = document.getElementById('doc-file');
+  const file = fileInput.files[0];
+  if (!file) { showToast('Seleziona un file'); return; }
+  const tag = document.getElementById('doc-tag').value;
+  try {
+    const { storage, ref: storageRef, uploadBytes, getDownloadURL } = window._storage;
+    const path = `prenotazioni/${editingId}/${Date.now()}_${file.name}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+    const p = prenotazioni.find(x => x.id === editingId);
+    const documentiAttuali = (p && p.documenti) || [];
+    const nuovoDocumento = { nome: file.name, tag, url, path, caricato_il: new Date().toISOString() };
+    const documenti = [...documentiAttuali, nuovoDocumento];
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'prenotazioni', editingId), { documenti });
+    if (p) p.documenti = documenti;
+    fileInput.value = '';
+    renderDocumentiList();
+    showToast('Documento caricato');
+  } catch(e) {
+    console.error('Errore caricamento documento:', e);
+    showToast('Errore caricamento — verifica che Firebase Storage sia attivo: ' + e.message);
+  }
+}
+async function eliminaDocumento(i) {
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p || !p.documenti || !p.documenti[i]) return;
+  const documento = p.documenti[i];
+  const conferma = await confermaAsync('Eliminare documento?', `Vuoi eliminare definitivamente "${esc(documento.nome)}"?`);
+  if (!conferma) return;
+  try {
+    const { storage, ref: storageRef, deleteObject } = window._storage;
+    try { await deleteObject(storageRef(storage, documento.path)); } catch(e) { console.warn('File già assente su Storage:', e); }
+    const documenti = p.documenti.filter((_, idx) => idx !== i);
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'prenotazioni', editingId), { documenti });
+    p.documenti = documenti;
+    renderDocumentiList();
+    showToast('Documento eliminato');
+  } catch(e) {
+    console.error('Errore eliminazione documento:', e);
+    showToast('Errore: ' + e.message);
+  }
 }
 
 function trovaOverlap(alloggioId, checkin, checkout, excludeId) {
@@ -1741,6 +2106,7 @@ async function salvaPrenotazione() {
     alloggio_nome: alloggioNome,
     nome, checkin, checkout,
     tel: document.getElementById('f-tel').value.trim(),
+    targa: document.getElementById('f-targa').value.trim().toUpperCase(),
     provenienza: document.getElementById('f-provenienza').value,
     adulti:  datiPreventivo.adulti,
     bambini: bambiniTotale, // totale aggregato, per compatibilità con le viste che lo usano già
@@ -1757,7 +2123,8 @@ async function salvaPrenotazione() {
     animali:    document.getElementById('f-animali').checked,
     pacchetto_servizi: document.getElementById('f-pacchetto-servizi').checked,
     preventivo_stimato: preventivo.disponibile ? preventivo.totale : null,
-    note: document.getElementById('f-note').value.trim(),
+    note: raccogliNote(),
+    conto: raccogliConto(),
     ospiti,
     updatedAt: new Date().toISOString(),
   };
@@ -2125,41 +2492,56 @@ async function salvaListinoCampeggio() {
 }
 
 // ── IMPOSTAZIONI GENERALI (provenienze e futuri elenchi non di prezzo) ─────
+// Le tre liste si gestiscono tutte allo stesso modo (aggiungi/rinomina/
+// rimuovi righe di testo), quindi un'unica implementazione generica invece di
+// tre copie quasi identiche.
+const LISTE_GENERALI = [
+  { campo:'provenienze',   label:'Provenienza prenotazione', hint:'Le voci qui sotto compaiono nel menu "Provenienza" del form prenotazione.' },
+  { campo:'categorieNote', label:'Categorie delle note',      hint:'Le note della prenotazione si dividono in queste categorie (la prima è quella aperta di default).' },
+  { campo:'documentiTag',  label:'Tipi di documento',         hint:'Etichette disponibili per i documenti caricati in una prenotazione.' },
+];
 function renderGeneraliPanel() {
   const panel = document.getElementById('listino-generali-panel');
   if (!impostazioniCalendario) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
-  const righe = impostazioniCalendario.provenienze.map((p, i) => `
+  panel.innerHTML = LISTE_GENERALI.map(renderListaEditabileHtml).join('');
+}
+function renderListaEditabileHtml(def) {
+  const valori = impostazioniCalendario[def.campo] || [];
+  const righe = valori.map((v, i) => `
     <div class="generali-row" data-idx="${i}">
-      <input class="f-input" type="text" value="${esc(p)}">
-      <button type="button" class="ospite-remove-btn" title="Rimuovi" onclick="rimuoviProvenienza(${i})">${XICON}</button>
+      <input class="f-input" type="text" value="${esc(v)}">
+      <button type="button" class="ospite-remove-btn" title="Rimuovi" onclick="rimuoviVoceGenerale('${def.campo}',${i})">${XICON}</button>
     </div>`).join('');
-  panel.innerHTML = `
+  return `
     <div class="listino-card">
-      <h3>Provenienza prenotazione</h3>
-      <p class="subtitle">Le voci qui sotto sono quelle che compaiono nel menu "Provenienza" del form prenotazione — aggiungine, rinominale o rimuovile liberamente.</p>
-      <div id="generali-provenienze-list">${righe}</div>
-      <button type="button" class="add-ospite-btn" onclick="aggiungiProvenienza()">+ Aggiungi provenienza</button>
-      <div class="listino-save-row" style="margin-top:14px"><button type="button" class="listino-save-btn" onclick="salvaGenerali()">Salva</button></div>
+      <h3>${esc(def.label)}</h3>
+      <p class="subtitle">${esc(def.hint)}</p>
+      <div id="generali-list-${def.campo}">${righe}</div>
+      <button type="button" class="add-ospite-btn" onclick="aggiungiVoceGenerale('${def.campo}')">+ Aggiungi</button>
+      <div class="listino-save-row" style="margin-top:14px"><button type="button" class="listino-save-btn" onclick="salvaGenerali()">Salva tutto</button></div>
     </div>`;
 }
-function aggiungiProvenienza() {
-  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input')).map(i => i.value);
+function leggiListaGenerale(campo) {
+  return Array.from(document.querySelectorAll(`#generali-list-${campo} input`)).map(i => i.value);
+}
+function aggiungiVoceGenerale(campo) {
+  const valori = leggiListaGenerale(campo);
   valori.push('');
-  impostazioniCalendario.provenienze = valori;
+  impostazioniCalendario[campo] = valori;
   renderGeneraliPanel();
 }
-function rimuoviProvenienza(i) {
-  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input')).map(el => el.value);
-  if (valori.length <= 1) { showToast('Deve rimanere almeno una provenienza'); return; }
+function rimuoviVoceGenerale(campo, i) {
+  const valori = leggiListaGenerale(campo);
+  if (valori.length <= 1) { showToast('Deve rimanere almeno una voce'); return; }
   valori.splice(i, 1);
-  impostazioniCalendario.provenienze = valori;
+  impostazioniCalendario[campo] = valori;
   renderGeneraliPanel();
 }
 async function salvaGenerali() {
-  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input'))
-    .map(i => i.value.trim()).filter(Boolean);
-  if (!valori.length) { showToast('Serve almeno una provenienza'); return; }
-  impostazioniCalendario.provenienze = valori;
+  LISTE_GENERALI.forEach(def => {
+    const valori = leggiListaGenerale(def.campo).map(v => v.trim()).filter(Boolean);
+    if (valori.length) impostazioniCalendario[def.campo] = valori;
+  });
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'calendario'), impostazioniCalendario);
