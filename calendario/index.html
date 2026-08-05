@@ -586,13 +586,15 @@
       <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
       <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="aggiornaPreventivo()"> Spiaggia</label>
       <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="aggiornaPreventivo()"> Animali al seguito</label>
+      <label class="f-check" id="chk-pacchetto-servizi-wrap"><input type="checkbox" id="f-pacchetto-servizi" onchange="aggiornaPreventivo()"> Pacchetto biancheria + spiaggia</label>
     </div>
+    <p class="section-hint" style="margin-top:-6px">Il pacchetto è un forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi.</p>
 
     <div class="section-block">
       <div class="section-head">
         <span class="section-title">Ospiti da censire (Alloggiati Web)</span>
       </div>
-      <p class="section-hint">Il primo ospite è il Capofamiglia/Ospite singolo (richiede documento); gli altri sono Familiari e non lo richiedono, come previsto dalla normativa.</p>
+      <p class="section-hint">Per salvare la prenotazione basta il Capofamiglia/Ospite singolo (richiede documento). Gli altri Familiari vanno aggiunti e completati solo quando generi la schedina — a quel punto devono essere tanti quante le persone in prenotazione.</p>
       <div id="ospiti-list"></div>
       <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
       <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
@@ -693,7 +695,13 @@ const LISTINI_DEFAULT = {
     postoAggiuntivo: 15,
     animaliPerNotte: 5,
     puliziaFinaleAnimali: 50,
+    // Biancheria e spiaggia a la carte: si applicano SOLO se non si sceglie il
+    // pacchetto servizi qui sotto (altrimenti sarebbe doppio conteggio).
+    prezziKit: { bagno:8, singolo:10, matrimoniale:15 }, // una tantum a kit, non a notte
+    spiaggiaPerGiorno: 20,
     // Forfait una tantum per soggiorno (fornitura biancheria + servizio spiaggia), varia per mese di arrivo.
+    // Va scelto esplicitamente (checkbox dedicata): non scatta da solo per aver
+    // selezionato Spiaggia o un kit biancheria.
     pacchettoServiziPerMese: { 6:140, 7:155, 8:170, 9:140 },
   },
   // Non ancora collegato al calcolo prezzi del form: nel modulo Alloggi non
@@ -727,7 +735,7 @@ function trovaPeriodoListino(periodi, iso) {
 // tabelle di prezzo-persona diverse). Ritorna { disponibile:false, motivo } se
 // manca qualche dato, altrimenti { disponibile:true, righe:[{label,importo}], totale }.
 function calcolaPreventivo(input) {
-  const { categoria, checkin, checkout, adulti, b0_2, b3_4, b5_9, b10_17, animali, trattamento, includiPacchetto } = input;
+  const { categoria, checkin, checkout, adulti, b0_2, b3_4, b5_9, b10_17, animali, trattamento, spiaggia, pacchettoServizi, kitBagno, kitSingolo, kitMatrimoniale } = input;
   const listino = listini.villini;
   if (!listino) return { disponibile:false, motivo:'Listino non ancora caricato…' };
   if (!categoria)   return { disponibile:false, motivo:'Seleziona un alloggio per vedere la stima.' };
@@ -758,24 +766,51 @@ function calcolaPreventivo(input) {
     righe.push({ label: 'Animali al seguito + pulizia finale', importo: costoAnimali });
     totale += costoAnimali;
   }
-  if (includiPacchetto) {
+
+  // Biancheria/spiaggia: o il pacchetto forfait (prezzo intero, sostituisce le
+  // voci singole), oppure i kit biancheria e/o la spiaggia a la carte, mai
+  // entrambi insieme — altrimenti si pagherebbe due volte la stessa cosa.
+  if (pacchettoServizi) {
     const mese = Number(checkin.slice(5,7));
     const pacchetto = listino.pacchettoServiziPerMese[mese];
     if (pacchetto != null) {
       righe.push({ label: 'Pacchetto biancheria + spiaggia', importo: pacchetto });
       totale += pacchetto;
     }
+  } else {
+    const pk = listino.prezziKit;
+    const costoKit = (kitBagno||0)*pk.bagno + (kitSingolo||0)*pk.singolo + (kitMatrimoniale||0)*pk.matrimoniale;
+    if (costoKit > 0) {
+      righe.push({ label: 'Biancheria (kit)', importo: costoKit });
+      totale += costoKit;
+    }
+    if (spiaggia) {
+      const costoSpiaggia = notti * listino.spiaggiaPerGiorno;
+      righe.push({ label: `Spiaggia · ${notti} nott${notti===1?'e':'i'}`, importo: costoSpiaggia });
+      totale += costoSpiaggia;
+    }
   }
   return { disponibile:true, righe, totale };
 }
 
 // ── SINCRONIZZAZIONE LISTINI (Firestore) ──────────────────────────────────
+// Se il doc "villini" esiste già da prima di aggiungere un campo nuovo al
+// listino (es. prezziKit), da Firestore arriva senza quel campo: lo
+// completiamo qui con il default, così il resto del codice può sempre darlo
+// per presente senza controlli sparsi in giro.
+function normalizzaListinoVillini(l) {
+  if (!l) return l;
+  if (!l.prezziKit) l.prezziKit = { ...LISTINI_DEFAULT.villini.prezziKit };
+  if (l.spiaggiaPerGiorno == null) l.spiaggiaPerGiorno = LISTINI_DEFAULT.villini.spiaggiaPerGiorno;
+  return l;
+}
 let _unsubListini = null;
 function startListiniSync() {
   waitForFirebase().then(() => {
     const { db, collection, onSnapshot } = window._fb;
     _unsubListini = onSnapshot(collection(db, 'listini'), (snap) => {
       snap.docs.forEach(d => { listini[d.id] = d.data(); });
+      normalizzaListinoVillini(listini.villini);
       if (document.getElementById('form-modal-overlay') && !document.getElementById('form-modal-overlay').classList.contains('hidden')) aggiornaPreventivo();
       if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
     }, (err) => console.error('Errore lettura listini:', err));
@@ -1152,7 +1187,7 @@ function setCheck(id, val) {
   el.checked = val;
   el.closest('.f-check').classList.toggle('on', val);
 }
-['f-bici','f-spiaggia','f-animali'].forEach(id => {
+['f-bici','f-spiaggia','f-animali','f-pacchetto-servizi'].forEach(id => {
   document.getElementById(id).addEventListener('change', e => {
     e.target.closest('.f-check').classList.toggle('on', e.target.checked);
   });
@@ -1168,9 +1203,6 @@ function adjustQty(id, delta) {
 function leggiDatiPreventivoDaForm() {
   const alloggioSel = document.getElementById('f-alloggio');
   const categoria = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.categoria : '';
-  const kitTotale = (parseInt(document.getElementById('f-kit-bagno').value,10)||0)
-    + (parseInt(document.getElementById('f-kit-singolo').value,10)||0)
-    + (parseInt(document.getElementById('f-kit-matrimoniale').value,10)||0);
   return {
     categoria,
     checkin:  document.getElementById('f-checkin').value,
@@ -1181,8 +1213,12 @@ function leggiDatiPreventivoDaForm() {
     b5_9:     parseInt(document.getElementById('f-bambini-5-9').value, 10) || 0,
     b10_17:   parseInt(document.getElementById('f-bambini-10-17').value, 10) || 0,
     animali:      document.getElementById('f-animali').checked,
+    spiaggia:     document.getElementById('f-spiaggia').checked,
     trattamento:  document.getElementById('f-trattamento').value,
-    includiPacchetto: kitTotale > 0 || document.getElementById('f-spiaggia').checked,
+    pacchettoServizi: document.getElementById('f-pacchetto-servizi').checked,
+    kitBagno:        parseInt(document.getElementById('f-kit-bagno').value,10)||0,
+    kitSingolo:      parseInt(document.getElementById('f-kit-singolo').value,10)||0,
+    kitMatrimoniale: parseInt(document.getElementById('f-kit-matrimoniale').value,10)||0,
   };
 }
 function aggiornaPreventivo() {
@@ -1218,26 +1254,26 @@ function ospiteCardHtml(i, o) {
     </div>
     <div class="ospite-fields">
       <div>
-        <label class="f-label">Cognome<span class="req">*</span></label>
+        <label class="f-label">Cognome${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-cognome" type="text" value="${esc(o.cognome||'')}">
       </div>
       <div>
-        <label class="f-label">Nome<span class="req">*</span></label>
+        <label class="f-label">Nome${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-nome" type="text" value="${esc(o.nome||'')}">
       </div>
       <div>
-        <label class="f-label">Sesso<span class="req">*</span></label>
+        <label class="f-label">Sesso${isCapo ? '<span class="req">*</span>' : ''}</label>
         <select class="f-select osp-sesso">
           <option value="M" ${o.sesso==='F'?'':'selected'}>Maschio</option>
           <option value="F" ${o.sesso==='F'?'selected':''}>Femmina</option>
         </select>
       </div>
       <div>
-        <label class="f-label">Data di nascita<span class="req">*</span></label>
+        <label class="f-label">Data di nascita${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-data-nascita" type="date" value="${esc(o.data_nascita||'')}">
       </div>
       <div>
-        <label class="f-label">Nato a (comune o stato)<span class="req">*</span></label>
+        <label class="f-label">Nato a (comune o stato)${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-comune-nascita" type="text" placeholder="Es. Milano" value="${esc(o.comune_nascita||'')}">
       </div>
       <div>
@@ -1245,11 +1281,11 @@ function ospiteCardHtml(i, o) {
         <input class="f-input osp-provincia-nascita" type="text" maxlength="2" placeholder="Es. MI" value="${esc(o.provincia_nascita||'')}">
       </div>
       <div>
-        <label class="f-label">Stato di nascita<span class="req">*</span></label>
+        <label class="f-label">Stato di nascita${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-stato-nascita" type="text" placeholder="Es. Italia" value="${esc(o.stato_nascita||'')}">
       </div>
       <div>
-        <label class="f-label">Cittadinanza<span class="req">*</span></label>
+        <label class="f-label">Cittadinanza${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-cittadinanza" type="text" placeholder="Es. Italiana" value="${esc(o.cittadinanza||'')}">
       </div>
     </div>
@@ -1376,8 +1412,9 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   setCheck('f-bici', false);
   setCheck('f-spiaggia', false);
   setCheck('f-animali', false);
+  setCheck('f-pacchetto-servizi', false);
   document.getElementById('f-note').value = '';
-  resetOspitiRows(2);
+  resetOspitiRows(1);
   aggiornaPreventivo();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
@@ -1405,8 +1442,9 @@ function apriModificaPrenotazione(id) {
   setCheck('f-bici', !!p.bici);
   setCheck('f-spiaggia', !!p.spiaggia);
   setCheck('f-animali', !!p.animali);
+  setCheck('f-pacchetto-servizi', !!p.pacchetto_servizi);
   document.getElementById('f-note').value = p.note || '';
-  renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : Array.from({ length: Math.max(1, (p.adulti||0)+(p.bambini||0)) }, () => ({})));
+  renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
   aggiornaPreventivo();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
@@ -1436,6 +1474,15 @@ async function salvaPrenotazione() {
   if (!alloggioId) { showToast('Seleziona un alloggio'); return; }
   if (!nome)       { showToast('Inserisci il nome ospite'); return; }
   if (!checkin || !checkout || checkout <= checkin) { showToast('Date non valide'); return; }
+
+  // Solo il Capofamiglia è obbligatorio per salvare la prenotazione — gli
+  // altri ospiti si completano più avanti, al momento della schedina.
+  const ospiti = raccogliOspitiDaForm();
+  const erroriCapo = validaOspiti(ospiti.slice(0, 1));
+  if (erroriCapo.length) {
+    showToast(erroriCapo[0] + (erroriCapo.length > 1 ? ` (+${erroriCapo.length-1} altri campi mancanti)` : ''));
+    return;
+  }
 
   const overlap = trovaOverlap(alloggioId, checkin, checkout, editingId);
   if (overlap) {
@@ -1468,9 +1515,10 @@ async function salvaPrenotazione() {
     bici:       document.getElementById('f-bici').checked,
     spiaggia:   document.getElementById('f-spiaggia').checked,
     animali:    document.getElementById('f-animali').checked,
+    pacchetto_servizi: document.getElementById('f-pacchetto-servizi').checked,
     preventivo_stimato: preventivo.disponibile ? preventivo.totale : null,
     note: document.getElementById('f-note').value.trim(),
-    ospiti: raccogliOspitiDaForm(),
+    ospiti,
     updatedAt: new Date().toISOString(),
   };
 
@@ -1562,12 +1610,27 @@ function generaRigaSchedina(o, checkinIso, permanenza) {
   return riga;
 }
 
+// Solo il Capofamiglia è obbligatorio quando si crea/modifica la prenotazione;
+// gli altri ospiti (in numero pari alle persone della prenotazione) vanno
+// completati solo a questo punto, prima di generare la schedina da inviare.
+function totalePersoneDaForm() {
+  return (parseInt(document.getElementById('f-adulti').value,10)||0)
+    + (parseInt(document.getElementById('f-bambini-0-2').value,10)||0)
+    + (parseInt(document.getElementById('f-bambini-3-4').value,10)||0)
+    + (parseInt(document.getElementById('f-bambini-5-9').value,10)||0)
+    + (parseInt(document.getElementById('f-bambini-10-17').value,10)||0);
+}
 function apriAnteprimaSchedina() {
   const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
   if (!checkin || !checkout || checkout <= checkin) { showToast('Imposta prima date di check-in/check-out valide'); return; }
 
   const ospiti = raccogliOspitiDaForm();
+  const totalePersone = totalePersoneDaForm();
+  if (ospiti.length < totalePersone) {
+    showToast(`Mancano ${totalePersone - ospiti.length} ospiti da censire: la prenotazione è per ${totalePersone} person${totalePersone===1?'a':'e'}, ne hai inserit${ospiti.length===1?'o':'i'} ${ospiti.length}.`);
+    return;
+  }
   const errori = validaOspiti(ospiti);
   if (errori.length) {
     showToast(errori[0] + (errori.length > 1 ? ` (+${errori.length-1} altri campi mancanti)` : ''));
@@ -1722,6 +1785,10 @@ function renderListinoVilliniPanel() {
         <div class="listino-extra-field"><label>Pacchetto Luglio</label><input type="number" step="0.01" min="0" id="lv-pacchetto-7" value="${l.pacchettoServiziPerMese[7]}"></div>
         <div class="listino-extra-field"><label>Pacchetto Agosto</label><input type="number" step="0.01" min="0" id="lv-pacchetto-8" value="${l.pacchettoServiziPerMese[8]}"></div>
         <div class="listino-extra-field"><label>Pacchetto Settembre</label><input type="number" step="0.01" min="0" id="lv-pacchetto-9" value="${l.pacchettoServiziPerMese[9]}"></div>
+        <div class="listino-extra-field"><label>Kit bagno (una tantum)</label><input type="number" step="0.01" min="0" id="lv-kit-bagno" value="${l.prezziKit.bagno}"></div>
+        <div class="listino-extra-field"><label>Kit singolo (una tantum)</label><input type="number" step="0.01" min="0" id="lv-kit-singolo" value="${l.prezziKit.singolo}"></div>
+        <div class="listino-extra-field"><label>Kit matrimoniale (una tantum)</label><input type="number" step="0.01" min="0" id="lv-kit-matrimoniale" value="${l.prezziKit.matrimoniale}"></div>
+        <div class="listino-extra-field"><label>Spiaggia a la carte / notte</label><input type="number" step="0.01" min="0" id="lv-spiaggia-giorno" value="${l.spiaggiaPerGiorno}"></div>
       </div>
       <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="salvaListinoVillini()">Salva listino Villini</button></div>
     </div>`;
@@ -1745,6 +1812,12 @@ async function salvaListinoVillini() {
     8: parseFloat(document.getElementById('lv-pacchetto-8').value) || 0,
     9: parseFloat(document.getElementById('lv-pacchetto-9').value) || 0,
   };
+  l.prezziKit = {
+    bagno:        parseFloat(document.getElementById('lv-kit-bagno').value) || 0,
+    singolo:      parseFloat(document.getElementById('lv-kit-singolo').value) || 0,
+    matrimoniale: parseFloat(document.getElementById('lv-kit-matrimoniale').value) || 0,
+  };
+  l.spiaggiaPerGiorno = parseFloat(document.getElementById('lv-spiaggia-giorno').value) || 0;
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'listini', 'villini'), l);
