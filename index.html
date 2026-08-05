@@ -387,7 +387,11 @@
         <path d="M-10 110 Q70 75 140 105 T280 95" stroke="currentColor" stroke-width="3"/>
         <path d="M210 10 Q230 30 224 55 Q205 48 195 25 Q190 8 210 10Z" fill="currentColor"/>
       </svg>
-      <div class="home-headline">Cosa vuoi<br>gestire oggi?</div>
+      <div class="page-eyebrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
+        <span id="home-eyebrow"></span>
+      </div>
+      <div class="page-title" id="home-title"></div>
     </div>
     <div id="kpi-strip" class="kpi-strip"></div>
     <div id="module-list" class="module-grid"></div>
@@ -1069,12 +1073,26 @@ function saluto() {
   return h < 12 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera';
 }
 
+// Data odierna in italiano per l'eyebrow della home (es. "Martedì 5 agosto").
+// Niente meteo: senza una fonte dati reale collegata mostreremmo un valore
+// finto spacciato per vero, quindi resta fuori finché non ne colleghiamo una.
+function dataOggi() {
+  const giorni = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const mesi = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const d = new Date();
+  return `${giorni[d.getDay()]} ${d.getDate()} ${mesi[d.getMonth()]}`;
+}
+
 function applyHeader() {
   const admin = isAdmin();
   document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
   document.getElementById('header-name').textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings').style.display = admin ? '' : 'none';
+  const homeEyebrow = document.getElementById('home-eyebrow');
+  const homeTitle   = document.getElementById('home-title');
+  if (homeEyebrow) homeEyebrow.textContent = dataOggi();
+  if (homeTitle)   homeTitle.textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
 
   // Rinnova silenziosamente il token push se le notifiche erano già attive su questo
   // dispositivo — al massimo una volta al giorno, TRANNE quando è appena cambiato
@@ -1601,3 +1619,4 @@ start();
 </script>
 </body>
 </html>
+
