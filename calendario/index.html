@@ -82,7 +82,7 @@
 .cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
 /* ══ GRIGLIA PLANNING ═════════════════════════════════════════════════════ */
-.cal-scroll { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: auto; max-height: calc(100vh - 220px); }
+.cal-scroll { background: var(--white); overflow: auto; max-height: calc(100vh - 200px); }
 .cal-header-row { display: flex; position: sticky; top: 0; z-index: 5; background: var(--white); border-bottom: 2px solid var(--gray-200); }
 .cal-corner { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 6; background: var(--white); border-right: 1px solid var(--gray-200); display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .04em; }
 .cal-daycol-head { flex: none; text-align: center; padding: 6px 2px; font-size: 10px; color: var(--gray-500); font-weight: 700; border-right: 1px solid var(--gray-100); }
@@ -90,6 +90,12 @@
 .cal-daycol-head .num { font-size: 13px; color: var(--gray-900); margin-top: 2px; }
 .cal-daycol-head.weekend { background: var(--gray-50); }
 .cal-daycol-head.today .num { color: var(--white); background: var(--green-ok); border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* ══ RIGA CONTATORI (camere disponibili/occupate per giorno) ══════════════ */
+.cal-counts-row { display: flex; border-bottom: 1px solid var(--gray-200); }
+.cal-counts-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 4; background: var(--white); border-right: 1px solid var(--gray-200); padding: 4px 12px; font-size: 10.5px; font-weight: 700; color: var(--gray-500); display: flex; align-items: center; }
+.cal-counts-cell { flex: none; text-align: center; padding: 4px 2px; font-size: 11px; font-weight: 800; color: var(--gray-700); border-right: 1px solid var(--gray-100); }
+.cal-counts-row.occupate .cal-counts-cell { color: var(--terracotta); }
 
 .cal-cat-row { display: flex; background: var(--green-50); border-bottom: 1px solid var(--gray-100); }
 .cal-cat-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 3; background: var(--green-50); padding: 6px 12px; font-size: 11px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--gray-200); }
@@ -107,9 +113,14 @@
 .cal-bar:hover { transform: translateY(-1px); }
 .cal-bar .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
 .cal-bar .meta { font-size: 9.5px; font-weight: 600; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
-.cal-bar.tr-pc { background: var(--green-700); }
-.cal-bar.tr-mp { background: var(--green-500); }
-.cal-bar.tr-no { background: var(--gray-500); }
+/* Colore = stato del soggiorno (non più il trattamento ristorazione, che
+   ora si vede solo nel tooltip): giallo finché non si fa check-in, blu se il
+   check-in è fatto ma manca ancora l'invio Alloggiati Web, verde quando
+   entrambi sono fatti, grigio dopo il check-out. */
+.cal-bar.st-confermata  { background: var(--terracotta-2); color: #4A3208; }
+.cal-bar.st-checkin     { background: var(--blue); }
+.cal-bar.st-checkin-web { background: var(--green-ok); }
+.cal-bar.st-andata      { background: var(--gray-400); }
 .cal-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,0.28); font-size: 8.5px; font-weight: 800; margin-right: 3px; }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
@@ -125,6 +136,16 @@
 /* ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ */
 .form-modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
 .form-modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+.stato-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 10px 12px; margin: -8px 0 16px; }
+.stato-badge { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 20px; font-size: 12px; font-weight: 800; color: #fff; }
+.stato-badge.st-confermata  { background: var(--terracotta-2); color: #4A3208; }
+.stato-badge.st-checkin     { background: var(--blue); }
+.stato-badge.st-checkin-web { background: var(--green-ok); }
+.stato-badge.st-andata      { background: var(--gray-400); }
+.stato-box-btns { display: flex; gap: 8px; }
+.stato-btn { height: 32px; padding: 0 12px; border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 20px; font-size: 11.5px; font-weight: 700; color: var(--gray-700); cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.stato-btn:hover { border-color: var(--green-400); color: var(--green-700); }
+.stato-btn.on { background: var(--green-bg); border-color: var(--green-ok); color: var(--green-ok); }
 .f-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .f-row > div { flex: 1; min-width: 0; }
 .f-label { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 5px; letter-spacing: .02em; display: block; }
@@ -354,11 +375,6 @@
 
 <main id="main-view">
   <div class="page-head">
-    <svg class="page-head-motif" viewBox="0 0 400 180" fill="none" preserveAspectRatio="none">
-      <path d="M-10 85 Q100 35 200 80 T400 65" stroke="currentColor" stroke-width="4"/>
-      <path d="M-10 125 Q110 90 210 120 T400 105" stroke="currentColor" stroke-width="4"/>
-      <path d="M330 15 Q360 32 351 62 Q322 53 308 26 Q301 8 330 15Z" fill="currentColor"/>
-    </svg>
     <div class="page-eyebrow">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
       <span>Calendario</span>
@@ -377,9 +393,10 @@
     </div>
   </div>
   <div class="cal-legend">
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-700)"></span>Pensione completa</div>
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-500)"></span>Mezza pensione</div>
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-500)"></span>Nessun trattamento</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--terracotta-2)"></span>Confermata</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--blue)"></span>Check-in fatto · Alloggiati Web da inviare</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-ok)"></span>Check-in + Alloggiati Web inviato</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-400)"></span>Andata via</div>
     <div class="cal-legend-item">B = biancheria · C = bici · S = spiaggia</div>
   </div>
   <div class="cal-scroll" id="cal-scroll">
@@ -406,6 +423,14 @@
 <div class="modal-overlay hidden" id="form-modal-overlay">
   <div class="form-modal-box">
     <div class="form-modal-title" id="form-modal-title">Nuova prenotazione</div>
+
+    <div class="stato-box hidden" id="stato-prenotazione-box">
+      <span class="stato-badge" id="stato-badge">Confermata</span>
+      <div class="stato-box-btns">
+        <button type="button" class="stato-btn" id="btn-checkin" onclick="toggleCheckin()">Segna check-in</button>
+        <button type="button" class="stato-btn" id="btn-checkout" onclick="toggleCheckout()">Segna check-out</button>
+      </div>
+    </div>
 
     <div class="f-row">
       <div>
@@ -686,6 +711,7 @@ async function startRealtimeSync() {
       prenotazioni = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setSyncStatus('live');
       renderGrid();
+      if (editingId) renderStatoBox();
       _dataReady = true;
       maybeHideLoading();
     }, (err) => { console.error('Errore lettura prenotazioni:', err); setSyncStatus('error'); });
@@ -774,6 +800,21 @@ function descrizioneKit(p) {
   return parti.join(', ');
 }
 
+// ── STATO DEL SOGGIORNO (colore barra) ────────────────────────────────────
+// Check-in e check-out sono azioni manuali dello staff (v. toggleCheckin/
+// toggleCheckout), non scattano da sole in base alle date: riflettono quando
+// l'ospite è arrivato/partito davvero, non quando era previsto.
+function statoPrenotazione(p) {
+  if (p.checkout_fatto) return { cls: 'st-andata', label: 'Andata via' };
+  if (p.checkin_fatto) {
+    const webInviato = !!(p.alloggiati_web && p.alloggiati_web.stato === 'simulato');
+    return webInviato
+      ? { cls: 'st-checkin-web', label: 'Check-in · Alloggiati Web inviato' }
+      : { cls: 'st-checkin',     label: 'Check-in · Alloggiati Web da inviare' };
+  }
+  return { cls: 'st-confermata', label: 'Confermata' };
+}
+
 // ── NAVIGAZIONE TIMELINE ─────────────────────────────────────────────────
 function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); }
 function goToday()    { viewStart = isoToday(0); renderGrid(); }
@@ -797,6 +838,23 @@ function renderGrid() {
     if (isWeekend(iso)) cls.push('weekend');
     if (iso === today) cls.push('today');
     html += `<div class="${cls.join(' ')}" style="width:${DAY_W}px"><div class="dow">${dow}</div><div class="num">${num}</div></div>`;
+  });
+  html += `</div>`;
+
+  // Camere disponibili/occupate per giorno: le "occupate" contano le prenotazioni
+  // il cui periodo copre quel giorno (a prescindere da check-in/check-out fatti
+  // dallo staff, che riguardano l'arrivo/partenza reale, non l'occupazione a
+  // calendario); le "disponibili" escludono gli alloggi fuori servizio.
+  const totaleAlloggi = alloggiList.filter(a => a.stato !== 'non_disponibile').length;
+  const occupatePerGiorno = days.map(iso => prenotazioni.filter(p => iso >= p.checkin && iso < p.checkout).length);
+  html += `<div class="cal-counts-row disponibili"><div class="cal-counts-label">Camere disponibili</div>`;
+  occupatePerGiorno.forEach(occ => {
+    html += `<div class="cal-counts-cell" style="width:${DAY_W}px">${Math.max(totaleAlloggi - occ, 0)}</div>`;
+  });
+  html += `</div>`;
+  html += `<div class="cal-counts-row occupate"><div class="cal-counts-label">Camere occupate</div>`;
+  occupatePerGiorno.forEach(occ => {
+    html += `<div class="cal-counts-cell" style="width:${DAY_W}px">${occ}</div>`;
   });
   html += `</div>`;
 
@@ -826,15 +884,17 @@ function renderGrid() {
         const clampedEnd   = Math.min(endOffset, VIEW_DAYS);
         const left  = clampedStart * DAY_W + 2;
         const width = Math.max((clampedEnd - clampedStart) * DAY_W - 4, DAY_W - 4);
-        const trCls = p.trattamento_ristorazione === 'PC' ? 'tr-pc' : (p.trattamento_ristorazione === 'MP' ? 'tr-mp' : 'tr-no');
+        const stato = statoPrenotazione(p);
         const kitDesc = descrizioneKit(p);
         const flags = [];
         if (kitDesc)      flags.push(`<span class="cal-flag" title="Biancheria: ${esc(kitDesc)}">B</span>`);
         if (p.bici)       flags.push('<span class="cal-flag" title="Bici">C</span>');
         if (p.spiaggia)   flags.push('<span class="cal-flag" title="Spiaggia">S</span>');
-        const titleParts = [`${p.nome} · ${p.checkin} → ${p.checkout}`];
+        const titleParts = [`${p.nome} · ${p.checkin} → ${p.checkout}`, stato.label];
+        if (p.trattamento_ristorazione === 'PC') titleParts.push('Pensione completa');
+        else if (p.trattamento_ristorazione === 'MP') titleParts.push('Mezza pensione');
         if (kitDesc) titleParts.push(`Biancheria: ${kitDesc}`);
-        html += `<div class="cal-bar ${trCls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}" onclick="event.stopPropagation();apriModificaPrenotazione('${esc(p.id)}')">
+        html += `<div class="cal-bar ${stato.cls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}" onclick="event.stopPropagation();apriModificaPrenotazione('${esc(p.id)}')">
           <div class="nome">${esc(p.nome||'—')}</div>
           <div class="meta">${flags.join('')}${p.adulti||0}+${p.bambini||0}</div>
         </div>`;
@@ -993,10 +1053,50 @@ function resetOspitiRows(count) {
   renderOspitiList(Array.from({ length: Math.max(1, count) }, () => ({})));
 }
 
+// ── STATO SOGGIORNO NEL FORM (badge + pulsanti check-in/check-out) ────────
+// Solo per prenotazioni esistenti: una prenotazione nuova non ha ancora uno
+// stato finché non viene salvata almeno una volta.
+function renderStatoBox() {
+  const box = document.getElementById('stato-prenotazione-box');
+  const p = editingId ? prenotazioni.find(x => x.id === editingId) : null;
+  if (!p) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const stato = statoPrenotazione(p);
+  const badge = document.getElementById('stato-badge');
+  badge.textContent = stato.label;
+  badge.className = 'stato-badge ' + stato.cls;
+  const btnCheckin  = document.getElementById('btn-checkin');
+  const btnCheckout = document.getElementById('btn-checkout');
+  btnCheckin.textContent  = p.checkin_fatto  ? 'Annulla check-in'  : 'Segna check-in';
+  btnCheckout.textContent = p.checkout_fatto ? 'Annulla check-out' : 'Segna check-out';
+  btnCheckin.classList.toggle('on', !!p.checkin_fatto);
+  btnCheckout.classList.toggle('on', !!p.checkout_fatto);
+}
+async function impostaStatoPrenotazione(campo, valore) {
+  if (!editingId) return;
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p) return;
+  const precedente = p[campo];
+  p[campo] = valore; // ottimistico: si vede subito, poi si salva
+  renderStatoBox();
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'prenotazioni', editingId), { [campo]: valore });
+  } catch(e) {
+    console.error('Errore aggiornamento stato:', e);
+    showToast('Errore: ' + e.message);
+    p[campo] = precedente;
+    renderStatoBox();
+  }
+}
+function toggleCheckin()  { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('checkin_fatto', !p.checkin_fatto); }
+function toggleCheckout() { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('checkout_fatto', !p.checkout_fatto); }
+
 function openNuovaPrenotazione(alloggioId, checkinIso) {
   editingId = null;
   document.getElementById('form-modal-title').textContent = 'Nuova prenotazione';
   document.getElementById('btn-elimina').classList.add('hidden');
+  renderStatoBox();
   populateAlloggioSelect(alloggioId);
   const ci = checkinIso || isoToday(0);
   document.getElementById('f-nome').value = '';
@@ -1021,6 +1121,7 @@ function apriModificaPrenotazione(id) {
   editingId = id;
   document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
   document.getElementById('btn-elimina').classList.remove('hidden');
+  renderStatoBox();
   populateAlloggioSelect(p.alloggio_id);
   document.getElementById('f-nome').value = p.nome || '';
   document.getElementById('f-tel').value  = p.tel  || '';
