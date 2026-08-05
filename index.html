@@ -381,7 +381,15 @@
 
   <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
   <div id="sec-home" class="section active">
-    <div class="home-headline">Cosa vuoi<br>gestire oggi?</div>
+    <div class="page-head">
+      <svg class="page-head-motif" viewBox="0 0 280 210" fill="none">
+        <path d="M-10 60 Q60 20 120 55 T280 45" stroke="currentColor" stroke-width="3"/>
+        <path d="M-10 110 Q70 75 140 105 T280 95" stroke="currentColor" stroke-width="3"/>
+        <path d="M210 10 Q230 30 224 55 Q205 48 195 25 Q190 8 210 10Z" fill="currentColor"/>
+      </svg>
+      <div class="home-headline">Cosa vuoi<br>gestire oggi?</div>
+    </div>
+    <div id="kpi-strip" class="kpi-strip"></div>
     <div id="module-list" class="module-grid"></div>
   </div>
 
@@ -484,59 +492,15 @@ hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 //    delle sue sezioni interne) — non serve altro codice.
 const MODULES = [
   {
-    id: 'magazzino',
-    nome: 'Magazzino Bar',
-    titolo: 'Magazzino bar',
-    url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
-    icon: ICON_WAREHOUSE,
-    tile: 'green',
-    statKey: 'magazzino',
-    sezioni: [
-      { id: 'giacenze',     nome: 'Giacenze' },
-      { id: 'ordine',       nome: 'Ordine' },
-      { id: 'aggiungi',     nome: 'Nuovo prodotto' },
-      { id: 'impostazioni', nome: 'Quantità minime' },
-      { id: 'categorie',    nome: 'Categorie' },
-      { id: 'setup',        nome: 'Impostazioni app' },
-    ],
-  },
-  {
-    id: 'conti',
-    nome: 'Gestione Conti Pensioni',
-    titolo: 'Conti pensioni',
-    url: 'conti/', // 👉 sottocartella dentro questo stesso repository
-    icon: ICON_HANDCOINS,
-    tile: 'orange',
-    statKey: 'conti',
-    sezioni: [
-      { id: 'ospiti',   nome: 'Ospiti' },
-      { id: 'scadenze', nome: 'Scadenze' },
-      { id: 'chiusi',   nome: 'Conti chiusi' },
-      { id: 'setup',    nome: 'Impostazioni app' },
-    ],
-  },
-  {
     id: 'alloggi',
     nome: 'Gestione Alloggi',
     titolo: 'Gestione alloggi',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
-    tile: 'white',
+    tile: 'green',
     statKey: 'alloggi',
     sezioni: [
       { id: 'alloggi', nome: 'Alloggi' },
-    ],
-  },
-  {
-    id: 'bici',
-    nome: 'Noleggio Bici',
-    titolo: 'Noleggio bici',
-    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
-    icon: ICON_BIKE,
-    tile: 'orange',
-    statKey: 'bici',
-    sezioni: [
-      { id: 'bici', nome: 'Bici' },
     ],
   },
   {
@@ -545,12 +509,24 @@ const MODULES = [
     titolo: 'Ristorazione',
     url: 'ristorazione/staff.html',
     icon: ICON_RISTORAZIONE,
-    tile: 'white',
+    tile: 'green',
     statKey: 'ristorazione',
     sezioni: [
       { id: 'ordini',   nome: 'Ordini' },
       { id: 'menu',     nome: 'Menu settimanale' },
       { id: 'famiglie', nome: 'Famiglie' },
+    ],
+  },
+  {
+    id: 'spiaggia',
+    nome: 'Prenotazioni Spiaggia',
+    titolo: 'Spiaggia',
+    url: 'spiaggia/',
+    icon: ICON_SPIAGGIA,
+    tile: 'orange',
+    statKey: 'spiaggia',
+    sezioni: [
+      { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
     ],
   },
   {
@@ -567,26 +543,58 @@ const MODULES = [
     ],
   },
   {
-    id: 'spiaggia',
-    nome: 'Prenotazioni Spiaggia',
-    titolo: 'Spiaggia',
-    url: 'spiaggia/',
-    icon: ICON_SPIAGGIA,
-    tile: 'white',
-    statKey: 'spiaggia',
-    sezioni: [
-      { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
-    ],
-  },
-  {
     id: 'calendario',
     nome: 'Calendario Prenotazioni',
     titolo: 'Calendario',
     url: 'calendario/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_CALENDAR,
-    tile: 'green',
+    tile: 'white',
     sezioni: [
       { id: 'calendario', nome: 'Planning prenotazioni' },
+    ],
+  },
+  {
+    id: 'magazzino',
+    nome: 'Magazzino Bar',
+    titolo: 'Magazzino bar',
+    url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_WAREHOUSE,
+    tile: 'white',
+    statKey: 'magazzino',
+    sezioni: [
+      { id: 'giacenze',     nome: 'Giacenze' },
+      { id: 'ordine',       nome: 'Ordine' },
+      { id: 'aggiungi',     nome: 'Nuovo prodotto' },
+      { id: 'impostazioni', nome: 'Quantità minime' },
+      { id: 'categorie',    nome: 'Categorie' },
+      { id: 'setup',        nome: 'Impostazioni app' },
+    ],
+  },
+  {
+    id: 'conti',
+    nome: 'Gestione Conti Pensioni',
+    titolo: 'Conti pensioni',
+    url: 'conti/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_HANDCOINS,
+    tile: 'white',
+    statKey: 'conti',
+    sezioni: [
+      { id: 'ospiti',   nome: 'Ospiti' },
+      { id: 'scadenze', nome: 'Scadenze' },
+      { id: 'chiusi',   nome: 'Conti chiusi' },
+      { id: 'setup',    nome: 'Impostazioni app' },
+    ],
+  },
+  {
+    id: 'bici',
+    nome: 'Noleggio Bici',
+    titolo: 'Noleggio bici',
+    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_BIKE,
+    tile: 'white',
+    statKey: 'bici',
+    sezioni: [
+      { id: 'bici', nome: 'Bici' },
     ],
   },
 ];
@@ -1169,7 +1177,48 @@ function statoModulo(mod) {
   return { sub: '', badge: null };
 }
 
+// ── STRISCIA KPI — 4 numeri live in cima alla home, calcolati dagli stessi
+//    dati (homeStats) che alimentano già le sottoscritte delle card ─────────
+function renderKpiStrip() {
+  const wrap = document.getElementById('kpi-strip');
+  if (!wrap) return;
+  const rows = [];
+  const al = homeStats.alloggi;
+  if (al) rows.push({
+    icon: ICONS.ALLOGGI, tile: 'sage', label: 'Alloggi occupati',
+    value: al.occupati, small: ` / ${al.totale}`,
+    pct: al.totale ? Math.round(al.occupati / al.totale * 100) : 0,
+  });
+  const man = homeStats.manutenzione;
+  if (man) rows.push({
+    icon: ICONS.MANUTENZIONE, tile: 'amber', label: 'Ticket manutenzione',
+    value: man.aperti, small: man.aperti === 1 ? ' aperto' : ' aperti',
+    pct: man.aperti > 0 ? Math.min(100, man.aperti * 20) : 4,
+  });
+  const ri = homeStats.ristorazione;
+  if (ri) rows.push({
+    icon: ICONS.RISTORAZIONE, tile: 'sage', label: 'Ordini ristorazione',
+    value: ri.ordiniOggi, small: ' oggi',
+    pct: ri.ordiniOggi > 0 ? Math.min(100, ri.ordiniOggi * 8) : 4,
+  });
+  const bi = homeStats.bici;
+  if (bi) rows.push({
+    icon: ICONS.BICI, tile: 'amber', label: 'Bici in uso',
+    value: bi.occupate, small: ` / ${bi.totale}`,
+    pct: bi.totale ? Math.round(bi.occupate / bi.totale * 100) : 0,
+  });
+  if (!rows.length) { wrap.innerHTML = ''; return; }
+  const accent = t => t === 'amber' ? 'var(--terracotta)' : 'var(--green-700)';
+  wrap.innerHTML = rows.map(r => `
+    <div class="kpi-chip">
+      <div class="kpi-icon" style="background:var(--tile-${r.tile}-bg);color:${accent(r.tile)}">${r.icon}</div>
+      <div><div class="kpi-label">${r.label}</div><div class="kpi-value">${r.value}<small>${r.small}</small></div></div>
+      <div class="kpi-bar"><i style="width:${r.pct}%;background:${accent(r.tile)}"></i></div>
+    </div>`).join('');
+}
+
 function renderHome() {
+  renderKpiStrip();
   const q = (document.getElementById('search-input').value || '').toLowerCase();
   const list = MODULES.filter(m => m.nome.toLowerCase().includes(q) && moduleAccessible(m));
   const wrap = document.getElementById('module-list');
@@ -1193,14 +1242,39 @@ function renderHome() {
     else if (!hasFeature && list.length === 1) tileClass = ' solo';
     else if (lastIsLonely && idx === list.length - 1) tileClass = ' solo';
     const { sub, badge } = statoModulo(m);
+    // La tessera in evidenza mostra l'anello di progresso solo per Alloggi,
+    // l'unico modulo con una percentuale (occupazione) che ha senso in un
+    // anello — per gli altri resta il testo normale sotto il titolo.
+    const al = homeStats.alloggi;
+    const showRing = tileClass === ' feature' && m.statKey === 'alloggi' && al && al.totale > 0;
+    const body = showRing ? (() => {
+      const pct = Math.round(al.occupati / al.totale * 100);
+      const circ = 2 * Math.PI * 42;
+      const offset = circ * (1 - pct / 100);
+      return `
+      <div class="hero-row">
+        <div>
+          <div class="module-title">${m.titolo || m.nome}</div>
+          ${sub ? `<div class="module-sub">${sub}</div>` : ''}
+        </div>
+        <div class="hero-ring">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="9"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 50 50)"/>
+            <text x="50" y="56" text-anchor="middle" font-size="24">${pct}%</text>
+          </svg>
+        </div>
+      </div>`;
+    })() : `
+      <div>
+        <div class="module-title">${m.titolo || m.nome}</div>
+        ${sub ? `<div class="module-sub">${sub}</div>` : ''}
+      </div>`;
     return `
     <div class="module-tile tile-${m.tile}${tileClass}" onclick="openModule('${m.url}')">
       ${badge ? `<span class="module-badge">${badge}</span>` : ''}
       <div class="module-icon-chip">${m.icon}</div>
-      <div>
-        <div class="module-title">${m.titolo || m.nome}</div>
-        ${sub ? `<div class="module-sub">${sub}</div>` : ''}
-      </div>
+      ${body}
     </div>`;
   }).join('');
 }
