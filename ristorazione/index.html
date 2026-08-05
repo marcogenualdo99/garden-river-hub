@@ -856,15 +856,18 @@ async function salvaOrdini(targetData){
     }
     if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
-    // Notifica push istantanea allo staff — best effort: se fallisce, il cron di
-    // fallback ogni 5 minuti invierà comunque la notifica leggendo notified:false.
-    for(const payload of notificheDaInviare){
-      fetch('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app',{
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-      }).catch(()=>{});
-    }
+    // Notifica push istantanea allo staff — aspettiamo che la chiamata finisca
+    // (con un timeout di sicurezza) prima di ricaricare la pagina: un reload
+    // troppo rapido interromperebbe la fetch a metà e la notifica non partirebbe mai.
+    await Promise.all(notificheDaInviare.map(payload=>{
+      const ctrl=new AbortController();
+      const timeout=setTimeout(()=>ctrl.abort(), 8000);
+      return fetch('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app',{
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), signal:ctrl.signal
+      }).catch(()=>{}).finally(()=>clearTimeout(timeout));
+    }));
     showToast('Ordine salvato ✓');
-    setTimeout(()=>location.reload(), 1200);
+    setTimeout(()=>location.reload(), 400);
   }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
 }
 
