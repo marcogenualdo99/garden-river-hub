@@ -7,7 +7,9 @@
 <link rel="apple-touch-icon" href="logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+<script src="assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
@@ -193,274 +195,6 @@
   });
   setTimeout(segnalaMagazzinoPronto, 8000);
 </script>
-<style>
-:root {
-  --green-900: #0D2B1E;
-  --green-700: #1B4332;
-  --green-500: #2D6A4F;
-  --green-400: #40916C;
-  --green-200: #95D5B2;
-  --green-100: #D8F3DC;
-  --green-50:  #F0FAF4;
-  --gray-900:  #111827;
-  --gray-700:  #374151;
-  --gray-500:  #6B7280;
-  --gray-300:  #D1D5DB;
-  --gray-100:  #F3F4F6;
-  --gray-50:   #F9FAFB;
-  --white:     #FFFFFF;
-  --orange:    #E07B00;
-  --orange-lt: #F59E0B;
-  --orange-bg: #FFF8F0;
-  --tile-amber-bg: #FFF3E2;
-  --tile-sage-bg:  #E7F3EC;
-  --tile-sky-bg:   #E7EFF8;
-  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
-  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
-  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
-  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
-  --radius-sm: 12px;
-  --radius:    16px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
-  --shadow:    0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
-  --font: 'Inter', -apple-system, sans-serif;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
-
-/* ══ LOGIN ══════════════════════════════════════════════════════════════════ */
-.login-screen {
-  position: fixed; inset: 0; z-index: 999;
-  background: var(--green-700);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 32px 24px;
-}
-.login-screen.hidden { display: none; }
-.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
-.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
-.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; text-align: center; }
-.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.login-label { font-size: 17px; font-weight: 800; color: var(--gray-900); text-align: center; margin-bottom: 14px; display: block; }
-.login-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none; margin-bottom: 14px; transition: border-color .15s; }
-.login-select:focus { border-color: var(--green-400); }
-.pin-label { font-size: 13px; font-weight: 700; color: var(--gray-700); margin-bottom: 16px; display: block; text-align: center; }
-.pin-dots { display: flex; gap: 10px; justify-content: center; margin-bottom: 24px; }
-.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--gray-300); background: var(--white); transition: all .15s; }
-.pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
-.pin-dot.error  { background: var(--red); border-color: var(--red); }
-.pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
-.pin-key { height: 56px; border: 1.5px solid #E5E7EB; border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
-.pin-key:active { background: var(--gray-100); }
-.pin-key.del    { font-size: 18px; color: var(--gray-500); }
-.pin-key.empty  { border: none; background: none; cursor: default; }
-.login-error { font-size: 12px; color: var(--red); font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
-.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; margin-top: 4px; }
-.btn-primary:active   { opacity: .85; }
-.btn-primary:disabled { opacity: .45; pointer-events: none; }
-
-/* ══ HEADER (stile coerente con le altre app della suite) ════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 16px 16px; gap: 14px; }
-.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.header-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--white); flex-shrink: 0; }
-.header-name  { font-size: 17px; font-weight: 800; color: var(--gray-900); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-role  { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
-.header-btns  { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.hbtn { height: 36px; padding: 0 14px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; white-space: nowrap; }
-.hbtn.icon    { width: 36px; padding: 0; font-size: 16px; }
-.hbtn.ghost   { background: var(--gray-100); color: var(--gray-700); border: none; }
-.hbtn:active  { opacity: .8; }
-
-/* ══ SIDEBAR (solo desktop) ═══════════════════════════════════════════════
-   Sotto i 960px resta tutto come prima (solo top-bar, nessuna sidebar): qui
-   aggiungiamo un menu rapido verso tutti i moduli per chi lavora da desktop,
-   stesso pattern già usato in calendario/index.html. */
-.sidebar { display: none; }
-@media (min-width: 960px) {
-  .app-shell { display: flex; align-items: flex-start; }
-  .sidebar {
-    display: flex; flex-direction: column;
-    width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
-    background: var(--white); border-right: 1px solid var(--gray-100);
-    padding: 20px 14px; overflow-y: auto;
-  }
-  .main-col { flex: 1; min-width: 0; }
-  main { max-width: none; margin: 0; padding: 24px 32px 60px; }
-  .header-inner, .search-header-inner { max-width: none; margin: 0; }
-  .home-headline { font-size: 40px; }
-  .module-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
-}
-.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--gray-100); }
-.sidebar-brand img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; flex-shrink: 0; }
-.sidebar-brand-title { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
-.sidebar-brand-sub { font-size: 10.5px; color: var(--gray-500); font-weight: 600; margin-top: 1px; }
-.sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-400); text-transform: uppercase; margin: 16px 10px 6px; }
-.sidebar-label:first-of-type { margin-top: 6px; }
-.sidebar-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: var(--radius-sm); color: var(--gray-500); font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 2px; border-left: 3px solid transparent; transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent; }
-.sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-.sidebar-item:hover { background: var(--gray-50); color: var(--gray-700); }
-.sidebar-item.active { background: var(--green-bg); color: var(--green-700); border-left-color: var(--green-ok); font-weight: 800; }
-.sidebar-spacer { flex: 1; }
-
-/* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
-main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
-.home-headline { font-size: 36px; font-weight: 800; color: var(--gray-900); line-height: 1.2; margin: 4px 0 24px; }
-/* search collassabile nella header */
-.search-header-row { overflow: hidden; max-height: 0; transition: max-height .25s ease, padding .25s ease; padding: 0 16px; }
-.search-header-row.open { max-height: 80px; padding: 0 16px 12px; }
-.search-header-inner { display: flex; align-items: center; gap: 10px; max-width: 750px; margin: 0 auto; }
-.search-wrap { position: relative; flex: 1; }
-.search-wrap input { width: 100%; height: 44px; padding: 0 40px; border: none; border-radius: var(--radius-xl); font-size: 14px; font-family: var(--font); color: var(--gray-900); outline: none; background: var(--gray-100); transition: box-shadow .15s; }
-.search-wrap input:focus { box-shadow: 0 0 0 2px var(--green-200); }
-.search-wrap input::placeholder { color: var(--gray-500); font-style: normal; }
-.search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--gray-500); pointer-events: none; display: flex; align-items: center; }
-.search-icon svg { width: 16px; height: 16px; }
-.search-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
-.search-clear.hidden { display: none; }
-.search-cancel-btn { background: none; border: none; color: var(--gray-500); font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font); white-space: nowrap; padding: 4px; }
-
-.module-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); grid-auto-rows: 132px; gap: 12px; }
-.module-tile { position: relative; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; overflow: hidden; }
-.module-tile:active { transform: scale(.97); }
-.module-tile.feature { grid-row: span 2; }
-.module-tile.solo    { grid-column: span 2; }
-.module-icon-chip { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.module-icon-chip svg { width: 22px; height: 22px; }
-.module-tile.feature .module-icon-chip { width: 46px; height: 46px; border-radius: 14px; }
-.module-tile.feature .module-icon-chip svg { width: 24px; height: 24px; }
-.module-title { font-size: 14px; font-weight: 800; line-height: 1.25; }
-.module-tile.feature .module-title { font-size: 17px; margin-bottom: 4px; }
-.module-sub { font-size: 11.5px; margin-top: 4px; color: var(--gray-500); }
-.module-tile.feature .module-sub { font-size: 12px; }
-.module-badge { position: absolute; top: 14px; right: 14px; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 10px; color: var(--white); background: var(--orange); }
-.module-empty { text-align: center; padding: 60px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
-
-.tile-dark  { background: var(--green-700); color: var(--white); }
-.tile-dark .module-sub        { color: rgba(255,255,255,.65); }
-.tile-dark .module-icon-chip  { background: rgba(255,255,255,.15); color: var(--white); }
-.tile-amber { background: var(--tile-amber-bg); color: var(--gray-900); }
-.tile-amber .module-icon-chip { background: rgba(224,123,0,.15); color: var(--orange); }
-.tile-sage  { background: var(--tile-sage-bg); color: var(--gray-900); }
-.tile-sage .module-icon-chip  { background: rgba(27,67,50,.12); color: var(--green-700); }
-.tile-sky   { background: var(--tile-sky-bg); color: var(--gray-900); }
-.tile-sky .module-icon-chip   { background: rgba(37,99,235,.12); color: var(--blue); }
-
-@media (min-width: 860px) {
-  .home-headline { font-size: 44px; }
-  .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
-  .module-tile.feature, .module-tile.solo { grid-row: auto; grid-column: auto; }
-  .module-icon-chip, .module-tile.feature .module-icon-chip { width: 48px; height: 48px; border-radius: 14px; }
-  .module-icon-chip svg, .module-tile.feature .module-icon-chip svg { width: 24px; height: 24px; }
-  .module-title, .module-tile.feature .module-title { font-size: 16px; }
-}
-
-/* ══ SETTINGS ══════════════════════════════════════════════════════════════ */
-.section { display: none; }
-.section.active { display: block; }
-.back-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.back-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--white); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
-.back-title { font-size: 19px; font-weight: 800; }
-.card { background: var(--white); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); margin-bottom: 14px; }
-.card h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); margin-bottom: 4px; }
-.card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; line-height: 1.5; }
-
-.op-row { display: flex; align-items: center; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); flex-wrap: wrap; }
-.op-row:last-child { border-bottom: none; }
-.op-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.op-name { font-size: 14px; font-weight: 700; flex: 1; min-width: 90px; }
-.op-ruolo-select { height: 32px; padding: 0 8px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font); background: var(--white); outline: none; }
-.op-pin-status { font-size: 11px; font-weight: 600; white-space: nowrap; }
-.op-btn { height: 28px; padding: 0 10px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); border: none; white-space: nowrap; }
-.op-btn.reset { border: 1px solid var(--amber-bd); background: var(--amber-bg); color: var(--amber); }
-.op-del { width: 28px; height: 28px; border: none; background: var(--red-bg); color: var(--red); border-radius: 50%; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-.perm-op-select { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--white); outline: none; margin-bottom: 16px; }
-.perm-module { margin-bottom: 16px; }
-.perm-module-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--green-700); border-bottom: 2px solid var(--green-100); padding-bottom: 6px; margin-bottom: 8px; }
-.perm-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 14px; font-weight: 600; cursor: pointer; }
-.perm-row input { width: 18px; height: 18px; accent-color: var(--green-700); cursor: pointer; }
-.perm-hint { font-size: 12px; color: var(--gray-500); text-align: center; padding: 16px 0; line-height: 1.6; }
-
-/* ══ MODAL ═══════════════════════════════════════════════════════════════════ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.modal-overlay.hidden { display: none; }
-.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); }
-.modal-title { font-size: 17px; font-weight: 800; color: var(--gray-900); margin-bottom: 8px; }
-.modal-body  { font-size: 14px; color: var(--gray-500); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
-.modal-actions { display: flex; gap: 10px; }
-.modal-btn-cancel  { flex: 1; height: 48px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-.modal-btn-confirm { flex: 1; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.hidden { display: none !important; }
-
-/* ══ NOTIFICA IN-APP MANUTENZIONE ═══════════════════════════════════════════ */
-.notif-banner {
-  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%;
-  transform: translateX(-50%) translateY(calc(-100% - env(safe-area-inset-top) - 20px));
-  z-index: 1000; max-width: 360px; width: calc(100% - 32px);
-  background: var(--white); border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.18); border: 1.5px solid var(--orange-bg);
-  display: flex; align-items: center; gap: 12px; padding: 13px 16px;
-  transition: transform .35s cubic-bezier(.34,1.56,.64,1); pointer-events: none;
-}
-.notif-banner.show { transform: translateX(-50%) translateY(0); pointer-events: auto; }
-.notif-icon {
-  width: 38px; height: 38px; border-radius: 11px; background: var(--orange-bg);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.notif-icon svg { width: 18px; height: 18px; color: var(--orange); }
-.notif-text { flex: 1; min-width: 0; }
-.notif-label { font-size: 11px; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: .04em; }
-.notif-msg   { font-size: 13px; font-weight: 600; color: var(--gray-900); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.notif-close { width: 26px; height: 26px; border-radius: 50%; background: var(--gray-100); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--gray-500); flex-shrink: 0; font-size: 14px; line-height: 1; -webkit-tap-highlight-color: transparent; }
-.notif-close:active { background: var(--gray-200); }
-
-/* ══ SHIMMER LOADING ═════════════════════════════════════════════════════════ */
-@keyframes gr-shimmer { 0%,100% { opacity:.15 } 50% { opacity:.38 } }
-.stat-loading {
-  display: inline-block; width: 72px; height: 9px; border-radius: 5px;
-  background: currentColor; animation: gr-shimmer 1.5s ease-in-out infinite;
-  vertical-align: middle;
-}
-
-/* ══ HEADER LOGOUT HINT ══════════════════════════════════════════════════════ */
-.header-logout-hint {
-  display: flex; align-items: center; flex-shrink: 0;
-  color: var(--gray-300); margin-left: 4px; transition: color .15s;
-  pointer-events: none;
-}
-.header-left:active .header-logout-hint { color: var(--gray-700); }
-
-/* ══ SETTINGS NEW-OP FORM ════════════════════════════════════════════════════ */
-.new-op-form { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-.new-op-input {
-  flex: 1; min-width: 140px; height: 48px; padding: 0 14px;
-  border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm);
-  font-size: 14px; font-family: var(--font); outline: none;
-  transition: border-color .15s;
-}
-.new-op-input:focus { border-color: var(--green-400); }
-.new-op-ruolo {
-  height: 48px; padding: 0 10px;
-  border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm);
-  font-size: 13px; font-family: var(--font); background: var(--white);
-}
-.new-op-btn {
-  height: 48px; padding: 0 18px;
-  background: var(--green-700); color: var(--white);
-  border: none; border-radius: var(--radius-sm);
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  font-family: var(--font); transition: opacity .15s;
-}
-.new-op-btn:active { opacity: .85; }
-</style>
 </head>
 <body>
 
@@ -468,7 +202,6 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 <div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
   <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
 </div>
-<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
 
 <!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
 <div id="login-screen" class="login-screen hidden">
@@ -514,7 +247,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 
 <div class="app-shell">
 
-<!-- ══ SIDEBAR (solo desktop) — scorciatoie verso tutti i moduli della Hub ══ -->
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
     <img src="logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
@@ -524,63 +257,92 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
     </div>
   </div>
 
-  <div class="sidebar-label">Menu</div>
-  <a class="sidebar-item active" href="index.html" onclick="event.preventDefault();closeSettings()">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 46 L50 16 L85 46"/><path d="M22 40 L22 84 L78 84 L78 40"/><path d="M40 84 L40 58 L60 58 L60 84"/></svg>
-    Home
-  </a>
-  <a class="sidebar-item" href="calendario/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="24" width="72" height="62" rx="8"/><path d="M14 42 L86 42"/><path d="M32 14 L32 30 M68 14 L68 30"/></svg>
-    Calendario
-  </a>
-  <a class="sidebar-item" href="alloggi/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
-    Alloggi
-  </a>
-
-  <div class="sidebar-label">Ristorazione</div>
-  <a class="sidebar-item" href="magazzino/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 44 L50 13 L90 44"/><path d="M18 44 L18 84 L82 84 L82 44"/><rect x="39" y="58" width="22" height="14"/><rect x="32" y="69" width="36" height="15"/></svg>
-    Magazzino
-  </a>
-  <a class="sidebar-item" href="conti/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="26" r="13"/><circle cx="64" cy="20" r="13"/><path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/><path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/><path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/></svg>
-    Conti
-  </a>
-  <a class="sidebar-item" href="ristorazione/staff.html">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 L20 50 Q20 62 32 62 L50 62"/><path d="M50 20 L50 62"/><path d="M80 20 L80 36 Q80 50 65 50 L60 50"/><path d="M35 62 L35 85"/><path d="M25 85 L75 85"/><path d="M65 62 L65 85"/></svg>
-    Ristorazione
-  </a>
-
-  <div class="sidebar-label">Servizi</div>
-  <a class="sidebar-item" href="bici/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
-    Bici
-  </a>
-  <a class="sidebar-item" href="spiaggia/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20 L50 72"/><path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/><path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/><path d="M30 72 Q50 64 70 72"/><path d="M20 82 L80 82"/><path d="M60 72 Q65 58 76 60 Q78 70 70 72"/></svg>
-    Spiaggia
-  </a>
-
-  <a class="sidebar-item" href="manutenzione/" style="margin-top:10px">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
-    Manutenzione
-  </a>
-
-  <div class="sidebar-label">Generale</div>
-  <a class="sidebar-item" onclick="doLogout()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-    Esci
-  </a>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item active" href="index.html" onclick="event.preventDefault();closeSettings()"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
 
   <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
 </aside>
+
+<aside class="rail" id="rail">
+  <div class="rail-item active" onclick="closeSettings()"><span data-icon="HOME"></span><span>Home</span></div>
+  <div class="rail-item" onclick="openModule('calendario/')"><span data-icon="CALENDAR"></span><span>Cal.</span></div>
+  <div class="rail-item" onclick="openModule('alloggi/')"><span data-icon="ALLOGGI"></span><span>Alloggi</span></div>
+  <div class="rail-item" onclick="openModule('magazzino/')"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></div>
+  <div class="rail-item" onclick="openModule('conti/')"><span data-icon="CONTI"></span><span>Conti</span></div>
+  <div class="rail-item" onclick="openModule('ristorazione/staff.html')"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></div>
+  <div class="rail-item" onclick="openModule('bici/')"><span data-icon="BICI"></span><span>Bici</span></div>
+  <div class="rail-item" onclick="openModule('spiaggia/')"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></div>
+  <div class="rail-item" onclick="openModule('manutenzione/')"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></div>
+  <div class="rail-spacer"></div>
+  <div class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></div>
+</aside>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Hub</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item active" href="index.html" onclick="event.preventDefault();toggleDrawer(false);closeSettings()"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
 
 <div class="main-col">
 
 <!-- ══ HEADER ═════════════════════════════════════════════════════════════════ -->
 <div class="top-bar">
   <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
     <div class="header-left" onclick="doLogout()" title="Cambia operatore" style="cursor:pointer;-webkit-tap-highlight-color:transparent">
       <div class="header-avatar" id="header-avatar"></div>
       <div style="min-width:0">
@@ -703,67 +465,18 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 </div>
 
 <script>
-// ── ICONE MODULI (line icon stile arancione, coerenti col mockup) ────────────
-const ICON_WAREHOUSE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <path d="M10 44 L50 13 L90 44"/>
-  <path d="M18 44 L18 84 L82 84 L82 44"/>
-  <rect x="39" y="58" width="22" height="14"/>
-  <rect x="32" y="69" width="36" height="15"/>
-</svg>`;
+// ── ICONE MODULI — libreria unica in assets/icons.js, riusata da sidebar,
+//    rail tablet, drawer mobile e griglia moduli qui sotto ───────────────────
+const ICON_WAREHOUSE     = ICONS.MAGAZZINO;
+const ICON_HANDCOINS     = ICONS.CONTI;
+const ICON_BED           = ICONS.ALLOGGI;
+const ICON_BIKE          = ICONS.BICI;
+const ICON_RISTORAZIONE  = ICONS.RISTORAZIONE;
+const ICON_WRENCH        = ICONS.MANUTENZIONE;
+const ICON_SPIAGGIA      = ICONS.SPIAGGIA;
+const ICON_CALENDAR      = ICONS.CALENDAR;
 
-const ICON_HANDCOINS = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="40" cy="26" r="13"/>
-  <circle cx="64" cy="20" r="13"/>
-  <path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/>
-  <path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/>
-  <path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/>
-</svg>`;
-
-const ICON_BED = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/>
-  <path d="M12 66 L88 66"/>
-  <rect x="20" y="38" width="24" height="14" rx="3"/>
-  <path d="M12 76 L12 88 M88 76 L88 88"/>
-</svg>`;
-
-const ICON_BIKE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="25" cy="75" r="14"/>
-  <circle cx="75" cy="75" r="14"/>
-  <path d="M25 75 L45 40 L70 40 L75 75"/>
-  <path d="M45 40 L35 75"/>
-  <path d="M55 40 L48 25 L62 25"/>
-  <path d="M70 40 L80 25"/>
-</svg>`;
-
-const ICON_RISTORAZIONE = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <path d="M20 20 L20 50 Q20 62 32 62 L50 62"/>
-  <path d="M50 20 L50 62"/>
-  <path d="M80 20 L80 36 Q80 50 65 50 L60 50"/>
-  <path d="M35 62 L35 85"/>
-  <path d="M25 85 L75 85"/>
-  <path d="M65 62 L65 85"/>
-</svg>`;
-
-const ICON_WRENCH = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/>
-  <circle cx="26" cy="76" r="6"/>
-  <path d="M62 32 L76 46"/>
-</svg>`;
-
-const ICON_SPIAGGIA = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <path d="M50 20 L50 72"/>
-  <path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/>
-  <path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/>
-  <path d="M30 72 Q50 64 70 72"/>
-  <path d="M20 82 L80 82"/>
-  <path d="M60 72 Q65 58 76 60 Q78 70 70 72"/>
-</svg>`;
-
-const ICON_CALENDAR = `<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-  <rect x="14" y="24" width="72" height="62" rx="8"/>
-  <path d="M14 42 L86 42"/>
-  <path d="M32 14 L32 30 M68 14 L68 30"/>
-</svg>`;
+hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
 // 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
@@ -776,7 +489,7 @@ const MODULES = [
     titolo: 'Magazzino bar',
     url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_WAREHOUSE,
-    tile: 'dark',
+    tile: 'green',
     statKey: 'magazzino',
     sezioni: [
       { id: 'giacenze',     nome: 'Giacenze' },
@@ -793,7 +506,7 @@ const MODULES = [
     titolo: 'Conti pensioni',
     url: 'conti/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_HANDCOINS,
-    tile: 'amber',
+    tile: 'orange',
     statKey: 'conti',
     sezioni: [
       { id: 'ospiti',   nome: 'Ospiti' },
@@ -808,7 +521,7 @@ const MODULES = [
     titolo: 'Gestione alloggi',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
-    tile: 'sage',
+    tile: 'white',
     statKey: 'alloggi',
     sezioni: [
       { id: 'alloggi', nome: 'Alloggi' },
@@ -820,7 +533,7 @@ const MODULES = [
     titolo: 'Noleggio bici',
     url: 'bici/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BIKE,
-    tile: 'sky',
+    tile: 'orange',
     statKey: 'bici',
     sezioni: [
       { id: 'bici', nome: 'Bici' },
@@ -832,7 +545,7 @@ const MODULES = [
     titolo: 'Ristorazione',
     url: 'ristorazione/staff.html',
     icon: ICON_RISTORAZIONE,
-    tile: 'sage',
+    tile: 'white',
     statKey: 'ristorazione',
     sezioni: [
       { id: 'ordini',   nome: 'Ordini' },
@@ -846,7 +559,7 @@ const MODULES = [
     titolo: 'Manutenzione',
     url: 'manutenzione/',
     icon: ICON_WRENCH,
-    tile: 'amber',
+    tile: 'orange',
     statKey: 'manutenzione',
     sezioni: [
       { id: 'tickets',  nome: 'Segnala ticket' },
@@ -859,7 +572,7 @@ const MODULES = [
     titolo: 'Spiaggia',
     url: 'spiaggia/',
     icon: ICON_SPIAGGIA,
-    tile: 'sky',
+    tile: 'white',
     statKey: 'spiaggia',
     sezioni: [
       { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
@@ -871,7 +584,7 @@ const MODULES = [
     titolo: 'Calendario',
     url: 'calendario/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_CALENDAR,
-    tile: 'dark',
+    tile: 'green',
     sezioni: [
       { id: 'calendario', nome: 'Planning prenotazioni' },
     ],
@@ -1493,6 +1206,16 @@ function renderHome() {
 }
 
 function openModule(url) { location.href = url; }
+
+// ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile ────
+function toggleNavGroup(btn) {
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
+}
 
 // ── IMPOSTAZIONI (solo admin) ─────────────────────────────────────────────
 function openSettings() {
