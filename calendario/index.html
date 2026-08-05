@@ -156,6 +156,38 @@
 .f-check { display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--gray-600); cursor: pointer; user-select: none; }
 .f-check input { width: 15px; height: 15px; accent-color: var(--green-ok); }
 .f-check.on { border-color: var(--green-ok); background: var(--green-bg); color: var(--green-ok); }
+
+/* ══ PREVENTIVO STIMATO (dal listino, nel form prenotazione) ══════════════ */
+.prev-box { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); padding: 10px 14px; margin-bottom: 14px; }
+.prev-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--gray-700); text-transform: uppercase; letter-spacing: .03em; }
+.prev-total { font-size: 15px; font-weight: 800; color: var(--green-700); text-transform: none; letter-spacing: 0; }
+.prev-riga { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--gray-700); padding: 4px 0; border-top: 1px solid var(--gray-200); }
+.prev-riga:first-of-type { border-top: none; margin-top: 4px; }
+.prev-riga-vuota { color: var(--gray-500); font-style: italic; border-top: none; margin-top: 4px; }
+.prev-note { font-size: 10.5px; color: var(--gray-500); margin-top: 6px; line-height: 1.4; }
+
+/* ══ IMPOSTAZIONI LISTINI ═══════════════════════════════════════════════ */
+.listino-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.listino-tab { height: 38px; padding: 0 16px; border-radius: 20px; border: 1.5px solid var(--gray-200); background: var(--white); font-weight: 700; font-size: 13px; cursor: pointer; color: var(--gray-700); font-family: var(--font); }
+.listino-tab.active { background: var(--green-700); color: #fff; border-color: var(--green-700); }
+.listino-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 18px; margin-bottom: 16px; }
+.listino-card h3 { font-size: 15px; font-weight: 800; margin-bottom: 3px; }
+.listino-card .subtitle { font-size: 12px; color: var(--gray-500); margin-bottom: 14px; line-height: 1.5; }
+.listino-scroll { overflow-x: auto; margin-bottom: 14px; border: 1px solid var(--gray-100); border-radius: var(--radius-sm); }
+.listino-table { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.listino-table th, .listino-table td { border: 1px solid var(--gray-100); padding: 5px 6px; text-align: center; }
+.listino-table th { background: var(--gray-50); font-weight: 700; color: var(--gray-700); }
+.listino-table th.row-label, .listino-table td.row-label { position: sticky; left: 0; text-align: left; font-weight: 700; z-index: 1; }
+.listino-table td.row-label { background: var(--white); }
+.listino-table th.row-label { background: var(--gray-50); z-index: 2; }
+.listino-input { width: 66px; height: 28px; text-align: center; border: 1px solid var(--gray-200); border-radius: 6px; font-family: var(--font); font-size: 12px; color: var(--gray-900); }
+.listino-input:focus { border-color: var(--green-400); outline: none; }
+.listino-extra-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-bottom: 16px; }
+.listino-extra-field label { display: block; font-size: 10.5px; color: var(--gray-500); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.listino-extra-field input { width: 100%; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
+.listino-save-row { display: flex; justify-content: flex-end; }
+.listino-save-btn { height: 46px; padding: 0 22px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-weight: 700; font-size: 14px; cursor: pointer; font-family: var(--font); }
+.listino-save-btn:active { opacity: .85; }
 .kit-section { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 12px; margin-bottom: 12px; background: var(--gray-50); }
 .kit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
 .kit-row:last-child { border-bottom: none; }
@@ -369,6 +401,9 @@
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(true)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost icon" id="btn-settings-listini" onclick="openSettingsListini()" title="Impostazioni listini" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -397,11 +432,28 @@
     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--blue)"></span>Check-in fatto · Alloggiati Web da inviare</div>
     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-ok)"></span>Check-in + Alloggiati Web inviato</div>
     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-400)"></span>Andata via</div>
-    <div class="cal-legend-item">B = biancheria · C = bici · S = spiaggia</div>
+    <div class="cal-legend-item">B = biancheria · C = bici · S = spiaggia · A = animali</div>
   </div>
   <div class="cal-scroll" id="cal-scroll">
     <div id="cal-grid"></div>
   </div>
+</main>
+
+<!-- ══ IMPOSTAZIONI LISTINI (solo admin) ═══════════════════════════════════ -->
+<main id="settings-view" class="hidden">
+  <div class="back-header">
+    <button class="back-btn" onclick="closeSettingsListini()">&#8592;</button>
+    <div>
+      <div class="back-eyebrow">Calendario</div>
+      <div class="back-title">Impostazioni listini</div>
+    </div>
+  </div>
+  <div class="listino-tabs">
+    <button type="button" class="listino-tab active" id="tab-villini" onclick="switchListinoTab('villini')">Villini</button>
+    <button type="button" class="listino-tab" id="tab-campeggio" onclick="switchListinoTab('campeggio')">Campeggio</button>
+  </div>
+  <div id="listino-villini-panel"></div>
+  <div id="listino-campeggio-panel" class="hidden"></div>
 </main>
 
 </div>
@@ -435,7 +487,7 @@
     <div class="f-row">
       <div>
         <label class="f-label">Alloggio</label>
-        <select class="f-select" id="f-alloggio"></select>
+        <select class="f-select" id="f-alloggio" onchange="aggiornaPreventivo()"></select>
       </div>
     </div>
     <div class="f-row">
@@ -451,30 +503,54 @@
     <div class="f-row">
       <div>
         <label class="f-label">Check-in</label>
-        <input class="f-input" id="f-checkin" type="date">
+        <input class="f-input" id="f-checkin" type="date" oninput="aggiornaPreventivo()">
       </div>
       <div>
         <label class="f-label">Check-out</label>
-        <input class="f-input" id="f-checkout" type="date">
+        <input class="f-input" id="f-checkout" type="date" oninput="aggiornaPreventivo()">
       </div>
     </div>
     <div class="f-row">
       <div>
         <label class="f-label">Adulti</label>
-        <input class="f-input" id="f-adulti" type="number" min="0" value="2">
-      </div>
-      <div>
-        <label class="f-label">Bambini</label>
-        <input class="f-input" id="f-bambini" type="number" min="0" value="0">
+        <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo()">
       </div>
       <div>
         <label class="f-label">Trattamento ristorazione</label>
-        <select class="f-select" id="f-trattamento">
+        <select class="f-select" id="f-trattamento" onchange="aggiornaPreventivo()">
           <option value="no">Nessuno</option>
           <option value="PC">Pensione completa</option>
           <option value="MP">Mezza pensione</option>
         </select>
       </div>
+    </div>
+    <label class="f-label">Bambini per fascia d'età</label>
+    <div class="f-row">
+      <div>
+        <label class="f-label">0-2 anni</label>
+        <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+      </div>
+      <div>
+        <label class="f-label">3-4 anni</label>
+        <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+      </div>
+      <div>
+        <label class="f-label">5-9 anni</label>
+        <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+      </div>
+      <div>
+        <label class="f-label">10-17 anni</label>
+        <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+      </div>
+    </div>
+
+    <div class="prev-box" id="preventivo-box">
+      <div class="prev-head">
+        <span>Preventivo stimato</span>
+        <span class="prev-total" id="prev-totale"></span>
+      </div>
+      <div id="prev-righe"></div>
+      <div class="prev-note">Stima dal listino Pensione Completa 2026 — verifica sempre su Mrpreno prima di comunicarla al cliente.</div>
     </div>
 
     <label class="f-label">Biancheria</label>
@@ -508,7 +584,8 @@
     <label class="f-label">Altri servizi</label>
     <div class="f-check-row">
       <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
-      <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia"> Spiaggia</label>
+      <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="aggiornaPreventivo()"> Spiaggia</label>
+      <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="aggiornaPreventivo()"> Animali al seguito</label>
     </div>
 
     <div class="section-block">
@@ -576,6 +653,149 @@ function calcolaViewDays() {
 }
 
 hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
+
+// ── LISTINI PREZZI 2026 (da listino.xlsx + listino-2/3/4.xlsx) ─────────────
+// Vivono in Firestore (collezione "listini", doc "villini" e "campeggio") in
+// modo che si possano correggere dalle Impostazioni senza toccare il codice;
+// questi due oggetti servono solo per riempirla la primissima volta che il
+// modulo parte con la collezione vuota (v. ensureDefaultListini). Le chiavi
+// categoria corrispondono a CATS in alloggi/index.html.
+//
+// Nota: la tariffa alloggio per categoria è risultata identica nei listini di
+// Pensione Completa, Mezza Pensione e Solo Pernottamento — cambia solo il
+// costo a persona — quindi qui la teniamo una volta sola ("periodi") e i tre
+// trattamenti sono solo tre tabelle di prezzo-persona ("trattamenti").
+const LISTINI_DEFAULT = {
+  villini: {
+    validoDal: '2026-05-30',
+    validoAl:  '2026-09-05',
+    periodi: [
+      { da:'2026-05-30', a:'2026-06-06', prezzi:{ villinicomfort:92.71,  villinideluxe:105.28, supertitania:105.28, riviera:100.57, villinischiera:92.71,  bluehouse:86.42,  joy:113.14 } },
+      { da:'2026-06-06', a:'2026-06-13', prezzi:{ villinicomfort:92.71,  villinideluxe:105.28, supertitania:105.28, riviera:100.57, villinischiera:92.71,  bluehouse:86.42,  joy:113.14 } },
+      { da:'2026-06-13', a:'2026-06-20', prezzi:{ villinicomfort:100.57, villinideluxe:116.28, supertitania:116.28, riviera:108.42, villinischiera:100.57, bluehouse:94.28,  joy:125.71 } },
+      { da:'2026-06-20', a:'2026-06-27', prezzi:{ villinicomfort:116.28, villinideluxe:136.71, supertitania:136.71, riviera:125.71, villinischiera:116.28, bluehouse:106.85, joy:146.14 } },
+      { da:'2026-06-27', a:'2026-07-04', prezzi:{ villinicomfort:138.28, villinideluxe:158.71, supertitania:158.71, riviera:147.71, villinischiera:138.28, bluehouse:128.85, joy:172.85 } },
+      { da:'2026-07-04', a:'2026-07-11', prezzi:{ villinicomfort:154.00, villinideluxe:177.57, supertitania:177.57, riviera:168.14, villinischiera:154.00, bluehouse:147.71, joy:188.57 } },
+      { da:'2026-07-11', a:'2026-07-18', prezzi:{ villinicomfort:154.00, villinideluxe:177.57, supertitania:177.57, riviera:168.14, villinischiera:154.00, bluehouse:147.71, joy:188.57 } },
+      { da:'2026-07-18', a:'2026-07-25', prezzi:{ villinicomfort:158.71, villinideluxe:193.28, supertitania:193.28, riviera:183.85, villinischiera:158.71, bluehouse:147.71, joy:204.28 } },
+      { da:'2026-07-25', a:'2026-08-01', prezzi:{ villinicomfort:158.71, villinideluxe:193.28, supertitania:193.28, riviera:183.85, villinischiera:158.71, bluehouse:147.71, joy:204.28 } },
+      { da:'2026-08-01', a:'2026-08-08', prezzi:{ villinicomfort:154.00, villinideluxe:177.57, supertitania:177.57, riviera:168.14, villinischiera:154.00, bluehouse:143.00, joy:188.57 } },
+      { da:'2026-08-08', a:'2026-08-15', prezzi:{ villinicomfort:198.00, villinideluxe:220.00, supertitania:220.00, riviera:213.71, villinischiera:198.00, bluehouse:177.57, joy:235.71 } },
+      { da:'2026-08-15', a:'2026-08-22', prezzi:{ villinicomfort:198.00, villinideluxe:220.00, supertitania:220.00, riviera:213.71, villinischiera:198.00, bluehouse:177.57, joy:235.71 } },
+      { da:'2026-08-22', a:'2026-08-29', prezzi:{ villinicomfort:158.71, villinideluxe:193.28, supertitania:193.28, riviera:183.85, villinischiera:158.71, bluehouse:147.71, joy:204.28 } },
+      { da:'2026-08-29', a:'2026-09-05', prezzi:{ villinicomfort:116.28, villinideluxe:136.71, supertitania:136.71, riviera:125.71, villinischiera:116.28, bluehouse:106.85, joy:146.14 } },
+    ],
+    trattamenti: {
+      PC: { adulti:39, b10_17:39, b5_9:29, b3_4:19, b0_2:0 },
+      MP: { adulti:32, b10_17:32, b5_9:26, b3_4:15, b0_2:0 },
+      no: { adulti:0,  b10_17:0,  b5_9:0,  b3_4:0,  b0_2:0 },
+    },
+    postoAggiuntivo: 15,
+    animaliPerNotte: 5,
+    puliziaFinaleAnimali: 50,
+    // Forfait una tantum per soggiorno (fornitura biancheria + servizio spiaggia), varia per mese di arrivo.
+    pacchettoServiziPerMese: { 6:140, 7:155, 8:170, 9:140 },
+  },
+  // Non ancora collegato al calcolo prezzi del form: nel modulo Alloggi non
+  // esiste oggi una categoria "piazzola/campeggio" da prenotare a calendario.
+  // Teniamo comunque il listino qui, pronto per quando ci sarà.
+  campeggio: {
+    validoDal: '2026-05-30',
+    validoAl:  '2026-09-05',
+    periodi: [
+      { da:'2026-05-30', a:'2026-06-20', adulti:8,  b10_17:8,  b5_9:6,  piazzola:11, luce:4, animali:5 },
+      { da:'2026-06-20', a:'2026-07-25', adulti:10, b10_17:10, b5_9:8,  piazzola:13, luce:4, animali:5 },
+      { da:'2026-07-25', a:'2026-08-01', adulti:12, b10_17:12, b5_9:10, piazzola:15, luce:4, animali:5 },
+      { da:'2026-08-01', a:'2026-08-22', adulti:13, b10_17:13, b5_9:11, piazzola:17, luce:4, animali:5 },
+      { da:'2026-08-22', a:'2026-08-29', adulti:12, b10_17:12, b5_9:10, piazzola:15, luce:4, animali:5 },
+      { da:'2026-08-29', a:'2026-09-05', adulti:8,  b10_17:8,  b5_9:6,  piazzola:11, luce:4, animali:5 },
+    ],
+    tessereClub: { max2:10, max4:15, max6:20 },
+  },
+};
+
+let listini = { villini: null, campeggio: null }; // caricati da Firestore
+
+function trovaPeriodoListino(periodi, iso) {
+  const p = periodi.find(p => iso >= p.da && iso < p.a);
+  if (p) return p;
+  return (periodi.length && iso === periodi[periodi.length-1].a) ? periodi[periodi.length-1] : null;
+}
+
+// Calcola una stima di preventivo dal listino Villini (PC/MP/Solo pernottamento
+// hanno tutte una tariffa qui, essendo la stessa tabella alloggio con tre
+// tabelle di prezzo-persona diverse). Ritorna { disponibile:false, motivo } se
+// manca qualche dato, altrimenti { disponibile:true, righe:[{label,importo}], totale }.
+function calcolaPreventivo(input) {
+  const { categoria, checkin, checkout, adulti, b0_2, b3_4, b5_9, b10_17, animali, trattamento, includiPacchetto } = input;
+  const listino = listini.villini;
+  if (!listino) return { disponibile:false, motivo:'Listino non ancora caricato…' };
+  if (!categoria)   return { disponibile:false, motivo:'Seleziona un alloggio per vedere la stima.' };
+  if (!checkin || !checkout || checkout <= checkin) return { disponibile:false, motivo:'Imposta date di check-in/check-out valide.' };
+  const pn = listino.trattamenti[trattamento];
+  if (!pn) return { disponibile:false, motivo:'Trattamento non riconosciuto dal listino.' };
+
+  const notti = diffDays(checkin, checkout);
+  let notteFuoriListino = false, totaleAlloggio = 0;
+  for (let i = 0; i < notti; i++) {
+    const periodo = trovaPeriodoListino(listino.periodi, addDaysIso(checkin, i));
+    if (!periodo || periodo.prezzi[categoria] == null) { notteFuoriListino = true; continue; }
+    totaleAlloggio += periodo.prezzi[categoria];
+  }
+  if (notteFuoriListino) return { disponibile:false, motivo:`Una o più notti del soggiorno sono fuori dal periodo coperto dal listino (${fmtDataIt(listino.validoDal)}–${fmtDataIt(listino.validoAl)}).` };
+
+  const totalePersone = notti * ((adulti||0)*pn.adulti + (b10_17||0)*pn.b10_17 + (b5_9||0)*pn.b5_9 + (b3_4||0)*pn.b3_4 + (b0_2||0)*pn.b0_2);
+  const labelTrattamento = trattamento === 'PC' ? 'Persone (pensione completa)' : trattamento === 'MP' ? 'Persone (mezza pensione)' : 'Persone (solo pernottamento)';
+
+  const righe = [
+    { label: `Alloggio · ${notti} nott${notti===1?'e':'i'}`, importo: totaleAlloggio },
+    { label: labelTrattamento, importo: totalePersone },
+  ];
+  let totale = totaleAlloggio + totalePersone;
+
+  if (animali) {
+    const costoAnimali = notti * listino.animaliPerNotte + listino.puliziaFinaleAnimali;
+    righe.push({ label: 'Animali al seguito + pulizia finale', importo: costoAnimali });
+    totale += costoAnimali;
+  }
+  if (includiPacchetto) {
+    const mese = Number(checkin.slice(5,7));
+    const pacchetto = listino.pacchettoServiziPerMese[mese];
+    if (pacchetto != null) {
+      righe.push({ label: 'Pacchetto biancheria + spiaggia', importo: pacchetto });
+      totale += pacchetto;
+    }
+  }
+  return { disponibile:true, righe, totale };
+}
+
+// ── SINCRONIZZAZIONE LISTINI (Firestore) ──────────────────────────────────
+let _unsubListini = null;
+function startListiniSync() {
+  waitForFirebase().then(() => {
+    const { db, collection, onSnapshot } = window._fb;
+    _unsubListini = onSnapshot(collection(db, 'listini'), (snap) => {
+      snap.docs.forEach(d => { listini[d.id] = d.data(); });
+      if (document.getElementById('form-modal-overlay') && !document.getElementById('form-modal-overlay').classList.contains('hidden')) aggiornaPreventivo();
+      if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
+    }, (err) => console.error('Errore lettura listini:', err));
+  });
+}
+// Riempie la collezione "listini" con i valori di partenza SOLO se è vuota
+// (stesso pattern del "riempimento automatico" di alloggi/index.html): dopo
+// il primo avvio, l'unico modo per modificarli è dalle Impostazioni.
+async function ensureDefaultListini() {
+  await waitForFirebase();
+  const { db, collection, getDocs, doc, setDoc, limit, query } = window._fb;
+  try {
+    const snap = await getDocs(query(collection(db, 'listini'), limit(1)));
+    if (!snap.empty) return;
+    await Promise.all([
+      setDoc(doc(db, 'listini', 'villini'), LISTINI_DEFAULT.villini),
+      setDoc(doc(db, 'listini', 'campeggio'), LISTINI_DEFAULT.campeggio),
+    ]);
+  } catch(e) { console.error('Errore init listini:', e); }
+}
 
 // ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
 //    (stessa logica della Hub, v. index.html) ─────────────────────────────
@@ -666,6 +886,7 @@ function applyRole() {
   document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
   document.getElementById('header-name').textContent   = currentOperatore || '';
   document.getElementById('header-role').textContent   = isAdmin() ? 'Amministratore' : 'Operatore';
+  document.getElementById('btn-settings-listini').style.display = isAdmin() ? '' : 'none';
 }
 function initLogin() {
   if (!loadHubSession()) {
@@ -890,6 +1111,7 @@ function renderGrid() {
         if (kitDesc)      flags.push(`<span class="cal-flag" title="Biancheria: ${esc(kitDesc)}">B</span>`);
         if (p.bici)       flags.push('<span class="cal-flag" title="Bici">C</span>');
         if (p.spiaggia)   flags.push('<span class="cal-flag" title="Spiaggia">S</span>');
+        if (p.animali)    flags.push('<span class="cal-flag" title="Animali al seguito">A</span>');
         const titleParts = [`${p.nome} · ${p.checkin} → ${p.checkout}`, stato.label];
         if (p.trattamento_ristorazione === 'PC') titleParts.push('Pensione completa');
         else if (p.trattamento_ristorazione === 'MP') titleParts.push('Mezza pensione');
@@ -920,7 +1142,7 @@ function populateAlloggioSelect(selectedId) {
   const cats = groupedAlloggi();
   sel.innerHTML = cats.map(cat =>
     `<optgroup label="${esc(cat.label)}">${cat.items.map(a =>
-      `<option value="${esc(a.id)}" data-nome="${esc(a.nome||a.id)}">${esc(a.nome||a.id)}</option>`
+      `<option value="${esc(a.id)}" data-nome="${esc(a.nome||a.id)}" data-categoria="${esc(a.categoria||'')}">${esc(a.nome||a.id)}</option>`
     ).join('')}</optgroup>`
   ).join('');
   if (selectedId) sel.value = selectedId;
@@ -930,7 +1152,7 @@ function setCheck(id, val) {
   el.checked = val;
   el.closest('.f-check').classList.toggle('on', val);
 }
-['f-bici','f-spiaggia'].forEach(id => {
+['f-bici','f-spiaggia','f-animali'].forEach(id => {
   document.getElementById(id).addEventListener('change', e => {
     e.target.closest('.f-check').classList.toggle('on', e.target.checked);
   });
@@ -939,6 +1161,45 @@ function setQty(id, val) { document.getElementById(id).value = val || 0; }
 function adjustQty(id, delta) {
   const el = document.getElementById(id);
   el.value = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
+  aggiornaPreventivo();
+}
+
+// ── PREVENTIVO STIMATO (dal listino, live nel form) ───────────────────────
+function leggiDatiPreventivoDaForm() {
+  const alloggioSel = document.getElementById('f-alloggio');
+  const categoria = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.categoria : '';
+  const kitTotale = (parseInt(document.getElementById('f-kit-bagno').value,10)||0)
+    + (parseInt(document.getElementById('f-kit-singolo').value,10)||0)
+    + (parseInt(document.getElementById('f-kit-matrimoniale').value,10)||0);
+  return {
+    categoria,
+    checkin:  document.getElementById('f-checkin').value,
+    checkout: document.getElementById('f-checkout').value,
+    adulti:   parseInt(document.getElementById('f-adulti').value, 10) || 0,
+    b0_2:     parseInt(document.getElementById('f-bambini-0-2').value, 10) || 0,
+    b3_4:     parseInt(document.getElementById('f-bambini-3-4').value, 10) || 0,
+    b5_9:     parseInt(document.getElementById('f-bambini-5-9').value, 10) || 0,
+    b10_17:   parseInt(document.getElementById('f-bambini-10-17').value, 10) || 0,
+    animali:      document.getElementById('f-animali').checked,
+    trattamento:  document.getElementById('f-trattamento').value,
+    includiPacchetto: kitTotale > 0 || document.getElementById('f-spiaggia').checked,
+  };
+}
+function aggiornaPreventivo() {
+  const box = document.getElementById('preventivo-box');
+  if (!box) return;
+  const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
+  const righeEl = document.getElementById('prev-righe');
+  const totaleEl = document.getElementById('prev-totale');
+  if (!risultato.disponibile) {
+    righeEl.innerHTML = `<div class="prev-riga prev-riga-vuota">${esc(risultato.motivo)}</div>`;
+    totaleEl.textContent = '';
+    return;
+  }
+  righeEl.innerHTML = risultato.righe.map(r =>
+    `<div class="prev-riga"><span>${esc(r.label)}</span><span>€ ${r.importo.toFixed(2)}</span></div>`
+  ).join('');
+  totaleEl.textContent = `€ ${risultato.totale.toFixed(2)}`;
 }
 
 // ── OSPITI DA CENSIRE (Alloggiati Web — bozza) ────────────────────────────
@@ -1104,15 +1365,20 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   document.getElementById('f-checkin').value  = ci;
   document.getElementById('f-checkout').value = addDaysIso(ci, 7);
   document.getElementById('f-adulti').value   = 2;
-  document.getElementById('f-bambini').value  = 0;
+  document.getElementById('f-bambini-0-2').value   = 0;
+  document.getElementById('f-bambini-3-4').value   = 0;
+  document.getElementById('f-bambini-5-9').value   = 0;
+  document.getElementById('f-bambini-10-17').value = 0;
   document.getElementById('f-trattamento').value = 'no';
   setQty('f-kit-bagno', 0);
   setQty('f-kit-singolo', 0);
   setQty('f-kit-matrimoniale', 0);
   setCheck('f-bici', false);
   setCheck('f-spiaggia', false);
+  setCheck('f-animali', false);
   document.getElementById('f-note').value = '';
   resetOspitiRows(2);
+  aggiornaPreventivo();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function apriModificaPrenotazione(id) {
@@ -1128,15 +1394,20 @@ function apriModificaPrenotazione(id) {
   document.getElementById('f-checkin').value  = p.checkin  || '';
   document.getElementById('f-checkout').value = p.checkout || '';
   document.getElementById('f-adulti').value  = p.adulti  || 0;
-  document.getElementById('f-bambini').value = p.bambini || 0;
+  document.getElementById('f-bambini-0-2').value   = p.bambini_0_2   || 0;
+  document.getElementById('f-bambini-3-4').value   = p.bambini_3_4   || 0;
+  document.getElementById('f-bambini-5-9').value   = p.bambini_5_9   || 0;
+  document.getElementById('f-bambini-10-17').value = p.bambini_10_17 || 0;
   document.getElementById('f-trattamento').value = p.trattamento_ristorazione || 'no';
   setQty('f-kit-bagno', p.biancheria_kit_bagno);
   setQty('f-kit-singolo', p.biancheria_kit_singolo);
   setQty('f-kit-matrimoniale', p.biancheria_kit_matrimoniale);
   setCheck('f-bici', !!p.bici);
   setCheck('f-spiaggia', !!p.spiaggia);
+  setCheck('f-animali', !!p.animali);
   document.getElementById('f-note').value = p.note || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : Array.from({ length: Math.max(1, (p.adulti||0)+(p.bambini||0)) }, () => ({})));
+  aggiornaPreventivo();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function closeFormModal() {
@@ -1175,19 +1446,29 @@ async function salvaPrenotazione() {
     if (!conferma) return;
   }
 
+  const datiPreventivo = leggiDatiPreventivoDaForm();
+  const preventivo = calcolaPreventivo(datiPreventivo);
+  const bambiniTotale = datiPreventivo.b0_2 + datiPreventivo.b3_4 + datiPreventivo.b5_9 + datiPreventivo.b10_17;
+
   const data = {
     alloggio_id: alloggioId,
     alloggio_nome: alloggioNome,
     nome, checkin, checkout,
     tel: document.getElementById('f-tel').value.trim(),
-    adulti:  parseInt(document.getElementById('f-adulti').value,  10) || 0,
-    bambini: parseInt(document.getElementById('f-bambini').value, 10) || 0,
+    adulti:  datiPreventivo.adulti,
+    bambini: bambiniTotale, // totale aggregato, per compatibilità con le viste che lo usano già
+    bambini_0_2:   datiPreventivo.b0_2,
+    bambini_3_4:   datiPreventivo.b3_4,
+    bambini_5_9:   datiPreventivo.b5_9,
+    bambini_10_17: datiPreventivo.b10_17,
     trattamento_ristorazione: document.getElementById('f-trattamento').value,
     biancheria_kit_bagno:        parseInt(document.getElementById('f-kit-bagno').value, 10) || 0,
     biancheria_kit_singolo:      parseInt(document.getElementById('f-kit-singolo').value, 10) || 0,
     biancheria_kit_matrimoniale: parseInt(document.getElementById('f-kit-matrimoniale').value, 10) || 0,
     bici:       document.getElementById('f-bici').checked,
     spiaggia:   document.getElementById('f-spiaggia').checked,
+    animali:    document.getElementById('f-animali').checked,
+    preventivo_stimato: preventivo.disponibile ? preventivo.totale : null,
     note: document.getElementById('f-note').value.trim(),
     ospiti: raccogliOspitiDaForm(),
     updatedAt: new Date().toISOString(),
@@ -1357,6 +1638,168 @@ function confermaAsync(title, bodyHtml) {
   });
 }
 
+// ── IMPOSTAZIONI LISTINI (solo admin) ─────────────────────────────────────
+const CATEGORIE_LISTINO = [
+  { key:'bluehouse',      label:'Blue House' },
+  { key:'villinicomfort', label:'Villini Comfort' },
+  { key:'villinideluxe',  label:'Villini Deluxe' },
+  { key:'riviera',        label:'Riviera' },
+  { key:'supertitania',   label:'Super Titania' },
+  { key:'joy',            label:'Joy' },
+  { key:'villinischiera', label:'Villini a Schiera' },
+];
+let listinoTabAttiva = 'villini';
+
+function openSettingsListini() {
+  if (!isAdmin()) return;
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('settings-view').classList.remove('hidden');
+  renderListiniSettings();
+}
+function closeSettingsListini() {
+  document.getElementById('settings-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+}
+function switchListinoTab(tab) {
+  listinoTabAttiva = tab;
+  document.getElementById('tab-villini').classList.toggle('active', tab === 'villini');
+  document.getElementById('tab-campeggio').classList.toggle('active', tab === 'campeggio');
+  document.getElementById('listino-villini-panel').classList.toggle('hidden', tab !== 'villini');
+  document.getElementById('listino-campeggio-panel').classList.toggle('hidden', tab !== 'campeggio');
+  renderListiniSettings();
+}
+function fmtPeriodoLabel(p) { return `${fmtDataIt(p.da).slice(0,5)}–${fmtDataIt(p.a).slice(0,5)}`; }
+
+function renderListiniSettings() {
+  if (listinoTabAttiva === 'villini') renderListinoVilliniPanel();
+  else renderListinoCampeggioPanel();
+}
+
+function renderListinoVilliniPanel() {
+  const panel = document.getElementById('listino-villini-panel');
+  const l = listini.villini;
+  if (!l) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
+
+  const righeAlloggio = CATEGORIE_LISTINO.map(cat => `
+    <tr>
+      <td class="row-label">${esc(cat.label)}</td>
+      ${l.periodi.map((p,i) => `<td><input class="listino-input" type="number" step="0.01" min="0" data-periodo="${i}" data-categoria="${cat.key}" value="${p.prezzi[cat.key] ?? ''}"></td>`).join('')}
+    </tr>`).join('');
+
+  const fasce = [ {k:'adulti',l:'Adulti'}, {k:'b10_17',l:'Ragazzi 10-17'}, {k:'b5_9',l:'Bambini 5-9'}, {k:'b3_4',l:'Bambini 3-4'}, {k:'b0_2',l:'Bambini 0-2'} ];
+  const righePersone = fasce.map(f => `
+    <tr>
+      <td class="row-label">${f.l}</td>
+      <td><input class="listino-input" type="number" step="0.01" min="0" data-trattamento="PC" data-fascia="${f.k}" value="${l.trattamenti.PC[f.k]}"></td>
+      <td><input class="listino-input" type="number" step="0.01" min="0" data-trattamento="MP" data-fascia="${f.k}" value="${l.trattamenti.MP[f.k]}"></td>
+      <td><input class="listino-input" type="number" step="0.01" min="0" data-trattamento="no" data-fascia="${f.k}" value="${l.trattamenti.no[f.k]}"></td>
+    </tr>`).join('');
+
+  panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Tariffe alloggio per periodo</h3>
+      <p class="subtitle">Prezzo per notte a unità, uguale per Pensione Completa/Mezza Pensione/Solo Pernottamento — valido dal ${esc(fmtDataIt(l.validoDal))} al ${esc(fmtDataIt(l.validoAl))}.</p>
+      <div class="listino-scroll"><table class="listino-table">
+        <thead><tr><th class="row-label">Categoria</th>${l.periodi.map(p => `<th>${esc(fmtPeriodoLabel(p))}</th>`).join('')}</tr></thead>
+        <tbody>${righeAlloggio}</tbody>
+      </table></div>
+    </div>
+    <div class="listino-card">
+      <h3>Prezzo persona per notte</h3>
+      <p class="subtitle">Fisso in tutte le settimane, cambia solo per trattamento.</p>
+      <div class="listino-scroll"><table class="listino-table">
+        <thead><tr><th class="row-label">Fascia d'età</th><th>Pensione completa</th><th>Mezza pensione</th><th>Solo pernottamento</th></tr></thead>
+        <tbody>${righePersone}</tbody>
+      </table></div>
+    </div>
+    <div class="listino-card">
+      <h3>Extra e pacchetti</h3>
+      <div class="listino-extra-grid">
+        <div class="listino-extra-field"><label>Posto aggiuntivo</label><input type="number" step="0.01" min="0" id="lv-posto-aggiuntivo" value="${l.postoAggiuntivo}"></div>
+        <div class="listino-extra-field"><label>Animali / notte</label><input type="number" step="0.01" min="0" id="lv-animali-notte" value="${l.animaliPerNotte}"></div>
+        <div class="listino-extra-field"><label>Pulizia finale animali</label><input type="number" step="0.01" min="0" id="lv-pulizia-animali" value="${l.puliziaFinaleAnimali}"></div>
+        <div class="listino-extra-field"><label>Pacchetto Giugno</label><input type="number" step="0.01" min="0" id="lv-pacchetto-6" value="${l.pacchettoServiziPerMese[6]}"></div>
+        <div class="listino-extra-field"><label>Pacchetto Luglio</label><input type="number" step="0.01" min="0" id="lv-pacchetto-7" value="${l.pacchettoServiziPerMese[7]}"></div>
+        <div class="listino-extra-field"><label>Pacchetto Agosto</label><input type="number" step="0.01" min="0" id="lv-pacchetto-8" value="${l.pacchettoServiziPerMese[8]}"></div>
+        <div class="listino-extra-field"><label>Pacchetto Settembre</label><input type="number" step="0.01" min="0" id="lv-pacchetto-9" value="${l.pacchettoServiziPerMese[9]}"></div>
+      </div>
+      <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="salvaListinoVillini()">Salva listino Villini</button></div>
+    </div>`;
+}
+
+async function salvaListinoVillini() {
+  const l = listini.villini;
+  if (!l) return;
+  document.querySelectorAll('#listino-villini-panel [data-periodo][data-categoria]').forEach(inp => {
+    l.periodi[Number(inp.dataset.periodo)].prezzi[inp.dataset.categoria] = parseFloat(inp.value) || 0;
+  });
+  document.querySelectorAll('#listino-villini-panel [data-trattamento][data-fascia]').forEach(inp => {
+    l.trattamenti[inp.dataset.trattamento][inp.dataset.fascia] = parseFloat(inp.value) || 0;
+  });
+  l.postoAggiuntivo       = parseFloat(document.getElementById('lv-posto-aggiuntivo').value) || 0;
+  l.animaliPerNotte       = parseFloat(document.getElementById('lv-animali-notte').value) || 0;
+  l.puliziaFinaleAnimali  = parseFloat(document.getElementById('lv-pulizia-animali').value) || 0;
+  l.pacchettoServiziPerMese = {
+    6: parseFloat(document.getElementById('lv-pacchetto-6').value) || 0,
+    7: parseFloat(document.getElementById('lv-pacchetto-7').value) || 0,
+    8: parseFloat(document.getElementById('lv-pacchetto-8').value) || 0,
+    9: parseFloat(document.getElementById('lv-pacchetto-9').value) || 0,
+  };
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'listini', 'villini'), l);
+    showToast('Listino Villini salvato');
+  } catch(e) { console.error('Errore salvataggio listino villini:', e); showToast('Errore: ' + e.message); }
+}
+
+function renderListinoCampeggioPanel() {
+  const panel = document.getElementById('listino-campeggio-panel');
+  const l = listini.campeggio;
+  if (!l) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
+
+  const campi = [ {k:'adulti',l:'Adulti'}, {k:'b10_17',l:'Ragazzi 10-17'}, {k:'b5_9',l:'Bambini 5-9'}, {k:'piazzola',l:'Piazzola'}, {k:'luce',l:'Luce'}, {k:'animali',l:'Animali'} ];
+  const righe = campi.map(c => `
+    <tr>
+      <td class="row-label">${c.l}</td>
+      ${l.periodi.map((p,i) => `<td><input class="listino-input" type="number" step="0.01" min="0" data-periodo="${i}" data-campo="${c.k}" value="${p[c.k]}"></td>`).join('')}
+    </tr>`).join('');
+
+  panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Listino Campeggio</h3>
+      <p class="subtitle">Prezzi per notte — valido dal ${esc(fmtDataIt(l.validoDal))} al ${esc(fmtDataIt(l.validoAl))}. Non ancora collegato al calcolo prezzi delle prenotazioni: nel modulo Alloggi non esiste ancora una categoria "piazzola" da prenotare a calendario.</p>
+      <div class="listino-scroll"><table class="listino-table">
+        <thead><tr><th class="row-label">Voce</th>${l.periodi.map(p => `<th>${esc(fmtPeriodoLabel(p))}</th>`).join('')}</tr></thead>
+        <tbody>${righe}</tbody>
+      </table></div>
+      <p class="subtitle" style="margin-bottom:8px">Bambini 0-2 e 3-4 anni sono sempre gratuiti.</p>
+      <div class="listino-extra-grid">
+        <div class="listino-extra-field"><label>Tessera club (max 2)</label><input type="number" step="0.01" min="0" id="lc-tessera-2" value="${l.tessereClub.max2}"></div>
+        <div class="listino-extra-field"><label>Tessera club (max 4)</label><input type="number" step="0.01" min="0" id="lc-tessera-4" value="${l.tessereClub.max4}"></div>
+        <div class="listino-extra-field"><label>Tessera club (max 6)</label><input type="number" step="0.01" min="0" id="lc-tessera-6" value="${l.tessereClub.max6}"></div>
+      </div>
+      <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="salvaListinoCampeggio()">Salva listino Campeggio</button></div>
+    </div>`;
+}
+
+async function salvaListinoCampeggio() {
+  const l = listini.campeggio;
+  if (!l) return;
+  document.querySelectorAll('#listino-campeggio-panel [data-periodo][data-campo]').forEach(inp => {
+    l.periodi[Number(inp.dataset.periodo)][inp.dataset.campo] = parseFloat(inp.value) || 0;
+  });
+  l.tessereClub = {
+    max2: parseFloat(document.getElementById('lc-tessera-2').value) || 0,
+    max4: parseFloat(document.getElementById('lc-tessera-4').value) || 0,
+    max6: parseFloat(document.getElementById('lc-tessera-6').value) || 0,
+  };
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'listini', 'campeggio'), l);
+    showToast('Listino Campeggio salvato');
+  } catch(e) { console.error('Errore salvataggio listino campeggio:', e); showToast('Errore: ' + e.message); }
+}
+
 // ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
 let _dataReady = false, _loadingHidden = false;
 function hideLoadingScreen() {
@@ -1397,6 +1840,8 @@ async function start() {
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
   startRealtimeSync();
+  startListiniSync();
+  ensureDefaultListini();
 }
 start();
 </script>
