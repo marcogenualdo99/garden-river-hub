@@ -104,13 +104,15 @@
 .cal-row { display: flex; border-bottom: 1px solid var(--gray-100); }
 .cal-row-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 2; background: var(--white); border-right: 1px solid var(--gray-200); padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; }
 .cal-row-track { flex: none; position: relative; height: 54px; }
+.cal-row-track.drop-target { background: rgba(22,163,74,0.12); }
 .cal-daycell { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--gray-100); cursor: pointer; }
 .cal-daycell:hover { background: var(--green-50); }
 .cal-daycell.weekend { background: rgba(148,163,184,0.08); }
 .cal-daycell.today { background: rgba(22,163,74,0.07); }
 
-.cal-bar { position: absolute; top: 6px; height: 42px; border-radius: 10px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: #fff; overflow: hidden; cursor: pointer; box-shadow: var(--shadow-sm); z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: transform .1s; }
+.cal-bar { position: absolute; top: 6px; height: 42px; border-radius: 10px; padding: 4px 8px; font-size: 11px; font-weight: 700; color: #fff; overflow: hidden; cursor: grab; box-shadow: var(--shadow-sm); z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; transition: transform .1s; }
 .cal-bar:hover { transform: translateY(-1px); }
+.cal-bar.dragging { opacity: .65; box-shadow: var(--shadow-lg); z-index: 5; cursor: grabbing; transition: none; }
 .cal-bar .nome { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
 .cal-bar .meta { font-size: 9.5px; font-weight: 600; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
 /* Colore = stato del soggiorno (non più il trattamento ristorazione, che
@@ -187,6 +189,8 @@
 .listino-extra-field input { width: 100%; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
 .listino-save-row { display: flex; justify-content: flex-end; }
 .listino-save-btn { height: 46px; padding: 0 22px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-weight: 700; font-size: 14px; cursor: pointer; font-family: var(--font); }
+.generali-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.generali-row .f-input { flex: 1; }
 .listino-save-btn:active { opacity: .85; }
 .kit-section { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 12px; margin-bottom: 12px; background: var(--gray-50); }
 .kit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
@@ -224,6 +228,13 @@
 .add-ospite-btn:hover { border-color: var(--green-ok); color: var(--green-ok); background: var(--green-bg); }
 
 .schedina-btn { width: 100%; height: 44px; border: none; border-radius: var(--radius-sm); background: var(--gray-900); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 4px; }
+
+/* ══ FORM PRENOTAZIONE — due colonne su desktop (v. media query in fondo) ══ */
+.form-grid { display: block; }
+.form-col { display: flex; flex-direction: column; }
+.ospiti-btn { width: 100%; height: 46px; border: 1.5px solid var(--green-ok); border-radius: var(--radius-sm); background: var(--green-bg); color: var(--green-700); font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); margin: 4px 0 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ospiti-btn:hover { background: var(--green-100); }
+.ospiti-btn-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--white); color: var(--green-700); }
 .schedina-btn:hover { opacity: .9; }
 
 /* ══ MODALE ANTEPRIMA SCHEDINA ═════════════════════════════════════════════ */
@@ -250,6 +261,7 @@
   .ospite-fields-doc { grid-template-columns: repeat(3, 1fr); }
   .kit-section { display: flex; gap: 20px; padding: 14px 16px; }
   .kit-row { flex: 1; flex-direction: column; align-items: flex-start; gap: 8px; border-bottom: none; padding: 0; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: start; }
 }
 </style>
 </head>
@@ -439,21 +451,23 @@
   </div>
 </main>
 
-<!-- ══ IMPOSTAZIONI LISTINI (solo admin) ═══════════════════════════════════ -->
+<!-- ══ IMPOSTAZIONI (solo admin) ════════════════════════════════════════════ -->
 <main id="settings-view" class="hidden">
   <div class="back-header">
     <button class="back-btn" onclick="closeSettingsListini()">&#8592;</button>
     <div>
       <div class="back-eyebrow">Calendario</div>
-      <div class="back-title">Impostazioni listini</div>
+      <div class="back-title">Impostazioni</div>
     </div>
   </div>
   <div class="listino-tabs">
     <button type="button" class="listino-tab active" id="tab-villini" onclick="switchListinoTab('villini')">Villini</button>
     <button type="button" class="listino-tab" id="tab-campeggio" onclick="switchListinoTab('campeggio')">Campeggio</button>
+    <button type="button" class="listino-tab" id="tab-generali" onclick="switchListinoTab('generali')">Generali</button>
   </div>
   <div id="listino-villini-panel"></div>
   <div id="listino-campeggio-panel" class="hidden"></div>
+  <div id="listino-generali-panel" class="hidden"></div>
 </main>
 
 </div>
@@ -484,131 +498,154 @@
       </div>
     </div>
 
-    <div class="f-row">
-      <div>
-        <label class="f-label">Alloggio</label>
-        <select class="f-select" id="f-alloggio" onchange="aggiornaPreventivo()"></select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div>
-        <label class="f-label">Nome ospite</label>
-        <input class="f-input" id="f-nome" type="text" placeholder="Es. Famiglia Rossi">
-      </div>
-      <div>
-        <label class="f-label">Telefono</label>
-        <input class="f-input" id="f-tel" type="tel" placeholder="Opzionale">
-      </div>
-    </div>
-    <div class="f-row">
-      <div>
-        <label class="f-label">Check-in</label>
-        <input class="f-input" id="f-checkin" type="date" oninput="aggiornaPreventivo()">
-      </div>
-      <div>
-        <label class="f-label">Check-out</label>
-        <input class="f-input" id="f-checkout" type="date" oninput="aggiornaPreventivo()">
-      </div>
-    </div>
-    <div class="f-row">
-      <div>
-        <label class="f-label">Adulti</label>
-        <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo()">
-      </div>
-      <div>
-        <label class="f-label">Trattamento ristorazione</label>
-        <select class="f-select" id="f-trattamento" onchange="aggiornaPreventivo()">
-          <option value="no">Nessuno</option>
-          <option value="PC">Pensione completa</option>
-          <option value="MP">Mezza pensione</option>
-        </select>
-      </div>
-    </div>
-    <label class="f-label">Bambini per fascia d'età</label>
-    <div class="f-row">
-      <div>
-        <label class="f-label">0-2 anni</label>
-        <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
-      </div>
-      <div>
-        <label class="f-label">3-4 anni</label>
-        <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
-      </div>
-      <div>
-        <label class="f-label">5-9 anni</label>
-        <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
-      </div>
-      <div>
-        <label class="f-label">10-17 anni</label>
-        <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
-      </div>
-    </div>
+    <div class="form-grid">
+      <div class="form-col">
+        <div class="f-row">
+          <div>
+            <label class="f-label">Alloggio</label>
+            <select class="f-select" id="f-alloggio" onchange="aggiornaPreventivo()"></select>
+          </div>
+        </div>
+        <div class="f-row">
+          <div>
+            <label class="f-label">Nome ospite</label>
+            <input class="f-input" id="f-nome" type="text" placeholder="Es. Famiglia Rossi">
+          </div>
+          <div>
+            <label class="f-label">Telefono</label>
+            <input class="f-input" id="f-tel" type="tel" placeholder="Opzionale">
+          </div>
+        </div>
+        <div class="f-row">
+          <div>
+            <label class="f-label">Provenienza</label>
+            <select class="f-select" id="f-provenienza"></select>
+          </div>
+        </div>
+        <div class="f-row">
+          <div>
+            <label class="f-label">Check-in</label>
+            <input class="f-input" id="f-checkin" type="date" oninput="aggiornaPreventivo()">
+          </div>
+          <div>
+            <label class="f-label">Check-out</label>
+            <input class="f-input" id="f-checkout" type="date" oninput="aggiornaPreventivo()">
+          </div>
+        </div>
+        <div class="f-row">
+          <div>
+            <label class="f-label">Adulti</label>
+            <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo()">
+          </div>
+          <div>
+            <label class="f-label">Trattamento ristorazione</label>
+            <select class="f-select" id="f-trattamento" onchange="aggiornaPreventivo()">
+              <option value="no">Nessuno</option>
+              <option value="PC">Pensione completa</option>
+              <option value="MP">Mezza pensione</option>
+            </select>
+          </div>
+        </div>
+        <label class="f-label">Bambini per fascia d'età</label>
+        <div class="f-row">
+          <div>
+            <label class="f-label">0-2 anni</label>
+            <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+          </div>
+          <div>
+            <label class="f-label">3-4 anni</label>
+            <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+          </div>
+          <div>
+            <label class="f-label">5-9 anni</label>
+            <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+          </div>
+          <div>
+            <label class="f-label">10-17 anni</label>
+            <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo()">
+          </div>
+        </div>
 
-    <div class="prev-box" id="preventivo-box">
-      <div class="prev-head">
-        <span>Preventivo stimato</span>
-        <span class="prev-total" id="prev-totale"></span>
-      </div>
-      <div id="prev-righe"></div>
-      <div class="prev-note">Stima dal listino Pensione Completa 2026 — verifica sempre su Mrpreno prima di comunicarla al cliente.</div>
-    </div>
+        <label class="f-label">Biancheria</label>
+        <div class="kit-section">
+          <div class="kit-row">
+            <span class="kit-label">Kit bagno</span>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-bagno',-1)">−</button>
+              <input class="qty-val" id="f-kit-bagno" type="number" min="0" value="0" readonly>
+              <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-bagno',1)">+</button>
+            </div>
+          </div>
+          <div class="kit-row">
+            <span class="kit-label">Kit singolo</span>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-singolo',-1)">−</button>
+              <input class="qty-val" id="f-kit-singolo" type="number" min="0" value="0" readonly>
+              <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-singolo',1)">+</button>
+            </div>
+          </div>
+          <div class="kit-row">
+            <span class="kit-label">Kit matrimoniale</span>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-matrimoniale',-1)">−</button>
+              <input class="qty-val" id="f-kit-matrimoniale" type="number" min="0" value="0" readonly>
+              <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-matrimoniale',1)">+</button>
+            </div>
+          </div>
+        </div>
 
-    <label class="f-label">Biancheria</label>
-    <div class="kit-section">
-      <div class="kit-row">
-        <span class="kit-label">Kit bagno</span>
-        <div class="qty-stepper">
-          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-bagno',-1)">−</button>
-          <input class="qty-val" id="f-kit-bagno" type="number" min="0" value="0" readonly>
-          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-bagno',1)">+</button>
+        <label class="f-label">Altri servizi</label>
+        <div class="f-check-row">
+          <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
+          <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="aggiornaPreventivo()"> Spiaggia</label>
+          <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="aggiornaPreventivo()"> Animali al seguito</label>
+          <label class="f-check" id="chk-pacchetto-servizi-wrap"><input type="checkbox" id="f-pacchetto-servizi" onchange="aggiornaPreventivo()"> Pacchetto biancheria + spiaggia</label>
+        </div>
+        <p class="section-hint" style="margin-top:-6px">Il pacchetto è un forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi.</p>
+      </div>
+
+      <div class="form-col">
+        <div class="prev-box" id="preventivo-box">
+          <div class="prev-head">
+            <span>Preventivo stimato</span>
+            <span class="prev-total" id="prev-totale"></span>
+          </div>
+          <div id="prev-righe"></div>
+          <div class="prev-note">Voci come nel listino, senza raggruppamenti — utile per confrontarle poi con lo scarico da Mrpreno. Verifica sempre lì prima di comunicare il prezzo al cliente.</div>
+        </div>
+
+        <button type="button" class="ospiti-btn" id="btn-apri-ospiti" onclick="apriOspitiModal()">
+          Ospiti · Alloggiati Web
+          <span class="ospiti-btn-badge" id="ospiti-btn-badge"></span>
+        </button>
+
+        <div>
+          <label class="f-label">Note</label>
+          <textarea class="f-textarea" id="f-note" placeholder="Note interne (facoltativo)"></textarea>
         </div>
       </div>
-      <div class="kit-row">
-        <span class="kit-label">Kit singolo</span>
-        <div class="qty-stepper">
-          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-singolo',-1)">−</button>
-          <input class="qty-val" id="f-kit-singolo" type="number" min="0" value="0" readonly>
-          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-singolo',1)">+</button>
-        </div>
-      </div>
-      <div class="kit-row">
-        <span class="kit-label">Kit matrimoniale</span>
-        <div class="qty-stepper">
-          <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-matrimoniale',-1)">−</button>
-          <input class="qty-val" id="f-kit-matrimoniale" type="number" min="0" value="0" readonly>
-          <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-matrimoniale',1)">+</button>
-        </div>
-      </div>
-    </div>
-
-    <label class="f-label">Altri servizi</label>
-    <div class="f-check-row">
-      <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
-      <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="aggiornaPreventivo()"> Spiaggia</label>
-      <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="aggiornaPreventivo()"> Animali al seguito</label>
-      <label class="f-check" id="chk-pacchetto-servizi-wrap"><input type="checkbox" id="f-pacchetto-servizi" onchange="aggiornaPreventivo()"> Pacchetto biancheria + spiaggia</label>
-    </div>
-    <p class="section-hint" style="margin-top:-6px">Il pacchetto è un forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi.</p>
-
-    <div class="section-block">
-      <div class="section-head">
-        <span class="section-title">Ospiti da censire (Alloggiati Web)</span>
-      </div>
-      <p class="section-hint">Per salvare la prenotazione basta il Capofamiglia/Ospite singolo (richiede documento). Gli altri Familiari vanno aggiunti e completati solo quando generi la schedina — a quel punto devono essere tanti quante le persone in prenotazione.</p>
-      <div id="ospiti-list"></div>
-      <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
-      <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
-    </div>
-
-    <div>
-      <label class="f-label">Note</label>
-      <textarea class="f-textarea" id="f-note" placeholder="Note interne (facoltativo)"></textarea>
     </div>
 
     <div class="form-actions">
       <button class="del-btn hidden" id="btn-elimina" onclick="eliminaPrenotazioneCorrente()">Elimina</button>
       <button class="modal-btn-cancel" style="flex:1" onclick="closeFormModal()">Annulla</button>
       <button class="modal-btn-confirm" style="flex:1" onclick="salvaPrenotazione()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE OSPITI / ALLOGGIATI WEB — passaggio separato dall'inserimento
+     prenotazione: si apre solo su richiesta, non è più tutto nella stessa
+     schermata. ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="ospiti-modal-overlay">
+  <div class="form-modal-box">
+    <div class="form-modal-title">Ospiti da censire (Alloggiati Web)</div>
+    <p class="section-hint">Per salvare la prenotazione basta il Capofamiglia/Ospite singolo (richiede documento). Gli altri Familiari vanno aggiunti e completati solo qui, prima di generare la schedina — a quel punto devono essere tanti quante le persone in prenotazione.</p>
+    <div id="ospiti-list"></div>
+    <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
+    <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiOspitiModal()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -724,6 +761,15 @@ const LISTINI_DEFAULT = {
 
 let listini = { villini: null, campeggio: null }; // caricati da Firestore
 
+// ── IMPOSTAZIONI GENERALI DEL CALENDARIO (non prezzi) ──────────────────────
+// 👉 Altri dati "a lista" che l'admin può modificare da qui, non solo i
+// prezzi: per ora solo le provenienze della prenotazione. Stesso posto
+// (collezione "impostazioni", un doc per modulo) già usato da ristorazione.
+const IMPOSTAZIONI_CALENDARIO_DEFAULT = {
+  provenienze: ['Telefonata', 'Email', 'Sito web', 'Diretta (walk-in)', 'Agenzia', 'OTA / Booking', 'Social', 'Passaparola', 'Altro'],
+};
+let impostazioniCalendario = null; // caricate da Firestore
+
 function trovaPeriodoListino(periodi, iso) {
   const p = periodi.find(p => iso >= p.da && iso < p.a);
   if (p) return p;
@@ -744,27 +790,56 @@ function calcolaPreventivo(input) {
   if (!pn) return { disponibile:false, motivo:'Trattamento non riconosciuto dal listino.' };
 
   const notti = diffDays(checkin, checkout);
-  let notteFuoriListino = false, totaleAlloggio = 0;
-  for (let i = 0; i < notti; i++) {
-    const periodo = trovaPeriodoListino(listino.periodi, addDaysIso(checkin, i));
-    if (!periodo || periodo.prezzi[categoria] == null) { notteFuoriListino = true; continue; }
-    totaleAlloggio += periodo.prezzi[categoria];
+
+  // Alloggio: una riga per ogni periodo di listino toccato dal soggiorno (non
+  // un unico totale) — se il soggiorno attraversa più settimane con tariffe
+  // diverse, si vedono righe separate, una per periodo, esattamente come le
+  // righe del listino/Mrpreno, invece di un numero unico già sommato.
+  const righe = [];
+  let totale = 0;
+  let notteFuoriListino = false;
+  let segmentoInizio = 0, segmentoPeriodo = null;
+  for (let i = 0; i <= notti; i++) {
+    const periodo = i < notti ? trovaPeriodoListino(listino.periodi, addDaysIso(checkin, i)) : null;
+    const cambioSegmento = i === notti || !periodo || periodo !== segmentoPeriodo;
+    if (cambioSegmento && segmentoPeriodo) {
+      const notiSegmento = i - segmentoInizio;
+      const prezzo = segmentoPeriodo.prezzi[categoria];
+      if (prezzo == null) { notteFuoriListino = true; }
+      else {
+        const importo = notiSegmento * prezzo;
+        righe.push({ label: `Alloggio · ${notiSegmento} nott${notiSegmento===1?'e':'i'} (${fmtDataIt(addDaysIso(checkin,segmentoInizio)).slice(0,5)}–${fmtDataIt(addDaysIso(checkin,i)).slice(0,5)})`, importo });
+        totale += importo;
+      }
+    }
+    if (i < notti && (cambioSegmento || !segmentoPeriodo)) { segmentoInizio = i; segmentoPeriodo = periodo; }
+    if (i < notti && !periodo) notteFuoriListino = true;
   }
   if (notteFuoriListino) return { disponibile:false, motivo:`Una o più notti del soggiorno sono fuori dal periodo coperto dal listino (${fmtDataIt(listino.validoDal)}–${fmtDataIt(listino.validoAl)}).` };
 
-  const totalePersone = notti * ((adulti||0)*pn.adulti + (b10_17||0)*pn.b10_17 + (b5_9||0)*pn.b5_9 + (b3_4||0)*pn.b3_4 + (b0_2||0)*pn.b0_2);
-  const labelTrattamento = trattamento === 'PC' ? 'Persone (pensione completa)' : trattamento === 'MP' ? 'Persone (mezza pensione)' : 'Persone (solo pernottamento)';
-
-  const righe = [
-    { label: `Alloggio · ${notti} nott${notti===1?'e':'i'}`, importo: totaleAlloggio },
-    { label: labelTrattamento, importo: totalePersone },
+  // Persone: una riga per fascia (Adulti, Ragazzi 10-17, ecc.), come nel
+  // listino — niente totale unico "Persone".
+  const labelTrattamento = trattamento === 'PC' ? 'pensione completa' : trattamento === 'MP' ? 'mezza pensione' : 'solo pernottamento';
+  const fasce = [
+    { qty:adulti, prezzo:pn.adulti, label:'Adulti' },
+    { qty:b10_17, prezzo:pn.b10_17, label:'Ragazzi 10-17' },
+    { qty:b5_9,   prezzo:pn.b5_9,   label:'Bambini 5-9' },
+    { qty:b3_4,   prezzo:pn.b3_4,   label:'Bambini 3-4' },
+    { qty:b0_2,   prezzo:pn.b0_2,   label:'Bambini 0-2' },
   ];
-  let totale = totaleAlloggio + totalePersone;
+  fasce.forEach(f => {
+    if (!f.qty) return;
+    const importo = notti * f.qty * f.prezzo;
+    righe.push({ label: `${f.label} × ${f.qty} (${labelTrattamento})`, importo });
+    totale += importo;
+  });
 
   if (animali) {
-    const costoAnimali = notti * listino.animaliPerNotte + listino.puliziaFinaleAnimali;
-    righe.push({ label: 'Animali al seguito + pulizia finale', importo: costoAnimali });
+    const costoAnimali = notti * listino.animaliPerNotte;
+    righe.push({ label: `Animali · ${notti} nott${notti===1?'e':'i'}`, importo: costoAnimali });
     totale += costoAnimali;
+    righe.push({ label: 'Pulizia finale in presenza di animali', importo: listino.puliziaFinaleAnimali });
+    totale += listino.puliziaFinaleAnimali;
   }
 
   // Biancheria/spiaggia: o il pacchetto forfait (prezzo intero, sostituisce le
@@ -779,11 +854,9 @@ function calcolaPreventivo(input) {
     }
   } else {
     const pk = listino.prezziKit;
-    const costoKit = (kitBagno||0)*pk.bagno + (kitSingolo||0)*pk.singolo + (kitMatrimoniale||0)*pk.matrimoniale;
-    if (costoKit > 0) {
-      righe.push({ label: 'Biancheria (kit)', importo: costoKit });
-      totale += costoKit;
-    }
+    if (kitBagno)        { const imp = kitBagno*pk.bagno;               righe.push({ label: `Kit bagno × ${kitBagno}`, importo: imp }); totale += imp; }
+    if (kitSingolo)      { const imp = kitSingolo*pk.singolo;           righe.push({ label: `Kit singolo × ${kitSingolo}`, importo: imp }); totale += imp; }
+    if (kitMatrimoniale) { const imp = kitMatrimoniale*pk.matrimoniale; righe.push({ label: `Kit matrimoniale × ${kitMatrimoniale}`, importo: imp }); totale += imp; }
     if (spiaggia) {
       const costoSpiaggia = notti * listino.spiaggiaPerGiorno;
       righe.push({ label: `Spiaggia · ${notti} nott${notti===1?'e':'i'}`, importo: costoSpiaggia });
@@ -830,6 +903,39 @@ async function ensureDefaultListini() {
       setDoc(doc(db, 'listini', 'campeggio'), LISTINI_DEFAULT.campeggio),
     ]);
   } catch(e) { console.error('Errore init listini:', e); }
+}
+
+// ── SINCRONIZZAZIONE IMPOSTAZIONI GENERALI (Firestore, doc singolo) ────────
+let _unsubImpostazioniCalendario = null;
+function startImpostazioniCalendarioSync() {
+  waitForFirebase().then(() => {
+    const { db, doc, onSnapshot } = window._fb;
+    _unsubImpostazioniCalendario = onSnapshot(doc(db, 'impostazioni', 'calendario'), (snap) => {
+      impostazioniCalendario = snap.exists() ? snap.data() : null;
+      if (!impostazioniCalendario || !impostazioniCalendario.provenienze) {
+        impostazioniCalendario = { ...IMPOSTAZIONI_CALENDARIO_DEFAULT, ...(impostazioniCalendario||{}) };
+      }
+      populateProvenienzaSelect();
+      if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
+    }, (err) => console.error('Errore lettura impostazioni calendario:', err));
+  });
+}
+async function ensureDefaultImpostazioniCalendario() {
+  await waitForFirebase();
+  const { db, doc, getDoc, setDoc } = window._fb;
+  try {
+    const snap = await getDoc(doc(db, 'impostazioni', 'calendario'));
+    if (snap.exists()) return;
+    await setDoc(doc(db, 'impostazioni', 'calendario'), IMPOSTAZIONI_CALENDARIO_DEFAULT);
+  } catch(e) { console.error('Errore init impostazioni calendario:', e); }
+}
+function populateProvenienzaSelect(selectedValue) {
+  const sel = document.getElementById('f-provenienza');
+  if (!sel) return;
+  const lista = (impostazioniCalendario && impostazioniCalendario.provenienze) || IMPOSTAZIONI_CALENDARIO_DEFAULT.provenienze;
+  const attuale = selectedValue !== undefined ? selectedValue : sel.value;
+  sel.innerHTML = lista.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  if (attuale && lista.includes(attuale)) sel.value = attuale;
 }
 
 // ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
@@ -1079,6 +1185,7 @@ function goToday()    { viewStart = isoToday(0); renderGrid(); }
 function renderGrid() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
+  if (_renderGridBloccato) return; // trascinamento di una prenotazione in corso, non ridisegnare sotto il cursore
   VIEW_DAYS = calcolaViewDays();
   const days = Array.from({length: VIEW_DAYS}, (_,i) => addDaysIso(viewStart, i));
   document.getElementById('range-label').textContent = fmtRangeLabel(viewStart, days[days.length-1]);
@@ -1124,7 +1231,7 @@ function renderGrid() {
     cat.items.forEach(a => {
       html += `<div class="cal-row">
         <div class="cal-row-label">${esc(a.nome || a.id)}</div>
-        <div class="cal-row-track" style="width:${trackWidth}px" onclick="onTrackClick(event,'${esc(a.id)}')">`;
+        <div class="cal-row-track" style="width:${trackWidth}px" data-alloggio-id="${esc(a.id)}" data-alloggio-nome="${esc(a.nome||a.id)}" onclick="onTrackClick(event,'${esc(a.id)}')">`;
       days.forEach((iso,i) => {
         const cls = ['cal-daycell'];
         if (isWeekend(iso)) cls.push('weekend');
@@ -1151,7 +1258,9 @@ function renderGrid() {
         if (p.trattamento_ristorazione === 'PC') titleParts.push('Pensione completa');
         else if (p.trattamento_ristorazione === 'MP') titleParts.push('Mezza pensione');
         if (kitDesc) titleParts.push(`Biancheria: ${kitDesc}`);
-        html += `<div class="cal-bar ${stato.cls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}" onclick="event.stopPropagation();apriModificaPrenotazione('${esc(p.id)}')">
+        html += `<div class="cal-bar ${stato.cls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}"
+          onmousedown="iniziaDragPrenotazione(event,'${esc(p.id)}')"
+          onclick="event.stopPropagation(); if(_ultimoDragEffettivo){_ultimoDragEffettivo=false;} else {apriModificaPrenotazione('${esc(p.id)}')}">
           <div class="nome">${esc(p.nome||'—')}</div>
           <div class="meta">${flags.join('')}${p.adulti||0}+${p.bambini||0}</div>
         </div>`;
@@ -1169,6 +1278,93 @@ function onTrackClick(ev, alloggioId) {
   const dayIndex = Math.max(0, Math.min(VIEW_DAYS-1, Math.floor(x / DAY_W)));
   const clickedIso = addDaysIso(viewStart, dayIndex);
   openNuovaPrenotazione(alloggioId, clickedIso);
+}
+
+// ── SPOSTAMENTO PRENOTAZIONI CON DRAG AND DROP (mouse, uso da desktop) ─────
+// Trascinare una barra sposta le date (mantenendo la stessa durata) e, se la
+// si rilascia su un'altra riga, cambia anche l'alloggio. Un semplice click
+// (senza spostamento reale) continua ad aprire la modifica come prima.
+let dragCtx = null;
+let _renderGridBloccato = false;
+let _ultimoDragEffettivo = false;
+
+function iniziaDragPrenotazione(ev, id) {
+  if (ev.button !== 0) return; // solo tasto sinistro del mouse
+  ev.stopPropagation();
+  const barEl = ev.currentTarget;
+  const trackEl = barEl.closest('.cal-row-track');
+  const p = prenotazioni.find(x => x.id === id);
+  if (!p || !trackEl) return;
+  dragCtx = {
+    id, startX: ev.clientX, startY: ev.clientY,
+    origLeft: parseFloat(barEl.style.left) || 0,
+    barEl,
+    origAlloggioId: p.alloggio_id, origCheckin: p.checkin, origCheckout: p.checkout,
+    moved: false,
+  };
+  document.addEventListener('mousemove', onDragMouseMove);
+  document.addEventListener('mouseup', onDragMouseUp);
+}
+function onDragMouseMove(ev) {
+  if (!dragCtx) return;
+  const dx = ev.clientX - dragCtx.startX;
+  const dy = ev.clientY - dragCtx.startY;
+  if (!dragCtx.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return; // soglia minima anti-click-accidentale
+  if (!dragCtx.moved) {
+    dragCtx.moved = true;
+    _renderGridBloccato = true;
+    dragCtx.barEl.classList.add('dragging');
+  }
+  dragCtx.barEl.style.left = (dragCtx.origLeft + dx) + 'px';
+  document.querySelectorAll('.cal-row-track.drop-target').forEach(el => el.classList.remove('drop-target'));
+  const hoverTrack = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cal-row-track');
+  if (hoverTrack) hoverTrack.classList.add('drop-target');
+}
+function onDragMouseUp(ev) {
+  document.removeEventListener('mousemove', onDragMouseMove);
+  document.removeEventListener('mouseup', onDragMouseUp);
+  document.querySelectorAll('.cal-row-track.drop-target').forEach(el => el.classList.remove('drop-target'));
+  if (!dragCtx) return;
+  const ctx = dragCtx;
+  dragCtx = null;
+  _renderGridBloccato = false;
+  if (!ctx.moved) return; // nessuno spostamento reale: il normale evento "click" farà il resto
+
+  _ultimoDragEffettivo = true; // il click che il browser genera comunque dopo il mouseup non deve aprire la modifica
+  ctx.barEl.classList.remove('dragging');
+  const dayDelta = Math.round((ev.clientX - ctx.startX) / DAY_W);
+  const hoverTrack = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cal-row-track');
+  const nuovoAlloggioId   = hoverTrack ? hoverTrack.dataset.alloggioId   : ctx.origAlloggioId;
+  const nuovoAlloggioNome = hoverTrack ? hoverTrack.dataset.alloggioNome : null;
+
+  if (dayDelta === 0 && nuovoAlloggioId === ctx.origAlloggioId) { renderGrid(); return; }
+
+  (async () => {
+    const nuovoCheckin  = addDaysIso(ctx.origCheckin, dayDelta);
+    const nuovoCheckout = addDaysIso(ctx.origCheckout, dayDelta);
+    const overlap = trovaOverlap(nuovoAlloggioId, nuovoCheckin, nuovoCheckout, ctx.id);
+    if (overlap) {
+      const conferma = await confermaAsync(
+        'Sovrapposizione rilevata',
+        `Nella nuova posizione risulta già prenotato <strong>${esc(overlap.nome)}</strong> (${esc(overlap.checkin)} → ${esc(overlap.checkout)}). Spostare comunque?`
+      );
+      if (!conferma) { renderGrid(); return; }
+    }
+    try {
+      const { db, doc, updateDoc } = window._fb;
+      const patch = { checkin: nuovoCheckin, checkout: nuovoCheckout };
+      if (nuovoAlloggioId !== ctx.origAlloggioId) {
+        patch.alloggio_id = nuovoAlloggioId;
+        patch.alloggio_nome = nuovoAlloggioNome || nuovoAlloggioId;
+      }
+      await updateDoc(doc(db, 'prenotazioni', ctx.id), patch);
+      showToast('Prenotazione spostata');
+    } catch(e) {
+      console.error('Errore spostamento prenotazione:', e);
+      showToast('Errore: ' + e.message);
+    }
+    renderGrid();
+  })();
 }
 
 // ── MODALE FORM PRENOTAZIONE ──────────────────────────────────────────────
@@ -1222,6 +1418,7 @@ function leggiDatiPreventivoDaForm() {
   };
 }
 function aggiornaPreventivo() {
+  aggiornaBadgeOspiti();
   const box = document.getElementById('preventivo-box');
   if (!box) return;
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
@@ -1339,12 +1536,14 @@ function addOspiteRow() {
   const current = raccogliOspitiDaForm();
   current.push({});
   renderOspitiList(current);
+  aggiornaBadgeOspiti();
 }
 function removeOspiteRow(i) {
   const current = raccogliOspitiDaForm();
   if (current.length <= 1) { showToast('Deve rimanere almeno un ospite'); return; }
   current.splice(i, 1);
   renderOspitiList(current);
+  aggiornaBadgeOspiti();
 }
 function resetOspitiRows(count) {
   renderOspitiList(Array.from({ length: Math.max(1, count) }, () => ({})));
@@ -1398,6 +1597,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   const ci = checkinIso || isoToday(0);
   document.getElementById('f-nome').value = '';
   document.getElementById('f-tel').value = '';
+  populateProvenienzaSelect('Telefonata');
   document.getElementById('f-checkin').value  = ci;
   document.getElementById('f-checkout').value = addDaysIso(ci, 7);
   document.getElementById('f-adulti').value   = 2;
@@ -1416,6 +1616,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   document.getElementById('f-note').value = '';
   resetOspitiRows(1);
   aggiornaPreventivo();
+  aggiornaBadgeOspiti();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function apriModificaPrenotazione(id) {
@@ -1428,6 +1629,7 @@ function apriModificaPrenotazione(id) {
   populateAlloggioSelect(p.alloggio_id);
   document.getElementById('f-nome').value = p.nome || '';
   document.getElementById('f-tel').value  = p.tel  || '';
+  populateProvenienzaSelect(p.provenienza || 'Telefonata');
   document.getElementById('f-checkin').value  = p.checkin  || '';
   document.getElementById('f-checkout').value = p.checkout || '';
   document.getElementById('f-adulti').value  = p.adulti  || 0;
@@ -1446,11 +1648,30 @@ function apriModificaPrenotazione(id) {
   document.getElementById('f-note').value = p.note || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
   aggiornaPreventivo();
+  aggiornaBadgeOspiti();
   document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function closeFormModal() {
   document.getElementById('form-modal-overlay').classList.add('hidden');
+  document.getElementById('ospiti-modal-overlay').classList.add('hidden');
   editingId = null;
+}
+
+// ── MODALE OSPITI / ALLOGGIATI WEB (passaggio separato dalla prenotazione) ─
+function apriOspitiModal() {
+  document.getElementById('ospiti-modal-overlay').classList.remove('hidden');
+}
+function chiudiOspitiModal() {
+  document.getElementById('ospiti-modal-overlay').classList.add('hidden');
+}
+function aggiornaBadgeOspiti() {
+  const badge = document.getElementById('ospiti-btn-badge');
+  if (!badge) return;
+  const totalePersone = totalePersoneDaForm();
+  const numOspiti = document.querySelectorAll('#ospiti-list .ospite-card').length;
+  badge.textContent = `${numOspiti}/${totalePersone}`;
+  badge.style.background = numOspiti >= totalePersone ? 'var(--green-ok)' : 'var(--white)';
+  badge.style.color = numOspiti >= totalePersone ? '#fff' : 'var(--green-700)';
 }
 
 function trovaOverlap(alloggioId, checkin, checkout, excludeId) {
@@ -1502,6 +1723,7 @@ async function salvaPrenotazione() {
     alloggio_nome: alloggioNome,
     nome, checkin, checkout,
     tel: document.getElementById('f-tel').value.trim(),
+    provenienza: document.getElementById('f-provenienza').value,
     adulti:  datiPreventivo.adulti,
     bambini: bambiniTotale, // totale aggregato, per compatibilità con le viste che lo usano già
     bambini_0_2:   datiPreventivo.b0_2,
@@ -1661,12 +1883,20 @@ async function simulaInvioAlloggiatiWeb() {
   }
   const { db, doc, updateDoc } = window._fb;
   try {
+    // L'invio dei dati ad Alloggiati Web implica che l'ospite è arrivato
+    // davvero: il check-in scatta automaticamente insieme all'invio, non va
+    // più segnato a mano in questo caso.
     await updateDoc(doc(db, 'prenotazioni', editingId), {
       ospiti: raccogliOspitiDaForm(),
       alloggiati_web: { stato: 'simulato', generato_il: new Date().toISOString() },
+      checkin_fatto: true,
     });
-    showToast('Invio simulato — nessuna chiamata reale effettuata');
+    const p = prenotazioni.find(x => x.id === editingId);
+    if (p) { p.checkin_fatto = true; p.alloggiati_web = { stato: 'simulato' }; }
+    renderStatoBox();
+    showToast('Invio simulato e check-in registrato — nessuna chiamata reale effettuata');
     chiudiAnteprimaSchedina();
+    chiudiOspitiModal();
   } catch(e) {
     console.error('Errore simulazione invio Alloggiati Web:', e);
     showToast('Errore: ' + e.message);
@@ -1727,15 +1957,18 @@ function switchListinoTab(tab) {
   listinoTabAttiva = tab;
   document.getElementById('tab-villini').classList.toggle('active', tab === 'villini');
   document.getElementById('tab-campeggio').classList.toggle('active', tab === 'campeggio');
+  document.getElementById('tab-generali').classList.toggle('active', tab === 'generali');
   document.getElementById('listino-villini-panel').classList.toggle('hidden', tab !== 'villini');
   document.getElementById('listino-campeggio-panel').classList.toggle('hidden', tab !== 'campeggio');
+  document.getElementById('listino-generali-panel').classList.toggle('hidden', tab !== 'generali');
   renderListiniSettings();
 }
 function fmtPeriodoLabel(p) { return `${fmtDataIt(p.da).slice(0,5)}–${fmtDataIt(p.a).slice(0,5)}`; }
 
 function renderListiniSettings() {
   if (listinoTabAttiva === 'villini') renderListinoVilliniPanel();
-  else renderListinoCampeggioPanel();
+  else if (listinoTabAttiva === 'campeggio') renderListinoCampeggioPanel();
+  else renderGeneraliPanel();
 }
 
 function renderListinoVilliniPanel() {
@@ -1873,6 +2106,50 @@ async function salvaListinoCampeggio() {
   } catch(e) { console.error('Errore salvataggio listino campeggio:', e); showToast('Errore: ' + e.message); }
 }
 
+// ── IMPOSTAZIONI GENERALI (provenienze e futuri elenchi non di prezzo) ─────
+function renderGeneraliPanel() {
+  const panel = document.getElementById('listino-generali-panel');
+  if (!impostazioniCalendario) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
+  const righe = impostazioniCalendario.provenienze.map((p, i) => `
+    <div class="generali-row" data-idx="${i}">
+      <input class="f-input" type="text" value="${esc(p)}">
+      <button type="button" class="ospite-remove-btn" title="Rimuovi" onclick="rimuoviProvenienza(${i})">${XICON}</button>
+    </div>`).join('');
+  panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Provenienza prenotazione</h3>
+      <p class="subtitle">Le voci qui sotto sono quelle che compaiono nel menu "Provenienza" del form prenotazione — aggiungine, rinominale o rimuovile liberamente.</p>
+      <div id="generali-provenienze-list">${righe}</div>
+      <button type="button" class="add-ospite-btn" onclick="aggiungiProvenienza()">+ Aggiungi provenienza</button>
+      <div class="listino-save-row" style="margin-top:14px"><button type="button" class="listino-save-btn" onclick="salvaGenerali()">Salva</button></div>
+    </div>`;
+}
+function aggiungiProvenienza() {
+  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input')).map(i => i.value);
+  valori.push('');
+  impostazioniCalendario.provenienze = valori;
+  renderGeneraliPanel();
+}
+function rimuoviProvenienza(i) {
+  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input')).map(el => el.value);
+  if (valori.length <= 1) { showToast('Deve rimanere almeno una provenienza'); return; }
+  valori.splice(i, 1);
+  impostazioniCalendario.provenienze = valori;
+  renderGeneraliPanel();
+}
+async function salvaGenerali() {
+  const valori = Array.from(document.querySelectorAll('#generali-provenienze-list .generali-row input'))
+    .map(i => i.value.trim()).filter(Boolean);
+  if (!valori.length) { showToast('Serve almeno una provenienza'); return; }
+  impostazioniCalendario.provenienze = valori;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'calendario'), impostazioniCalendario);
+    showToast('Impostazioni salvate');
+    populateProvenienzaSelect();
+  } catch(e) { console.error('Errore salvataggio impostazioni calendario:', e); showToast('Errore: ' + e.message); }
+}
+
 // ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
 let _dataReady = false, _loadingHidden = false;
 function hideLoadingScreen() {
@@ -1915,6 +2192,8 @@ async function start() {
   startRealtimeSync();
   startListiniSync();
   ensureDefaultListini();
+  startImpostazioniCalendarioSync();
+  ensureDefaultImpostazioniCalendario();
 }
 start();
 </script>
