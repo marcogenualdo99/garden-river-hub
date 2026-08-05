@@ -7,7 +7,9 @@
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css">
+<script src="../assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Calendario">
@@ -54,81 +56,16 @@
   setTimeout(segnalaPronto, 8000);
 </script>
 <style>
+/* Variabili aggiuntive specifiche del planning: quelle condivise (colori,
+   raggi, ombre, font) vengono da assets/theme.css, qui solo ciò che manca. */
 :root {
-  --green-900: #0D2B1E; --green-700: #1B4332; --green-500: #2D6A4F; --green-400: #40916C; --green-200: #95D5B2; --green-100: #D8F3DC; --green-50: #F0FAF4;
-  --gray-900: #0F172A; --gray-700: #334155; --gray-500: #64748B; --gray-400: #94A3B8; --gray-300: #CBD5E1; --gray-200: #E2E8F0; --gray-100: #F1F5F9; --gray-50: #F8FAFC; --white: #FFFFFF;
-  --orange: #D97706; --orange-bg: #FFFBEB;
-  --red: #DC2626; --red-bg: #FEF2F2; --red-light: #FCA5A5;
-  --blue: #2563EB; --blue-bg: #EFF6FF; --blue-light: #93C5FD;
-  --green-ok: #16A34A; --green-bg: #F0FDF4; --green-light: #86EFAC;
-  --radius-xs: 8px; --radius-sm: 12px; --radius: 16px; --radius-lg: 20px; --radius-xl: 32px;
-  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
-  --shadow:    0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
-  --shadow-lg: 0 10px 30px rgba(15,23,42,0.12), 0 4px 8px rgba(15,23,42,0.06);
-  --border: #E2E8F0;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --gray-200: #E5E7EB; --gray-600: #4B5563;
+  --red-light: #FCA5A5; --blue-light: #93C5FD; --green-light: #86EFAC;
+  --border: var(--gray-100);
+  --radius-xs: 8px;
   --day-w: 46px;
   --label-w: 152px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
-.hidden { display: none !important; }
-@keyframes gr-spin { to { transform: rotate(360deg); } }
-
-/* ══ LOGIN (gestito centralmente dalla Hub, identico agli altri moduli) ══ */
-.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
-.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
-.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
-.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
-.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
-.btn-primary:active { opacity: .85; }
-
-/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-200); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 1100px; margin: 0 auto; padding: 10px 16px; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 14px; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
-.header-role  { font-size: 10px; color: var(--gray-500); font-weight: 500; margin-top: 1px; }
-.header-btns  { display: flex; align-items: center; gap: 6px; }
-.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: background .15s; }
-.hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
-.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); }
-.hbtn.ghost:hover { background: var(--gray-200); }
-.hbtn:active { opacity: .8; }
-
-main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
-
-/* ══ SIDEBAR (solo desktop) ═══════════════════════════════════════════════
-   Sotto la soglia resta tutto come prima (top-bar in cima, nessuna sidebar):
-   qui aggiungiamo solo un menu rapido verso gli altri moduli della Hub per
-   chi lavora da desktop, senza cambiare nulla nell'esperienza mobile. */
-.sidebar { display: none; }
-@media (min-width: 960px) {
-  .app-shell { display: flex; align-items: flex-start; }
-  .sidebar {
-    display: flex; flex-direction: column;
-    width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
-    background: var(--white); border-right: 1px solid var(--gray-200);
-    padding: 20px 14px; overflow-y: auto;
-  }
-  .main-col { flex: 1; min-width: 0; }
-  main { max-width: none; margin: 0; padding: 20px 28px 40px; }
-  .header-inner { max-width: none; margin: 0; }
-}
-.sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--gray-100); }
-.sidebar-brand img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; flex-shrink: 0; }
-.sidebar-brand-title { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
-.sidebar-brand-sub { font-size: 10.5px; color: var(--gray-500); font-weight: 600; margin-top: 1px; }
-.sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-400); text-transform: uppercase; margin: 16px 10px 6px; }
-.sidebar-label:first-of-type { margin-top: 6px; }
-.sidebar-item { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: var(--radius-sm); color: var(--gray-500); font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; margin-bottom: 2px; border-left: 3px solid transparent; transition: background .15s, color .15s; -webkit-tap-highlight-color: transparent; }
-.sidebar-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-.sidebar-item:hover { background: var(--gray-50); color: var(--gray-700); }
-.sidebar-item.active { background: var(--green-bg); color: var(--green-700); border-left-color: var(--green-ok); font-weight: 800; }
-.sidebar-spacer { flex: 1; }
 
 /* ══ TOOLBAR ══════════════════════════════════════════════════════════════ */
 .cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -176,20 +113,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
 .cal-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,0.28); font-size: 8.5px; font-weight: 800; margin-right: 3px; }
 
 .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ══ MODALE CONFERMA ══════════════════════════════════════════════════════ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+/* ══ MODALE — box/pulsanti condivisi da assets/theme.css; qui solo le
+   specificità del planning (stacking di due modali, variante pericolosa). ══ */
 /* La conferma (eliminazione/sovrapposizione) può aprirsi sopra al form
    prenotazione già visibile (es. "salva comunque?"): deve stare più in alto. */
 #modal-overlay { z-index: 1100; }
 #schedina-modal-overlay { z-index: 1100; }
-.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 340px; box-shadow: var(--shadow-lg); }
-.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
-.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-.modal-btn-confirm { flex: 1; height: 46px; background: var(--green-ok); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 .modal-btn-confirm.danger { background: var(--red); }
 
 /* ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ */
@@ -307,7 +237,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
 
 <div class="app-shell">
 
-<!-- ══ SIDEBAR (solo desktop) — scorciatoie verso gli altri moduli della Hub ══ -->
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
+     Stessa struttura a tre livelli della Hub (v. assets/theme.css), riusata
+     identica qui: stesse icone (assets/icons.js), stessi font e colori. ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
     <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
@@ -317,82 +249,122 @@ main { max-width: 1100px; margin: 0 auto; padding: 14px 12px 40px; }
     </div>
   </div>
 
-  <div class="sidebar-label">Menu</div>
-  <a class="sidebar-item active" href="../calendario/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="24" width="72" height="62" rx="8"/><path d="M14 42 L86 42"/><path d="M32 14 L32 30 M68 14 L68 30"/></svg>
-    Calendario
-  </a>
-  <a class="sidebar-item" href="../alloggi/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 88 L12 38 Q12 30 20 30 L80 30 Q88 30 88 38 L88 88"/><path d="M12 66 L88 66"/><rect x="20" y="38" width="24" height="14" rx="3"/><path d="M12 76 L12 88 M88 76 L88 88"/></svg>
-    Alloggi
-  </a>
-
-  <div class="sidebar-label">Ristorazione</div>
-  <a class="sidebar-item" href="../magazzino/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 44 L50 13 L90 44"/><path d="M18 44 L18 84 L82 84 L82 44"/><rect x="39" y="58" width="22" height="14"/><rect x="32" y="69" width="36" height="15"/></svg>
-    Magazzino
-  </a>
-  <a class="sidebar-item" href="../conti/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="26" r="13"/><circle cx="64" cy="20" r="13"/><path d="M34 26 L46 26 M64 14 L64 26 M58 20 L70 20"/><path d="M12 58 L12 76 Q12 84 20 84 L52 84 Q60 84 67 78 L84 63 Q88 59 84 55 Q80 51 75 55 L60 67"/><path d="M12 58 Q12 50 20 50 L42 50 Q50 50 50 58 Q50 66 42 66 L20 66"/></svg>
-    Conti
-  </a>
-  <a class="sidebar-item" href="../ristorazione/staff.html">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 L20 50 Q20 62 32 62 L50 62"/><path d="M50 20 L50 62"/><path d="M80 20 L80 36 Q80 50 65 50 L60 50"/><path d="M35 62 L35 85"/><path d="M25 85 L75 85"/><path d="M65 62 L65 85"/></svg>
-    Ristorazione
-  </a>
-
-  <div class="sidebar-label">Servizi</div>
-  <a class="sidebar-item" href="../bici/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="75" r="14"/><circle cx="75" cy="75" r="14"/><path d="M25 75 L45 40 L70 40 L75 75"/><path d="M45 40 L35 75"/><path d="M55 40 L48 25 L62 25"/><path d="M70 40 L80 25"/></svg>
-    Bici
-  </a>
-  <a class="sidebar-item" href="../spiaggia/">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 20 L50 72"/><path d="M50 20 Q68 28 74 48 Q58 44 50 20Z"/><path d="M50 20 Q32 28 26 48 Q42 44 50 20Z"/><path d="M30 72 Q50 64 70 72"/><path d="M20 82 L80 82"/><path d="M60 72 Q65 58 76 60 Q78 70 70 72"/></svg>
-    Spiaggia
-  </a>
-
-  <a class="sidebar-item" href="../manutenzione/" style="margin-top:10px">
-    <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M68 18 Q82 12 88 26 Q94 40 82 48 L38 82 Q34 86 28 86 Q18 86 14 76 Q10 66 18 60 L62 32 Q64 25 68 18Z"/><circle cx="26" cy="76" r="6"/><path d="M62 32 L76 46"/></svg>
-    Manutenzione
-  </a>
-
-  <div class="sidebar-label">Generale</div>
-  <a class="sidebar-item" href="../">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-    Torna alla Hub
-  </a>
-  <a class="sidebar-item" onclick="doLogout()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-    Esci
-  </a>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item active" href="./"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
 
   <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
 </aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item active" href="./"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Alloggi</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Calendario</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item active" href="./"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
 
 <div class="main-col">
 
 <!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
 <div class="top-bar" id="top-bar-main">
   <div class="header-inner">
-    <div class="header-left">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
+    <div class="header-left" onclick="doLogout()" title="Cambia operatore" style="cursor:pointer;-webkit-tap-highlight-color:transparent">
       <div class="header-avatar" id="header-avatar"></div>
-      <div>
+      <div style="min-width:0">
         <div class="header-name" id="header-name"></div>
         <div class="header-role" id="header-role"></div>
       </div>
+      <div class="header-logout-hint" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M13 4.5h2a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-2"/><polyline points="3,10 11,10"/><polyline points="8,7 11,10 8,13"/></svg>
+      </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(true)" title="Aggiorna ora">&#8635;</button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
     </div>
   </div>
 </div>
 
 <main id="main-view">
+  <div class="page-head">
+    <svg class="page-head-motif" viewBox="0 0 400 180" fill="none" preserveAspectRatio="none">
+      <path d="M-10 85 Q100 35 200 80 T400 65" stroke="currentColor" stroke-width="4"/>
+      <path d="M-10 125 Q110 90 210 120 T400 105" stroke="currentColor" stroke-width="4"/>
+      <path d="M330 15 Q360 32 351 62 Q322 53 308 26 Q301 8 330 15Z" fill="currentColor"/>
+    </svg>
+    <div class="page-eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
+      <span>Calendario</span>
+    </div>
+    <div class="page-title">Planning prenotazioni</div>
+  </div>
   <div class="cal-toolbar">
     <div class="cal-nav">
       <button class="cal-nav-btn" onclick="navWeek(-1)" title="Settimana precedente">&#8592;</button>
@@ -561,21 +533,34 @@ const HUB_URL     = '../';
 const MODULE_ID   = 'calendario';
 const SECTION_IDS = ['calendario'];
 const DAY_W       = 46;   // deve combaciare con la variabile CSS --day-w
-const VIEW_DAYS_MOBILE = 21; // sotto i 960px la vista resta fissa a 3 settimane, scrollabile
+const VIEW_DAYS_MOBILE = 21; // sotto i 768px (soglia tablet/rail di assets/theme.css) la vista resta fissa a 3 settimane, scrollabile
 const VIEW_DAYS_MIN    = 14;
 const VIEW_DAYS_MAX    = 45;
 let VIEW_DAYS = VIEW_DAYS_MOBILE; // ricalcolato ad ogni render in base allo spazio disponibile
 
-// Su desktop la vista si allarga per riempire tutto lo schermo (più giorni
+// Su tablet/desktop la vista si allarga per riempire tutto lo schermo (più giorni
 // visibili, non celle più larghe) invece di restare fissa a 3 settimane con
-// spazio vuoto a destra. Sotto i 960px (mobile/tablet) resta fissa e scrollabile.
+// spazio vuoto a destra. Sotto i 768px (mobile) resta fissa e scrollabile.
 function calcolaViewDays() {
-  if (window.innerWidth < 960) return VIEW_DAYS_MOBILE;
+  if (window.innerWidth < 768) return VIEW_DAYS_MOBILE;
   const scroll = document.getElementById('cal-scroll');
   const available = (scroll ? scroll.clientWidth : 0) - 152 /* --label-w */;
   const giorni = Math.floor(available / DAY_W);
   if (!giorni || giorni < VIEW_DAYS_MIN) return VIEW_DAYS_MIN;
   return Math.min(giorni, VIEW_DAYS_MAX);
+}
+
+hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
+
+// ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
+//    (stessa logica della Hub, v. index.html) ─────────────────────────────
+function toggleNavGroup(btn) {
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
 }
 
 let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSections = new Set();
