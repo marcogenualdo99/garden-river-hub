@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -36,7 +36,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -438,7 +438,7 @@ let editingTemp      = {};   // id -> { nome, costo, ritiroTs, rientroPrevistoTs
 let settingsOpen     = false;
 let optFieldsOpen    = false; // campi opzionali nel form di inserimento
 // Form inserimento — ora supporta più bici per anagrafica
-let formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+let formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
 let alloggiList = [];
 
 function alloggiOptionsHtml(selected) {
@@ -458,6 +458,45 @@ function alloggiOptionsHtml(selected) {
   });
   if (lastCat !== null) html += '</optgroup>';
   return html;
+}
+
+// Selezionando l'alloggio nel form di noleggio, se il cliente non è ancora
+// stato scritto a mano andiamo a recuperarlo dalla prenotazione in corso per
+// quell'alloggio in Calendario — così non si reinserisce a mano un'anagrafica
+// già censita altrove.
+async function onAlloggioNoleggioChange(valore) {
+  formTemp.alloggio = valore;
+  if (valore && !(formTemp.nome || '').trim()) {
+    try {
+      await waitForFirebase();
+      const { db, collection, getDocs, query, where } = window._fb;
+      const oggi = new Date().toISOString().slice(0, 10);
+      const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', valore)));
+      const match = snap.docs.map(d => d.data()).find(p => oggi >= p.checkin && oggi < p.checkout);
+      if (match && match.nome) formTemp.nome = match.nome;
+    } catch(e) { console.error('Errore recupero anagrafica per alloggio:', e); }
+  }
+  renderFormInserimento();
+}
+
+// Inserisce l'importo del noleggio come voce nel conto della prenotazione
+// Calendario collegata all'alloggio (se l'alloggio è stato indicato al
+// ritiro). Non blocca mai il flusso bici se fallisce o non trova nulla: è un
+// arricchimento, non un requisito per noleggiare una bici.
+async function inserisciCostoBiciNelConto(alloggioNome, label, importo) {
+  if (!alloggioNome) return;
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, where, doc, updateDoc } = window._fb;
+    const oggi = new Date().toISOString().slice(0, 10);
+    const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', alloggioNome)));
+    const match = snap.docs.map(d => ({ id: d.id, ...d.data() })).find(p => oggi >= p.checkin && oggi < p.checkout);
+    if (!match) return;
+    const righe = (match.conto && Array.isArray(match.conto.righe)) ? match.conto.righe.slice() : [];
+    righe.push({ label, importo: Math.round(importo * 100) / 100, pagato: true });
+    const totale = Math.round(righe.reduce((s, r) => s + (r.importo || 0), 0) * 100) / 100;
+    await updateDoc(doc(db, 'prenotazioni', match.id), { conto: { righe, totale } });
+  } catch(e) { console.error('Errore inserimento costo bici nel conto:', e); }
 }
 
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -706,6 +745,10 @@ function renderFormInserimento() {
     '<div class="insert-card">'+
       '<div class="insert-card-title">Seleziona bici</div>'+
       '<div class="bike-chips-grid">'+bikeChipsHtml+'</div>'+
+      '<div style="margin-bottom:12px">'+
+        '<div class="f-label">Alloggio <span style="opacity:.5">(opzionale — recupera il cliente dalla prenotazione)</span></div>'+
+        '<select class="f-input" id="form-alloggio-bici" onchange="onAlloggioNoleggioChange(this.value)">'+alloggiOptionsHtml(t.alloggio)+'</select>'+
+      '</div>'+
       '<div style="margin-bottom:12px">'+
         '<div class="f-label">Cliente</div>'+
         '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value">'+
@@ -978,7 +1021,7 @@ async function segnalaRitiro(id) {
   b.fasciaPreselezionata = r.fascia;
   b.dettaglioPreselezionato = r.dettaglio;
   b.rientroPrevistoTs = rientroPrevistoTs;
-  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
   render();
   try {
     await waitForFirebase();
@@ -1015,15 +1058,16 @@ async function riscuoti(id) {
   const r = usaFisso
     ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
     : calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
+  const alloggio = b.clienteAlloggio || null;
   const entry = {
-    clienteNome: b.clienteNome || '',
+    clienteNome: b.clienteNome || '', clienteAlloggio: alloggio || '',
     ritiroTs: b.ritiroTs, rientroTs: nowIso,
     fascia: r.fascia, dettaglio: r.dettaglio, costo: r.costo,
     opRitiro: b.ritiroOp || '', opRiscossione: currentOperatore || 'Operatore',
   };
   const newLog = [entry].concat(b.log || []).slice(0, 30);
   b.stato = 'libera';
-  b.clienteNome = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.clienteNome = null; b.clienteAlloggio = null; b.ritiroTs = null; b.ritiroOp = null;
   b.costoPreselezionato = null; b.fasciaPreselezionata = null;
   b.dettaglioPreselezionato = null; b.rientroPrevistoTs = null;
   b.log = newLog;
@@ -1033,7 +1077,7 @@ async function riscuoti(id) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
-      stato: 'libera', clienteNome: null, ritiroTs: null, ritiroOp: null,
+      stato: 'libera', clienteNome: null, clienteAlloggio: null, ritiroTs: null, ritiroOp: null,
       costoPreselezionato: null, fasciaPreselezionata: null,
       dettaglioPreselezionato: null, rientroPrevistoTs: null, log: newLog,
     });
@@ -1041,6 +1085,7 @@ async function riscuoti(id) {
     console.error('Errore riscossione:', e);
     showToast('Errore di salvataggio — riprova');
   }
+  if (alloggio) inserisciCostoBiciNelConto(alloggio, 'Bici N°' + b.numero + (entry.clienteNome ? ' (' + entry.clienteNome + ')' : ''), r.costo);
 }
 
 // ── MULTI-BIKE ACTIONS ────────────────────────────────────────────────────
@@ -1051,7 +1096,7 @@ async function segnalaRitiroMulti() {
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
   for (const id of ids) await segnalaRitiroMultiExec(id, gruppoId);
-  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
   render();
   showToast(ids.length > 1 ? ids.length+' bici segnalate in uscita' : 'Bici segnalata in uscita');
 }
@@ -1072,6 +1117,7 @@ async function segnalaRitiroMultiExec(id, gruppoId) {
   b.fasciaPreselezionata = r.fascia; b.dettaglioPreselezionato = r.dettaglio;
   b.rientroPrevistoTs = rientroPrevistoTs;
   b.note = note || null;
+  b.clienteAlloggio = t.alloggio || null;
   if (gruppoId) b.gruppoId = gruppoId;
   try {
     await waitForFirebase();
@@ -1083,6 +1129,7 @@ async function segnalaRitiroMultiExec(id, gruppoId) {
       dettaglioPreselezionato: r.dettaglio,
       rientroPrevistoTs: rientroPrevistoTs !== null ? rientroPrevistoTs : deleteField(),
       note: note || null,
+      clienteAlloggio: t.alloggio || null,
       ...(gruppoId ? { gruppoId } : {}),
     });
   } catch(e) { console.error('Errore segnalazione ritiro:', e); showToast('Errore di salvataggio'); }
@@ -1111,6 +1158,7 @@ function segnalaRitiroPagatoMulti() {
 async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
   const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
   const note = (formTemp.note || '').trim();
+  const alloggio = formTemp.alloggio || null;
   for (const id of ids) {
     const b = bikesMap[id];
     if (!b) continue;
@@ -1122,6 +1170,7 @@ async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
     b.fasciaAnticipata = r.fascia; b.dettaglioAnticipato = r.dettaglio;
     b.rientroPrevistoTs = rientroTs;
     b.note = note || null;
+    b.clienteAlloggio = alloggio;
     if (gruppoId) b.gruppoId = gruppoId;
     try {
       await waitForFirebase();
@@ -1133,13 +1182,18 @@ async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
         fasciaAnticipata: r.fascia, dettaglioAnticipato: r.dettaglio,
         rientroPrevistoTs: rientroTs !== null ? rientroTs : deleteField(),
         note: note || null,
+        clienteAlloggio: alloggio,
         ...(gruppoId ? { gruppoId } : {}),
       });
     } catch(e) { console.error('Errore ritiro pagato:', e); showToast('Errore di salvataggio'); }
   }
-  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
   render();
   showToast('Incassati ' + (r.costo * ids.length).toFixed(2).replace('.',',') + '€ per ' + ids.length + ' bici');
+  if (alloggio) {
+    const bikeNums = ids.map(id => bikesMap[id] ? 'N°'+bikesMap[id].numero : '?').join(', ');
+    inserisciCostoBiciNelConto(alloggio, 'Bici ' + bikeNums + ' (' + nome + ')', r.costo * ids.length);
+  }
 }
 
 function confermaRiscuotiGruppo(groupKey) {
@@ -1232,7 +1286,7 @@ async function eseguiRitiroPagato(id, nome, ritiroTs, rientroTs, r) {
   b.fasciaAnticipata = r.fascia;
   b.dettaglioAnticipato = r.dettaglio;
   b.rientroPrevistoTs = rientroTs;
-  formTemp = { nome:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
   render();
   showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
   try {
