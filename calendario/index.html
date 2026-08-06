@@ -221,6 +221,10 @@
 .documento-row .doc-nome { flex: 1; font-size: 13px; font-weight: 700; color: var(--gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .documento-row .doc-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--green-700); background: var(--green-bg); padding: 3px 9px; border-radius: 10px; flex-shrink: 0; }
 .documento-row .doc-btn { height: 30px; padding: 0 10px; border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 16px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font); color: var(--gray-700); white-space: nowrap; }
+.doc-upload-status { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 12px; line-height: 1.5; font-weight: 600; }
+.doc-upload-status.in-corso { background: var(--gray-100); color: var(--gray-700); }
+.doc-upload-status.ok { background: var(--green-bg); color: var(--green-ok); }
+.doc-upload-status.errore { background: var(--red-bg); color: var(--red); }
 
 /* ══ RICERCA PRENOTAZIONI — sempre visibile in cima al contenuto, niente
    pulsante da premere prima di poter scrivere (.search-wrap ecc. vengono da
@@ -280,6 +284,21 @@
 
 .schedina-btn { width: 100%; height: 44px; border: none; border-radius: var(--radius-sm); background: var(--gray-900); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 4px; }
 
+/* ══ MENU LATERALE COMPATTO DELLA PRENOTAZIONE ═════════════════════════════
+   Righe di icone su mobile (scorre in orizzontale), colonna a sinistra da
+   tablet in su — v. media query in fondo per il passaggio a due colonne. */
+.pren-shell { display: flex; flex-direction: column; }
+.pren-tabs { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 1.5px solid var(--gray-100); -webkit-overflow-scrolling: touch; }
+.pren-tab { flex-shrink: 0; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: none; background: var(--gray-100); color: var(--gray-600); border-radius: 20px; font-size: 12.5px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
+.pren-tab svg { width: 15px; height: 15px; flex-shrink: 0; }
+.pren-tab.active { background: var(--green-700); color: #fff; }
+.pren-panel { display: none; }
+.pren-panel.active { display: block; }
+.pren-link-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 8px; font-size: 12.5px; }
+.pren-link-item .pren-link-titolo { font-weight: 800; color: var(--gray-900); }
+.pren-link-item .pren-link-meta { color: var(--gray-500); font-size: 11.5px; margin-top: 2px; }
+.pren-link-item .pren-link-stato { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 10px; }
+
 /* ══ FORM PRENOTAZIONE — due colonne su desktop (v. media query in fondo) ══ */
 .form-grid { display: block; }
 .form-col { display: flex; flex-direction: column; }
@@ -311,13 +330,18 @@
    in su le modali si allargano e i campi si dispongono su più colonne, così
    la sezione ospiti non diventa un lunghissimo scroll verticale. */
 @media (min-width: 960px) {
-  .form-modal-box { max-width: 880px; }
+  .form-modal-box { max-width: 940px; }
   .schedina-modal-box { max-width: 920px; }
   .ospite-fields { grid-template-columns: repeat(4, 1fr); }
   .ospite-fields-doc { grid-template-columns: repeat(3, 1fr); }
   .kit-section { display: flex; gap: 20px; padding: 14px 16px; }
   .kit-row { flex: 1; flex-direction: column; align-items: flex-start; gap: 8px; border-bottom: none; padding: 0; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: start; }
+  .pren-shell { flex-direction: row; align-items: flex-start; gap: 20px; }
+  .pren-tabs { flex-direction: column; overflow-x: visible; width: 160px; flex-shrink: 0; border-bottom: none; border-right: 1.5px solid var(--gray-100); padding: 0 14px 0 0; margin-bottom: 0; }
+  .pren-tab { width: 100%; justify-content: flex-start; background: none; }
+  .pren-tab.active { background: var(--green-bg); color: var(--green-700); }
+  .pren-panels { flex: 1; min-width: 0; }
 }
 </style>
 </head>
@@ -562,6 +586,17 @@
       </div>
     </div>
 
+    <div class="pren-shell">
+      <div class="pren-tabs">
+        <button type="button" class="pren-tab active" data-tab="dettagli" onclick="switchPrenTab('dettagli')"><span data-icon="HOME"></span>Dettagli</button>
+        <button type="button" class="pren-tab" data-tab="conto" onclick="switchPrenTab('conto')"><span data-icon="CONTI"></span>Conto</button>
+        <button type="button" class="pren-tab" data-tab="bici" onclick="switchPrenTab('bici')"><span data-icon="BICI"></span>Bici</button>
+        <button type="button" class="pren-tab" data-tab="ristorazione" onclick="switchPrenTab('ristorazione')"><span data-icon="RISTORAZIONE"></span>Ristorazione</button>
+        <button type="button" class="pren-tab" data-tab="manutenzione" onclick="switchPrenTab('manutenzione')"><span data-icon="MANUTENZIONE"></span>Manutenzione</button>
+        <button type="button" class="pren-tab" data-tab="pulizie" onclick="switchPrenTab('pulizie')"><span data-icon="ALLOGGI"></span>Pulizie</button>
+      </div>
+      <div class="pren-panels">
+      <div class="pren-panel active" data-panel="dettagli">
     <div class="form-grid">
       <div class="form-col">
         <div class="f-row">
@@ -673,20 +708,6 @@
       </div>
 
       <div class="form-col">
-        <div class="prev-box" id="conto-box">
-          <div class="prev-head">
-            <span>Conto</span>
-            <span class="prev-total" id="conto-totale-inline">€ 0,00</span>
-          </div>
-          <div id="conto-list-inline"></div>
-          <div class="conto-saldo hidden" id="conto-saldo-inline"></div>
-          <div class="conto-azioni">
-            <button type="button" class="conto-link-btn" onclick="aggiungiVoceConto()">+ Aggiungi voce</button>
-            <button type="button" class="conto-link-btn" onclick="ricaricaContoDaPreventivo()" title="Cancella tutte le voci del conto e le sostituisce con quelle attuali del preventivo stimato">&#8635; Riparti dal preventivo (annulla le modifiche fatte a mano)</button>
-          </div>
-          <div class="prev-note">Le voci partono dal listino in base ai dati inseriti a sinistra — clicca su un importo per correggerlo. Voci come nel listino, senza raggruppamenti, per confrontarle poi con lo scarico da Mrpreno.</div>
-        </div>
-
         <button type="button" class="ospiti-btn" id="btn-apri-ospiti" onclick="apriOspitiModal()">
           Ospiti · Alloggiati Web
           <span class="ospiti-btn-badge" id="ospiti-btn-badge"></span>
@@ -702,6 +723,45 @@
           <div class="note-tabs" id="note-tabs"></div>
           <textarea class="f-textarea" id="f-note-testo" placeholder="Note per questa categoria (facoltativo)" oninput="salvaTestoNotaCorrente()"></textarea>
         </div>
+      </div>
+    </div>
+      </div>
+
+      <div class="pren-panel" data-panel="conto">
+        <div class="prev-box" id="conto-box">
+          <div class="prev-head">
+            <span>Conto</span>
+            <span class="prev-total" id="conto-totale-inline">€ 0,00</span>
+          </div>
+          <div id="conto-list-inline"></div>
+          <div class="conto-saldo hidden" id="conto-saldo-inline"></div>
+          <div class="conto-azioni">
+            <button type="button" class="conto-link-btn" onclick="aggiungiVoceConto()">+ Aggiungi voce</button>
+            <button type="button" class="conto-link-btn" onclick="ricaricaContoDaPreventivo()" title="Cancella tutte le voci del conto e le sostituisce con quelle attuali del preventivo stimato">&#8635; Riparti dal preventivo (annulla le modifiche fatte a mano)</button>
+          </div>
+          <div class="prev-note">Le voci partono dal listino in base ai dati inseriti a sinistra — clicca su un importo per correggerlo. Voci come nel listino, senza raggruppamenti, per confrontarle poi con lo scarico da Mrpreno.</div>
+        </div>
+      </div>
+
+      <div class="pren-panel" data-panel="bici">
+        <p class="section-hint">Noleggi bici trovati per corrispondenza sul nome ospite — <strong>non è un collegamento certo</strong> (il modulo Bici oggi non registra l'alloggio), verifica sempre nel modulo Bici prima di decisioni importanti.</p>
+        <div id="pren-bici-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
+      </div>
+
+      <div class="pren-panel" data-panel="ristorazione">
+        <p class="section-hint">Anagrafica famiglia collegata automaticamente a questa prenotazione (solo se il trattamento è Pensione Completa o Mezza Pensione).</p>
+        <div id="pren-ristorazione-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
+      </div>
+
+      <div class="pren-panel" data-panel="manutenzione">
+        <p class="section-hint">Ticket di manutenzione collegati all'alloggio di questa prenotazione (tutti, non solo quelli del periodo di soggiorno).</p>
+        <div id="pren-manutenzione-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
+      </div>
+
+      <div class="pren-panel" data-panel="pulizie">
+        <p class="section-hint">Sezione in arrivo — la definiamo insieme più avanti.</p>
+      </div>
+
       </div>
     </div>
 
@@ -747,7 +807,8 @@
         <input class="f-input" id="doc-file" type="file">
       </div>
     </div>
-    <button type="button" class="ospiti-btn" onclick="caricaDocumento()">Carica documento</button>
+    <button type="button" class="ospiti-btn" id="btn-carica-documento" onclick="caricaDocumento()">Carica documento</button>
+    <div id="doc-upload-status" class="doc-upload-status hidden"></div>
     <div id="documenti-list" style="margin-top:14px"></div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiDocumentiModal()">Chiudi</button>
@@ -1741,6 +1802,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   editingId = null;
   document.getElementById('form-modal-title').textContent = 'Nuova prenotazione';
   document.getElementById('btn-elimina').classList.add('hidden');
+  resetPrenTabs();
   renderStatoBox();
   populateAlloggioSelect(alloggioId);
   const ci = checkinIso || isoToday(0);
@@ -1777,6 +1839,7 @@ function apriModificaPrenotazione(id) {
   editingId = id;
   document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
   document.getElementById('btn-elimina').classList.remove('hidden');
+  resetPrenTabs();
   renderStatoBox();
   populateAlloggioSelect(p.alloggio_id);
   document.getElementById('f-nome').value = p.nome || '';
@@ -1810,6 +1873,123 @@ function closeFormModal() {
   document.getElementById('form-modal-overlay').classList.add('hidden');
   document.getElementById('ospiti-modal-overlay').classList.add('hidden');
   editingId = null;
+}
+
+// ── MENU LATERALE PRENOTAZIONE — Dettagli/Conto/Bici/Ristorazione/
+//    Manutenzione/Pulizie. Le tre schede di sola lettura (Bici, Ristorazione,
+//    Manutenzione) caricano i dati al volo solo quando si aprono, non tengono
+//    un ascoltatore realtime acceso per tutto il tempo in cui il form resta
+//    aperto — è una consultazione rapida, non serve altro. ───────────────────
+function resetPrenTabs() {
+  document.querySelectorAll('.pren-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'dettagli'));
+  document.querySelectorAll('.pren-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === 'dettagli'));
+}
+function switchPrenTab(tab) {
+  document.querySelectorAll('.pren-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.pren-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === tab));
+  if (tab === 'bici') caricaPannelloBici();
+  else if (tab === 'ristorazione') caricaPannelloRistorazione();
+  else if (tab === 'manutenzione') caricaPannelloManutenzione();
+}
+
+async function caricaPannelloBici() {
+  const wrap = document.getElementById('pren-bici-content');
+  const nomeOspite = document.getElementById('f-nome').value.trim();
+  if (!nomeOspite) { wrap.innerHTML = '<p class="section-hint">Inserisci il nome ospite per cercare i noleggi.</p>'; return; }
+  wrap.innerHTML = '<p class="section-hint">Caricamento…</p>';
+  try {
+    const { db, collection, getDocs } = window._fb;
+    const snap = await getDocs(collection(db, 'bici'));
+    const chiave = nomeOspite.toLowerCase();
+    const primaParola = chiave.split(/\s+/)[0];
+    const risultati = [];
+    snap.docs.forEach(d => {
+      const bici = d.data();
+      const voci = [{ ...bici, storico:false }, ...((bici.log||[]).map(v => ({...v, storico:true})))];
+      voci.forEach(v => {
+        const nomeVoce = (v.clienteNome||'').toLowerCase();
+        if (nomeVoce && primaParola && nomeVoce.includes(primaParola)) {
+          risultati.push({ numero: bici.numero, tipologia: bici.tipologia, clienteNome: v.clienteNome, ritiroTs: v.ritiroTs, rientroTs: v.rientroTs, storico: v.storico });
+        }
+      });
+    });
+    if (!risultati.length) { wrap.innerHTML = '<p class="section-hint">Nessun noleggio trovato per questo nome.</p>'; return; }
+    risultati.sort((a,b) => (b.ritiroTs||'').localeCompare(a.ritiroTs||''));
+    wrap.innerHTML = risultati.map(r => `
+      <div class="pren-link-item">
+        <div>
+          <div class="pren-link-titolo">Bici n. ${esc(r.numero)}${r.tipologia ? ' · '+esc(r.tipologia) : ''}</div>
+          <div class="pren-link-meta">${esc(r.clienteNome)}${r.ritiroTs ? ' · dal '+esc(fmtDataIt(r.ritiroTs.slice(0,10))) : ''}${r.rientroTs ? ' al '+esc(fmtDataIt(r.rientroTs.slice(0,10))) : ''}</div>
+        </div>
+        <span class="pren-link-stato" style="background:${r.storico?'var(--gray-100)':'var(--blue-bg)'};color:${r.storico?'var(--gray-600)':'var(--blue)'}">${r.storico?'Storico':'In corso'}</span>
+      </div>`).join('');
+  } catch(e) {
+    console.error('Errore caricamento bici:', e);
+    wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
+}
+
+async function caricaPannelloRistorazione() {
+  const wrap = document.getElementById('pren-ristorazione-content');
+  if (!editingId) { wrap.innerHTML = '<p class="section-hint">Salva prima la prenotazione — l\'anagrafica si crea al primo salvataggio con trattamento Pensione Completa o Mezza Pensione.</p>'; return; }
+  wrap.innerHTML = '<p class="section-hint">Caricamento…</p>';
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'famiglie_ristorazione', 'cal_' + editingId));
+    if (!snap.exists()) { wrap.innerHTML = '<p class="section-hint">Nessuna anagrafica collegata (il trattamento non è Pensione Completa/Mezza Pensione, oppure la sincronizzazione non è ancora avvenuta — salva di nuovo la prenotazione).</p>'; return; }
+    const f = snap.data();
+    const trattLabel = f.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
+    wrap.innerHTML = `
+      <div class="pren-link-item">
+        <div>
+          <div class="pren-link-titolo">${esc(f.nome||'')}</div>
+          <div class="pren-link-meta">${esc(f.unita||'')} · ${trattLabel} · ${esc(f.checkin||'')} → ${esc(f.checkout||'')}</div>
+          <div class="pren-link-meta">${f.adulti||0} adulti, ${(f.bambini||[]).length} bambini${f.tavolo ? ' · Tavolo '+esc(f.tavolo) : ' · Tavolo non ancora assegnato'}</div>
+          ${f.note ? `<div class="pren-link-meta">Nota: ${esc(f.note)}</div>` : ''}
+        </div>
+        <span class="pren-link-stato" style="background:var(--green-bg);color:var(--green-700)">Collegata</span>
+      </div>
+      <p class="section-hint">Codice famiglia: ${esc(f.codice||'—')}. Per ordini, tavolo e altre impostazioni vai nel modulo Ristorazione.</p>`;
+  } catch(e) {
+    console.error('Errore caricamento ristorazione:', e);
+    wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
+}
+
+async function caricaPannelloManutenzione() {
+  const wrap = document.getElementById('pren-manutenzione-content');
+  const alloggioSel = document.getElementById('f-alloggio');
+  const alloggioNome = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.nome : '';
+  if (!alloggioNome) { wrap.innerHTML = '<p class="section-hint">Seleziona un alloggio per vedere i ticket collegati.</p>'; return; }
+  wrap.innerHTML = '<p class="section-hint">Caricamento…</p>';
+  try {
+    const { db, collection, getDocs } = window._fb;
+    const snap = await getDocs(collection(db, 'maintenance_tickets'));
+    const ticket = snap.docs
+      .map(d => ({ id:d.id, ...d.data() }))
+      .filter(t => t.housing_unit === alloggioNome)
+      .sort((a,b) => {
+        const ta = a.created_at && a.created_at.seconds || 0, tb = b.created_at && b.created_at.seconds || 0;
+        return tb - ta;
+      });
+    if (!ticket.length) { wrap.innerHTML = `<p class="section-hint">Nessun ticket di manutenzione per ${esc(alloggioNome)}.</p>`; return; }
+    wrap.innerHTML = ticket.map(t => {
+      const data = t.created_at && t.created_at.seconds ? fmtDataIt(new Date(t.created_at.seconds*1000).toISOString().slice(0,10)) : '';
+      const aperto = !t.status;
+      return `
+      <div class="pren-link-item">
+        <div>
+          <div class="pren-link-titolo">${esc(t.category||'Manutenzione')}</div>
+          <div class="pren-link-meta">${esc(t.issue_description||'')}</div>
+          <div class="pren-link-meta">${data ? 'Aperto il '+data : ''}${t.user_id ? ' · '+esc(t.user_id) : ''}</div>
+        </div>
+        <span class="pren-link-stato" style="background:${aperto?'var(--red-bg)':'var(--green-bg)'};color:${aperto?'var(--red)':'var(--green-700)'}">${aperto?'Aperto':'Risolto'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('Errore caricamento manutenzione:', e);
+    wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
 }
 
 // ── MODALE OSPITI / ALLOGGIATI WEB (passaggio separato dalla prenotazione) ─
@@ -1982,6 +2162,7 @@ function apriDocumentiModal() {
   if (!editingId) { showToast('Salva prima la prenotazione, poi carica i documenti'); return; }
   popolaDocTagSelect();
   document.getElementById('doc-file').value = '';
+  impostaStatoUploadDocumento('');
   renderDocumentiList();
   document.getElementById('documenti-modal-overlay').classList.remove('hidden');
 }
@@ -2009,12 +2190,24 @@ function stampaDocumento(url) {
   if (!w) return;
   w.addEventListener('load', () => { try { w.print(); } catch(e) {} });
 }
+function impostaStatoUploadDocumento(testo, tipo) {
+  const el = document.getElementById('doc-upload-status');
+  if (!el) return;
+  if (!testo) { el.classList.add('hidden'); return; }
+  el.textContent = testo;
+  el.className = 'doc-upload-status ' + (tipo || '');
+  el.classList.remove('hidden');
+}
 async function caricaDocumento() {
   if (!editingId) { showToast('Salva prima la prenotazione'); return; }
   const fileInput = document.getElementById('doc-file');
   const file = fileInput.files[0];
   if (!file) { showToast('Seleziona un file'); return; }
   const tag = document.getElementById('doc-tag').value;
+  const btn = document.getElementById('btn-carica-documento');
+  btn.disabled = true;
+  btn.textContent = 'Caricamento in corso…';
+  impostaStatoUploadDocumento('Caricamento in corso…', 'in-corso');
   try {
     const { storage, ref: storageRef, uploadBytes, getDownloadURL } = window._storage;
     const path = `prenotazioni/${editingId}/${Date.now()}_${file.name}`;
@@ -2030,10 +2223,21 @@ async function caricaDocumento() {
     if (p) p.documenti = documenti;
     fileInput.value = '';
     renderDocumentiList();
+    impostaStatoUploadDocumento('Documento caricato con successo.', 'ok');
     showToast('Documento caricato');
   } catch(e) {
     console.error('Errore caricamento documento:', e);
-    showToast('Errore caricamento — verifica che Firebase Storage sia attivo: ' + e.message);
+    const nonAttivo = /storage\/unknown|does not exist|CORS|Failed to fetch/i.test(e.message||'') || e.code === 'storage/unknown';
+    impostaStatoUploadDocumento(
+      nonAttivo
+        ? 'Caricamento fallito: Firebase Storage non risulta attivo su questo progetto. Vai in Console Firebase → Storage → "Inizia" per attivarlo, poi aggiungi le regole di sicurezza (chiedile se non le hai).'
+        : `Caricamento fallito: ${e.message}`,
+      'errore'
+    );
+    showToast('Errore caricamento — vedi il messaggio sopra al pulsante');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Carica documento';
   }
 }
 async function eliminaDocumento(i) {
@@ -2131,19 +2335,75 @@ async function salvaPrenotazione() {
 
   const { db, doc, setDoc, updateDoc } = window._fb;
   try {
+    let idPrenotazione;
     if (editingId) {
+      idPrenotazione = editingId;
       await updateDoc(doc(db, 'prenotazioni', editingId), data);
       showToast('Prenotazione aggiornata');
     } else {
-      const id = `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
-      await setDoc(doc(db, 'prenotazioni', id), { ...data, codice: generaCodice(), createdAt: new Date().toISOString() });
+      idPrenotazione = `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
+      await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, codice: generaCodice(), createdAt: new Date().toISOString() });
       showToast('Prenotazione creata');
     }
+    sincronizzaFamigliaRistorazione(idPrenotazione, data); // non blocca il salvataggio se fallisce
     closeFormModal();
   } catch(e) {
     console.error('Errore salvataggio prenotazione:', e);
     showToast('Errore: ' + e.message);
   }
+}
+
+// ── SINCRONIZZAZIONE ANAGRAFICA RISTORAZIONE ───────────────────────────────
+// Quando la prenotazione ha un trattamento con pasti (PC/MP), tiene allineata
+// un'anagrafica "famiglia" nella collezione famiglie_ristorazione — la stessa
+// usata dal modulo Ristorazione — così lo staff la trova già pronta senza
+// doverla reinserire a mano. L'id della famiglia deriva da quello della
+// prenotazione (uno a uno, mai doppioni): i campi di competenza di
+// Ristorazione (tavolo, codice, ora_arrivo, ospiteId/conto pensione) si
+// impostano solo alla primissima creazione e non vengono più toccati da qui.
+// Se il trattamento torna a "Nessuno" la famiglia esistente non si tocca:
+// va gestita a mano in Ristorazione, per non rischiare di perdere ordini o
+// conti già aperti collegati a lei.
+function etaRappresentativaFasce(data) {
+  const eta = [];
+  for (let i=0;i<(data.bambini_0_2||0);i++)   eta.push(1);
+  for (let i=0;i<(data.bambini_3_4||0);i++)   eta.push(3);
+  for (let i=0;i<(data.bambini_5_9||0);i++)   eta.push(7);
+  for (let i=0;i<(data.bambini_10_17||0);i++) eta.push(13);
+  return eta;
+}
+function generaCodiceRistorazione() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+async function sincronizzaFamigliaRistorazione(prenotazioneId, data) {
+  if (data.trattamento_ristorazione !== 'PC' && data.trattamento_ristorazione !== 'MP') return;
+  try {
+    const { db, doc, setDoc, getDoc } = window._fb;
+    const famigliaId = 'cal_' + prenotazioneId;
+    const notaRistorazione = (data.note||[]).find(n => n.categoria === 'Ristorazione');
+    const payload = {
+      nome: data.nome,
+      unita: data.alloggio_nome,
+      trattamento: data.trattamento_ristorazione,
+      checkin: data.checkin,
+      checkout: data.checkout,
+      adulti: data.adulti,
+      bambini: etaRappresentativaFasce(data),
+      max_ospiti: data.adulti + (data.bambini||0),
+      tel: data.tel || '',
+      note: notaRistorazione ? notaRistorazione.testo : '',
+      calendario_prenotazione_id: prenotazioneId,
+    };
+    const esistente = await getDoc(doc(db, 'famiglie_ristorazione', famigliaId));
+    if (!esistente.exists()) {
+      payload.id = famigliaId;
+      payload.codice = generaCodiceRistorazione();
+      payload.tavolo = '';
+      payload.ora_arrivo = '';
+    }
+    await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), payload, { merge: true });
+  } catch(e) { console.error('Errore sincronizzazione anagrafica Ristorazione:', e); }
 }
 
 function eliminaPrenotazioneCorrente() {
