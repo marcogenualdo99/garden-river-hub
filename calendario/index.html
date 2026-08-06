@@ -132,6 +132,18 @@
 .cal-bar.st-andata      { background: var(--gray-400); }
 .cal-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,0.28); font-size: 8.5px; font-weight: 800; margin-right: 3px; }
 
+/* Allerta dati mancanti: pallino rosso lampeggiante, usato ovunque servano
+   dati ospiti/alloggiati incompleti (barra calendario, pulsante Ospiti...). */
+@keyframes alertPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.8); } }
+.alert-dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--red); box-shadow:0 0 0 2px rgba(239,68,68,.3); animation:alertPulse 1.2s ease-in-out infinite; flex-shrink:0; }
+.cal-bar .alert-dot { position:absolute; top:-3px; right:-3px; z-index:2; }
+.ospiti-btn-alert { margin-left:8px; }
+
+/* Anteprima trascinamento: mostra dove finirebbe la prenotazione se rilasciata
+   ora (giorni "agganciati" alla griglia), separata dalla barra vera che segue
+   il cursore a pixel liberi. */
+.cal-ghost { position:absolute; top:6px; height:42px; border:2px dashed rgba(15,23,42,.4); border-radius:10px; background:rgba(15,23,42,.08); pointer-events:none; z-index:3; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:800; color:var(--gray-700); white-space:nowrap; overflow:hidden; padding:0 4px; }
+
 .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
 
 /* ══ MODALE — box/pulsanti condivisi da assets/theme.css; qui solo le
@@ -711,6 +723,7 @@
         <button type="button" class="ospiti-btn" id="btn-apri-ospiti" onclick="apriOspitiModal()">
           Ospiti · Alloggiati Web
           <span class="ospiti-btn-badge" id="ospiti-btn-badge"></span>
+          <span class="alert-dot ospiti-btn-alert hidden" id="ospiti-btn-alert" title="Dati ospiti/alloggiati incompleti"></span>
         </button>
 
         <button type="button" class="ospiti-btn" id="btn-apri-documenti" onclick="apriDocumentiModal()" style="background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)">
@@ -744,7 +757,7 @@
       </div>
 
       <div class="pren-panel" data-panel="bici">
-        <p class="section-hint">Noleggi bici trovati per corrispondenza sul nome ospite — <strong>non è un collegamento certo</strong> (il modulo Bici oggi non registra l'alloggio), verifica sempre nel modulo Bici prima di decisioni importanti.</p>
+        <p class="section-hint">Noleggi collegati con certezza a questo alloggio (impostato in Bici al momento del ritiro) — l'importo, una volta incassato, viene aggiunto automaticamente al Conto di questa prenotazione.</p>
         <div id="pren-bici-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
       </div>
 
@@ -1377,6 +1390,17 @@ function statoPrenotazione(p) {
   return { cls: 'st-confermata', label: 'Confermata' };
 }
 
+// Dati ospiti/alloggiati incompleti: mancano ospiti censiti rispetto alle
+// persone in prenotazione, oppure quelli censiti hanno campi obbligatori
+// vuoti. Usata per l'allerta (pallino rosso lampeggiante) sulla barra del
+// calendario e sul pulsante Ospiti, non blocca nulla da sola.
+function prenotazioneDatiIncompleti(p) {
+  const totalePersone = (p.adulti||0) + (p.bambini||0);
+  const ospiti = p.ospiti || [];
+  if (ospiti.length < Math.max(totalePersone, 1)) return true;
+  return validaOspiti(ospiti).length > 0;
+}
+
 // ── NAVIGAZIONE TIMELINE ─────────────────────────────────────────────────
 function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); }
 function goToday()    { viewStart = isoToday(0); renderGrid(); }
@@ -1458,9 +1482,12 @@ function renderGrid() {
         if (p.trattamento_ristorazione === 'PC') titleParts.push('Pensione completa');
         else if (p.trattamento_ristorazione === 'MP') titleParts.push('Mezza pensione');
         if (kitDesc) titleParts.push(`Biancheria: ${kitDesc}`);
+        const datiIncompleti = prenotazioneDatiIncompleti(p);
+        if (datiIncompleti) titleParts.push('⚠ Dati ospiti/alloggiati incompleti');
         html += `<div class="cal-bar ${stato.cls}" style="left:${left}px;width:${width}px" title="${esc(titleParts.join(' — '))}"
           onmousedown="iniziaDragPrenotazione(event,'${esc(p.id)}')"
           onclick="event.stopPropagation(); if(_ultimoDragEffettivo){_ultimoDragEffettivo=false;} else {apriModificaPrenotazione('${esc(p.id)}')}">
+          ${datiIncompleti ? '<span class="alert-dot" title="Dati ospiti/alloggiati incompleti"></span>' : ''}
           <div class="nome">${esc(p.nome||'—')}</div>
           <div class="meta">${flags.join('')}${p.adulti||0}+${p.bambini||0}</div>
         </div>`;
@@ -1498,9 +1525,11 @@ function iniziaDragPrenotazione(ev, id) {
   dragCtx = {
     id, startX: ev.clientX, startY: ev.clientY,
     origLeft: parseFloat(barEl.style.left) || 0,
-    barEl,
+    origWidth: parseFloat(barEl.style.width) || 0,
+    barEl, origTrackEl: trackEl,
     origAlloggioId: p.alloggio_id, origCheckin: p.checkin, origCheckout: p.checkout,
     moved: false,
+    ghostEl: null,
   };
   document.addEventListener('mousemove', onDragMouseMove);
   document.addEventListener('mouseup', onDragMouseUp);
@@ -1517,13 +1546,30 @@ function onDragMouseMove(ev) {
   }
   dragCtx.barEl.style.left = (dragCtx.origLeft + dx) + 'px';
   document.querySelectorAll('.cal-row-track.drop-target').forEach(el => el.classList.remove('drop-target'));
-  const hoverTrack = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cal-row-track');
-  if (hoverTrack) hoverTrack.classList.add('drop-target');
+  const hoverTrack = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.cal-row-track') || dragCtx.origTrackEl;
+  hoverTrack.classList.add('drop-target');
+
+  // Anteprima: dove finirebbe la prenotazione se rilasciata ora, agganciata
+  // ai giorni della griglia (la barra vera invece segue il cursore a pixel
+  // liberi, per un trascinamento morbido).
+  const dayDelta = Math.round(dx / DAY_W);
+  const nuovoCheckin  = addDaysIso(dragCtx.origCheckin, dayDelta);
+  const nuovoCheckout = addDaysIso(dragCtx.origCheckout, dayDelta);
+  const left = diffDays(viewStart, nuovoCheckin) * DAY_W + 2;
+  if (!dragCtx.ghostEl) {
+    dragCtx.ghostEl = document.createElement('div');
+    dragCtx.ghostEl.className = 'cal-ghost';
+    dragCtx.ghostEl.style.width = dragCtx.origWidth + 'px';
+  }
+  if (dragCtx.ghostEl.parentElement !== hoverTrack) hoverTrack.appendChild(dragCtx.ghostEl);
+  dragCtx.ghostEl.style.left = left + 'px';
+  dragCtx.ghostEl.textContent = `${fmtDataIt(nuovoCheckin)} → ${fmtDataIt(nuovoCheckout)}`;
 }
 function onDragMouseUp(ev) {
   document.removeEventListener('mousemove', onDragMouseMove);
   document.removeEventListener('mouseup', onDragMouseUp);
   document.querySelectorAll('.cal-row-track.drop-target').forEach(el => el.classList.remove('drop-target'));
+  if (dragCtx && dragCtx.ghostEl) dragCtx.ghostEl.remove();
   if (!dragCtx) return;
   const ctx = dragCtx;
   dragCtx = null;
@@ -1894,26 +1940,24 @@ function switchPrenTab(tab) {
 
 async function caricaPannelloBici() {
   const wrap = document.getElementById('pren-bici-content');
-  const nomeOspite = document.getElementById('f-nome').value.trim();
-  if (!nomeOspite) { wrap.innerHTML = '<p class="section-hint">Inserisci il nome ospite per cercare i noleggi.</p>'; return; }
+  const alloggioSel = document.getElementById('f-alloggio');
+  const alloggioNome = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.nome : '';
+  if (!alloggioNome) { wrap.innerHTML = '<p class="section-hint">Seleziona un alloggio per vedere i noleggi collegati.</p>'; return; }
   wrap.innerHTML = '<p class="section-hint">Caricamento…</p>';
   try {
     const { db, collection, getDocs } = window._fb;
     const snap = await getDocs(collection(db, 'bici'));
-    const chiave = nomeOspite.toLowerCase();
-    const primaParola = chiave.split(/\s+/)[0];
     const risultati = [];
     snap.docs.forEach(d => {
       const bici = d.data();
       const voci = [{ ...bici, storico:false }, ...((bici.log||[]).map(v => ({...v, storico:true})))];
       voci.forEach(v => {
-        const nomeVoce = (v.clienteNome||'').toLowerCase();
-        if (nomeVoce && primaParola && nomeVoce.includes(primaParola)) {
+        if (v.clienteAlloggio === alloggioNome) {
           risultati.push({ numero: bici.numero, tipologia: bici.tipologia, clienteNome: v.clienteNome, ritiroTs: v.ritiroTs, rientroTs: v.rientroTs, storico: v.storico });
         }
       });
     });
-    if (!risultati.length) { wrap.innerHTML = '<p class="section-hint">Nessun noleggio trovato per questo nome.</p>'; return; }
+    if (!risultati.length) { wrap.innerHTML = '<p class="section-hint">Nessun noleggio collegato a questo alloggio (o il noleggio è stato aperto senza indicare l\'alloggio in Bici).</p>'; return; }
     risultati.sort((a,b) => (b.ritiroTs||'').localeCompare(a.ritiroTs||''));
     wrap.innerHTML = risultati.map(r => `
       <div class="pren-link-item">
@@ -1945,14 +1989,41 @@ async function caricaPannelloRistorazione() {
           <div class="pren-link-titolo">${esc(f.nome||'')}</div>
           <div class="pren-link-meta">${esc(f.unita||'')} · ${trattLabel} · ${esc(f.checkin||'')} → ${esc(f.checkout||'')}</div>
           <div class="pren-link-meta">${f.adulti||0} adulti, ${(f.bambini||[]).length} bambini${f.tavolo ? ' · Tavolo '+esc(f.tavolo) : ' · Tavolo non ancora assegnato'}</div>
-          ${f.note ? `<div class="pren-link-meta">Nota: ${esc(f.note)}</div>` : ''}
         </div>
         <span class="pren-link-stato" style="background:var(--green-bg);color:var(--green-700)">Collegata</span>
       </div>
-      <p class="section-hint">Codice famiglia: ${esc(f.codice||'—')}. Per ordini, tavolo e altre impostazioni vai nel modulo Ristorazione.</p>`;
+      <p class="section-hint">Codice famiglia: ${esc(f.codice||'—')} · Conto pensione: ${f.ospiteId ? 'collegato' : 'non ancora collegato'}. Per ordini, tavolo e altre impostazioni vai nel modulo Ristorazione.</p>
+      <div style="margin-top:10px">
+        <label class="f-label">Nota Ristorazione (allergie, intolleranze, richieste in cucina...)</label>
+        <textarea class="f-textarea" id="pren-ristorazione-nota" placeholder="Es. celiaco, intollerante al lattosio, cane…">${esc(f.note||'')}</textarea>
+        <button type="button" class="conto-link-btn" style="margin-top:8px" onclick="salvaNotaRistorazionePanel()">Salva nota Ristorazione</button>
+      </div>`;
   } catch(e) {
     console.error('Errore caricamento ristorazione:', e);
     wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
+}
+async function salvaNotaRistorazionePanel() {
+  if (!editingId) return;
+  const ta = document.getElementById('pren-ristorazione-nota');
+  if (!ta) return;
+  const valore = ta.value;
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'famiglie_ristorazione', 'cal_' + editingId), { note: valore });
+    // Allinea anche la nota di categoria "Ristorazione" della prenotazione, così
+    // il prossimo salvataggio da qui non la sovrascrive con un valore vecchio.
+    const cat = noteCorrenti.find(n => n.categoria === 'Ristorazione');
+    if (cat) cat.testo = valore;
+    if (noteCategoriaAttiva === 'Ristorazione') {
+      const notaTa = document.getElementById('f-note-testo');
+      if (notaTa) notaTa.value = valore;
+    }
+    renderNoteTabsSoloPallini();
+    showToast('Nota Ristorazione aggiornata');
+  } catch(e) {
+    console.error('Errore salvataggio nota Ristorazione:', e);
+    showToast('Errore: ' + e.message);
   }
 }
 
@@ -2007,6 +2078,11 @@ function aggiornaBadgeOspiti() {
   badge.textContent = `${numOspiti}/${totalePersone}`;
   badge.style.background = numOspiti >= totalePersone ? 'var(--green-ok)' : 'var(--white)';
   badge.style.color = numOspiti >= totalePersone ? '#fff' : 'var(--green-700)';
+  const alertDot = document.getElementById('ospiti-btn-alert');
+  if (alertDot) {
+    const incompleto = numOspiti < totalePersone || validaOspiti(raccogliOspitiDaForm()).length > 0;
+    alertDot.classList.toggle('hidden', !incompleto);
+  }
 }
 
 // ── NOTE PER CATEGORIA (Generali/Ristorazione/Pulizie/ecc., configurabili
@@ -2396,6 +2472,7 @@ async function sincronizzaFamigliaRistorazione(prenotazioneId, data) {
       calendario_prenotazione_id: prenotazioneId,
     };
     const esistente = await getDoc(doc(db, 'famiglie_ristorazione', famigliaId));
+    const datiEsistenti = esistente.exists() ? esistente.data() : null;
     if (!esistente.exists()) {
       payload.id = famigliaId;
       payload.codice = generaCodiceRistorazione();
@@ -2403,7 +2480,34 @@ async function sincronizzaFamigliaRistorazione(prenotazioneId, data) {
       payload.ora_arrivo = '';
     }
     await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), payload, { merge: true });
+    // Senza questo, una famiglia arrivata da qui restava priva di conto pensione
+    // finché qualcuno non la riapriva in Ristorazione: replichiamo qui la stessa
+    // logica di sincronizzaContoPensione() di ristorazione/staff.html.
+    await sincronizzaContoPensioneDaCalendario(famigliaId, payload, datiEsistenti);
   } catch(e) { console.error('Errore sincronizzazione anagrafica Ristorazione:', e); }
+}
+
+async function sincronizzaContoPensioneDaCalendario(famigliaId, fam, datiEsistenti) {
+  const { db, doc, setDoc } = window._fb;
+  const ospiteIdEsistente = datiEsistenti && datiEsistenti.ospiteId;
+  // Se il conto non esiste ancora e il checkout è già passato, la famiglia è
+  // già ripartita: non ha senso aprirne uno ora (stesso criterio usato in
+  // Ristorazione). Se esisteva già lo aggiorniamo comunque.
+  if (!ospiteIdEsistente && fam.checkout && fam.checkout < isoToday(0)) return;
+  const parti = (fam.nome || '').trim().split(/\s+/);
+  const nome = parti[0] || '';
+  const cognome = parti.slice(1).join(' ');
+  const piano = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId };
+  try {
+    let ospiteId = ospiteIdEsistente;
+    if (!ospiteId) {
+      ospiteId = 'osp_' + famigliaId;
+      await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), { ospiteId }, { merge: true });
+      datiOspite.chiuso = false;
+    }
+    await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
+  } catch(e) { console.error('Errore sincronizzazione conto pensione:', e); }
 }
 
 function eliminaPrenotazioneCorrente() {
