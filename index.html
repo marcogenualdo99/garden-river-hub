@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/theme.css?v=1785930089">
+<link rel="stylesheet" href="assets/theme.css?v=1786056020">
 <script src="assets/icons.js?v=1785930089"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -248,6 +248,7 @@
 <div class="app-shell">
 
 <!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══ -->
+<div class="nav-zone">
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-brand">
     <img src="logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
@@ -299,6 +300,7 @@
   <div class="rail-spacer"></div>
   <div class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></div>
 </aside>
+</div>
 
 <div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
 <div class="drawer" id="drawer">
@@ -1094,20 +1096,16 @@ function applyHeader() {
   if (homeEyebrow) homeEyebrow.textContent = dataOggi();
   if (homeTitle)   homeTitle.textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
 
-  // Rinnova silenziosamente il token push se le notifiche erano già attive su questo
-  // dispositivo — al massimo una volta al giorno, TRANNE quando è appena cambiato
-  // l'operatore collegato (dispositivo condiviso): in quel caso riassegna subito
-  // il token al nuovo operatore senza aspettare il giorno successivo.
-  const storedOp        = localStorage.getItem('gcm_operatore');
-  const operatoreCambiato = !!storedOp && storedOp !== currentOperatore;
-  const ultimoRefresh    = Number(localStorage.getItem('gcm_last_refresh') || 0);
-  const giornoInMs       = 24 * 60 * 60 * 1000;
+  // Rinnova silenziosamente il token push ad ogni apertura della Hub, se le
+  // notifiche erano già attive su questo dispositivo — i token FCM possono
+  // invalidarsi in qualsiasi momento (aggiornamento del browser, pulizia dati,
+  // ecc.) quindi non ha senso limitare il refresh a una volta al giorno: la
+  // chiamata è leggera e ci assicura che il token su Firestore sia sempre
+  // quello corrente, invece di scoprire che è morto solo quando un ordine
+  // non genera notifica.
   if (window._abilitaNotifichePush && 'Notification' in window && Notification.permission === 'granted'
-      && localStorage.getItem('gcm_token')
-      && (operatoreCambiato || (Date.now() - ultimoRefresh) > giornoInMs)) {
-    window._abilitaNotifichePush(currentOperatore || 'Staff')
-      .then(() => localStorage.setItem('gcm_last_refresh', String(Date.now())))
-      .catch(() => {});
+      && localStorage.getItem('gcm_token')) {
+    window._abilitaNotifichePush(currentOperatore || 'Staff').catch(() => {});
   }
 }
 
@@ -1307,6 +1305,7 @@ function toggleNavGroup(btn) {
 function toggleDrawer(open) {
   document.getElementById('drawer').classList.toggle('open', open);
   document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.body.classList.toggle('drawer-open', open);
 }
 
 // ── IMPOSTAZIONI (solo admin) ─────────────────────────────────────────────
