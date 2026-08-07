@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Conti Aperti · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
@@ -15,11 +15,10 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork, arrayUnion, arrayRemove }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -33,75 +32,9 @@
   const fbApp = initializeApp(firebaseConfig);
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
-  const messaging = getMessaging(fbApp);
-
-  // 👉 Generata da: Firebase Console → Impostazioni progetto → Cloud Messaging
-  //    → "Web Push certificates" → Generate key pair. Incolla qui la chiave.
-  const VAPID_KEY = "BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg";
-
-  // Richiede il permesso di notifica, registra il service worker dedicato e
-  // salva il token del dispositivo su Firestore, associato all'operatore
-  // che ha eseguito l'azione (può avere più dispositivi: usiamo arrayUnion).
-  window._abilitaNotifichePush = async function(operatoreNome) {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      return { ok: false, motivo: 'non-supportato' };
-    }
-    try {
-      const permesso = await Notification.requestPermission();
-      if (permesso !== 'granted') return { ok: false, motivo: 'negato' };
-
-      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-      if (!token) return { ok: false, motivo: 'nessun-token' };
-
-      const vecchioToken = localStorage.getItem('gcm_token');
-      const vecchioOp    = localStorage.getItem('gcm_operatore');
-
-      // Rimuovi il vecchio token di questo dispositivo (operatore cambiato o token rinnovato)
-      if (vecchioToken && vecchioToken !== token) {
-        const opDaRipulire = vecchioOp || operatoreNome;
-        try { await updateDoc(doc(db, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
-      }
-      // Rimuovi il token corrente dall'operatore precedente se è cambiato
-      if (vecchioOp && vecchioOp !== operatoreNome) {
-        try { await updateDoc(doc(db, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
-      }
-
-      await setDoc(doc(db, 'staffTokens', operatoreNome), {
-        tokens: arrayUnion(token),
-        notifiche: true,
-        aggiornato: Date.now()
-      }, { merge: true });
-
-      localStorage.setItem('gcm_token', token);
-      localStorage.setItem('gcm_operatore', operatoreNome);
-      return { ok: true };
-    } catch (e) {
-      console.error('Errore attivazione notifiche push:', e);
-      return { ok: false, motivo: 'errore', dettaglio: e.message };
-    }
-  };
 
   // Expose to global scope so the main script (non-module) can use it
   window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
-
-  // Trasferisce automaticamente il token FCM al nuovo operatore quando cambia chi usa il dispositivo
-  window._riallineaTokenFCM = async function(operatoreNome) {
-    const savedToken = localStorage.getItem('gcm_token');
-    const savedOp    = localStorage.getItem('gcm_operatore');
-    if (!savedToken || savedOp === operatoreNome) return;
-    try {
-      if (savedOp) {
-        await updateDoc(doc(db, 'staffTokens', savedOp), { tokens: arrayRemove(savedToken) });
-      }
-      await setDoc(doc(db, 'staffTokens', operatoreNome), {
-        tokens: arrayUnion(savedToken),
-        notifiche: true,
-        aggiornato: Date.now()
-      }, { merge: true });
-      localStorage.setItem('gcm_operatore', operatoreNome);
-    } catch(e) { console.error('Errore riallineamento token FCM:', e); }
-  };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -139,6 +72,7 @@
   --gray-700:  #374151;
   --gray-500:  #6B7280;
   --gray-300:  #D1D5DB;
+  --gray-200:  #E5E7EB;
   --gray-100:  #F3F4F6;
   --gray-50:   #F9FAFB;
   --white:     #FFFFFF;
@@ -184,7 +118,7 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .pin-dot.filled { background: var(--green-700); border-color: var(--green-700); }
 .pin-dot.error  { background: var(--red); border-color: var(--red); }
 .pin-keypad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 6px; }
-.pin-key { height: 56px; border: 1.5px solid var(--gray-200,#E5E7EB); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
+.pin-key { height: 56px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-size: 22px; font-weight: 600; color: var(--gray-900); cursor: pointer; font-family: var(--font); display: flex; align-items: center; justify-content: center; transition: background .1s; -webkit-tap-highlight-color: transparent; }
 .pin-key:active { background: var(--gray-100); }
 .pin-key.del    { font-size: 18px; color: var(--gray-500); }
 .pin-key.empty  { border: none; background: none; cursor: default; }
@@ -348,7 +282,17 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 .empty { text-align: center; padding: 48px 20px; color: var(--gray-500); font-size: 14px; line-height: 1.7; }
 
 /* ══ TOAST ════════════════════════════════════════════════════════════════════ */
-.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+/* ══ MODAL ═══════════════════════════════════════════════════════════════════ */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-overlay.hidden { display: none; }
+.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); }
+.modal-title { font-size: 17px; font-weight: 800; color: var(--gray-900); margin-bottom: 8px; }
+.modal-body  { font-size: 14px; color: var(--gray-500); line-height: 1.6; margin-bottom: 20px; white-space: pre-line; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-btn-cancel  { flex: 1; height: 48px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.modal-btn-confirm { flex: 1; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ══ MISC ═════════════════════════════════════════════════════════════════════ */
@@ -413,15 +357,32 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
+      <div style="position:relative" id="stampa-menu-wrap">
+        <button class="hbtn ghost" onclick="toggleStampaMenu()" title="Stampa riepilogo conti" style="font-size:12px;gap:5px;display:flex;align-items:center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Stampa ▾
+        </button>
+        <div id="stampa-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1.5px solid var(--gray-200);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;min-width:180px;overflow:hidden">
+          <button onclick="stampaRiepilogoConti();toggleStampaMenu()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:10px;color:var(--gray-700)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            PDF / Condividi
+          </button>
+          <div style="height:1px;background:var(--gray-100)"></div>
+          <button onclick="stampaRiepilogoTermica().catch(e=>alert('Errore JS: '+e.message));toggleStampaMenu()" style="width:100%;padding:12px 16px;border:none;background:none;text-align:left;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:10px;color:var(--gray-700)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V3H8v4"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+            Termica
+          </button>
+        </div>
+      </div>
       <button class="hbtn ghost icon" onclick="switchTab('setup')" id="btn-setup" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <div id="sync-status" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
+      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+      <div id="sync-status" style="display:none;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gray-500)">
         <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
         <span id="sync-label" style="display:none"></span>
       </div>
-      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora" id="btn-refresh">&#8635;</button>
     </div>
   </div>
   <div class="nav-wrap">
@@ -463,6 +424,10 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
     </div>
     <div id="ospiti-list"></div>
+    <div id="in-arrivo-wrap" style="display:none;margin-top:22px">
+      <p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">In arrivo — non ancora conteggiati tra i conti aperti</p>
+      <div id="in-arrivo-list"></div>
+    </div>
   </div>
 
   <!-- SCADENZE -->
@@ -512,7 +477,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <div class="back-title" id="det-nome">—</div>
         <div class="back-sub"   id="det-sub">—</div>
       </div>
-      <button class="back-btn" id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica">&#9998;</button>
+      <button id="btn-edit-ospite" onclick="goModificaOspite()" title="Modifica anagrafica" style="display:flex;align-items:center;gap:6px;background:var(--gray-100);border:none;border-radius:20px;padding:0 14px;height:36px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;color:var(--gray-700)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modifica
+      </button>
+      <button onclick="stampaContoTermica().catch(e=>alert('Errore JS: '+e.message))" title="Stampa conto su stampante termica" style="display:flex;align-items:center;gap:6px;background:var(--gray-100);border:none;border-radius:20px;padding:0 14px;height:36px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:700;color:var(--gray-700)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Stampa
+      </button>
       <div style="text-align:right">
         <div style="font-size:24px;font-weight:800;color:var(--green-ok)" id="det-totale">0,00 €</div>
         <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
@@ -521,9 +493,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
     <div style="display:flex;gap:10px;margin-bottom:16px">
       <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
       <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
-      <button class="btn-action ghost" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl)">Chiudi</button>
     </div>
     <div id="ordini-list"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn-action" id="btn-azzera-conto" onclick="azzeraConto()" style="border-radius:var(--radius-xl);background:#FEF3C7;color:#B45309">Segna come pagato</button>
+      <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
+    </div>
   </div>
 
   <!-- REPORT -->
@@ -590,6 +565,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         </div>
         <div class="form-group"><label>Data checkout</label><input type="date" id="mo-checkout"></div>
       </div>
+      <div class="form-group"><label>Cellulare</label><input type="tel" id="mo-tel" placeholder="es. 333 1234567"></div>
       <button class="btn-primary" onclick="salvaModificaOspite()">Salva modifiche</button>
     </div>
   </div>
@@ -645,10 +621,16 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
       <div id="debug-panel" style="display:none;margin-top:12px;background:#1e1e2e;border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:11px;color:#cdd6f4;line-height:1.7;word-break:break-all;max-height:240px;overflow-y:auto"></div>
     </div>
     <div class="card">
-      <h3>Notifiche</h3>
-      <p class="subtitle">Ricevi un avviso quando un conto aperto ha il checkout il giorno dopo.</p>
-      <p id="notifiche-status" style="font-size:13px;color:var(--gray-500);margin-bottom:10px">Verifica in corso...</p>
-      <button id="btn-attiva-notifiche" onclick="attivaNotifiche()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
+      <h3>Famiglie Ristorazione</h3>
+      <p class="subtitle">Le famiglie inserite in Ristorazione con un trattamento (mezza o pensione completa) generano automaticamente il conto collegato qui in Conti. Usa questo pulsante solo per le famiglie inserite prima di questa funzione, o se sospetti che qualche conto sia rimasto disallineato.</p>
+      <button id="btn-sync-famiglie" onclick="sincronizzaFamiglieEsistenti()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Sincronizza famiglie esistenti</button>
+      <p id="sync-famiglie-esito" style="font-size:12px;color:var(--gray-500);margin-top:10px"></p>
+      <button id="btn-check-duplicati" onclick="controllaDuplicatiSync()" style="width:100%;height:44px;margin-top:14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Controlla conti duplicati</button>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:6px">Confronta i conti creati dalla sincronizzazione con quelli già esistenti (stesso nome e alloggio) e ti fa vedere solo quelli sospetti — non cancella nulla da solo.</p>
+      <div id="duplicati-list" style="margin-top:10px"></div>
+      <button id="btn-check-scaduti" onclick="controllaContiScaduti()" style="width:100%;height:44px;margin-top:14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Controlla conti di famiglie già partite</button>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:6px">Trova i conti ancora aperti con data di checkout già passata. Se sono vuoti puoi eliminarli, altrimenti chiudili e incassali normalmente.</p>
+      <div id="scaduti-list" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>Utenti e permessi</h3>
@@ -659,13 +641,13 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 
 </main>
 <!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
-<div id="modal-overlay" style="display:none;position:fixed;inset:0;z-index:998;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;padding-bottom:24px">
-  <div style="background:var(--white);border-radius:var(--radius-lg);padding:24px 20px;width:calc(100% - 28px);max-width:400px;box-shadow:var(--shadow-lg)">
-    <div id="modal-title" style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:8px"></div>
-    <div id="modal-body"  style="font-size:14px;color:var(--gray-500);line-height:1.6;margin-bottom:20px;white-space:pre-line"></div>
-    <div style="display:flex;gap:10px">
-      <button id="modal-cancel" onclick="closeModal()" style="flex:1;height:48px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Annulla</button>
-      <button id="modal-confirm" style="flex:1;height:48px;background:var(--green-700);color:var(--white);border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)">Conferma</button>
+<div id="modal-overlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div id="modal-title" class="modal-title"></div>
+    <div id="modal-body"  class="modal-body"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
     </div>
   </div>
 </div>
@@ -704,6 +686,11 @@ let fbConnected      = false;
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
+// Rende sicuro un valore da inserire dentro un attributo onclick="...('VALORE')" —
+// se l'id di un ospite/ordine contenesse un apice o un backslash (es. un
+// documento creato a mano con un id insolito), senza questo escaping il
+// pulsante smetterebbe di funzionare in silenzio (attributo HTML rotto).
+function escJs(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 function isAdmin()    { return !!hubSession && hubSession.ruolo === 'admin'; }
 function fmt(n)       { return n.toFixed(2).replace('.',',') + ' €'; }
 function fmtTs(ts) {
@@ -756,7 +743,25 @@ function refreshAlloggioSelects() {
     if (el) populateAlloggioSelect(el, el.value);
   });
 }
-function totOspite(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
+// Data/ora locale nello stesso formato "YYYY-MM-DDTHH:mm" usato dal campo
+// data/ora dell'ordine (or-ts), così il confronto tra stringhe funziona
+// correttamente in ordine cronologico.
+function nowLocalISO() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+// Ordini "correnti" di un ospite: se il conto è stato azzerato (pagatoFinoA),
+// esclude gli ordini precedenti a quel momento — sono già stati incassati e
+// restano solo nello storico, non vengono mai cancellati.
+function ordiniAttivi(ospiteId) {
+  const o = ospiti.find(x => x.id === ospiteId);
+  const soglia = o && o.pagatoFinoA;
+  return ordini.filter(x => x.ospiteId === ospiteId && (!soglia || x.ts > soglia));
+}
+// Totale corrente (da incassare adesso) di un conto aperto.
+function totOspite(id){ return ordiniAttivi(id).reduce((s,o)=>s+o.importo,0); }
+// Totale storico/lifetime di un conto (usato solo per i conti chiusi/incassati).
+function totOspiteStorico(id){ return ordini.filter(o=>o.ospiteId===id).reduce((s,o)=>s+o.importo,0); }
 function pianoLabel(piano) {
   if (piano === 'completa') return 'Pensione completa';
   if (piano === 'nessuno')  return 'Conto libero';
@@ -949,6 +954,226 @@ async function fsDeleteOrdine(id) {
   await deleteDoc(doc(db, 'ordini', id));
 }
 
+// Propaga le modifiche fatte qui in Conti verso la famiglia collegata in
+// Ristorazione (collezione 'famiglie_ristorazione', stesso progetto
+// Firestore), quando quel collegamento esiste già (ospite.famigliaId).
+// L'inserimento principale resta in Ristorazione: questa funzione NON crea
+// mai una nuova famiglia, aggiorna solo quella già collegata — così un
+// conto registrato qui manualmente (es. conto libero senza famiglia) resta
+// un conto indipendente, senza generare doppioni dall'altra parte.
+async function sincronizzaFamigliaRistorazione(ospiteId, ospite) {
+  if (!ospite.famigliaId) return;
+  await waitForFirebase();
+  const { db, doc, setDoc } = window._fb;
+  if (ospite.piano !== 'mezza' && ospite.piano !== 'completa') {
+    // Conto libero: azzeriamo solo il trattamento della famiglia collegata
+    // (il cellulare resta comunque sincronizzato).
+    try { await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), { trattamento: '', tel: ospite.tel || '' }, { merge: true }); }
+    catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
+    return;
+  }
+  const trattamento  = ospite.piano === 'completa' ? 'PC' : 'MP';
+  const nomeCompleto = [ospite.nome, ospite.cognome].filter(Boolean).join(' ');
+  const datiFamiglia = { nome: nomeCompleto, unita: ospite.alloggio || '', trattamento, checkout: ospite.checkout || '', tel: ospite.tel || '' };
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', ospite.famigliaId), datiFamiglia, { merge: true });
+  } catch(e) { console.error('Errore sync famiglia ristorazione:', e); }
+}
+
+// Backfill una tantum: scorre TUTTE le famiglie di Ristorazione e crea (o
+// aggiorna) il conto pensione collegato per quelle con un trattamento —
+// serve per le famiglie inserite prima che questa sincronizzazione
+// esistesse, o se qualche conto è rimasto disallineato. Stessa identica
+// logica di sincronizzaContoPensione() in Ristorazione: nessun conto viene
+// mai cancellato o duplicato, i collegamenti già presenti vengono solo
+// aggiornati.
+async function sincronizzaFamiglieEsistenti() {
+  showModal(
+    'Sincronizza famiglie esistenti',
+    'Cerca tutte le famiglie di Ristorazione con un trattamento (mezza o pensione completa) e crea/aggiorna il conto pensione collegato. Non cancella né duplica nulla.',
+    'Sincronizza ora', 'var(--green-700)',
+    async () => {
+      const btn   = document.getElementById('btn-sync-famiglie');
+      const esito = document.getElementById('sync-famiglie-esito');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sincronizzazione in corso...'; }
+      if (esito) esito.textContent = '';
+      try {
+        await waitForFirebase();
+        const { db, collection, getDocs, doc, setDoc } = window._fb;
+        const snap = await getDocs(collection(db, 'famiglie_ristorazione'));
+        const famiglie = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        let creati = 0, aggiornati = 0, saltati = 0, ignoratiPartiti = 0;
+        for (const fam of famiglie) {
+          if (fam.trattamento !== 'PC' && fam.trattamento !== 'MP') { saltati++; continue; }
+          // Se non esiste ancora un conto collegato e il checkout è già
+          // passato, la famiglia è già ripartita: non ha senso aprire ora un
+          // conto per lei. Se il conto esisteva già, invece, lo aggiorniamo
+          // comunque (potrebbe avere ancora un saldo da chiudere).
+          if (!fam.ospiteId && fam.checkout && fam.checkout < oggi()) { ignoratiPartiti++; continue; }
+          const parti    = (fam.nome || '').trim().split(/\s+/);
+          const nome     = parti[0] || '';
+          const cognome  = parti.slice(1).join(' ');
+          const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId: fam.id };
+          let ospiteId = fam.ospiteId;
+          if (!ospiteId) {
+            ospiteId = 'osp_' + fam.id;
+            await setDoc(doc(db, 'famiglie_ristorazione', fam.id), { ospiteId }, { merge: true });
+            datiOspite.chiuso = false; // nuovo conto: parte aperto
+            creati++;
+          } else {
+            aggiornati++;
+          }
+          await setDoc(doc(db, 'ospiti', ospiteId), datiOspite, { merge: true });
+        }
+        if (esito) esito.textContent = `Fatto: ${creati} conti creati, ${aggiornati} aggiornati, ${saltati} famiglie senza trattamento ignorate, ${ignoratiPartiti} famiglie già ripartite ignorate.`;
+        showToast('Sincronizzazione completata!');
+      } catch(e) {
+        console.error('Errore sincronizzazione famiglie:', e);
+        if (esito) esito.textContent = 'Errore durante la sincronizzazione — riprova.';
+        showToast('Errore durante la sincronizzazione — riprova');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Sincronizza famiglie esistenti'; }
+      }
+    }
+  );
+}
+
+// Chiave per confrontare due ospiti e capire se sono "la stessa persona":
+// stesso nome, cognome e alloggio (case-insensitive).
+function chiaveOspite(o) {
+  return `${(o.nome||'').trim().toLowerCase()}|${(o.cognome||'').trim().toLowerCase()}|${(o.alloggio||'').trim().toLowerCase()}`;
+}
+
+// Diagnostica di sola lettura: i conti creati dalla sincronizzazione hanno
+// sempre id nella forma "osp_fam_...". Per ciascuno di questi, cerca un
+// altro conto (creato a mano, prima di questa funzione) con stesso
+// nome+cognome+alloggio — probabile duplicato dello stesso ospite. Non
+// cancella nulla da sola: mostra solo un elenco su cui decidere.
+function controllaDuplicatiSync() {
+  const creatiDaSync = ospiti.filter(o => o.id.startsWith('osp_fam_'));
+  const wrap = document.getElementById('duplicati-list');
+  if (!creatiDaSync.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--gray-500)">Nessun conto creato dalla sincronizzazione trovato.</p>';
+    return;
+  }
+  const righe = creatiDaSync.map(o => {
+    const chiave = chiaveOspite(o);
+    const altri = ospiti.filter(x => x.id !== o.id && chiaveOspite(x) === chiave);
+    if (!altri.length) return null; // nessun possibile duplicato per questo conto
+    const nOrdini = ordini.filter(x => x.ospiteId === o.id).length;
+    const sicuro = nOrdini === 0;
+    return `<div class="ospite-card" style="border-left:4px solid var(--orange)">
+      <div class="ospite-header">
+        <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+        <div class="ospite-info">
+          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+          <div class="ospite-sub">${o.alloggio||'—'} · creato dalla sincronizzazione</div>
+          <div class="ospite-sub" style="margin-top:2px">Possibile duplicato di ${altri.length} altro/i conto/i con stesso nome e alloggio</div>
+          <div style="font-size:11px;font-weight:700;color:${sicuro?'var(--green-ok)':'var(--red)'};margin-top:4px">
+            ${sicuro ? 'Nessun ordine registrato su questo conto — sicuro da eliminare' : nOrdini+' ordini già registrati — NON eliminare, controlla prima a mano'}
+          </div>
+        </div>
+      </div>
+      <div class="ospite-actions">
+        <button class="btn-action ghost" onclick="goDettaglio('${escJs(o.id)}')">Apri questo conto</button>
+        ${sicuro ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${escJs(o.id)}')">Elimina duplicato</button>` : ''}
+      </div>
+    </div>`;
+  }).filter(Boolean);
+  wrap.innerHTML = righe.length
+    ? `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${righe.length} possibile/i duplicato/i trovato/i, su ${creatiDaSync.length} conti creati dalla sincronizzazione</p>` + righe.join('')
+    : `<p style="font-size:13px;color:var(--gray-500)">${creatiDaSync.length} conti creati dalla sincronizzazione, nessun possibile duplicato trovato.</p>`;
+}
+
+// Diagnostica di sola lettura: conti ancora aperti il cui checkout è già
+// passato — probabilmente famiglie già ripartite (magari il loro conto è
+// stato creato dalla sincronizzazione, che prima non controllava le date).
+// Se il conto ha ordini registrati va chiuso normalmente (incassa e sposta
+// tra i "Conti chiusi"); se è vuoto (mai usato) può essere eliminato del
+// tutto senza perdere nulla.
+function controllaContiScaduti() {
+  const scaduti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o) && o.checkout && giorniA(o.checkout) < 0)
+    .sort((a,b) => new Date(a.checkout) - new Date(b.checkout));
+  const wrap = document.getElementById('scaduti-list');
+  if (!scaduti.length) {
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--gray-500)">Nessun conto aperto con checkout già passato.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${scaduti.length} cont${scaduti.length===1?'o':'i'} con checkout già passato</p>` +
+    scaduti.map(o => {
+      const g = Math.abs(giorniA(o.checkout));
+      const tot = totOspite(o.id);
+      const nOrdini = ordiniAttivi(o.id).length;
+      const vuoto = nOrdini === 0;
+      return `<div class="ospite-card" style="border-left:4px solid var(--red)">
+        <div class="ospite-header">
+          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio||'—'} · checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'})} (${g} giorn${g===1?'o':'i'} fa)</div>
+            <div class="ospite-sub" style="margin-top:2px">${nOrdini} ordini · ${fmt(tot)} da incassare</div>
+          </div>
+        </div>
+        <div class="ospite-actions">
+          <button class="btn-action ghost" onclick="goDettaglio('${escJs(o.id)}')">Apri conto</button>
+          ${vuoto
+            ? `<button class="btn-action" style="background:#FEE2E2;color:#DC2626" onclick="eliminaContoSenzaOrdini('${escJs(o.id)}')">Elimina (vuoto)</button>`
+            : `<button class="btn-action primary" onclick="chiudiContoId('${escJs(o.id)}')">Chiudi e incassa</button>`}
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// Chiude un conto per id senza navigare via dalla schermata Impostazioni
+// (usata dallo strumento "conti scaduti"). Identica a chiudiConto(), che
+// resta invariata per il pulsante nella scheda di dettaglio ospite.
+function chiudiContoId(id) {
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const tot = totOspite(o.id);
+  showModal(
+    'Chiudi conto', `Segna come incassato il conto di ${o.cognome} ${o.nome}?\nTotale: ${fmt(tot)}`,
+    'Chiudi e incassa', 'var(--green-700)',
+    async () => {
+      try {
+        await fsSetOspite({ ...o, chiuso: true });
+        showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
+        controllaContiScaduti();
+      } catch(e) { console.error(e); showToast('Errore durante la chiusura — riprova'); }
+    }
+  );
+}
+
+// Elimina un conto senza ordini registrati (controllato di nuovo qui, non
+// solo in UI) — usata sia per i duplicati sia per i conti vuoti di famiglie
+// già ripartite. Scollega anche la famiglia in Ristorazione, così un domani
+// potrà essere ricollegata correttamente invece di ricrearne una copia.
+function eliminaContoSenzaOrdini(id) {
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const nOrdini = ordini.filter(x => x.ospiteId === id).length;
+  if (nOrdini > 0) { showToast('Questo conto ha ordini registrati: controllalo prima di eliminarlo'); return; }
+  showModal(
+    'Elimina conto',
+    `Eliminare il conto di ${o.cognome} ${o.nome} (${o.alloggio||'—'})? Non ha ordini registrati, quindi non si perde nessuna spesa. La famiglia collegata in Ristorazione verrà scollegata da questo conto.`,
+    'Elimina conto', 'var(--red)',
+    async () => {
+      try {
+        if (o.famigliaId) {
+          const { db, doc, setDoc } = window._fb;
+          await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), { ospiteId: '' }, { merge: true });
+        }
+        await fsDeleteOspite(id);
+        showToast('Conto eliminato');
+        controllaDuplicatiSync();
+        controllaContiScaduti();
+      } catch(e) {
+        console.error('Errore eliminazione conto:', e);
+        showToast("Errore durante l'eliminazione — riprova");
+      }
+    }
+  );
+}
+
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────────
 // ── SESSIONE HUB / PERMESSI SEZIONI ───────────────────────────────────────────
 function loadHubSession() {
@@ -993,7 +1218,6 @@ function initLogin() {
     return;
   }
   currentOperatore = hubSession.nome;
-  if (window._riallineaTokenFCM) window._riallineaTokenFCM(currentOperatore);
   document.getElementById('login-screen').classList.add('hidden');
   computeAllowedSections();
   if (allowedSections.size === 0) {
@@ -1044,6 +1268,21 @@ setTimeout(async () => {
 }, 8000);
 setTimeout(hideLoadingScreen, 18000);
 
+function toggleStampaMenu() {
+  const dd = document.getElementById('stampa-dropdown');
+  const isOpen = dd.style.display !== 'none';
+  dd.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    const close = (e) => {
+      if (!document.getElementById('stampa-menu-wrap').contains(e.target)) {
+        dd.style.display = 'none';
+        document.removeEventListener('click', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
     'Esci', 'var(--red)', () => {
@@ -1069,10 +1308,10 @@ function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
   btn.style.background = confirmColor || 'var(--green-700)';
   btn.onclick = () => { closeModal(); onConfirm(); };
   const overlay = document.getElementById('modal-overlay');
-  overlay.style.display = 'flex';
+  overlay.classList.remove('hidden');
   overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
 }
-function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init() {
@@ -1103,8 +1342,13 @@ function clearFilter() {
 // ── RENDER ────────────────────────────────────────────────────────────────────
 function render() { renderAlerts(); renderOspiti(); renderScadenze(); renderChiusi(); }
 
+// Una famiglia inserita in anticipo (checkin futuro) non è ancora arrivata:
+// il suo conto pensione esiste già (collegato da Ristorazione) ma non deve
+// mischiarsi con i conti di chi sta soggiornando davvero in struttura ora.
+function nonAncoraArrivato(o) { return !!(o.checkin && o.checkin > oggi()); }
+
 function renderAlerts() {
-  const attivi = ospiti.filter(o=>!o.chiuso);
+  const attivi = ospiti.filter(o=>!o.chiuso && !nonAncoraArrivato(o));
   document.getElementById('cnt-oggi').textContent   = attivi.filter(o=>giorniA(o.checkout)===0).length;
   document.getElementById('cnt-breve').textContent  = attivi.filter(o=>{const g=giorniA(o.checkout);return g>0&&g<=2;}).length;
   document.getElementById('cnt-attivi').textContent = attivi.length;
@@ -1113,53 +1357,79 @@ function renderAlerts() {
 function renderOspiti() {
   const searchEl = document.getElementById('search-input');
   const q = (searchEl ? searchEl.value : '').toLowerCase();
-  let lista = ospiti.filter(o=>!o.chiuso);
+  const nonChiusi = ospiti.filter(o=>!o.chiuso);
+  let lista    = nonChiusi.filter(o => !nonAncoraArrivato(o));
+  let inArrivo = nonChiusi.filter(o => nonAncoraArrivato(o));
 
   if (activeFilter === 'oggi')  lista = lista.filter(o => giorniA(o.checkout) === 0);
   if (activeFilter === 'breve') lista = lista.filter(o => { const g=giorniA(o.checkout); return g>0&&g<=2; });
 
-  if (q) lista = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+  if (q) {
+    lista    = lista.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+    inArrivo = inArrivo.filter(o=>(o.nome+' '+o.cognome+' '+o.alloggio).toLowerCase().includes(q));
+  }
   lista.sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
 
   if (!lista.length) {
     document.getElementById('ospiti-list').innerHTML =
       `<div class="empty">Nessun ospite trovato.${!activeFilter?'<br>Premi "+ Ospite" per aggiungerne uno.':''}</div>`;
-    return;
+  } else {
+    document.getElementById('ospiti-list').innerHTML = lista.map(o => {
+      const g = giorniA(o.checkout); const tot = totOspite(o.id);
+      const nOrd = ordiniAttivi(o.id).length;
+      const urgente = g>=0&&g<=2; const isOggi = g===0;
+      const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
+      const badgeChk = isOggi
+        ? `<span class="badge red">Checkout oggi</span>`
+        : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
+        : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
+      const badgePiano = pianoBadgeHtml(o.piano);
+      return `<div class="ospite-card" style="border-left:${borderLeft}">
+        <div class="ospite-header" onclick="goDettaglio('${escJs(o.id)}')">
+          <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio}</div>
+            <div class="ospite-badges">${badgeChk}${badgePiano}</div>
+          </div>
+          <div class="ospite-totale">
+            <div class="importo">${fmt(tot)}</div>
+            <div class="n-ordini">${nOrd} ordini</div>
+          </div>
+        </div>
+        <div class="ospite-actions">
+          <button class="btn-action primary" onclick="goDettaglio('${escJs(o.id)}')">Ordini</button>
+          <button class="btn-action ghost"   onclick="goReportDa('${escJs(o.id)}')">Resoconto attuale</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
-  document.getElementById('ospiti-list').innerHTML = lista.map(o => {
-    const g = giorniA(o.checkout); const tot = totOspite(o.id);
-    const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-    const urgente = g>=0&&g<=2; const isOggi = g===0;
-    const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
-    const badgeChk = isOggi
-      ? `<span class="badge red">Checkout oggi</span>`
-      : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
-      : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
-    const badgePiano = pianoBadgeHtml(o.piano);
-    return `<div class="ospite-card" style="border-left:${borderLeft}">
-      <div class="ospite-header" onclick="goDettaglio('${o.id}')">
-        <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
-        <div class="ospite-info">
-          <div class="ospite-nome">${o.cognome} ${o.nome}</div>
-          <div class="ospite-sub">${o.alloggio}</div>
-          <div class="ospite-badges">${badgeChk}${badgePiano}</div>
+  const wrap = document.getElementById('in-arrivo-wrap');
+  if (!inArrivo.length) {
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    inArrivo.sort((a,b)=>new Date(a.checkin)-new Date(b.checkin));
+    document.getElementById('in-arrivo-list').innerHTML = inArrivo.map(o => {
+      const badgePiano = pianoBadgeHtml(o.piano);
+      const dataArrivo = new Date(o.checkin).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'});
+      return `<div class="ospite-card" style="opacity:.7">
+        <div class="ospite-header" onclick="goDettaglio('${escJs(o.id)}')">
+          <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
+          <div class="ospite-info">
+            <div class="ospite-nome">${o.cognome} ${o.nome}</div>
+            <div class="ospite-sub">${o.alloggio}</div>
+            <div class="ospite-badges"><span class="badge gray">Arrivo ${dataArrivo}</span>${badgePiano}</div>
+          </div>
         </div>
-        <div class="ospite-totale">
-          <div class="importo">${fmt(tot)}</div>
-          <div class="n-ordini">${nOrd} ordini</div>
-        </div>
-      </div>
-      <div class="ospite-actions">
-        <button class="btn-action primary" onclick="goDettaglio('${o.id}')">Ordini</button>
-        <button class="btn-action ghost"   onclick="goReportDa('${o.id}')">Resoconto attuale</button>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+  }
 }
 
 function renderScadenze() {
-  const attivi = ospiti.filter(o=>!o.chiuso&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
+  const attivi = ospiti.filter(o=>!o.chiuso&&!nonAncoraArrivato(o)&&giorniA(o.checkout)>=0&&giorniA(o.checkout)<=7)
     .sort((a,b)=>new Date(a.checkout)-new Date(b.checkout));
   document.getElementById('scad-totale').textContent = fmt(attivi.reduce((s,o)=>s+totOspite(o.id),0));
   document.getElementById('scad-sub').textContent    = `${attivi.length} ospiti in scadenza`;
@@ -1171,7 +1441,7 @@ function renderScadenze() {
     const g=giorniA(o.checkout); const tot=totOspite(o.id);
     const cls=g===0?'oggi':g<=2?'urgente':'';
     const badge=g===0?`<span class="badge red">Checkout oggi</span>`:g<=2?`<span class="badge orange">Tra ${g} giorni</span>`:`<span class="badge gray">Tra ${g} giorni</span>`;
-    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${o.id}')" style="cursor:pointer">
+    return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${escJs(o.id)}')" style="cursor:pointer">
       <div class="ospite-avatar ${cls?'urgente':''}">${initials(o)}</div>
       <div class="scadenza-info"><div class="scadenza-nome">${o.cognome} ${o.nome}</div><div class="scadenza-sub">${o.alloggio}</div><div style="margin-top:5px">${badge}</div></div>
       <div class="scadenza-destra"><div class="importo">${fmt(tot)}</div><div class="data">${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>
@@ -1188,9 +1458,9 @@ function renderChiusi() {
   document.getElementById('chiusi-list').innerHTML =
     `<p style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conti incassati — tocca per vedere gli ordini</p>` +
     chiusi.map(o=>{
-      const tot = totOspite(o.id);
+      const tot = totOspiteStorico(o.id);
       const nOrd = ordini.filter(x=>x.ospiteId===o.id).length;
-      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${o.id}')">
+      return `<div class="ospite-card" style="opacity:.8;cursor:pointer" onclick="goDettaglioChiuso('${escJs(o.id)}')">
         <div class="ospite-header">
           <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
           <div class="ospite-info">
@@ -1202,7 +1472,7 @@ function renderChiusi() {
             <div class="importo" style="color:var(--gray-400);text-decoration:line-through">${fmt(tot)}</div>
             <div class="n-ordini">${nOrd} ordini</div>
           </div>
-          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${o.id}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
+          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${escJs(o.id)}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -1234,7 +1504,7 @@ function goDettaglioChiuso(id) {
   const o = ospiti.find(x=>x.id===id); if (!o) return;
   document.getElementById('chdet-nome').textContent   = `${o.cognome} ${o.nome}`;
   document.getElementById('chdet-sub').textContent    = o.alloggio;
-  document.getElementById('chdet-totale').textContent = fmt(totOspite(o.id));
+  document.getElementById('chdet-totale').textContent = fmt(totOspiteStorico(o.id));
   document.getElementById('btn-ripristina').style.display = '';
   const miei = ordini.filter(x=>x.ospiteId===o.id);
   if (!miei.length) {
@@ -1282,11 +1552,11 @@ function renderDettaglio() {
   const o = ospiti.find(x=>x.id===currentOspiteId);
   if (!o) return;
   document.getElementById('det-nome').textContent   = `${o.cognome} ${o.nome}`;
-  document.getElementById('det-sub').textContent    = o.alloggio;
+  document.getElementById('det-sub').textContent    = o.alloggio + (o.tel ? ' · 📞 ' + o.tel : '');
   document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
   document.getElementById('btn-chiudi-conto').style.display = '';
   document.getElementById('btn-edit-ospite').style.display  = '';
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  const miei = ordiniAttivi(o.id);
   if (!miei.length) {
     document.getElementById('ordini-list').innerHTML = '<div class="empty">Nessun ordine ancora.<br>Premi "Aggiungi ordine" per iniziare.</div>';
     return;
@@ -1307,7 +1577,7 @@ function renderDettaglio() {
         </div>
         <div class="ordine-destra">
           <span class="ordine-importo">${fmt(ord.importo)}</span>
-          <button class="del-btn" onclick="deleteOrdine('${ord.id}')">&#10005;</button>
+          <button class="del-btn" onclick="deleteOrdine('${escJs(ord.id)}')">&#10005;</button>
         </div>
       </div>`).join('')}
     </div>`;
@@ -1316,7 +1586,7 @@ function renderDettaglio() {
 
 function _buildReportData(ospiteId) {
   const o = ospiti.find(x=>x.id===ospiteId); if (!o) return null;
-  const miei = ordini.filter(x=>x.ospiteId===o.id);
+  const miei = ordiniAttivi(o.id);
   const tot  = miei.reduce((s,x)=>s+x.importo, 0);
   const now  = new Date().toLocaleString('it-IT');
   const rows = PUNTI_RISTORO.map(p=>{
@@ -1382,15 +1652,277 @@ function stampaReport() {
   </div>
   <button class="print-btn" onclick="window.print()">Stampa</button>
 </body></html>`;
-  const w = window.open('', '_blank');
-  if (w) { w.document.write(html); w.document.close(); }
-  else {
-    const blob = new Blob([html], { type:'text/html' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `conto-${o.cognome}-${o.nome}.html`.replace(/\s+/g,'-');
-    a.click(); URL.revokeObjectURL(url);
+  const blob = new Blob([html], { type:'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if (!w) { window.location.href = url; }
+}
+
+function stampaRiepilogoConti() {
+  const aperti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o)).sort((a,b) =>
+    (a.cognome||'').localeCompare(b.cognome||'', 'it'));
+  if (!aperti.length) { alert('Nessun conto aperto da stampare.'); return; }
+  const now = new Date().toLocaleString('it-IT');
+  const totaleGlobale = aperti.reduce((s,o) => s + totOspite(o.id), 0);
+
+  const contiHtml = aperti.map(o => {
+    const miei = ordiniAttivi(o.id);
+    const tot  = miei.reduce((s,x) => s + x.importo, 0);
+    const rows = PUNTI_RISTORO.map(p => {
+      const po = miei.filter(x => x.punto === p); if (!po.length) return '';
+      const ptot = po.reduce((s,x) => s + x.importo, 0);
+      return `<div class="cat"><span>${p}</span><span>${fmt(ptot)}</span></div>` +
+        po.map(ord => `<div class="row"><span>${fmtTs(ord.ts)} — ${ord.desc}</span><span class="imp">${fmt(ord.importo)}</span></div>`).join('');
+    }).join('');
+    return `
+      <div class="conto">
+        <div class="conto-header">
+          <div class="conto-nome">${escHtml(o.cognome)} ${escHtml(o.nome)}</div>
+          <div class="conto-sub">${escHtml(o.alloggio||'—')} · ${pianoLabel(o.piano)}</div>
+        </div>
+        <div class="conto-body">
+          ${rows || '<p class="vuoto">Nessun ordine registrato</p>'}
+          <div class="totale"><span class="lbl">TOTALE DA INCASSARE</span><span class="val">${fmt(tot)}</span></div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+<title>Riepilogo Conti Aperti — Garden River</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 1cm 1.2cm; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',sans-serif; background:#F9FAFB; color:#111827; padding:16px 16px 60px; -webkit-font-smoothing:antialiased; }
+  /* ── intestazione pagina ── */
+  .page-header { background:#1B4332; color:white; border-radius:10px; padding:12px 16px; text-align:center; margin-bottom:14px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .page-header .left  { text-align:left; }
+  .page-header .brand { font-size:9px; opacity:.6; text-transform:uppercase; letter-spacing:.07em; }
+  .page-header .title { font-size:15px; font-weight:800; margin-top:2px; }
+  .page-header .meta  { font-size:9px; opacity:.55; margin-top:2px; }
+  .page-header .right { text-align:right; flex-shrink:0; }
+  .page-header .gt-lbl { font-size:9px; opacity:.65; text-transform:uppercase; letter-spacing:.05em; }
+  .page-header .gt-val { font-size:22px; font-weight:800; line-height:1.1; }
+  /* ── 2 colonne con flusso naturale ── */
+  .grid { columns:2; column-gap:10px; }
+  /* ── singolo conto ── */
+  .conto { break-inside:avoid; page-break-inside:avoid; display:inline-block; width:100%;
+           border:1px solid #D1D5DB; border-radius:8px; overflow:hidden; margin-bottom:10px; }
+  .conto-header { background:#1B4332; color:white; padding:8px 11px;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .conto-nome { font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conto-sub  { font-size:9px; opacity:.7; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conto-body { background:white; padding:8px 11px; }
+  .cat  { font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6B7280;
+          margin:7px 0 2px; display:flex; justify-content:space-between; }
+  .cat:first-child { margin-top:0; }
+  .row  { display:flex; justify-content:space-between; font-size:9.5px; color:#374151; padding:2.5px 0; border-bottom:1px solid #F3F4F6; }
+  .row:last-of-type { border-bottom:none; }
+  .imp  { font-weight:700; margin-left:6px; flex-shrink:0; }
+  .totale { display:flex; justify-content:space-between; align-items:center; border-top:1.5px solid #111827; padding-top:7px; margin-top:7px; }
+  .totale .lbl { font-size:8.5px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:.04em; }
+  .totale .val { font-size:17px; font-weight:800; color:#16A34A; }
+  .vuoto { color:#9CA3AF; font-size:9px; text-align:center; padding:8px 0; }
+  /* ── bottone stampa (solo schermo) ── */
+  .print-btn { display:block; width:100%; padding:14px; background:#1B4332; color:white; border:none; border-radius:28px;
+               font-size:15px; font-weight:700; cursor:pointer; font-family:inherit; margin-top:14px; }
+  @media print {
+    @page { size: A4 portrait; margin: 1cm 1.2cm; }
+    html, body { background:white !important; padding:0 !important; }
+    .print-btn { display:none !important; }
+    .grid { columns:2 !important; column-gap:10px !important; width:100% !important; }
+    .conto { break-inside:avoid !important; page-break-inside:avoid !important; display:inline-block !important; width:100% !important; }
+    .conto-header { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    .page-header  { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   }
+</style></head><body>
+  <div class="page-header">
+    <div class="left">
+      <div class="brand">Centro Vacanze Garden River</div>
+      <div class="title">Riepilogo Conti Aperti</div>
+      <div class="meta">${aperti.length} conti · ${now}</div>
+    </div>
+    <div class="right">
+      <div class="gt-lbl">Totale complessivo</div>
+      <div class="gt-val">${fmt(totaleGlobale)}</div>
+    </div>
+  </div>
+  <div class="grid">${contiHtml}</div>
+  <button class="print-btn" onclick="window.print()">Stampa / Salva PDF</button>
+</body></html>`;
+
+  const blob = new Blob([html], { type:'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+  if (!w) { window.location.href = url; }
+}
+
+// ── STAMPANTE TERMICA ─────────────────────────────────────────────────────────
+
+async function buildLogoEpos() {
+  return new Promise((resolve) => {
+    const LOGO_B64 = 'iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAJsVJREFUeNrsnb1227yWhpF8X3GminIFH91NZ7k7neUriHwFkbrpYl+BrSuwXU4luZzK8hWIvgIz3XRhrsBKd2atc46H295IEJgEQBIE/95nLS4lFsUfEHi5N7CxIQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAcN6hCEBV/vjjzyj7iBx2Tf71r3/uUWIAggWaEqMZixFth9k2Uf5fl5Q3ErGv/G8StQQlDyBYwCZOJEYkUMf8OW3xcki0YhayOBOxFE8IQLAgUiRS82z7xJ9dJWUBe4CAAQjW+IRKitSip7dAgrUlAcvEa4snCsECw7SmSKC+CD99UF1hz9bXPYkYOvYhWKD/QnXGQjUZ+O3u2fK6zYQrxtOHYIH+uX5XDVlUKW9FPOT87YP4vTM/atDao2u7ybYNrC4IFui+VbUW9TrSpatFI3U0ardvympRYrlIzA750+co5SbbVuish2CBbgoWidWiwk9JkKgvKO5CPBTHgdEmQy18CBfcRQgW6Jhg7RwbuOzzIfet0x3WSpyYDMGo0x9HgrWExQVANxr3XbY9Gzb6fsEi0Nd7nJMlmW1Plns1bWt2RwEAbbpSOY3zMdvO+ixSFvG6qyhaJHiXQywXuISgT42YLIcF/3c7hjl6fM/kLlaJNSP38ByBqACAtqyuXQWL6w7WFgCgLeGivrpvFdzEOUoPANAn4YK1BQDolXB943gwAABoTbguS4ZEnKHUAABtitYk267gIgIA+iRc0xIjihTPNkWpAQDaFq6zEqOIM5QYAKAL1tajo3AtUGIAgLZFa1Jiqg864wEYSMOP+jy5mEcSnSZR42kD0G+xmisNet7j+1hAtAAYvkv1pHVS99nSmjvGbEG0ABiIK7Xr+T1NIVoADE+sIkNjvoRoAQC61KjXlsY8g2gBALrQmGeOk4knAa8p8i2SJUQLIQ8AdFiwXKe33AUSKtXau/J8/AWCSwHor1gtSuaaWjR0HVGBW7pr6Z6fMPcQgPKNSy7UsGjg2JOKWT2nHq8hsvSf7Roq18uuucEA9F2soiZXiikREf4m84EnsXQSjQbL964LbvBYwKo5wxesWfZRZGFssu2m6qo6HBBKwlNV/GilmusqQpV9UKf2F9dzZ+d511D5Trh8bRYjrchzw/sditeVfeRGpOJ1kdcVFnmFYEGwzMQsXNuSx77MPi60P5P47ZV//zA14rJiyW7tVVmRbEqw+JqmXMY+rFYqu5MxLM0GwQJVBUsob/mVcFy6nq2LBQtTGsIyIBeryu+aFCy+rjMWUh9Q2R/B0oJgjVGwSFSeKjSYVRV3LcD9kPjOOihYVcrZaPVm13yCGgzBGqNoPYduMCUCNktbZuyCfWbrztUN++hiNdYQK5d+rLKQaxijBkOwIFhmtmxhJZbjRtxIaTtm8ajaaPfStcy27+K1Xy0xiQwLBaWvoX60qI3G77n/ClYWBKvTQkKVfZ1VyqOOCBY16GWRxaMIxDF/hogvSvi6HkyDAtwZbxIu74LF52x63iCsLAhWZwTrkV2i05YFi0ThPK9hKCL1iT/bZM/W332RePHIZV64g9eGz4kJQ8RXwcpSeI8iaE2sLtl9+tqyAJBQHemNWUaPZ//8xlZEFzKHylHJO44gfxMAm90HlesRC1uTXAS65xlW6YFgtS1WE7YC2oQE6kgfCeRsBHcsVItAbl8VIhaNN8JFLi1brafiV0yYb0LOEfyMVgOXsG3r6kKxcij2adPgKJbuEq7YEvnNouJrWvS0WKnsKJL8Wi1Hvq+ogf6r58D3d4C4LAhWW9bVtwLLZcsuYqJZBvs6kc9K46Jjnua4f5eixDSXjkONetl0RzXPT4waEN0lf+5sLxkIFgghWGTBrGtU6IQ3ErbY5a3LnfsTFqtEdf/4WoaYAuWaG3lTVuu6AWv0Zwd7zvHJzT2AYIHQgvXoWSBStsweyswFrDonr2ckbG0lDTzHpkYJX1w/dmX1LBOnZed7Dg10uocVq6gBa4aOSfPY1JGzyME6WA9crASXdSMd1iwcVa23lC3APBZ8fNpno333aextCIIVlqZDA0io5MjZWh/yl8uwi/52rJeFBjLOGzy+ydqJDd+d8HWtcr5TBVb/fj72ZIAQrLB81tyVJpnpYiVeO3LnIylrEqtlw+e4L/j7KfdFrQq+l6KzyXvpyMywbGVttd/Nx9yAIFjh3EF9nt1Ng6eTo4F7TazGkl88hFi5uIXXBd9/LhCkPNfvHm4hBKsNZjn9GE2hdzQPdSSwNbGyuIWfWJD2BVaUaiXd5n2vuH5bSz2CYIFGmOa4BU24hSt1JIk72OEGNsdNBUGK5CIc/KzSomOw6P3mFvIIJQQLNMpxjoCpguUqXiYXJFGDC7kvZAGxatQtTHIE56eoFHz/0y20WWlwCyFYXbGwiK+OQuQqWKeKWEXCX8peiFVFt9DwPdxCCFY34Yo3ybG44pKHov0jgyuovsnvxPDjrLogVi6CY3MLEwe3MM77LQQLhLKuIkNFLWtd0TGuFYE8E+PoZO+CWBW6hYrgVHULjw1u4SitLAhWe0TstsWaBWXiq8G6UkMYLkZQfp0Qq6bdQkPdGGU/FgSrPQtLviXvax6bJsVulP93cX5gyg1O34YiVi6Cc2t4aZk674vcRlhYoDGKBOS4xJw0auAf8qwrxRWkyr/owP2+pFwWr1NQ3lGWAYr8ztlo8j1lIKDBgo1jOXRRrArdPm20cF/SitKFKc47NgQLhGJucBfyREC31PQYnbZdQRKdA065fO2Sk4qzg9LCrRTs+lG85oOK+yRWNd1CUz+V/vsHw28hWKB5y4tjpW4UASqCKmuU04DVvqu2rKuYhWpZNysmubc8D2+pWSxdFysXt/C+jAWV052wdexqgGCBxvjM7gK5UF8tohAZGkhbYnXO7l3q86DcL3fEVlsfxMqlHyrP/Ve/3+eIlv59WiB2ECwQBFoVZWpJMpfkiFWq/aaNhQqWTS5nTw2UrbZlj56nbTRwa7GiHspYYWNbUQeC1Q1sK+hQJZ0UNQx+A4d2D5ba6CQodguPLYJ0bHELDw2/H5Vg/Yn6FQSqhKYO8UUmOjeG/b7mVMyHFivtdUixkivfsChPtEZOLtJ35d9pmyslk9WbXW+qWcRkRU+UiczrIguLrj3b12SBJQYxGzzI6R6mwZGg7Aq+ln0SNHH5NNt3lyNAB2yFnSkV+51y/F1A0Wp8MQRlteljvq+owmHkEve3TeR0t1x/3gIVP/OxF+T1/6gMoLx5ntrzfg75POASjg9Tg4nYapCuxDJHIFKtgsctugXLBhv6jFM4P7EVshDVl9KassA/uua698i9xe27L7jeQrdR66tSn38U8L4gWGOA35ymkAUSLMrBvmBxWuVUzihPAAN3uiZNuFt037zOX1MpnCPxe677qOHnndexPjO8cPTvk4J70K3yvO8gWKBxK0sVrTPOaZVob1u1Un5vybrymtaZLapHtqZCNboFC9dVwws6vImZkucrEP3DEoL1vUULG4I1Eh4c97vilZhP2SpLciwCtUL/FfAevKyJx6v3XIl288yfsXA1Nb3F5vbFRd+xlZ0aXMrYIHYQLOCFMq7UBVfgE+4w1gUrbcEdiH2soswhGI9CGUBoEbJ47lg8QzzvmeEFFmkWXxm3Dy4h8N6vEZf8ybrgzSy0qPJQFspD3QPwNKTHDjawM3JNfbqIFawkq6AZ6tJopuhAsMJSxqV6WZrLIbNkqFQytUID2IpZd/jZTB3Lu87znlleYKZ4K2EYLBjN8vUQrLCUzX0l1xOkyr3xIRw1SGuI1VpxAcmtpFHQA049E3QTr32DSSDRKhOeoFtgqcX12yr7rdC0QCNkFfaJAv9KbvQbGmU64ziln5W/wrEqbXXESjvWtAPPYMIuoKm8J57Oox/7UrU69fNqv9d/O9OOPRtb+4GF1W23ULe06G3am4nAnFt+ofxpEzrqvKB/aW+xSqQ7PvFwHtNUGt0Cm2huX2I6dptTkNoCcwnDsxJuqWBS3qjS/mD3IfExUhdIrChcQB99+6p8T2UQuk+Lyu+IG/w2Z86e7h5eeXhBxFrflMkllG5fqtSVO3ajt2MUKFhY7b/dU5G/fHlexZ1x388FW1hPDQ3B+xarqECMkoL+mFCUdUcXbCXWodCKKrDAIqWubLnv7WPPUuxAsAZoZVWlD/0WazGcNREvak7liYV5WtZK/FqU41yMaMQPLmGPrKysEWxEtSyhU5c+jgaspqlL/xNbJLMBPa4JC/BJxWe9z8qEfvuZj3WvxtHxvEOIFASr89DbdF7HEuHGELLh2sRqqGsi0mjsvGBSs8tzSkR74ShwCYEXK8s2UmUShqiNRuuwTxfXRPTFFWotBGvsonVd0R1QBSsOdLmHDiK6GPDjinhkE0CwRg2N/pQNVVD7sUKFOdgsrDFYIF9QXSFYnYWsBo4mVzev7hi7hqc1rJ2vgYpjUmRhcMT1GFYhno4xuhyC1X2RuuIMmDILprp945S7a1/TTDggsEycTSsjhaJ4KbF1Tx83vSjILU89lAGAYAUVqgnP8yKRoqF5kyVF35G1QfPRdj7eurwKjesaf1Nl2kgcsJhm+r1ymUV9fOYcmHnOizi4DoDM0VogWG2L1ZStpypD8tSAdyxcUc0GRKEOmxLnLYqWbtQt0sptEGEMnJb6yMHamjSYpRRAsJzFqq57N2OLa16z4SwdReuT8u9QVtZGrvTMFt7dkOoCx0uRaNlGbo8hHRCsVtxAbnS+Yodkyt2zmg3HRbRU1+whQHEl2ny2KzHA1LycBeHUUv4zSAcEqw2aWq3lSs17VEO0TB3xkexP4gjsJsMbyPI4UYReTxszOLj8z21uMYBghbKuqLHr7hu5VitPjf+iSqAhh07I5aA2LBRF16OOWG0aKqoXsVJWJZ6J6jFXvYqCZ/d3aag/AIIVDH14+iUeijtfz31ZcBVCH6gh7LQ17GgUK69fZa6MFt40UEaxJlZTUa/fSi2LaxbjvG3TlUrCL428EcQI8gHBColu/dw0lBzvrkLmypelsKTYKf0qp5q1NZH3wRkAYo/XTR3suljtalpJnxUhfsmYmbeJtwuFti1alzkiCsGCYAV1B3VUC8bnKBBV7DJD/7Hyu53qVnJf1YHmtqrTRXwsRkDHXaod7J7ESr2n3k2Q5vJoawFbMHILSxesvZbryffb86yEa5hqFtSao+pVy+RSEa6fU2bYOqljZdFvj9gN8i1WqvX4xHFr6taHjmy1PxEWFgQrGB+0/ycWQfOBU0c1u3b7HPf1UbUMNeHa1rSySKhO2AVMNUvUp1jpZaxunbe6Ks77BBAsL295k2A1YtWVGFlKDO7UnRpRz8K1V/4fO4oWCdM1W1Qn+gIHHJaxCygkqmV52GHRioX7FCrgGWQcfeVHoPNcOLpsDwYrj0IxaHSQROk6b6CALa9LdrMmyrHkNJ5UW+5eFSoSw7UIGxx5La+Hz9/1qS8rgYR+rfBujDdNfSZag1xxI5ffPzd4+iNbbnTFFbOxZ3dwVSRAJcqEhE2u0BMSuocDZTRyLRoMSuXVnwFcwl4TcsTni0Ojih2PJcMavrGrWLqhy3Q64jVLRRsTmW+00IkFqiOAhfV7I9Xf4hT/o049eRLN9t18tMV88ZL0VVyjPbud9+z6xdpxSRTI7aLPT6LdaSYpp3YpsnxhYYHfGGsflh6YmNcJ32TDIbG0ddzeVxSsCf9uziLQ5eegxnrNBSYVA7iEbo1cy2WVNnw+l6yVQ1+r7lpaf9x/hk5sAMEqIK/TW7Wymk7XMrUl+2OXcaiilXCyQsmFQCAmgGAVktd/pE7HiQNcg4u7dzvQslddQXIDz9AUgQuj7YDMCV3QO4C/NfzW/62j33CdTQ8AhOZUrqDMruC3kPeHTndYWENxCyNtPlvT1s3Mcb+bAZX5UlvuPWQkPYBg9Zo8ty9EQjyhuUM2hjIN5FqbVE2hJcjcCSBYjuR1rC8U1yENIFpWweLO903Py3qjdrJzgOsi8DVQOZ6jyUOweklBHnR9deNVw5fhGmHvK21zW2K11MQq9MKr9KyP5Io/AILVV/LCBi4CWlmRo7jSdfSxL2vVsliR20+ZKE7rzrUE3WDUIybcyf6Y89W5tv5eYyNZrqNWbYyo1WSp9VmFFKuYxTJGE4eFNSS3MBH5ne8XMrCT+5CWHbjWTlyHA6l4m7U0lFhtxa9EhLEq9n1MywwgWLluS87fJmoD4/6uRvo/yixvz9fR5eh3mRAwUe7vsmGxSvkZHrDrF2vlu2DLdAfRgks4FNewKEvAudpR21CuppMyrktHXcM3LhhfJ5VXE8n4Uj7nbV7Z8bnpvPqUn4Rd1QS1HoLVZ8GKWASsgtKAaJ2U7WvhzAZ3HSi6lEV9q13fTPhfVZvKiEJRtkWCw8+Rns0Xg6DvucwhWhCsXovWpchPYPemgnsWrZMqncOG6w0lVCu1n0q5Lsq6UHduYMLn+CpepzDFlrKgZ/GphDW3Z6HdoOZDsIboGuaJFjWSKw+u2UnV0aym0wkXlMONmk4655rOuExc1nYkUfquWFB7V8uHrUwpUlWfwbWWNQJAsHolWFTxHwtcmTzRikT9BRsO6sQIhcjSKYVKFCx6EejZTPk+j4XffjH0a0Gwei1apoVDc12JOu5Z3ewBLLJ0vU3Py0t5o4b9gy0i0USsE78Iprwd82eTgwx7dnERCQ/BGpxo5boSFVfacUox4yhaV6K9BRx+Lh+muXg2IsWalS7krMVHD2sLgjVY0fpZuVkwniqcZmXqD6pwzT46vMFrPNmqLfcXQLDqiJYtDUqsWQplOPL9Nvc4GDB24CZCsHopWk0FQHpxBwuuORLhV28eKqkoCOEALbRHFIGZ5+d//yPb/uf9+/fU0fz3bPubp0Mvs+OmDV3zPttus2v+zqL1NzzJyrxEzWdluaA6kJUr+rdgYfXG2orY3fJhbX0M0UeiLEH/paKbSA30XrztRJexVjPhb4SSIuYf+JyUYz9VFn71ea5U/Iqcp3/TKj57jtCX9zUvcPNfLC7xGnGPPi7QC+GaUfwTjQzW2O5CTsbljAVntLiGw7U9UaiG68RsEhUKYq1YDnQ9C9eyqHmuHQecupbZ3PCcn8ocC4CuCNeaK2+VBvSoLXwR6rqp0V/x+fXrWVQVUhI4Fron3+JR81xrx/z5ZUVyh1YAl7DP7mKkuUsLBzfsJc+VPoG452UhsyV8YjdOlkHM7t6Nrwyg2rmk+7hXXNmt53MtlHNt1YyqAPS+4bIl42JtXaLEAABdEK5FF/u1AACgrmi10q8FAABVRetJW24MAABaEa15iVHFK5QYAKBt0ZqWEC24iACATojWYwkXEVkYAACtitakZMT8rsyyYAAA0IRwXZUQLVhbAIDWRWtecorPDn1bAIA2RSsq0a+lzpNDsCkYRxtBEXQHzmP13+/fv6c5njPHn5GV9V/Zb/4j2xLK34WSBACEtrZmjqlg9P6tK3TMA1hYILS1lWYW0614zRb6d8efyX3Pst9Os+3/suP875hdbM4U+p/IFApAuIY3rdC3pSbIuxyL1cWhIouc8lqjJgEQtjEuaiQLlFHzZ0MUL8dkiggH6TlI4NdDC0LUy9EuIRcpzrb7JlZvDuXyidfkfVQWLiJMif0OkIsdggXaaawXws9qz3vxa1GGuMsrH/N9z8Rr1s8qKZZP+irQAIIF4SpGChiJV+IrzXBVd08RqTrBsiTMR23eC4BgAb+uok3EqLF/53/vG1i5WuZlp0+5tJcPBpc7H4IFhiJeCxauUFN35KIPgq0yVeDymCjX9oH/PWnoeunabrLtGn1XECzQbeEiAfgs3FbvGRopC9UGQgXBAv0TL7kU1nzA4kXCRC7fLTrWIVhgOOI1E7/WDOx7xgcpUvfon4JggeGLl1yIVHZwRz0QKLlIaqdDMAAEC4QRMGl5HYtfHeJtEbNAfRWv4RUQKAgWAEYRi9jyIiH7S/wKO/AlZClvJEY/WKRSxEsBCBZoSswEf9pcSjUEAqIEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAe421qDme5jBq4xhi5jQAAvgVrJ/zl385jk20rzD0DAILVB8GSUG7u8zE9JGXVmFyy8rhEVQYe6tll1z2dP3tYrmfcgE9GlKub7vfC8D0EC/jgwvJ964L1vqcFS7mY1qhfAIyL9z2+9nlmaZ3hEQIAwRqKCQsAGBAh+7BOSu5Pq7oshDkN74TCKf71r39u8CgBgGB5o8IIQ5yJES2EeSfMS1HRQgkQLAAgWO1CMVeZaFEIw86wm/O6epx/fKr85lC85hj/LkXS19Atj2RG4lcw7SFbi3Ipd5nbPOnDaGdO2ckl5uXCEUK5n7TPjUJZ+kx9dqkpnIZ/Q+Ux016mqVK/UtHQyj/aakfy3PLZJFy3sQK2UmC7bHsu2moe+7HOsclttB1D29bcQEuLFP/2qcS5aLtjgSs67mXJ45XZTOed8Lm/lTzmI898EFXvqUSZm67j0vF8O+V+16Z9PNStZy7PSxYZU12ylg/VU8M159XrScWyrLPtfOlMXzrd04pCRw/9m3gNgSizwjE1NqpUV65vN95359Dvlge9zXcs+pOOvIDomqjsLkT5KVcvYSfckHuxsjSXu3x+LvtP6f4q1C3B5XnBdWxe8xk9ul6zUq97u9p330cJpWuV++bjChjVOPaZTUSUiu4jxGLGwjVpufEuuO+w7nVM+X663kDkM5w6ls+0zP6W897ZrFFDl0OVZzTpyTPptWCZRCcpaHC+AkupYpgsrQsPFVdv5HctitVM+A3KnYjuB/lOS4iVFDefL5WrCl0QdzWfyZXoIZ0XLG5AU1fB4jeH7wayyHsLciVrInh1ZupbapgmYtumVayIjnLmWaykgFxU+E1f61hlOj1KyIJgexPcav93Eas027bi1+jWJ4c3LL0Ft9pIi63/gcSUQjNSOfqoCPAXi+VI38eORbWqUcypJvYzh3u6VV4UEy6/uaUR0f1sBiBYXxzr1r3yN1k+keWleF5jJE9dUdtViD6XqGO030PdOtYbwSqp5q6NIFaHiLkT0iY8edkeLh36BOjvZCVcK3/7y/KQ3kzQZuGiGDNqvI+GSuzcGesxW4PtnJvsXMucv2+z+1kJc58hWVmTPg+tcx2ZWMQ8b1J+zOWztpTxjMWuDLT/Sg+V4Lawtlxvma6Mhy5kBQlpYe08H48qxTLnjVFWrH4KSfaQTyz9E581wTI98NTUOOk7pRIXNZBpEzE7Bg4t97M03E9qux8ur7jjurRnq3ibIwI29/+06Jnz8z63CNa0pGAVvUDofPQS2QtPMYxwCetXqhM1QFEJ9jNZPCuLpZJwdP2FwUqIlPOmlj4Cm+BsHUQ2JKa38Y3jczERdbxeJSw6aYXy2ToEzNrK568ybpbpBaK8hNMelPugBYtcqTxf3/a22Dq6Ixth7gCdKX0x3y3HemTX7yZPuPh6TpouMEv66o3S0M4NjTKxnGPi0L/T9YZzahGdjcFCdOmnOfNYPq6WWBDB4v7mhUFcN2O2sCY5b6uZ5Tf3jv1BqeWtdKhVGtvoDj3EBR+TKvtDCfH0xWdD+cSysVVxP0sMInT+RWizkPj7tGT5yJCJz8JvRl7XDvBEhMkEHBnaQiw8Dbj0UbBIACgX1pL89BK/u2Kfvq5rNNVcyNixQsg3EG0UBZ5IASt5H62gCNMh38tU+B/eb5P7muUzVcpnKn6fR9pUt4gLPwb0jHptYVGjVyd0Hlp+M/V4bhXqR3is0HhlBadoemmt3XclVY7SJ+jbMugq+wplpJbPRIBBCZZrrNAHYY9ZkcJB1sq1g1Xkk2mOC0n9UFXmlKnM2XIks3rZZsJ/xyHx0aIEJ09RGgMVrJIxHOeO02s+id/DDFqB+36OODvAl5oNnYR6xy7vpoXGuBbuk2nHKFYu9RI0RGen5nBjXTk0bknSgWsmwTpgN7Fuv1SV+WU+LKuyYpXyvdI9nw5crOh5lJ2DR64mWcvnXDdAT1zCKpBoXTgK1g+LmLwLccHcp0bXvVGSqn3izzICJOeXLQOWt0tjlAJFo1S/JYXr49y0klw4WM97rXxSTfSgOkMVLO4fKvMmM74dQ2fC5Ma8ldYWv6GpUVM2yLlD5Q8mAEqGVFP50hSQ6xG3F5v1ec1lhMyeY3MJK5B0pfGbBJhcXY5QPijp8tpcFRMuncO28nERq6Cd9CEtOodzUWydcfJyV5IzVuRDF9rXYOxTnoZgM+c3DhVzIuxzBFNO+2p6SCemkT6u2DTp+i+HN3fqUFk2BjFzaSh/WcrXxbL65FEg5g7xaSGnNdleCi5Tl+Ydb0Z7Q12xCdJhVe9nrBaWEOaO7shx4VUStp1hkw/uwUFEXPjusI/NejRNibmyCX0Za85igSw8Pssvgc9XV7BcXoRdT5pnqmfTIiuTwzxMYvwVgpWPLVr5yiRa/N2Z5U2xdRURWxparsSfbZYVh03sLZXpTnUNlTzz8xpC6OR28n2WzYAZ2wS/aNEEfk53Hat7keU5+85S2gS2l/CbdM4sYrZMLN5mcgxKsDgUwuY+XfGqJWe8SMWMVzB5dHgD3ih9FLFFRKhyPnKjm+mNnx/8o+XNHZd46C+LRvC90XGfhH2y7W0J8XojHnJVHVEh0p8tO5ursOB72vEzos8nfk6hG7+tfC7yXlDKc+5DkKmty0TOMHlWnoVNiFOfKZKGOMZ67vD2jSqY5ySE10qD21tS0aiNblFxOFsVlJWjC+Tquuy1Cmoz20l0n3jupKy8dRvh1uGeZGjIrOV6lTiU+yPPEd2X7Bboygs/LTE31vXeVj6vcWguoeCO2k0Dhz7NyR56KZoLWN2qnfYckuEzpGCp3c9WuHWOSvHwYTGsRP0O2X2oxizckg9OOyKwleuFxzJNfM/WGJxgceVaehStPTfuImE6aUC0EpEfMLrydK6NPgLH4nUT+DmlbBHXsdBCXvNKDBwPz0RtN95nPrwfcMEvPVQwengnprcENfRsO/JYmbciPy+4mvCvTifmypBW97KG0FdKRshlu6xYTsvAdSquec5z0f0U0fKZnNawtF7m1jYRqD1YwVIa4AE3wjKF//KWyX5/4NphqJzruuKDlkJ1assFT/twhSpjbcVciS4dhP5UuCeq27NYH8gFNio2kBPH3+752Zy2EVHO13pU8j43XD5UNx560na2fJ+bku2GXohHTc0qeSdGBI/W0UZBklFOQ6CO562PUQ1lyay/RH5/jzzfSyK/qo1POc9hzj2lyj2lNcqLjq2PBD1wH8XW8zOSMT3HOW/tTiU7tJR9opT9vuftRg58THOei6zHcZspkQAAAAAAAAAADJ4/UARgUBX6jz+j9+/fi+fnf/8DpTE83qMIQCAhkdN4mmYhkGsdggVATV5WmNEnzwIAwQJdhNLFUHzXBYoCVAUJpkEId5CsqkQuPJuXnE9ZiDRmcZNu3X1e8kBOd/PbfqKZOaQAFhYYoXUlpy6tRH5yPgpOpIyltIQWBYiesEU24eyuurjR374q+xGUpeMDihsAUNW6mvFah+rfdjk5wmi/p4KEfTs11xTn/JoWnOt5BKv3wMICoCGoz+pW+1uRlVU0RelBun4sRnHe9CmeGpKgyCFYAFSyrhQh0YVlkpN22ZREUN3XlAcfgjVg0Ok+MHHwhaeJrJ+lS5fzXZ2FYj84ChuAYIGOsvN5ME7pvGeL5WUErkzWAbloLKXoMezzrcICt3Q9lFf8zYKlykK1K1QHuIRgfMi0IpT//lvJSPULB+FwzVOvWn4y/9ZO7aBnsaLO/S0eGywsAF5cuEwYKPTgxGGF41lRZlMFEhdaUaaMEL4k0cvOsWfRUq+DMnrO8aiGyzsUwTCg4fyAp0s4LTQAcAlB55kGmsgMACwsWFheoNzyH1HyAIIFfAtWKt4GbxZB+ckpSDNy2Pe0SznWAQA9EizDtqtwPDlVxnTcK5Q8CAlGCUEuFDiaCRKNuq0Nu5VOlMfhB7r1ljS9sgyPXE7V+8NThmCBYbG1CJaLUFCYAYVCzExuJgeqkojQvMGNKZiURW9R5P7KhW95v4uCc6M7BIChuIR1j0s5sDiS/bnits7L3KC4q8Zr4vMXurSoMf0EYQ3A5r5V+d2aLbOoxunJgspNI+Nw/gWff4KnCMEC42Fh+f4+RyyuRMnpNgZIcO6KLK0CorpuLIBggf5ZV2fCnn9dT3M8yz7OPF9KVPKYEZ7ecEGn+ziISkSmH3OjtzX865yO8S8Ox5cZIFSBsZ2LjnuJxwgwUjIciyhkR3LMudTV85Pb9mT53XnBghIzYe/z+hmkyvvXSqeTHQt1HxYWGAFkWZ3n/N3WOZ4rViweFPNFC0k8Gn4/FdVSx+z5d98Vyw4LrUKwwAggF/CHQVAKf1ckVopoJRyLZXJVy7JhodSDUjGdCIIFRgC5bEU5sejfccHvrHnWq4Qv2MTKIR8X6Bnw4wdCC8GQibAk8itx7RQNfyXMfVg/+80c+rDomg6anu4DYGGB/jBlkXG2YtiKkmmXP/AxZg1c2xZiBcEC/eXNqJ5FWEhEyO1bCHO0+IIXg0gNAkXW03FDwlTEdzzyYYLAUfAGGrXjkcATdq9MzHOE6mUeoXgd9bsILFYvAo2nCMEC4xMu6qc6t+z2SREqWhz1TtSfRwgABAtUEq2NZRdVmO5EtVVryKWkpbuwajMwgj4sUJdIuoElXL+E3TZamj5hS46OcYziBBAsEALbPELqC7sRr5HyGMEDECzgH46RMgqRnn64QKyOHJakx5QZYAR9WKCu5ZQ4CM3KJlacLBAJ9wAEC1S2rmi0b+YgWMLDPhcocQCXEBATDgZ1ZcqWVeSw773L+S3CuBD+spQCCBboOSRAuwaOm3BqGJsYkvhtC8TqEtYVgGCBEMig0tSyH61yQ1Hvt+wekuVGK0zPBQJMAQQLBGApFyOlDvVMkFKL+EwFRgFBTdDpDqqK1Ub72wrFAiBYoEuQRXWUN12H/7apcezEwbUEECwAjJCIXLNQnchpNHlwhs/rCucgoaPMELcobmACfVjDwadLRqL0shxX2Wk0lJbmjz/+pCk4NDI4E8X9VnI+4Y0MKs1+t7EIp/rvleO+YEAgRTJoHCXT6IuYOEzRAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACgK/y/AAMAdIooQXnkjPwAAAAASUVORK5CYII=';
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const paperW = 576;           // larghezza stampabile carta 80mm a 203dpi (72mm * 203/25.4)
+        const logoW = 320;             // larghezza logo
+        const logoScale = logoW / img.naturalWidth;
+        const logoH = Math.round(img.naturalHeight * logoScale);
+        const offsetX = Math.round((paperW - logoW) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = paperW;
+        canvas.height = logoH;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, paperW, logoH);
+        ctx.drawImage(img, offsetX, 0, logoW, logoH);
+        const { data } = ctx.getImageData(0, 0, paperW, logoH);
+        // packed monochrome: 1 bit per pixel, MSB first
+        const rowBytes = Math.ceil(paperW / 8);
+        const mono = new Uint8Array(rowBytes * logoH);
+        for (let y = 0; y < logoH; y++) {
+          for (let x = 0; x < paperW; x++) {
+            const i = (y * paperW + x) * 4;
+            const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+            if (lum < 128) mono[y * rowBytes + Math.floor(x/8)] |= (0x80 >> (x % 8));
+          }
+        }
+        let bin = '';
+        for (let i = 0; i < mono.length; i++) bin += String.fromCharCode(mono[i]);
+        resolve(`<image width="${paperW}" height="${logoH}" color="color_1" mode="mono" hri="false">${btoa(bin)}</image><feed line="1"/>`);
+      } catch(e) { resolve(''); }
+    };
+    img.onerror = () => resolve('');
+    img.src = 'data:image/png;base64,' + LOGO_B64;
+  });
+}
+
+function escXmlConti(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+async function _inviaEposConti(xml) {
+  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
+  const endpoint = `https://${ip}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
+      body: xml
+    });
+    if (!r.ok) return { ok: false, err: `HTTP ${r.status}` };
+    const text = await r.text();
+    return { ok: text.includes('success="true"'), err: (text.match(/code="([^"]*)"/) || [])[1] || '' };
+  } catch (e) { return { ok: false, err: e.message }; }
+}
+
+function _buildEposConti(comandi) {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+<s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
+${comandi.filter(Boolean).join('\n')}
+</epos-print></s:Body></s:Envelope>`;
+}
+
+async function stampaContoTermica() {
+  const r = _buildReportData(currentOspiteId); if (!r) return;
+  const { tot, o } = r;
+  const miei = ordiniAttivi(o.id);
+  const now = new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  const W = 42;
+
+  function riga(desc, importo) {
+    const imp = fmt(importo);
+    const sp = Math.max(1, W - desc.length - imp.length);
+    return `<text font="font_b">${escXmlConti(desc + ' '.repeat(sp) + imp)}</text><text>&#10;</text>`;
+  }
+
+  const logoXml = await buildLogoEpos();
+  const righe = [];
+  if (logoXml) righe.push(logoXml);
+  righe.push(`<text font="font_a" align="center" height="2" width="2">CONTO</text><text font="font_a" height="1" width="1" align="center">&#10;</text>`);
+  righe.push(`<text align="center">Centro Vacanze Garden River</text><text>&#10;</text>`);
+  righe.push(`<text align="center">${escXmlConti(now)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  const nomeFam = `${o.cognome} ${o.nome}`;
+  const W2 = 21;
+  const inner = ' ' + nomeFam + ' ';
+  const lp = Math.max(0, Math.floor((W2 - inner.length) / 2));
+  const rp = Math.max(0, W2 - inner.length - lp);
+  righe.push(`<text reverse="true" font="font_a" height="2" width="2">${escXmlConti(' '.repeat(lp) + inner + ' '.repeat(rp))}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`);
+  righe.push(`<text align="center" font="font_b">${escXmlConti(o.alloggio || '')} · ${escXmlConti(pianoLabel(o.piano))}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const punto of PUNTI_RISTORO) {
+    const po = miei.filter(x => x.punto === punto);
+    if (!po.length) continue;
+    const ptot = po.reduce((s, x) => s + x.importo, 0);
+    const hdr = (' ' + punto.toUpperCase()).padEnd(W);
+    righe.push(`<text reverse="true" font="font_a" em="true" height="1" width="1">${escXmlConti(hdr)}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`);
+    for (const ord of po) {
+      const desc = fmtTs(ord.ts) + ' ' + (ord.desc || '');
+      const imp = fmt(ord.importo);
+      const sp = Math.max(1, W - desc.length - imp.length);
+      const line = desc.length + imp.length >= W
+        ? desc.substring(0, W - imp.length - 1) + ' ' + imp
+        : desc + ' '.repeat(sp) + imp;
+      righe.push(`<text font="font_b">${escXmlConti(line)}</text><text>&#10;</text>`);
+    }
+    righe.push('<text>&#10;</text>');
+  }
+
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  const totStr = fmt(tot);
+  const totLabel = 'TOTALE DA INCASSARE';
+  const totSp = Math.max(1, W - totLabel.length - totStr.length);
+  righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti(totLabel + ' '.repeat(totSp) + totStr)}</text><text>&#10;</text>`);
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+}
+
+async function stampaRiepilogoTermica() {
+  const aperti = ospiti.filter(o => !o.chiuso && !nonAncoraArrivato(o)).sort((a, b) =>
+    (a.cognome || '').localeCompare(b.cognome || '', 'it'));
+  if (!aperti.length) { alert('Nessun conto aperto.'); return; }
+  const W = 42;
+  const now = new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+
+  const righe = [];
+  righe.push(`<text font="font_a" align="center" height="2" width="2">RIEPILOGO CONTI</text><text font="font_a" height="1" width="1" align="center">&#10;</text>`);
+  righe.push(`<text align="center">Garden River · ${escXmlConti(now)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;</text>');
+
+  for (const o of aperti) {
+    const miei = ordiniAttivi(o.id);
+    const tot = miei.reduce((s, x) => s + x.importo, 0);
+
+    const hdr = (' ' + `${o.cognome} ${o.nome}`).padEnd(W);
+    righe.push(`<text reverse="true" font="font_a" em="true" height="1" width="1">${escXmlConti(hdr)}</text><text reverse="false" font="font_a" em="false" height="1" width="1" align="left">&#10;</text>`);
+    righe.push(`<text font="font_b">${escXmlConti((o.alloggio || '—') + ' · ' + pianoLabel(o.piano))}</text><text>&#10;</text>`);
+
+    const totStr = fmt(tot);
+    const totSp = Math.max(1, W - 'Totale'.length - totStr.length);
+    righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti('Totale' + ' '.repeat(totSp) + totStr)}</text><text>&#10;</text>`);
+    righe.push('<text>&#10;</text>');
+  }
+
+  const totGlobale = aperti.reduce((s, o) => s + totOspite(o.id), 0);
+  righe.push(`<text>${'='.repeat(W)}</text><text>&#10;</text>`);
+  const glStr = fmt(totGlobale);
+  const glSp = Math.max(1, W - 'TOTALE GENERALE'.length - glStr.length);
+  righe.push(`<text font="font_a" em="true" height="1" width="1">${escXmlConti('TOTALE GENERALE' + ' '.repeat(glSp) + glStr)}</text><text>&#10;</text>`);
+  righe.push('<text>&#10;&#10;</text>');
+  righe.push('<cut type="feed"/>');
+
+  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 // ── NAVIGAZIONE ───────────────────────────────────────────────────────────────
@@ -1408,40 +1940,6 @@ function switchTab(id) {
   if (id==='dettaglio-chiuso') document.getElementById('tab-chiusi').classList.add('active');
   if (id==='scadenze') renderScadenze();
   if (id==='chiusi')   renderChiusi();
-  if (id==='setup')    aggiornaStatoNotifiche();
-}
-
-// ── NOTIFICHE PUSH ──────────────────────────────────────────────────────────
-function aggiornaStatoNotifiche() {
-  const el  = document.getElementById('notifiche-status');
-  const btn = document.getElementById('btn-attiva-notifiche');
-  if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Non supportate su questo browser';
-    return;
-  }
-  const giàAttive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
-  el.textContent   = giàAttive ? 'Attive su questo dispositivo ✓' : 'Non attive su questo dispositivo';
-  el.style.color   = giàAttive ? 'var(--green-ok)' : 'var(--gray-500)';
-  if (btn) btn.style.display = giàAttive ? 'none' : '';
-}
-
-async function attivaNotifiche() {
-  const btn = document.getElementById('btn-attiva-notifiche');
-  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso...'; }
-  const res = await window._abilitaNotifichePush(currentOperatore);
-  if (res.ok) {
-    showToast('Notifiche attivate!');
-  } else {
-    const messaggi = {
-      'negato': 'Permesso negato — abilitalo nelle impostazioni di Safari per questa app',
-      'non-supportato': 'Il tuo browser non supporta le notifiche push',
-      'nessun-token': 'Impossibile registrare il dispositivo, riprova'
-    };
-    showToast(messaggi[res.motivo] || 'Errore, riprova');
-  }
-  aggiornaStatoNotifiche();
-  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
 }
 
 function goDettaglio(id) {
@@ -1477,6 +1975,9 @@ async function addOspite() {
   const ospite = { id: nuovoId, nome, cognome, alloggio, piano, checkout, chiuso: false };
   try {
     await fsSetOspite(ospite);
+    // Nessun collegamento a una famiglia: un conto creato qui manualmente è
+    // un conto libero indipendente (l'inserimento principale avviene da
+    // Ristorazione, che genera già il conto collegato automaticamente).
     ['no-nome','no-cognome','no-alloggio','no-checkout'].forEach(id=>document.getElementById(id).value='');
     showToast(`${cognome} ${nome} registrato!`);
     switchTab('ospiti');
@@ -1494,6 +1995,7 @@ function goModificaOspite() {
   populateAlloggioSelect(document.getElementById('mo-alloggio'), o.alloggio);
   document.getElementById('mo-piano').value    = o.piano || 'mezza';
   document.getElementById('mo-checkout').value = o.checkout;
+  document.getElementById('mo-tel').value      = o.tel || '';
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-modifica-ospite').classList.add('active');
 }
@@ -1505,10 +2007,12 @@ async function salvaModificaOspite() {
   const alloggio = document.getElementById('mo-alloggio').value.trim();
   const piano    = document.getElementById('mo-piano').value;
   const checkout = document.getElementById('mo-checkout').value;
+  const tel      = document.getElementById('mo-tel').value.trim();
   if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
-  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout };
+  const aggiornato = { ...o, nome, cognome, alloggio, piano, checkout, tel };
   try {
     await fsSetOspite(aggiornato);
+    await sincronizzaFamigliaRistorazione(o.id, aggiornato);
     showToast('Anagrafica aggiornata!');
     goDettaglio(o.id);
   } catch(e) {
@@ -1564,6 +2068,33 @@ function chiudiConto() {
       await fsSetOspite(o);
       showToast(`Conto di ${o.cognome} ${o.nome} chiuso!`);
       switchTab('ospiti');
+    }
+  );
+}
+
+// Segna come pagato il dovuto corrente senza chiudere il conto/l'anagrafica:
+// utile per chi soggiorna a lungo e salda periodicamente. Non cancella nulla:
+// gli ordini restano tutti in Firestore per lo storico, semplicemente non
+// vengono più conteggiati nel "totale corrente" perché precedenti alla
+// soglia pagatoFinoA (vedi ordiniAttivi/totOspite).
+function azzeraConto() {
+  const o = ospiti.find(x => x.id === currentOspiteId);
+  if (!o) return;
+  const daAzzerare = ordiniAttivi(o.id);
+  if (!daAzzerare.length) { showToast('Nessun importo da azzerare'); return; }
+  const tot = daAzzerare.reduce((s,x)=>s+x.importo,0);
+  showModal(
+    'Segna come pagato', `Segnare come pagato il conto di ${o.cognome} ${o.nome}?\nTotale incassato ora: ${fmt(tot)}\n\nIl conto resta aperto e riparte da zero: gli ordini restano salvati nello storico.`,
+    'Segna come pagato', 'var(--green-700)',
+    async () => {
+      try {
+        const aggiornato = { ...o, pagatoFinoA: nowLocalISO() };
+        await fsSetOspite(aggiornato);
+        showToast(`${fmt(tot)} segnati come pagati!`);
+      } catch(e) {
+        console.error(e);
+        showToast('Errore durante l\'azzeramento — riprova');
+      }
     }
   );
 }

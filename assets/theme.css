@@ -113,25 +113,49 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .rail { display: none; }
 @media (min-width: 1024px) {
   .app-shell { display: flex; align-items: flex-start; }
+  /* .rail è "position:fixed" (non sticky): con "sticky" il suo contenitore
+     .nav-zone, dentro un flex con align-items:flex-start, resta alto solo
+     quanto il rail stesso — appena la pagina è più lunga di 100vh lo sticky
+     "finisce" e il rail scompare scorrendo invece di restare agganciato.
+     .nav-zone mantiene comunque le stesse dimensioni (78px × 100vh) così la
+     larghezza resta riservata nel flex e l'hover per aprire la sidebar
+     funziona su tutta l'altezza. */
+  .nav-zone { position: relative; width: 78px; flex-shrink: 0; height: 100vh; }
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    width: 78px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 40;
+    background: #FBFCF9; border-right: 1px solid var(--gray-100);
+    padding: 16px 8px; gap: 4px; overflow-y: auto;
+  }
+  /* Da desktop il rail compatto (icone, come da tablet) resta il layout di
+     base e non sposta mai il contenuto: la sidebar coi nomi si apre solo al
+     passaggio del mouse, sovrapposta sopra il resto — così il menu non
+     rimane fisso aperto a occupare spazio quando non serve. */
   .sidebar {
     display: flex; flex-direction: column;
-    width: 240px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    width: 240px; height: 100vh;
+    /* z-index sopra il .top-bar (100): essendo un overlay che si apre sopra
+       tutto il resto, prima era più basso (45) e l'header sticky ci finiva
+       sempre sopra per costruzione, non solo in casi intermittenti. */
+    position: fixed; top: 0; left: 0; z-index: 150;
     background: #FBFCF9; border-right: 1px solid var(--gray-100);
     padding: 20px 14px; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(-100%); opacity: 0; pointer-events: none;
+    transition: transform .15s ease, opacity .15s ease;
   }
-  .rail { display: none !important; }
+  .nav-zone:hover .sidebar, .nav-zone:focus-within .sidebar {
+    transform: translateX(0); opacity: 1; pointer-events: auto;
+  }
   .hamburger { display: none !important; }
   .main-col { flex: 1; min-width: 0; }
-  main { max-width: none; margin: 0; padding: 24px 32px 60px; }
-  .header-inner, .search-header-inner { max-width: none; margin: 0; }
-  .home-headline { font-size: 40px; }
-  .module-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
 }
 @media (min-width: 768px) and (max-width: 1023.98px) {
   .app-shell { display: flex; align-items: flex-start; }
+  .nav-zone { width: 78px; flex-shrink: 0; height: 100vh; }
   .rail {
     display: flex; flex-direction: column; align-items: center;
-    width: 78px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    width: 78px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 40;
     background: #FBFCF9; border-right: 1px solid var(--gray-100);
     padding: 16px 8px; gap: 4px; overflow-y: auto;
   }
@@ -173,13 +197,39 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .drawer-overlay.open { opacity: 1; pointer-events: auto; }
 .drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 78%; max-width: 280px; background: #FBFCF9; z-index: 901; transform: translateX(-100%); transition: transform .3s cubic-bezier(.4,0,.2,1); padding: 20px 14px; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); overflow-y: auto; }
 .drawer.open { transform: translateX(0); }
+/* Un .top-bar "sticky" agganciato in cima, se la pagina è scrollata quando
+   si apre il drawer, a volte viene ridisegnato dal browser sopra il drawer
+   nonostante lo z-index più basso (bug intermittente di compositing dei
+   browser sugli elementi sticky "agganciati"). Passare a "position:static"
+   non basta: l'elemento torna al suo posto nel flusso del documento, cioè
+   dove si trovava la pagina PRIMA di scrollare, e resta visibile a metà
+   schermo sopra il drawer. toggleDrawer() aggiunge questa classe al body:
+   nascondere del tutto la barra (nessun layout, nessun repaint sopra il
+   drawer) è l'unico modo per evitare l'ambiguità invece di rincorrerla. */
+body.drawer-open { overflow: hidden; }
+body.drawer-open .top-bar { visibility: hidden; }
 
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .home-headline { font-family: var(--font-display); font-size: 34px; font-weight: 600; color: var(--gray-900); line-height: 1.15; margin: 4px 0 24px; letter-spacing: -.01em; }
+/* Mobile-first: ogni soglia successiva è dichiarata DOPO quella precedente,
+   così la cascata vince sempre nell'ordine giusto (nessuna regola base
+   dichiarata più in basso nel file può più annullare queste). */
+@media (min-width: 768px) {
+  main { max-width: none; margin: 0; padding: 22px 26px 56px; }
+  .header-inner, .search-header-inner { max-width: none; margin: 0; }
+  .home-headline { font-size: 40px; }
+}
+@media (min-width: 1024px) {
+  main { padding: 24px 32px 60px; }
+  .home-headline { font-size: 44px; }
+}
 
-.page-head { margin-bottom: 22px; position: relative; }
-.page-head-motif { position: absolute; top: -40px; right: -30px; width: 280px; height: 210px; opacity: .5; pointer-events: none; color: var(--green-200); }
+.page-head { position: relative; margin-bottom: 28px; }
+.page-head-motif { position: absolute; top: -10px; right: -10px; width: 300px; height: 170px; opacity: .55; pointer-events: none; color: var(--green-400); z-index: -1; }
+@media (max-width: 479.98px) { .page-head-motif { display: none; } }
+@media (min-width: 768px) { .page-head-motif { width: 440px; height: 210px; top: -14px; right: -14px; } }
+@media (min-width: 1024px) { .page-head-motif { width: 600px; height: 240px; top: -18px; right: -18px; } }
 .page-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; color: var(--terracotta); margin-bottom: 8px; position: relative; }
 .page-eyebrow svg { width: 14px; height: 14px; }
 .page-title { font-family: var(--font-display); font-weight: 600; font-size: 30px; letter-spacing: -.01em; line-height: 1.08; position: relative; }
@@ -204,8 +254,8 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .kpi-strip { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
 @media (min-width: 768px) { .kpi-strip { grid-template-columns: repeat(4,1fr); gap: 12px; } }
 .kpi-chip { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; }
-.kpi-icon { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.kpi-icon svg { width: 16px; height: 16px; }
+.kpi-icon { width: 48px; height: 48px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.kpi-icon svg { width: 26px; height: 26px; }
 .kpi-label { font-size: 11px; font-weight: 700; color: var(--gray-500); }
 .kpi-value { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .kpi-value small { font-size: 12.5px; font-weight: 600; color: var(--gray-500); }
@@ -252,13 +302,18 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .tile-white { background: var(--white); border: 1px solid var(--gray-100); color: var(--gray-900); box-shadow: var(--shadow-sm); }
 .tile-white .module-icon-chip { background: rgba(27,67,50,.11); color: var(--green-700); }
 
-@media (min-width: 860px) {
-  .home-headline { font-size: 44px; }
-  .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
-  .module-tile.feature, .module-tile.solo { grid-row: auto; grid-column: auto; }
+/* La card "in evidenza" (Alloggi) resta grande e con l'anello a ogni
+   larghezza — non viene più annullata sopra gli 860px come in passato.
+   Griglia mobile-first: 2 col di base, 3 dai 768px, 4 dai 1024px —
+   ogni soglia dichiarata dopo la precedente, nessuna sovrapposizione. */
+@media (min-width: 768px) {
   .module-icon-chip, .module-tile.feature .module-icon-chip { width: 48px; height: 48px; border-radius: 14px; }
   .module-icon-chip svg, .module-tile.feature .module-icon-chip svg { width: 24px; height: 24px; }
   .module-title, .module-tile.feature .module-title { font-size: 16px; }
+  .module-grid { grid-template-columns: repeat(3, minmax(0,1fr)); grid-auto-rows: 168px; gap: 16px; }
+}
+@media (min-width: 1024px) {
+  .module-grid { grid-template-columns: repeat(4, minmax(0,1fr)); }
 }
 
 /* ══ SEZIONI / SETTINGS / SCHEDA MODULO ═══════════════════════════════════ */

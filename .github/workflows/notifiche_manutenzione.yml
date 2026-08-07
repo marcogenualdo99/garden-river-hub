@@ -1,4 +1,4 @@
-name: Notifiche Ordini Ristorazione
+name: Notifiche Ticket Manutenzione
 
 on:
   schedule:
@@ -15,7 +15,7 @@ jobs:
           python-version: '3.11'
       - name: Installa dipendenze
         run: pip install google-auth requests
-      - name: Invia notifiche ordini ristorazione
+      - name: Invia notifiche ticket manutenzione
         env:
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-        run: python scripts/send_notifiche_ristorazione.py
+        run: python .github/scripts/send_notifiche_manutenzione.py
