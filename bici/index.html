@@ -7,7 +7,9 @@
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css?v=1786056323">
+<script src="../assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Bici">
@@ -55,80 +57,57 @@
 </script>
 <style>
 :root {
-  /* Brand greens */
-  --green-900: #0D2B1E;
-  --green-700: #1B4332;
-  --green-500: #2D6A4F;
-  --green-400: #40916C;
-  --green-200: #95D5B2;
-  --green-100: #D8F3DC;
-  --green-50:  #F0FAF4;
-  /* Neutrals */
-  --gray-900:  #0F172A;
-  --gray-700:  #334155;
-  --gray-500:  #64748B;
-  --gray-400:  #94A3B8;
-  --gray-300:  #CBD5E1;
-  --gray-200:  #E2E8F0;
-  --gray-100:  #F1F5F9;
-  --gray-50:   #F8FAFC;
-  --white:     #FFFFFF;
-  /* Semantic */
-  --orange:    #D97706; --orange-bg: #FFFBEB;
-  --red:       #DC2626; --red-bg: #FEF2F2; --red-light: #FCA5A5;
-  --amber:     #D97706; --amber-bg: #FFFBEB;
-  --green-ok:  #16A34A; --green-bg: #F0FDF4; --green-light: #86EFAC;
-  --pink-busy: #EF4444;
-  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-light: #93C5FD;
-  /* Radius */
+  /* Colori, raggi, ombre e font condivisi vengono da assets/theme.css (stessi
+     di Hub e Calendario) — qui solo le variabili aggiuntive che lì mancano,
+     stessa integrazione già fatta in calendario/index.html. */
+  --gray-600:  #4B5563;
+  --gray-200:  #E5E7EB;
+  --border:    var(--gray-100);
   --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius:    16px;
-  --radius-lg: 20px;
-  --radius-xl: 32px;
-  /* Shadows — Soft UI Evolution */
-  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
-  --shadow:    0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
-  --shadow-lg: 0 10px 30px rgba(15,23,42,0.12), 0 4px 8px rgba(15,23,42,0.06);
-  --border:    #E2E8F0;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-body { font-family: var(--font); background: var(--gray-50); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
-/* ══ LOGIN ════════════════════════════════════════════════════════════════ */
-.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
-.login-screen.hidden { display: none; }
-.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
-.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
-.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
-.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
-.btn-primary:active { opacity: .85; }
-
-/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-200); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 14px; font-weight: 700; color: var(--gray-900); line-height: 1.2; }
-.header-role  { font-size: 10px; color: var(--gray-500); font-weight: 500; margin-top: 1px; }
-.header-btns  { display: flex; align-items: center; gap: 6px; }
-.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: background .15s; }
-.hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
-.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); }
-.hbtn.ghost:hover { background: var(--gray-200); }
-.hbtn:active { opacity: .8; }
+/* ══ LOGIN, HEADER ═══════════════════════════════════════════════════════
+   Stessi stili di Hub/Calendario/Alloggi, presi da assets/theme.css: qui
+   nessuna ridefinizione, solo il layout sotto specifico di questa pagina. */
+.page-head { margin-bottom: 8px; }
 
 main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
+@media (min-width: 768px) { main { max-width: none; margin: 0; padding: 20px 24px 56px; } }
+@media (min-width: 1024px) { main { padding: 24px 32px 60px; } }
+
+/* ══ LAYOUT PRINCIPALE — verticale su mobile, a due colonne da tablet in su:
+   form + stato bici a sinistra (colonna stretta), noleggi attivi a destra
+   (colonna larga, dove serve più spazio per le card). Colonne come flex, non
+   grid con aree con "rentals" a cavallo di due righe: con la lista noleggi
+   più alta del form, la riga "status" doveva aspettare il confine tra le due
+   righe della griglia e restava staccata più in basso, invece di seguire
+   subito il form. Con due colonne indipendenti ognuna segue solo il proprio
+   contenuto. ═══════════════════════════════════════════════════════════ */
+.bici-layout { display: flex; flex-direction: column; gap: 16px; }
+.bici-cols { display: flex; flex-direction: column; gap: 16px; }
+.bici-col-left, .bici-col-right { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (min-width: 768px) {
+  .bici-cols { flex-direction: row; align-items: flex-start; gap: 20px; }
+  .bici-col-left { width: 380px; flex-shrink: 0; }
+  .bici-col-right { flex: 1; min-width: 0; }
+}
 
 /* ══ SECTION LABEL ═══════════════════════════════════════════════════════ */
-.sec-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-500); text-transform: uppercase; margin: 18px 0 8px 2px; }
+.sec-label { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--gray-500); text-transform: uppercase; margin: 4px 0 8px 2px; }
 
-/* ══ FORM INSERIMENTO ═════════════════════════════════════════════════════ */
-.insert-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border); padding: 16px 16px 14px; margin-bottom: 4px; }
-.insert-card-title { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--green-ok); text-transform: uppercase; margin-bottom: 12px; }
+/* ══ FORM INSERIMENTO ═════════════════════════════════════════════════════
+   Il form è diviso in 3 passi numerati (bici → cliente → durata/prezzo) così
+   l'occhio sa sempre dove si trova, invece di un unico blocco indistinto. */
+.insert-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border); padding: 16px 16px 14px; margin-bottom: 4px; }
+.form-step-title { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: .05em; color: var(--gray-700); text-transform: uppercase; margin: 20px 0 12px; }
+.form-step-title:first-child { margin-top: 0; }
+.form-step-title .num { width: 20px; height: 20px; border-radius: 50%; background: var(--green-ok); color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: var(--font); }
+.form-step-hint { font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gray-400); font-size: 11px; }
+.form-divider { height: 1px; background: var(--gray-100); margin: 18px 0 2px; }
+.bike-sel-count { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--green-ok); }
 
 /* Bike chip grid */
 .bike-chips-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -178,34 +157,54 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 
 /* Total preview badge */
 .total-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--green-bg); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; color: var(--green-ok); }
-.total-badge.multi { background: #e8f5e2; }
+.total-badge.multi { background: var(--green-100); }
 
-/* ══ ACTIVE RENTALS ═══════════════════════════════════════════════════════ */
-.rental-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; border: 1px solid var(--border); border-left: 4px solid var(--gray-300); }
-.rental-card.occ  { border-left-color: var(--red); }
-.rental-card.paid { border-left-color: var(--blue); }
-.rental-card.late { border-left-color: #7C2D12; }
-.rental-header { padding: 14px 16px 0; }
-.rental-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.rental-name { font-size: 17px; font-weight: 800; color: var(--gray-900); }
-.rental-bikes { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-top: 2px; }
-.rental-badge { font-size: 10px; font-weight: 800; padding: 4px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-.badge-occ  { background: var(--red-bg); color: var(--red); }
-.badge-paid { background: var(--blue-bg); color: var(--blue); }
-.badge-late { background: #FEF2E8; color: #C2410C; }
-.rental-stats { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--gray-100); }
-.rental-stat { }
-.rental-stat-lbl { font-size: 10px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
-.rental-stat-val { font-size: 15px; font-weight: 800; color: var(--gray-900); }
-.rental-stat-val.red  { color: var(--red); }
-.rental-stat-val.blue { color: var(--blue); }
-.rental-stat-val.late { color: #C2410C; }
-.rental-actions { display: flex; gap: 8px; padding: 10px 12px 12px; }
-.r-btn { flex: 1; height: 42px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); transition: opacity .15s, transform .1s; -webkit-tap-highlight-color: transparent; }
-.r-btn:active { opacity: .85; transform: scale(.98); }
-.r-btn.edit    { background: var(--gray-100); color: var(--gray-700); }
-.r-btn.collect { background: var(--red); color: #fff; }
-.r-btn.ret     { background: var(--blue-bg); color: var(--blue); }
+/* ══ ACTIVE RENTALS ═══════════════════════════════════════════════════════
+   Ridisegnata per leggerla in un colpo d'occhio: chi è (avatar con iniziali,
+   come l'avatar operatore in header), da quanto è fuori (statistica in
+   evidenza, colorata secondo l'urgenza — è il dato che conta di più per
+   decidere cosa seguire prima) e un'unica azione primaria a piena larghezza
+   invece di due pulsanti identici. Niente barretta laterale: lo stato si
+   legge dall'anello colorato attorno all'avatar (stesso anello terracotta
+   dell'header-avatar in assets/theme.css, qui a 3 colori) più badge, cifra e
+   pulsante — nessun blu: verde/rosso/ambra restano dentro alla stessa
+   famiglia arancio-verde dell'Hub, il pagato è "positivo" quanto le bici
+   libere nella card di stato qui sotto. */
+.rental-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 12px; overflow: hidden; border: 1px solid var(--border); }
+
+.rental-header { padding: 16px 16px 0; }
+.rental-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.rental-who { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.rental-avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; letter-spacing: -.3px; margin: 2px; }
+.rental-who-text { min-width: 0; }
+.rental-name { font-size: 16px; font-weight: 800; color: var(--gray-900); line-height: 1.25; }
+.rental-bikes { font-size: 12px; font-weight: 600; color: var(--gray-500); margin-top: 1px; }
+.rental-meta { font-size: 11px; color: var(--gray-400); margin-top: 6px; line-height: 1.6; }
+.rental-meta b { color: var(--gray-600); font-weight: 700; }
+.rental-meta .warn { color: var(--amber); font-weight: 700; }
+.rental-note { font-size: 11px; color: var(--gray-500); margin-top: 4px; font-style: italic; }
+.rental-badge { font-size: 10px; font-weight: 800; padding: 4px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+.badge-occ  { background: var(--red); color: #fff; }
+.badge-paid { background: var(--green-ok); color: #fff; }
+.badge-late { background: var(--amber); color: #fff; }
+
+.rental-hero { display: flex; gap: 10px; padding: 14px 16px; margin-top: 12px; border-top: 1px solid var(--gray-100); }
+.rental-hero-stat { flex: 1; min-width: 0; }
+.rental-hero-stat.right { text-align: right; }
+.rental-hero-val { font-size: 22px; font-weight: 900; line-height: 1; letter-spacing: -.01em; color: var(--gray-900); font-variant-numeric: tabular-nums; }
+.rental-hero-val.red   { color: var(--red); }
+.rental-hero-val.green { color: var(--green-ok); }
+.rental-hero-val.amber { color: var(--amber); }
+.rental-hero-lbl { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: .04em; margin-top: 5px; }
+
+.rental-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 2px 16px 16px; }
+.r-btn-primary { width: 100%; height: 46px; border: none; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 800; cursor: pointer; font-family: var(--font); color: #fff; transition: opacity .15s, transform .1s; -webkit-tap-highlight-color: transparent; }
+.r-btn-primary:active { opacity: .88; transform: scale(.99); }
+.r-btn-primary.occ   { background: var(--red); }
+.r-btn-primary.paid  { background: var(--green-ok); }
+.r-btn-primary.late  { background: var(--amber); }
+.r-btn-secondary { background: none; border: none; font-size: 12.5px; font-weight: 700; color: var(--gray-500); cursor: pointer; font-family: var(--font); padding: 2px 4px; -webkit-tap-highlight-color: transparent; }
+.r-btn-secondary:hover { color: var(--gray-700); }
 
 /* Edit form inside rental card */
 .rental-edit { padding: 12px 16px 14px; border-top: 1px solid var(--gray-100); background: var(--gray-50); }
@@ -218,7 +217,9 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 
 /* ══ BIKE STATUS (bottom) ═════════════════════════════════════════════════ */
 .status-row { display: flex; gap: 8px; }
-.status-chip { flex: 1; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 12px 8px; text-align: center; box-shadow: var(--shadow-sm); }
+.status-chip { flex: 1; background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--border); padding: 14px; text-align: center; box-shadow: var(--shadow-sm); }
+.status-chip-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+.status-chip-icon svg { width: 20px; height: 20px; }
 .status-chip .n { font-size: 26px; font-weight: 900; line-height: 1; }
 .status-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
 
@@ -235,9 +236,6 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 
 /* ══ EMPTY / UTILITY ═══════════════════════════════════════════════════ */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-size: 13px; line-height: 1.6; }
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 9999; box-shadow: var(--shadow-lg); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.hidden { display: none !important; }
 
 /* ══ IMPOSTAZIONI ═════════════════════════════════════════════════════════ */
 .settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 16px; }
@@ -254,13 +252,8 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 .btn-toggle  { background: var(--gray-100); color: var(--gray-700); }
 .btn-delete  { background: var(--red-bg); color: var(--red); }
 
-/* ══ MODAL ════════════════════════════════════════════════════════════════ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 320px; box-shadow: var(--shadow-lg); }
-.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
-.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-.modal-btn-confirm { flex: 1; height: 46px; background: var(--green-ok); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+/* ══ MODALE — box/pulsanti condivisi da assets/theme.css; qui nessuna
+   ridefinizione (stessa integrazione già fatta in calendario/index.html). */
 
 /* Shared utility */
 .btn-block { width: 100%; height: 48px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); }
@@ -306,9 +299,108 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
   </div>
 </div>
 
+<div class="app-shell">
+
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
+     Stessa struttura a tre livelli della Hub e del Calendario (v. assets/theme.css),
+     riusata identica qui: stesse icone (assets/icons.js), stessi font e colori. ══ -->
+<div class="nav-zone">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Bici</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item active" href="./"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Alloggi</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item active" href="./"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Bici</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item active" href="./"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
+
+<div class="main-col">
+
 <!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
 <div class="top-bar" id="top-bar-main">
   <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
     <div class="header-left">
       <div class="header-avatar" id="header-avatar"></div>
       <div>
@@ -317,15 +409,11 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
       <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
     </div>
   </div>
 </div>
@@ -346,15 +434,30 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 </div>
 
 <main id="main-view">
-  <div id="alerts-container"></div>
-  <div id="form-inserimento"></div>
-  <div id="active-rentals"></div>
-  <div id="bike-status"></div>
+  <div class="page-head">
+    <div class="page-eyebrow"><span data-icon="BICI"></span><span>Bici</span></div>
+    <div class="page-title">Noleggio bici</div>
+  </div>
+  <div class="bici-layout">
+    <div id="alerts-container"></div>
+    <div class="bici-cols">
+      <div class="bici-col-left">
+        <div id="form-inserimento"></div>
+        <div id="bike-status"></div>
+      </div>
+      <div class="bici-col-right">
+        <div id="active-rentals"></div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <main id="settings-view" class="hidden">
   <div id="settings-container"></div>
 </main>
+
+</div>
+</div>
 
 <div class="modal-overlay hidden" id="modal-overlay">
   <div class="modal-box">
@@ -373,6 +476,20 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 const HUB_URL      = '../';
 const MODULE_ID    = 'bici';
 const SECTION_IDS  = ['bici'];
+
+hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
+
+// ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
+//    (stessa logica della Hub e del Calendario) ─────────────────────────────
+function toggleNavGroup(btn) {
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.body.classList.toggle('drawer-open', open);
+}
 
 // 👉 TARIFFE NOLEGGIO BICI — modifica solo questi numeri per cambiare prezzi
 //    e soglie orarie, il resto dell'app si adatta da solo.
@@ -419,9 +536,9 @@ function calcolaSelezioneDurata(t) {
 }
 
 const STATUS_META = {
-  libera:           { label: 'Libera',          color: '#92BA7F' },
-  occupata:         { label: 'Da pagare',       color: '#FF6E6E' },
-  occupata_pagata:  { label: 'Già pagata',      color: 'var(--blue)' },
+  libera:           { label: 'Libera',          color: 'var(--green-ok)' },
+  occupata:         { label: 'Da pagare',       color: 'var(--red)' },
+  occupata_pagata:  { label: 'Già pagata',      color: 'var(--green-ok)' },
   non_disponibile:  { label: 'Non disponibile', color: 'var(--gray-500)' },
 };
 const STATUS_KEYS = Object.keys(STATUS_META);
@@ -472,6 +589,10 @@ async function onAlloggioNoleggioChange(valore) {
       const { db, collection, getDocs, query, where } = window._fb;
       const oggi = new Date().toISOString().slice(0, 10);
       const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', valore)));
+      // Solo chi è effettivamente già in casa (check-in fatto, check-out non
+      // ancora avvenuto): con una finestra più larga, in caso di turnover
+      // ravvicinato sullo stesso alloggio si rischia di trovare due
+      // anagrafiche valide insieme e prendere quella sbagliata.
       const match = snap.docs.map(d => d.data()).find(p => oggi >= p.checkin && oggi < p.checkout);
       if (match && match.nome) formTemp.nome = match.nome;
     } catch(e) { console.error('Errore recupero anagrafica per alloggio:', e); }
@@ -743,8 +864,11 @@ function renderFormInserimento() {
   container.innerHTML =
     '<div class="sec-label">Nuovo noleggio</div>'+
     '<div class="insert-card">'+
-      '<div class="insert-card-title">Seleziona bici</div>'+
+      '<div class="form-step-title"><span class="num">1</span>Scegli le bici</div>'+
       '<div class="bike-chips-grid">'+bikeChipsHtml+'</div>'+
+      (nBici > 0 ? '<div class="bike-sel-count">'+nBici+(nBici===1?' bici selezionata':' bici selezionate')+'</div>' : '')+
+      '<div class="form-divider"></div>'+
+      '<div class="form-step-title"><span class="num">2</span>Chi la prende</div>'+
       '<div style="margin-bottom:12px">'+
         '<div class="f-label">Alloggio <span style="opacity:.5">(opzionale — recupera il cliente dalla prenotazione)</span></div>'+
         '<select class="f-input" id="form-alloggio-bici" onchange="onAlloggioNoleggioChange(this.value)">'+alloggiOptionsHtml(t.alloggio)+'</select>'+
@@ -753,6 +877,8 @@ function renderFormInserimento() {
         '<div class="f-label">Cliente</div>'+
         '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value">'+
       '</div>'+
+      '<div class="form-divider"></div>'+
+      '<div class="form-step-title"><span class="num">3</span>Durata e prezzo</div>'+
       '<div class="dur-row">'+
         '<div class="ore-stepper'+(oreOn?' selected':'')+'">'+
           '<button class="ore-btn" onclick="cambiaOre(-1)">−</button>'+
@@ -854,12 +980,11 @@ function renderRentalCard(group) {
   const groupKey = group.key;
 
   // Cost calculation per group
-  let costoDisplay, costoClass, costoLabel;
+  let costoDisplay, costoLabel;
   if (isPaid) {
     const totPagato = bikes.reduce((s, b) => s + (b.costoAnticipato || 0), 0);
     costoDisplay = totPagato.toFixed(2).replace('.',',') + '€';
     costoLabel = 'Pagato';
-    costoClass = 'blue';
   } else {
     // Sum of individual costs
     let totDovuto = 0;
@@ -869,12 +994,19 @@ function renderRentalCard(group) {
     });
     costoDisplay = totDovuto.toFixed(2).replace('.',',') + '€';
     costoLabel = isLate ? 'In ritardo' : 'Da riscuotere';
-    costoClass = isLate ? 'late' : 'red';
   }
 
   // Badge
   const badgeClass = isLate ? 'badge-late' : (isPaid ? 'badge-paid' : 'badge-occ');
-  const badgeLabel = isLate ? 'IN RITARDO' : (isPaid ? 'Già pagata' : 'Da pagare');
+  const badgeLabel = isLate ? 'In ritardo' : (isPaid ? 'Già pagata' : 'Da pagare');
+  const initiali = (b0.clienteNome || '?').trim().slice(0, 2).toUpperCase();
+  const avatarBg = { occ: 'var(--red-bg)', paid: 'var(--green-bg)', late: 'var(--amber-bg)' }[cardClass];
+  const avatarFg = { occ: 'var(--red)', paid: 'var(--green-ok)', late: 'var(--amber)' }[cardClass];
+  const heroValClass = { occ: 'red', paid: 'green', late: 'amber' }[cardClass];
+  // Anello colorato attorno all'avatar — stesso trucco (box-shadow a doppio
+  // stop, bianco poi colore) dell'header-avatar in assets/theme.css: qui
+  // sostituisce la barretta laterale come indicatore di stato della card.
+  const avatarRing = 'box-shadow:0 0 0 2px var(--white), 0 0 0 3.5px '+avatarFg;
 
   // Edit form
   let editHtml = '';
@@ -925,48 +1057,42 @@ function renderRentalCard(group) {
       '</div>';
   }
 
-  // Action buttons
-  let actionsHtml;
-  if (isPaid) {
-    actionsHtml =
-      '<button class="r-btn edit" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'+
-      '<button class="r-btn ret" onclick="confermaRientroGruppo(\''+groupKey+'\')">Segna rientro</button>';
-  } else {
-    actionsHtml =
-      '<button class="r-btn edit" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'+
-      '<button class="r-btn collect" onclick="confermaRiscuotiGruppo(\''+groupKey+'\')">Riscuoti e chiudi</button>';
-  }
+  // Action buttons — un'unica azione primaria (colorata come il resto della
+  // card) più "Modifica" come link secondario, invece di due pulsanti dello
+  // stesso peso visivo.
+  const actionsHtml = isPaid
+    ? '<button class="r-btn-primary '+cardClass+'" onclick="confermaRientroGruppo(\''+groupKey+'\')">Segna rientro</button>'+
+      '<button class="r-btn-secondary" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'
+    : '<button class="r-btn-primary '+cardClass+'" onclick="confermaRiscuotiGruppo(\''+groupKey+'\')">Riscuoti e chiudi</button>'+
+      '<button class="r-btn-secondary" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>';
 
   return '<div class="rental-card '+cardClass+'">'+
     '<div class="rental-header">'+
       '<div class="rental-top">'+
-        '<div>'+
-          '<div class="rental-name">'+(b0.clienteNome||'—')+'</div>'+
-          '<div class="rental-bikes">Bici '+bikeNums+(bikes.length===1?' · '+tipoLabel:'')+'</div>'+
-          (b0.note ? '<div style="font-size:11px;color:var(--gray-500);margin-top:3px;font-style:italic">'+b0.note+'</div>' : '')+
+        '<div class="rental-who">'+
+          '<div class="rental-avatar" style="background:'+avatarBg+';color:'+avatarFg+';'+avatarRing+'">'+initiali+'</div>'+
+          '<div class="rental-who-text">'+
+            '<div class="rental-name">'+(b0.clienteNome||'—')+'</div>'+
+            '<div class="rental-bikes">Bici '+bikeNums+(bikes.length===1?' · '+tipoLabel:'')+'</div>'+
+            '<div class="rental-meta">'+
+              (b0.clienteAlloggio ? '<div>Alloggio <b>'+b0.clienteAlloggio+'</b></div>' : '')+
+              '<div>Ritirata il '+fmtDT(b0.ritiroTs)+(b0.ritiroOp?' · '+b0.ritiroOp:'')+'</div>'+
+              (b0.rientroPrevistoTs ? '<div class="'+(isLate?'warn':'')+'">Rientro previsto <b>'+fmtDT(b0.rientroPrevistoTs)+'</b></div>' : '')+
+            '</div>'+
+            (b0.note ? '<div class="rental-note">'+b0.note+'</div>' : '')+
+          '</div>'+
         '</div>'+
         '<span class="rental-badge '+badgeClass+'">'+badgeLabel+'</span>'+
       '</div>'+
     '</div>'+
-    '<div class="rental-stats">'+
-      '<div class="rental-stat">'+
-        '<div class="rental-stat-lbl">Ritiro</div>'+
-        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtDT(b0.ritiroTs)+'</div>'+
-        (b0.ritiroOp ? '<div style="font-size:10px;color:var(--gray-400);margin-top:1px">'+b0.ritiroOp+'</div>' : '')+
+    '<div class="rental-hero">'+
+      '<div class="rental-hero-stat">'+
+        '<div class="rental-hero-val '+heroValClass+'">'+fmtElapsed(elapsed)+'</div>'+
+        '<div class="rental-hero-lbl">Fuori da</div>'+
       '</div>'+
-      '<div class="rental-stat">'+
-        '<div class="rental-stat-lbl">Tempo</div>'+
-        '<div class="rental-stat-val'+(isLate?' late':'')+'">'+fmtElapsed(elapsed)+'</div>'+
-      '</div>'+
-      (b0.rientroPrevistoTs ?
-        '<div class="rental-stat">'+
-          '<div class="rental-stat-lbl">Rientro prev.</div>'+
-          '<div class="rental-stat-val">'+fmtDT(b0.rientroPrevistoTs)+'</div>'+
-        '</div>'
-      : '')+
-      '<div class="rental-stat" style="margin-left:auto;text-align:right">'+
-        '<div class="rental-stat-lbl">'+costoLabel+'</div>'+
-        '<div class="rental-stat-val '+costoClass+'">'+costoDisplay+'</div>'+
+      '<div class="rental-hero-stat right">'+
+        '<div class="rental-hero-val '+heroValClass+'">'+costoDisplay+'</div>'+
+        '<div class="rental-hero-lbl">'+costoLabel+'</div>'+
       '</div>'+
     '</div>'+
     (editHtml || ('<div class="rental-actions">'+actionsHtml+'</div>'))+
@@ -996,8 +1122,8 @@ function renderBikeStatus() {
   container.innerHTML =
     '<div class="sec-label">Stato bici</div>'+
     '<div class="status-row">'+
-      '<div class="status-chip"><div class="n" style="color:var(--green-ok)">'+libere+'</div><div class="l">Libere</div></div>'+
-      (nonDisp > 0 ? '<div class="status-chip"><div class="n" style="color:var(--gray-400)">'+nonDisp+'</div><div class="l">Non disp.</div></div>' : '')+
+      '<div class="status-chip"><div class="status-chip-icon" style="background:var(--green-bg);color:var(--green-ok)">'+ICONS.BICI+'</div><div class="n" style="color:var(--green-ok)">'+libere+'</div><div class="l">Libere</div></div>'+
+      (nonDisp > 0 ? '<div class="status-chip"><div class="status-chip-icon" style="background:var(--gray-100);color:var(--gray-400)">'+ICONS.BICI+'</div><div class="n" style="color:var(--gray-400)">'+nonDisp+'</div><div class="l">Non disp.</div></div>' : '')+
     '</div>';
 }
 
