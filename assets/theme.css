@@ -113,21 +113,49 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .rail { display: none; }
 @media (min-width: 1024px) {
   .app-shell { display: flex; align-items: flex-start; }
+  /* .rail è "position:fixed" (non sticky): con "sticky" il suo contenitore
+     .nav-zone, dentro un flex con align-items:flex-start, resta alto solo
+     quanto il rail stesso — appena la pagina è più lunga di 100vh lo sticky
+     "finisce" e il rail scompare scorrendo invece di restare agganciato.
+     .nav-zone mantiene comunque le stesse dimensioni (78px × 100vh) così la
+     larghezza resta riservata nel flex e l'hover per aprire la sidebar
+     funziona su tutta l'altezza. */
+  .nav-zone { position: relative; width: 78px; flex-shrink: 0; height: 100vh; }
+  .rail {
+    display: flex; flex-direction: column; align-items: center;
+    width: 78px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 40;
+    background: #FBFCF9; border-right: 1px solid var(--gray-100);
+    padding: 16px 8px; gap: 4px; overflow-y: auto;
+  }
+  /* Da desktop il rail compatto (icone, come da tablet) resta il layout di
+     base e non sposta mai il contenuto: la sidebar coi nomi si apre solo al
+     passaggio del mouse, sovrapposta sopra il resto — così il menu non
+     rimane fisso aperto a occupare spazio quando non serve. */
   .sidebar {
     display: flex; flex-direction: column;
-    width: 240px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    width: 240px; height: 100vh;
+    /* z-index sopra il .top-bar (100): essendo un overlay che si apre sopra
+       tutto il resto, prima era più basso (45) e l'header sticky ci finiva
+       sempre sopra per costruzione, non solo in casi intermittenti. */
+    position: fixed; top: 0; left: 0; z-index: 150;
     background: #FBFCF9; border-right: 1px solid var(--gray-100);
     padding: 20px 14px; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(-100%); opacity: 0; pointer-events: none;
+    transition: transform .15s ease, opacity .15s ease;
   }
-  .rail { display: none !important; }
+  .nav-zone:hover .sidebar, .nav-zone:focus-within .sidebar {
+    transform: translateX(0); opacity: 1; pointer-events: auto;
+  }
   .hamburger { display: none !important; }
   .main-col { flex: 1; min-width: 0; }
 }
 @media (min-width: 768px) and (max-width: 1023.98px) {
   .app-shell { display: flex; align-items: flex-start; }
+  .nav-zone { width: 78px; flex-shrink: 0; height: 100vh; }
   .rail {
     display: flex; flex-direction: column; align-items: center;
-    width: 78px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    width: 78px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 40;
     background: #FBFCF9; border-right: 1px solid var(--gray-100);
     padding: 16px 8px; gap: 4px; overflow-y: auto;
   }
@@ -169,6 +197,17 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 .drawer-overlay.open { opacity: 1; pointer-events: auto; }
 .drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 78%; max-width: 280px; background: #FBFCF9; z-index: 901; transform: translateX(-100%); transition: transform .3s cubic-bezier(.4,0,.2,1); padding: 20px 14px; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); overflow-y: auto; }
 .drawer.open { transform: translateX(0); }
+/* Un .top-bar "sticky" agganciato in cima, se la pagina è scrollata quando
+   si apre il drawer, a volte viene ridisegnato dal browser sopra il drawer
+   nonostante lo z-index più basso (bug intermittente di compositing dei
+   browser sugli elementi sticky "agganciati"). Passare a "position:static"
+   non basta: l'elemento torna al suo posto nel flusso del documento, cioè
+   dove si trovava la pagina PRIMA di scrollare, e resta visibile a metà
+   schermo sopra il drawer. toggleDrawer() aggiunge questa classe al body:
+   nascondere del tutto la barra (nessun layout, nessun repaint sopra il
+   drawer) è l'unico modo per evitare l'ambiguità invece di rincorrerla. */
+body.drawer-open { overflow: hidden; }
+body.drawer-open .top-bar { visibility: hidden; }
 
 /* ══ MAIN / HOME ═══════════════════════════════════════════════════════════ */
 main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
