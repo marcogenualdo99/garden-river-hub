@@ -10,6 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1786056020">
 <script src="../assets/icons.js"></script>
+<!-- Comuni/province/paesi per l'autocompletamento dei campi Alloggiati Web. -->
+<script src="../assets/dati-alloggiati.js?v=1786056020"></script>
 <!-- Solo per leggere in locale il file .xls/.xlsx dell'agenzia in "Importa arrivi" — non tocca Firebase. -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -91,7 +93,10 @@
 .cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
 /* ══ GRIGLIA PLANNING ═════════════════════════════════════════════════════ */
-.cal-scroll { background: var(--white); overflow: auto; max-height: calc(100vh - 200px); }
+.cal-scroll { background: var(--white); overflow-x: auto; }
+.cal-month-row { display: flex; background: var(--green-50); }
+.cal-corner-blank { background: var(--green-50); border-bottom: 1px solid var(--gray-200); }
+.cal-month-seg { flex: none; text-align: center; padding: 4px 2px; font-size: 10.5px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--gray-200); border-bottom: 1px solid var(--gray-200); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .cal-header-row { display: flex; position: sticky; top: 0; z-index: 5; background: var(--white); border-bottom: 2px solid var(--gray-200); }
 .cal-corner { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 6; background: var(--white); border-right: 1px solid var(--gray-200); display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 800; color: var(--gray-500); text-transform: uppercase; letter-spacing: .04em; }
 .cal-daycol-head { flex: none; text-align: center; padding: 6px 2px; font-size: 10px; color: var(--gray-500); font-weight: 700; border-right: 1px solid var(--gray-100); }
@@ -111,7 +116,12 @@
 .cal-cat-fill { flex: none; }
 
 .cal-row { display: flex; border-bottom: 1px solid var(--gray-100); }
-.cal-row-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 2; background: var(--white); border-right: 1px solid var(--gray-200); padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; }
+.cal-row-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 2; background: var(--white); border-right: 1px solid var(--gray-200); padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; gap: 6px; }
+.cal-row-label-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-row-status-icon { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; }
+.cal-row-status-icon svg { width: 13px; height: 13px; }
+.cal-row-status-ticket { width: 16px; height: 16px; border-radius: 50%; background: var(--red); }
+.cal-row-status-ticket svg { width: 10px; height: 10px; }
 .cal-row-track { flex: none; position: relative; height: 54px; }
 .cal-row-track.drop-target { background: rgba(22,163,74,0.12); }
 .cal-daycell { position: absolute; top: 0; bottom: 0; border-right: 1px solid var(--gray-100); cursor: pointer; }
@@ -169,7 +179,8 @@
 .modal-btn-confirm.danger { background: var(--red); }
 
 /* ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ */
-.form-modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.form-modal-box { background: var(--white); border-radius: var(--radius-lg); width: 100%; max-width: 440px; max-height: 88vh; overflow: hidden; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.form-modal-scroll { overflow-y: auto; padding: 22px 20px; flex: 1; min-height: 0; }
 .form-modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
 .form-modal-title-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
 .form-modal-title-row .form-modal-title { margin-bottom: 0; }
@@ -202,13 +213,20 @@
 .f-check.on { border-color: var(--green-ok); background: var(--green-bg); color: var(--green-ok); }
 
 /* ══ PREVENTIVO STIMATO (dal listino, nel form prenotazione) ══════════════ */
-.prev-box { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); padding: 10px 14px; margin-bottom: 14px; }
-.prev-head { display: flex; align-items: center; justify-content: space-between; font-size: 12px; font-weight: 800; color: var(--gray-700); text-transform: uppercase; letter-spacing: .03em; }
-.prev-total { font-size: 15px; font-weight: 800; color: var(--green-700); text-transform: none; letter-spacing: 0; }
+.prev-box { position: relative; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); padding: 10px 14px; margin-bottom: 14px; }
+.prev-head { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; color: var(--gray-700); text-transform: uppercase; letter-spacing: .03em; margin-top: 6px; padding-top: 8px; border-top: 1.5px solid var(--gray-200); }
+.prev-total { margin-left: auto; font-size: 15px; font-weight: 800; color: var(--green-700); text-transform: none; letter-spacing: 0; }
+.conto-ripristina-btn { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; border: 2px solid var(--white); border-radius: 50%; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.conto-ripristina-btn:hover { background: var(--red); color: #fff; }
+.conto-fiscalizza-btn { height: 26px; padding: 0 12px; border: none; border-radius: 14px; background: var(--green-700); color: #fff; font-size: 11px; font-weight: 800; text-transform: none; letter-spacing: 0; cursor: pointer; font-family: var(--font); }
+.conto-fiscalizza-btn:hover { opacity: .9; }
+.conto-row-add { cursor: pointer; color: var(--gray-400); }
+.conto-row-add:hover { color: var(--green-700); }
+.conto-add-icon { flex-shrink: 0; width: 20px; text-align: center; font-size: 15px; font-weight: 700; }
+.conto-add-placeholder { font-size: 12.5px; font-weight: 600; }
 .prev-riga { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--gray-700); padding: 4px 0; border-top: 1px solid var(--gray-200); }
 .prev-riga:first-of-type { border-top: none; margin-top: 4px; }
 .prev-riga-vuota { color: var(--gray-500); font-style: italic; border-top: none; margin-top: 4px; }
-.prev-note { font-size: 10.5px; color: var(--gray-500); margin-top: 6px; line-height: 1.4; }
 
 /* ══ IMPOSTAZIONI LISTINI ═══════════════════════════════════════════════ */
 .listino-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -237,6 +255,7 @@
    voce è manuale) per modificarlo — niente input con bordi finché non ci si
    interagisce, per sembrare testo normale a colpo d'occhio. */
 .conto-row-inline { display: flex; align-items: center; gap: 4px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
+.conto-select-riga { flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--green-700); cursor: pointer; }
 .conto-row-inline:first-child { border-top: none; }
 .conto-label-inline, .conto-importo-inline { border: none; background: transparent; font-family: var(--font); padding: 4px 6px; border-radius: 6px; color: var(--gray-900); }
 .conto-label-inline { flex: 1; font-size: 12.5px; }
@@ -246,13 +265,13 @@
 .conto-label-inline:focus, .conto-importo-inline:focus { background: var(--white); outline: none; box-shadow: inset 0 0 0 1.5px var(--green-400); }
 .conto-remove-btn { width: 22px; height: 22px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .conto-remove-btn:hover { background: var(--red-bg); color: var(--red); }
-.conto-azioni { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 6px; }
 .conto-link-btn { background: none; border: none; padding: 0; font-size: 11.5px; font-weight: 700; color: var(--green-700); cursor: pointer; font-family: var(--font); text-decoration: underline; }
 .conto-pagato-btn { flex-shrink: 0; height: 24px; padding: 0 10px; border: none; border-radius: 14px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; cursor: pointer; font-family: var(--font); }
 .conto-pagato-btn.pagato { background: var(--green-ok); color: #fff; }
 .conto-pagato-btn.da-pagare { background: var(--red); color: #fff; }
 .conto-pagato-btn.acconto { background: var(--blue); color: #fff; cursor: default; }
 .conto-pagato-btn.pensione { background: var(--green-700); color: #fff; cursor: default; white-space: nowrap; }
+.conto-fiscalizzato-badge { flex-shrink: 0; height: 24px; padding: 0 10px; border-radius: 14px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-family: var(--font); background: var(--green-ok); color: #fff; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .conto-row-acconto .conto-importo-inline { color: var(--blue); font-weight: 800; }
 .conto-saldo { font-size: 12px; font-weight: 800; color: var(--red); text-align: right; padding: 0 2px; }
 .documento-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 8px; }
@@ -267,7 +286,37 @@
 /* ══ RICERCA PRENOTAZIONI — sempre visibile in cima al contenuto, niente
    pulsante da premere prima di poter scrivere (.search-wrap ecc. vengono da
    assets/theme.css, qui solo il contenitore e il menu a tendina). ══ */
-.cal-search-row { position: relative; margin-bottom: 16px; }
+.cal-search-row { position: relative; margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
+.cal-filtri-btn { position: relative; flex: none; width: 44px; height: 44px; border: none; border-radius: 50%; background: var(--gray-100); color: var(--gray-700); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cal-filtri-btn:hover { background: var(--green-bg); color: var(--green-700); }
+.cal-filtri-btn span[data-icon] { width: 18px; height: 18px; display: flex; }
+.cal-filtri-btn span[data-icon] svg { width: 100%; height: 100%; }
+.cal-filtri-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--green-ok); border: 1.5px solid var(--white); }
+.cal-filtri-panel { position: absolute; top: calc(100% + 6px); right: 0; width: 260px; background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 60; padding: 14px; max-height: 70vh; overflow-y: auto; }
+.filtri-sezione { break-inside: avoid; margin-bottom: 14px; }
+.filtri-titolo { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--gray-500); margin-bottom: 6px; }
+.filtri-legenda-riga { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gray-700); padding: 3px 0; }
+.filtri-legenda-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; }
+.filtri-legenda-badge.cal-row-status-icon { width: 18px; height: 18px; border-radius: 5px; }
+.filtri-legenda-badge.cal-row-status-icon svg { width: 11px; height: 11px; }
+.filtri-check-riga { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gray-900); padding: 4px 0; cursor: pointer; }
+.filtri-check-riga input { width: 15px; height: 15px; accent-color: var(--green-700); cursor: pointer; }
+.filtri-azioni { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.filtri-reset-btn { width: 100%; height: 36px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-xl); background: var(--white); color: var(--gray-700); font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+.filtri-reset-btn:hover { background: var(--gray-50); }
+.filtri-data-input { width: 100%; height: 38px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); background: var(--gray-50); }
+.filtri-data-row { display: flex; gap: 8px; }
+.filtri-data-row > div { flex: 1; min-width: 0; }
+.filtri-data-label { display: block; font-size: 10.5px; font-weight: 700; color: var(--gray-500); margin-bottom: 3px; }
+.filtri-confirm-btn { width: 100%; height: 38px; border: none; border-radius: var(--radius-xl); background: var(--green-700); color: #fff; font-size: 12.5px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+.filtri-confirm-btn:hover { opacity: .9; }
+@media (min-width: 1024px) {
+  .cal-filtri-panel { width: 540px; }
+  .filtri-columns { column-count: 2; column-gap: 28px; }
+}
+.cal-stato-menu { position: absolute; z-index: 2000; background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 4px; min-width: 190px; }
+.cal-stato-menu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12.5px; font-weight: 600; color: var(--gray-900); border-radius: 7px; cursor: pointer; }
+.cal-stato-menu-item:hover { background: var(--green-bg); color: var(--green-700); }
 .search-results { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-lg); max-height: 320px; overflow-y: auto; z-index: 50; }
 .search-result-row { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--gray-100); }
 .search-result-row:hover { background: var(--gray-50); }
@@ -275,6 +324,9 @@
 .search-result-nome { font-size: 13px; font-weight: 800; color: var(--gray-900); }
 .search-result-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
 .search-result-empty { padding: 14px; text-align: center; color: var(--gray-500); font-size: 12px; }
+.ac-list { position: absolute; z-index: 2000; background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 10px; box-shadow: var(--shadow-lg); max-height: 220px; overflow-y: auto; }
+.ac-item { padding: 8px 12px; font-size: 13px; color: var(--gray-900); cursor: pointer; }
+.ac-item:hover, .ac-item.active { background: var(--green-bg); color: var(--green-700); }
 .listino-save-btn:active { opacity: .85; }
 .kit-section { border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 12px; margin-bottom: 12px; background: var(--gray-50); }
 .kit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
@@ -285,7 +337,7 @@
 .qty-btn:hover { background: var(--green-bg); color: var(--green-ok); }
 .qty-val { width: 36px; height: 34px; border: none; text-align: center; font-size: 14px; font-weight: 800; color: var(--gray-900); font-family: var(--font); background: var(--white); -moz-appearance: textfield; }
 .qty-val::-webkit-outer-spin-button, .qty-val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.form-actions { display: flex; gap: 8px; margin-top: 16px; }
+.form-actions { display: flex; gap: 8px; flex: none; padding: 14px 20px 20px; border-top: 1.5px solid var(--gray-100); box-shadow: 0 -8px 12px -8px rgba(0,0,0,.06); }
 .form-actions .del-btn { flex: none; height: 46px; padding: 0 16px; background: var(--red-bg); color: var(--red); border: none; border-radius: var(--radius-xl); font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 
 /* ══ SEZIONE OSPITI (Alloggiati Web) ══════════════════════════════════════ */
@@ -344,13 +396,24 @@
 .pren-link-item .pren-link-stato { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 10px; }
 
 .cal-import-banner { display: flex; align-items: center; gap: 8px; background: var(--red-bg); color: var(--red); border: 1.5px solid var(--red-bd); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.export-doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.export-doc-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); cursor: pointer; font-family: var(--font); text-align: left; }
+.export-doc-btn:hover { border-color: var(--green-ok); background: var(--green-bg); }
+.export-doc-btn span:first-child { font-size: 13.5px; font-weight: 800; color: var(--gray-900); }
+.export-doc-sub { font-size: 11.5px; color: var(--gray-500); }
 .import-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 14px; font-size: 12.5px; font-weight: 700; }
 .import-summary span { display: inline-flex; align-items: center; gap: 5px; }
-.import-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 12px; }
+.import-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 12px; }
+.import-row-check { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--green-700); cursor: pointer; }
+.import-row-check-spacer { flex-shrink: 0; width: 16px; }
+.import-row-content { flex: 1; min-width: 0; }
+.import-row-content.clickable { cursor: pointer; }
+.import-row-content.clickable:hover .ir-titolo { color: var(--green-700); text-decoration: underline; }
 .import-row .ir-titolo { font-weight: 800; color: var(--gray-900); }
 .import-row .ir-meta { color: var(--gray-500); font-size: 11px; margin-top: 2px; }
 .import-row .ir-stato { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
-.import-row.esistente { opacity: .55; }
+.import-row.esistente { opacity: .75; }
+.import-row.errore { opacity: .55; }
 
 /* ══ FORM PRENOTAZIONE — due colonne su desktop (v. media query in fondo) ══ */
 .form-grid { display: block; }
@@ -366,7 +429,7 @@
 .schedina-btn:hover { opacity: .9; }
 
 /* ══ MODALE ANTEPRIMA SCHEDINA ═════════════════════════════════════════════ */
-.schedina-modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.schedina-modal-box { background: var(--white); border-radius: var(--radius-lg); width: 100%; max-width: 640px; max-height: 88vh; overflow: hidden; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
 .schedina-draft-note { display: flex; gap: 8px; align-items: flex-start; background: var(--amber-bg); border: 1px solid #FDE68A; border-radius: var(--radius-sm); padding: 10px 12px; font-size: 12px; color: #92600A; line-height: 1.5; margin-bottom: 16px; }
 .schedina-summary-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
 .schedina-summary-row:last-child { border-bottom: none; }
@@ -559,10 +622,15 @@
   <div class="cal-search-row" id="search-prenotazioni-row">
     <div class="search-wrap">
       <span class="search-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-      <input type="text" id="search-prenotazioni-input" placeholder="Cerca per nome, telefono o targa…" oninput="cercaPrenotazioni()">
+      <input type="text" id="search-prenotazioni-input" placeholder="Cerca per nome, familiare, telefono o targa…" oninput="cercaPrenotazioni()">
       <span class="search-clear hidden" id="search-prenotazioni-clear" onclick="pulisciRicercaPrenotazioni()">&times;</span>
     </div>
     <div id="search-prenotazioni-results" class="search-results hidden"></div>
+    <button type="button" class="cal-filtri-btn" id="cal-filtri-btn" onclick="toggleFiltriPanel()" title="Legenda e filtri">
+      <span data-icon="FILTER"></span>
+      <span class="cal-filtri-dot hidden" id="cal-filtri-dot"></span>
+    </button>
+    <div class="cal-filtri-panel hidden" id="cal-filtri-panel"></div>
   </div>
   <div class="page-head">
     <div class="page-eyebrow">
@@ -580,6 +648,7 @@
     <div style="display:flex;gap:8px">
       <button class="cal-today-btn" onclick="goToday()">Oggi</button>
       <button class="cal-today-btn" onclick="apriImportModal()">Importa arrivi</button>
+      <button class="cal-today-btn" onclick="apriExportModal()">Esporta documenti</button>
       <button class="cal-add-btn" onclick="openNuovaPrenotazione()">+ Nuova prenotazione</button>
     </div>
   </div>
@@ -610,10 +679,12 @@
     <button type="button" class="listino-tab active" id="tab-villini" onclick="switchListinoTab('villini')">Villini</button>
     <button type="button" class="listino-tab" id="tab-campeggio" onclick="switchListinoTab('campeggio')">Campeggio</button>
     <button type="button" class="listino-tab" id="tab-generali" onclick="switchListinoTab('generali')">Generali</button>
+    <button type="button" class="listino-tab" id="tab-fiscalizzazione" onclick="switchListinoTab('fiscalizzazione')">Fiscalizzazione</button>
   </div>
   <div id="listino-villini-panel"></div>
   <div id="listino-campeggio-panel" class="hidden"></div>
   <div id="listino-generali-panel" class="hidden"></div>
+  <div id="listino-fiscalizzazione-panel" class="hidden"></div>
 </main>
 
 </div>
@@ -634,6 +705,7 @@
 <!-- ══ MODALE FORM PRENOTAZIONE ═════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="form-modal-overlay">
   <div class="form-modal-box">
+  <div class="form-modal-scroll">
     <div class="form-modal-title-row">
       <div class="form-modal-title" id="form-modal-title">Nuova prenotazione</div>
       <span class="autosave-status" id="autosave-status"></span>
@@ -660,8 +732,8 @@
         <button type="button" class="pren-tab active" data-tab="dettagli" onclick="switchPrenTab('dettagli')"><span data-icon="HOME"></span>Dettagli</button>
         <button type="button" class="pren-tab" data-tab="conto" onclick="switchPrenTab('conto')"><span data-icon="CONTI"></span>Conto<span class="alert-dot hidden" id="conto-tab-alert" title="Conto con importi da pagare" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
         <button type="button" class="pren-tab" data-tab="bici" onclick="switchPrenTab('bici')"><span data-icon="BICI"></span>Bici</button>
-        <button type="button" class="pren-tab" data-tab="ristorazione" onclick="switchPrenTab('ristorazione')"><span data-icon="RISTORAZIONE"></span>Ristorazione</button>
-        <button type="button" class="pren-tab" data-tab="manutenzione" onclick="switchPrenTab('manutenzione')"><span data-icon="MANUTENZIONE"></span>Manutenzione</button>
+        <button type="button" class="pren-tab" data-tab="ristorazione" onclick="switchPrenTab('ristorazione')"><span data-icon="RISTORAZIONE"></span>Ristorazione<span class="alert-dot hidden" id="ristorazione-tab-alert" title="Dati Ristorazione incompleti" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
+        <button type="button" class="pren-tab" data-tab="manutenzione" onclick="switchPrenTab('manutenzione')"><span data-icon="MANUTENZIONE"></span>Manutenzione<span class="alert-dot hidden" id="manutenzione-tab-alert" title="Ticket di manutenzione aperti per questo alloggio" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
         <button type="button" class="pren-tab hidden" data-tab="spiaggia" id="pren-tab-spiaggia" onclick="switchPrenTab('spiaggia')"><span data-icon="SPIAGGIA"></span>Spiaggia</button>
         <button type="button" class="pren-tab" data-tab="pulizie" onclick="switchPrenTab('pulizie')"><span data-icon="ALLOGGI"></span>Pulizie</button>
       </div>
@@ -683,11 +755,11 @@
         <div class="f-row">
           <div>
             <label class="f-label">Nome</label>
-            <input class="f-input" id="f-nome" type="text" placeholder="Es. Mario" oninput="aggiornaRiepilogoPrenotazione(); scheduleAutosave()">
+            <input class="f-input" id="f-nome" type="text" placeholder="Es. Mario" oninput="sincronizzaCapofamiglia(); aggiornaRiepilogoPrenotazione(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">Cognome</label>
-            <input class="f-input" id="f-cognome" type="text" placeholder="Es. Rossi" oninput="aggiornaRiepilogoPrenotazione(); scheduleAutosave()">
+            <input class="f-input" id="f-cognome" type="text" placeholder="Es. Rossi" oninput="sincronizzaCapofamiglia(); aggiornaRiepilogoPrenotazione(); scheduleAutosave()">
           </div>
         </div>
         <div class="f-row">
@@ -797,26 +869,28 @@
       <div class="pren-panel" data-panel="conto">
         <label class="f-label">Altri servizi</label>
         <div class="f-check-row">
-          <label class="f-check" id="chk-bici-wrap"><input type="checkbox" id="f-bici"> Bici</label>
+          <label class="f-check" id="chk-bici-wrap" title="Solo promemoria: non ha un prezzo fisso da listino, l'importo entra nel conto automaticamente dalla scheda Bici quando si registra un noleggio collegato a questo alloggio"><input type="checkbox" id="f-bici"> Bici</label>
           <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="toggleServizioConPrezzo()"> Spiaggia</label>
           <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="toggleServizioConPrezzo()"> Animali al seguito</label>
-          <label class="f-check" id="chk-pacchetto-servizi-wrap"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
+          <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
         </div>
-        <p class="section-hint" style="margin-top:-6px">Il pacchetto è un forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi.</p>
-        <p class="section-hint" style="margin-top:-6px;margin-bottom:14px">"Bici" qui è solo un promemoria: non ha un prezzo fisso da listino — il relativo importo entra nel conto automaticamente dalla scheda Bici, quando si registra un noleggio collegato a questo alloggio.</p>
         <div class="prev-box" id="conto-box">
+          <button type="button" class="conto-ripristina-btn" onclick="ricaricaContoDaPreventivo()" title="Riparti dal preventivo: cancella tutte le voci del conto e le sostituisce con quelle attuali calcolate dal listino">&#8635;</button>
+          <div id="conto-list-inline"></div>
+          <div class="conto-row-inline conto-row-add" onclick="aggiungiVoceConto()">
+            <span class="conto-add-icon">+</span>
+            <span class="conto-add-placeholder">Voce libera</span>
+          </div>
           <div class="prev-head">
             <span>Conto</span>
+            <button type="button" class="conto-fiscalizza-btn" onclick="apriFiscalizzazione()" title="Emette un documento fiscale reale sul registratore telematico per le voci selezionate e le segna come pagate">Fiscalizza</button>
             <span class="prev-total" id="conto-totale-inline">€ 0,00</span>
           </div>
-          <div id="conto-list-inline"></div>
           <div class="conto-saldo hidden" id="conto-saldo-inline"></div>
-          <div class="conto-azioni">
-            <button type="button" class="conto-link-btn" onclick="aggiungiVoceConto()">+ Aggiungi voce</button>
-            <button type="button" class="conto-link-btn" onclick="aggiungiAccontoConto()" title="Registra un importo già incassato (caparra, acconto...): riduce il saldo da pagare">+ Registra caparra/acconto</button>
-            <button type="button" class="conto-link-btn" onclick="ricaricaContoDaPreventivo()" title="Cancella tutte le voci del conto e le sostituisce con quelle attuali del preventivo stimato">&#8635; Riparti dal preventivo (annulla le modifiche fatte a mano)</button>
+          <div class="conto-row-inline conto-row-add" onclick="aggiungiAccontoConto()">
+            <span class="conto-add-icon">+</span>
+            <span class="conto-add-placeholder">Caparra o acconto</span>
           </div>
-          <div class="prev-note">Le voci partono dal listino in base ai dati inseriti a sinistra — clicca su un importo per correggerlo. Voci come nel listino, senza raggruppamenti, per confrontarle poi con lo scarico da Mrpreno.</div>
         </div>
       </div>
 
@@ -846,6 +920,7 @@
 
       </div>
     </div>
+  </div>
 
     <div class="form-actions">
       <button class="del-btn hidden" id="btn-elimina" onclick="eliminaPrenotazioneCorrente()">Elimina</button>
@@ -858,13 +933,46 @@
 <!-- ══ MODALE IMPORTA ARRIVI (file .xls/.xlsx dell'agenzia) ══════════════════ -->
 <div class="modal-overlay hidden" id="import-modal-overlay">
   <div class="form-modal-box">
+  <div class="form-modal-scroll">
     <div class="form-modal-title">Importa arrivi da file agenzia</div>
     <p class="section-hint">Carica il file .xls/.xlsx che ricevi dall'agenzia: le prenotazioni già presenti (stesso ID prenotazione) vengono riconosciute e saltate automaticamente, quelle nuove ti vengono mostrate qui prima di essere importate — nulla viene scritto finché non confermi.</p>
+    <div style="margin-bottom:12px">
+      <label class="f-label">Sorgente</label>
+      <select class="f-select" id="import-sorgente-select" onchange="cambiaSorgenteImport(this.value)"></select>
+    </div>
     <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv" onchange="analizzaFileImportazione(this)">
     <div id="import-risultati" style="margin-top:16px"></div>
+  </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiImportModal()">Chiudi</button>
       <button class="modal-btn-confirm hidden" style="flex:1" id="btn-conferma-import" onclick="confermaImportazione()">Conferma importazione</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE ESPORTA DOCUMENTI (pulizie / ristorazione / check-in del giorno) ══ -->
+<div class="modal-overlay hidden" id="export-modal-overlay">
+  <div class="form-modal-box">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title">Esporta documenti</div>
+    <p class="section-hint">Stesso formato del Report Famiglie già usato in Ristorazione — il file si apre pronto per la stampa.</p>
+    <div>
+      <label class="f-label">Giorno arrivi (per il Report Check-in)</label>
+      <input type="date" class="f-input" id="export-data-input">
+    </div>
+    <div class="export-doc-list">
+      <button type="button" class="export-doc-btn" onclick="scaricaDocumentoCheckin()">
+        <span>Report Check-in</span>
+        <span class="export-doc-sub">Verticale — arrivi del giorno: alloggio, cliente, persone, kit biancheria, data di uscita, spunta alloggio pronto/cliente arrivato</span>
+      </button>
+      <button type="button" class="export-doc-btn" onclick="scaricaDocumentoRistorazione()">
+        <span>Report Ristorazione</span>
+        <span class="export-doc-sub">Orizzontale — lo stesso Report Famiglie di Ristorazione (tavoli, recuperi pasti), aggiornato in tempo reale</span>
+      </button>
+    </div>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiExportModal()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -874,11 +982,13 @@
      schermata. ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="ospiti-modal-overlay">
   <div class="form-modal-box">
+  <div class="form-modal-scroll">
     <div class="form-modal-title">Ospiti da censire (Alloggiati Web)</div>
     <p class="section-hint">Per salvare la prenotazione basta il Capofamiglia/Ospite singolo (richiede documento). Gli altri Familiari vanno aggiunti e completati solo qui, prima di generare la schedina — a quel punto devono essere tanti quante le persone in prenotazione.</p>
     <div id="ospiti-list"></div>
     <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
     <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
+  </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiOspitiModal()">Chiudi</button>
     </div>
@@ -891,6 +1001,7 @@
      (Console Firebase → Storage) più le relative regole di sicurezza. ══ -->
 <div class="modal-overlay hidden" id="documenti-modal-overlay">
   <div class="form-modal-box">
+  <div class="form-modal-scroll">
     <div class="form-modal-title">Documenti</div>
     <p class="section-hint">Carica, visualizza o stampa i documenti legati a questa prenotazione (documento d'identità, contratto, ricevute...). Serve aver salvato la prenotazione almeno una volta.</p>
     <div class="f-row">
@@ -906,6 +1017,7 @@
     <button type="button" class="ospiti-btn" id="btn-carica-documento" onclick="caricaDocumento()">Carica documento</button>
     <div id="doc-upload-status" class="doc-upload-status hidden"></div>
     <div id="documenti-list" style="margin-top:14px"></div>
+  </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiDocumentiModal()">Chiudi</button>
     </div>
@@ -915,6 +1027,7 @@
 <!-- ══ MODALE ANTEPRIMA SCHEDINA ALLOGGIATI WEB (bozza, nessun invio reale) ══ -->
 <div class="modal-overlay hidden" id="schedina-modal-overlay">
   <div class="schedina-modal-box">
+  <div class="form-modal-scroll">
     <div class="form-modal-title">Anteprima schedina Alloggiati Web</div>
     <div class="schedina-draft-note">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
@@ -922,6 +1035,7 @@
     </div>
     <div id="schedina-summary"></div>
     <div class="schedina-block" id="schedina-block"></div>
+  </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiAnteprimaSchedina()">Chiudi</button>
       <button class="modal-btn-confirm" style="flex:1" onclick="simulaInvioAlloggiatiWeb()">Simula invio</button>
@@ -1218,6 +1332,12 @@ function pulisciRicercaPrenotazioni() {
   document.getElementById('search-prenotazioni-clear').classList.add('hidden');
   document.getElementById('search-prenotazioni-results').classList.add('hidden');
 }
+// Cerca su tutte le persone della famiglia (capofamiglia + familiari
+// censiti in Alloggiati Web), non solo sul nome principale della
+// prenotazione: un familiare può avere cognome diverso dal capofamiglia.
+function ospiteFamigliaCorrispondente(p, q) {
+  return (p.ospiti || []).find(o => `${o.nome||''} ${o.cognome||''}`.trim().toLowerCase().includes(q));
+}
 function cercaPrenotazioni() {
   const q = document.getElementById('search-prenotazioni-input').value.trim().toLowerCase();
   const clearBtn = document.getElementById('search-prenotazioni-clear');
@@ -1227,13 +1347,18 @@ function cercaPrenotazioni() {
   const match = prenotazioni.filter(p =>
     (p.nome||'').toLowerCase().includes(q) ||
     (p.tel||'').toLowerCase().includes(q) ||
-    (p.targa||'').toLowerCase().includes(q)
+    (p.targa||'').toLowerCase().includes(q) ||
+    ospiteFamigliaCorrispondente(p, q)
   ).slice(0, 20);
-  resultsEl.innerHTML = match.length ? match.map(p => `
+  resultsEl.innerHTML = match.length ? match.map(p => {
+    const capofamigliaCorrisponde = (p.nome||'').toLowerCase().includes(q);
+    const ospiteTrovato = !capofamigliaCorrisponde ? ospiteFamigliaCorrispondente(p, q) : null;
+    return `
     <div class="search-result-row" onclick="vaiAPrenotazione('${esc(p.id)}')">
       <div class="search-result-nome">${esc(p.nome||'—')}</div>
-      <div class="search-result-meta">${esc(p.alloggio_nome||'')} · ${esc(p.checkin)} → ${esc(p.checkout)}${p.tel?' · '+esc(p.tel):''}${p.targa?' · '+esc(p.targa):''}</div>
-    </div>`).join('') : '<div class="search-result-empty">Nessun risultato</div>';
+      <div class="search-result-meta">${esc(p.alloggio_nome||'')} · ${esc(p.checkin)} → ${esc(p.checkout)}${p.tel?' · '+esc(p.tel):''}${p.targa?' · '+esc(p.targa):''}${ospiteTrovato?' · Familiare: '+esc(`${ospiteTrovato.nome||''} ${ospiteTrovato.cognome||''}`.trim()):''}</div>
+    </div>`;
+  }).join('') : '<div class="search-result-empty">Nessun risultato</div>';
   resultsEl.classList.remove('hidden');
 }
 function vaiAPrenotazione(id) {
@@ -1437,9 +1562,156 @@ async function checkConnessione() {
 setInterval(checkConnessione, 30000);
 
 // ── RAGGRUPPAMENTO ALLOGGI PER CATEGORIA ─────────────────────────────────
+// ── LEGENDA E FILTRI (pannello unico dietro l'icona a imbuto, niente
+//    pulsanti separati) — filtra per categoria e per stato pulizia/
+//    occupazione dell'alloggio; null = nessun filtro attivo su quell'asse. ──
+// Filtri "applicati" (quelli che alloggiFiltrati() legge davvero). Il
+// pannello non li tocca in diretta: lavora su una bozza (filtriDraft) che
+// parte sempre vuota ad ogni apertura — si seleziona cosa vedere e si
+// applica tutto insieme con "Conferma", non un checkbox alla volta.
+let filtroAlloggioCategorie = null;
+let filtroAlloggioStati = null;    // Set di chiavi di STATO_FILTRO_GRUPPI
+let filtroTrattamento = null;      // null | Set{'PC','MP'}
+let filtroBiancheria = false;      // mostra solo alloggi con una prenotazione (nel periodo scelto) con kit biancheria richiesto
+let filtroBiciAttiva = false;      // mostra solo alloggi con una bici attualmente noleggiata (collezione "bici", sola lettura)
+let filtroDataArrivo = '';         // iso o '' — estremi del "data di soggiorno"
+let filtroDataPartenza = '';
+let filtriDraft = null;
+const TRATTAMENTO_LABELS = { PC: 'Pensione completa', MP: 'Mezza pensione' };
+// I 5 stati reali (v. STATO_ALLOGGIO_META, condivisi col modulo Alloggi) si
+// filtrano/impostano qui raggruppati in 3, così come li pensa lo staff:
+// "check-out fatto" e "da pulire" sono la stessa cosa da fare (pulire),
+// "non disponibile" resta fuori (si tocca solo dal modulo Alloggi).
+const STATO_FILTRO_GRUPPI = [
+  { key: 'da_pulire', label: 'Check-out fatto / Da pulire', color: '#FFCF48', icon: 'BROOM', match: s => s === 'checkout_ok' || s === 'da_pulire' },
+  { key: 'pronta',    label: 'Pronta',                       color: '#92BA7F', icon: 'CHECK', match: s => s === 'pronta' },
+  { key: 'occupata',  label: 'Occupata',                      color: '#FF6E6E', icon: 'BED',   match: s => s === 'occupata' },
+];
+function elencoCategorieAlloggi() {
+  const map = {};
+  alloggiList.forEach(a => { const k = a.categoria || 'altro'; if (!map[k]) map[k] = a.categoriaLabel || k; });
+  return Object.entries(map).sort((a,b) => a[1].localeCompare(b[1]));
+}
+// Prenotazioni di un alloggio nel periodo rilevante per i filtri
+// trattamento/biancheria/data di soggiorno: se è impostato un intervallo di
+// arrivo/partenza si usa quello, altrimenti il periodo attualmente visibile
+// a calendario (aperto su un lato se solo una delle due date è impostata).
+function prenotazioniAlloggioVisibili(alloggioNome) {
+  if (filtroDataArrivo || filtroDataPartenza) {
+    return prenotazioni.filter(p => p.alloggio_nome === alloggioNome
+      && (!filtroDataPartenza || p.checkin < filtroDataPartenza)
+      && (!filtroDataArrivo || p.checkout > filtroDataArrivo));
+  }
+  const primo = viewStart, ultimo = addDaysIso(viewStart, Math.max(VIEW_DAYS - 1, 0));
+  return prenotazioni.filter(p => p.alloggio_nome === alloggioNome && p.checkin <= ultimo && p.checkout > primo);
+}
+function filtriAlloggioAttivi() {
+  return !!filtroAlloggioCategorie || !!filtroAlloggioStati || !!filtroTrattamento || filtroBiancheria || filtroBiciAttiva || !!filtroDataArrivo || !!filtroDataPartenza;
+}
+function alloggiFiltrati() {
+  return alloggiList
+    .filter(a => !filtroAlloggioCategorie || filtroAlloggioCategorie.has(a.categoria || 'altro'))
+    .filter(a => !filtroAlloggioStati || STATO_FILTRO_GRUPPI.some(g => filtroAlloggioStati.has(g.key) && g.match(a.stato || 'pronta')))
+    .filter(a => !filtroTrattamento || prenotazioniAlloggioVisibili(a.nome).some(p => filtroTrattamento.has(p.trattamento_ristorazione)))
+    .filter(a => !filtroBiancheria || prenotazioniAlloggioVisibili(a.nome).some(p => (p.biancheria_kit_bagno||0) + (p.biancheria_kit_singolo||0) + (p.biancheria_kit_matrimoniale||0) > 0))
+    .filter(a => !filtroBiciAttiva || biciAttiveCache.some(b => b.clienteAlloggio === a.nome))
+    .filter(a => !(filtroDataArrivo || filtroDataPartenza) || prenotazioniAlloggioVisibili(a.nome).length > 0);
+}
+function toggleFiltriPanel() {
+  const panel = document.getElementById('cal-filtri-panel');
+  if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+  filtriDraft = { categorie: new Set(), stati: new Set(), trattamento: new Set(), biancheria: false, bici: false, arrivo: '', partenza: '' };
+  renderFiltriPanel();
+  panel.classList.remove('hidden');
+}
+function chiudiFiltriPanel() {
+  const panel = document.getElementById('cal-filtri-panel');
+  if (panel) panel.classList.add('hidden');
+}
+function renderFiltriPanel() {
+  const panel = document.getElementById('cal-filtri-panel');
+  const categorie = elencoCategorieAlloggi();
+  panel.innerHTML = `
+    <div class="filtri-columns">
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Legenda</div>
+        ${STATO_FILTRO_GRUPPI.map(g => `<div class="filtri-legenda-riga"><span class="cal-row-status-icon filtri-legenda-badge" data-icon="${g.icon}" style="background:${g.color}"></span>${esc(g.label)}</div>`).join('')}
+        <div class="filtri-legenda-riga"><span class="cal-row-status-icon filtri-legenda-badge" data-icon="${STATO_ALLOGGIO_META.non_disponibile.icon}" style="background:${STATO_ALLOGGIO_META.non_disponibile.color}"></span>${esc(STATO_ALLOGGIO_META.non_disponibile.label)}</div>
+        <div class="filtri-legenda-riga"><span class="cal-row-status-icon cal-row-status-ticket filtri-legenda-badge" data-icon="MANUTENZIONE"></span>Ticket di manutenzione aperto</div>
+      </div>
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Data di soggiorno</div>
+        <div class="filtri-data-row">
+          <div><label class="filtri-data-label">Arrivo</label><input type="date" class="filtri-data-input" onchange="filtriDraft.arrivo=this.value"></div>
+          <div><label class="filtri-data-label">Partenza</label><input type="date" class="filtri-data-input" onchange="filtriDraft.partenza=this.value"></div>
+        </div>
+      </div>
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Stato alloggio</div>
+        ${STATO_FILTRO_GRUPPI.map(g => `<label class="filtri-check-riga"><input type="checkbox" onchange="toggleInDraftSet('stati','${g.key}')"> ${esc(g.label)}</label>`).join('')}
+      </div>
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Categoria alloggio</div>
+        ${categorie.map(([k,label]) => `<label class="filtri-check-riga"><input type="checkbox" onchange="toggleInDraftSet('categorie','${esc(k)}')"> ${esc(label)}</label>`).join('')}
+      </div>
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Trattamento</div>
+        ${Object.entries(TRATTAMENTO_LABELS).map(([k,label]) => `<label class="filtri-check-riga"><input type="checkbox" onchange="toggleInDraftSet('trattamento','${k}')"> ${esc(label)}</label>`).join('')}
+      </div>
+      <div class="filtri-sezione">
+        <div class="filtri-titolo">Servizi</div>
+        <label class="filtri-check-riga"><input type="checkbox" onchange="filtriDraft.biancheria=this.checked"> Con biancheria richiesta</label>
+        <label class="filtri-check-riga"><input type="checkbox" onchange="filtriDraft.bici=this.checked"> Con bici attualmente noleggiata</label>
+      </div>
+    </div>
+    <div class="filtri-azioni">
+      <button type="button" class="filtri-confirm-btn" onclick="confermaFiltriAlloggio()">Conferma</button>
+      <button type="button" class="filtri-reset-btn" onclick="reimpostaFiltriAlloggio()">Reimposta filtri</button>
+    </div>
+  `;
+  hydrateIcons(panel);
+}
+function toggleInDraftSet(campo, key) {
+  const set = filtriDraft[campo];
+  if (set.has(key)) set.delete(key); else set.add(key);
+}
+function confermaFiltriAlloggio() {
+  filtroAlloggioCategorie = filtriDraft.categorie.size ? new Set(filtriDraft.categorie) : null;
+  filtroAlloggioStati = filtriDraft.stati.size ? new Set(filtriDraft.stati) : null;
+  filtroTrattamento = filtriDraft.trattamento.size ? new Set(filtriDraft.trattamento) : null;
+  filtroBiancheria = filtriDraft.biancheria;
+  filtroBiciAttiva = filtriDraft.bici;
+  filtroDataArrivo = filtriDraft.arrivo || '';
+  filtroDataPartenza = filtriDraft.partenza || '';
+  chiudiFiltriPanel();
+  aggiornaFiltriAlloggioUI();
+}
+function reimpostaFiltriAlloggio() {
+  filtroAlloggioCategorie = null;
+  filtroAlloggioStati = null;
+  filtroTrattamento = null;
+  filtroBiancheria = false;
+  filtroBiciAttiva = false;
+  filtroDataArrivo = '';
+  filtroDataPartenza = '';
+  chiudiFiltriPanel();
+  aggiornaFiltriAlloggioUI();
+}
+function aggiornaFiltriAlloggioUI() {
+  const dot = document.getElementById('cal-filtri-dot');
+  if (dot) dot.classList.toggle('hidden', !filtriAlloggioAttivi());
+  renderGrid();
+}
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('cal-filtri-panel');
+  const btn = document.getElementById('cal-filtri-btn');
+  if (!panel || panel.classList.contains('hidden')) return;
+  if (!panel.contains(e.target) && btn && !btn.contains(e.target)) chiudiFiltriPanel();
+});
+
 function groupedAlloggi() {
   const map = {};
-  alloggiList.forEach(a => {
+  alloggiFiltrati().forEach(a => {
     const key = a.categoria || 'altro';
     if (!map[key]) map[key] = { label: a.categoriaLabel || key, items: [] };
     map[key].items.push(a);
@@ -1509,6 +1781,88 @@ function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); 
 function goToday()    { viewStart = isoToday(0); renderGrid(); }
 
 // ── RENDER GRIGLIA ────────────────────────────────────────────────────────
+// Stato pulizia/occupazione dell'alloggio: stesso campo "stato" (+ "log")
+// gestito dal modulo Alloggi, qui solo mostrato — un click apre un menu con
+// i 3 stati operativi raggruppati (v. STATO_FILTRO_GRUPPI) tra cui scegliere
+// subito, senza dover aprire l'altro modulo. "Non disponibile" resta fuori
+// da questo menu rapido, esattamente come in Alloggi: si mette/toglie solo
+// da lì, per non rischiare di riattivare per sbaglio un alloggio fuori
+// servizio. L'icona di riga mantiene invece i 5 stati reali distinti
+// (check-out appena fatto vs da pulire da altro motivo hanno colori
+// diversi), solo azione e filtro sono raggruppati in 3.
+const STATO_ALLOGGIO_META = {
+  checkout_ok:     { label: 'Check-out fatto, da pulire', color: '#FFCF48', icon: 'BROOM' },
+  da_pulire:       { label: 'Da pulire',                  color: '#FFCF48', icon: 'BROOM' },
+  pronta:          { label: 'Pronta',                     color: '#92BA7F', icon: 'CHECK' },
+  occupata:        { label: 'Occupata',                   color: '#FF6E6E', icon: 'BED' },
+  non_disponibile: { label: 'Non disponibile',            color: 'var(--gray-500)', icon: 'BLOCK' },
+};
+function iconaStatoAlloggioHtml(a) {
+  const meta = STATO_ALLOGGIO_META[a.stato] || STATO_ALLOGGIO_META.pronta;
+  const apribile = a.stato !== 'non_disponibile';
+  const ticketAperto = maintenanceTickets.some(t => t.housing_unit === (a.nome || a.id) && !t.status);
+  let html = `<span class="cal-row-status-icon" data-icon="${meta.icon}" style="background:${meta.color};cursor:${apribile ? 'pointer' : 'default'}" title="${esc(meta.label)}${apribile ? ' — clicca per cambiare stato' : ' (si gestisce dal modulo Alloggi)'}"`;
+  html += apribile ? ` onclick="apriMenuStatoAlloggio(event, '${esc(a.id)}')"></span>` : `></span>`;
+  if (ticketAperto) {
+    html += `<span class="cal-row-status-icon cal-row-status-ticket" data-icon="MANUTENZIONE" title="Ticket di manutenzione aperto"></span>`;
+  }
+  return html;
+}
+// Piccolo menu a comparsa sopra l'icona cliccata, con i 3 stati operativi
+// raggruppati (v. STATO_FILTRO_GRUPPI) — scegliendo "Check-out fatto / Da
+// pulire" si scrive sempre 'da_pulire': 'checkout_ok' resta un valore che si
+// imposta solo in automatico al check-out (v. toggleCheckout).
+let statoMenuBox = null;
+function chiudiMenuStatoAlloggio() {
+  if (statoMenuBox) { statoMenuBox.remove(); statoMenuBox = null; }
+}
+function apriMenuStatoAlloggio(ev, alloggioId) {
+  ev.stopPropagation();
+  const giaApertoPerQuesto = statoMenuBox && statoMenuBox.dataset.alloggioId === alloggioId;
+  chiudiMenuStatoAlloggio();
+  if (giaApertoPerQuesto) return; // secondo click sulla stessa icona: solo chiudi
+  const box = document.createElement('div');
+  box.className = 'cal-stato-menu';
+  box.dataset.alloggioId = alloggioId;
+  box.innerHTML = STATO_FILTRO_GRUPPI.map(g => {
+    return `<div class="cal-stato-menu-item" onmousedown="event.preventDefault(); impostaStatoAlloggioDaCalendario('${esc(alloggioId)}','${g.key}'); chiudiMenuStatoAlloggio();"><span class="filtri-legenda-dot" style="background:${g.color}"></span>${esc(g.label)}</div>`;
+  }).join('');
+  document.body.appendChild(box);
+  const r = ev.currentTarget.getBoundingClientRect();
+  const boxRect = box.getBoundingClientRect();
+  let left = r.left + window.scrollX;
+  let top = r.top + window.scrollY - boxRect.height - 6;
+  if (top < window.scrollY + 4) top = r.bottom + window.scrollY + 6; // niente spazio sopra: apri sotto
+  const maxLeft = window.scrollX + document.documentElement.clientWidth - boxRect.width - 8;
+  if (left > maxLeft) left = Math.max(maxLeft, window.scrollX + 4);
+  box.style.left = left + 'px';
+  box.style.top = top + 'px';
+  statoMenuBox = box;
+}
+document.addEventListener('click', (e) => {
+  if (statoMenuBox && !statoMenuBox.contains(e.target)) chiudiMenuStatoAlloggio();
+});
+// Scrive lo stesso campo "stato"/"log" del modulo Alloggi (stessa forma,
+// stesso storico) così un futuro modulo Pulizie dedicato può leggerlo e
+// scriverlo senza bisogno di un modello dati parallelo.
+async function impostaStatoAlloggioDaCalendario(alloggioId, nuovoStato) {
+  const a = alloggiList.find(x => x.id === alloggioId);
+  if (!a || a.stato === nuovoStato || a.stato === 'non_disponibile') return;
+  const entry = { op: currentOperatore || 'Operatore', ts: new Date().toISOString(), stato: nuovoStato };
+  const newLog = [entry].concat(a.log || []).slice(0, 30);
+  const precedente = a.stato;
+  a.stato = nuovoStato; a.log = newLog; // ottimistico: si vede subito, poi si salva
+  renderGrid();
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'alloggi', alloggioId), { stato: nuovoStato, log: newLog });
+  } catch(e) {
+    console.error('Errore aggiornamento stato alloggio:', e);
+    showToast('Errore di salvataggio stato alloggio — riprova');
+    a.stato = precedente;
+    renderGrid();
+  }
+}
 function renderGrid() {
   const grid = document.getElementById('cal-grid');
   if (!grid) return;
@@ -1521,6 +1875,26 @@ function renderGrid() {
   const trackWidth = VIEW_DAYS * DAY_W;
   const today = isoToday(0);
   let html = '';
+
+  // Riga mese: raggruppa i giorni visibili per mese/anno, così quando la
+  // vista supera un cambio mese (es. fine agosto → inizio settembre) si
+  // capisce subito dove sei, invece di leggere solo il numero del giorno.
+  html += `<div class="cal-month-row"><div class="cal-corner cal-corner-blank"></div>`;
+  for (let i = 0; i < days.length; ) {
+    const d0 = new Date(days[i]+'T12:00:00');
+    const mese = d0.getMonth(), anno = d0.getFullYear();
+    let j = i;
+    while (j < days.length) {
+      const dj = new Date(days[j]+'T12:00:00');
+      if (dj.getMonth() !== mese || dj.getFullYear() !== anno) break;
+      j++;
+    }
+    const nomeMese = MONTH_LABELS[mese].charAt(0).toUpperCase() + MONTH_LABELS[mese].slice(1);
+    const suffisso = anno !== new Date().getFullYear() ? ' ' + anno : '';
+    html += `<div class="cal-month-seg" style="width:${(j-i)*DAY_W}px">${nomeMese}${suffisso}</div>`;
+    i = j;
+  }
+  html += `</div>`;
 
   html += `<div class="cal-header-row"><div class="cal-corner">Alloggio</div>`;
   days.forEach(iso => {
@@ -1536,7 +1910,7 @@ function renderGrid() {
   // il cui periodo copre quel giorno (a prescindere da check-in/check-out fatti
   // dallo staff, che riguardano l'arrivo/partenza reale, non l'occupazione a
   // calendario); le "disponibili" escludono gli alloggi fuori servizio.
-  const totaleAlloggi = alloggiList.filter(a => a.stato !== 'non_disponibile').length;
+  const totaleAlloggi = alloggiFiltrati().filter(a => a.stato !== 'non_disponibile').length;
   const occupatePerGiorno = days.map(iso => prenotazioni.filter(p => iso >= p.checkin && iso < p.checkout).length);
   html += `<div class="cal-counts-row disponibili"><div class="cal-counts-label">Camere disponibili</div>`;
   occupatePerGiorno.forEach(occ => {
@@ -1551,14 +1925,16 @@ function renderGrid() {
 
   const cats = groupedAlloggi();
   if (!cats.length) {
-    html += `<div class="empty-state">Nessun alloggio trovato nella collezione "alloggi". Verifica che il modulo Alloggi sia stato aperto almeno una volta (inizializza i dati automaticamente).</div>`;
+    html += alloggiList.length
+      ? `<div class="empty-state">Nessun alloggio corrisponde ai filtri attivi — <a href="#" onclick="reimpostaFiltriAlloggio(); return false;">reimposta i filtri</a>.</div>`
+      : `<div class="empty-state">Nessun alloggio trovato nella collezione "alloggi". Verifica che il modulo Alloggi sia stato aperto almeno una volta (inizializza i dati automaticamente).</div>`;
   }
 
   cats.forEach(cat => {
     html += `<div class="cal-cat-row"><div class="cal-cat-label">${esc(cat.label)}</div><div class="cal-cat-fill" style="width:${trackWidth}px"></div></div>`;
     cat.items.forEach(a => {
       html += `<div class="cal-row">
-        <div class="cal-row-label">${esc(a.nome || a.id)}</div>
+        <div class="cal-row-label">${iconaStatoAlloggioHtml(a)}<span class="cal-row-label-text">${esc(a.nome || a.id)}</span></div>
         <div class="cal-row-track" style="width:${trackWidth}px" data-alloggio-id="${esc(a.id)}" data-alloggio-nome="${esc(a.nome||a.id)}" onclick="onTrackClick(event,'${esc(a.id)}')">`;
       days.forEach((iso,i) => {
         const cls = ['cal-daycell'];
@@ -1582,13 +1958,13 @@ function renderGrid() {
         if (p.bici)       flags.push('<span class="cal-flag" title="Bici">C</span>');
         if (p.spiaggia)   flags.push('<span class="cal-flag" title="Spiaggia">S</span>');
         if (p.animali)    flags.push('<span class="cal-flag" title="Animali al seguito">A</span>');
-        const datiIncompleti = prenotazioneDatiIncompleti(p);
+        const motiviAttenzione = motiviAttenzionePrenotazione(p);
         const contoNonSaldato = prenotazioneContoNonSaldato(p);
         html += `<div class="cal-bar ${stato.cls}" style="left:${left}px;width:${width}px"
           onmousedown="iniziaDragPrenotazione(event,'${esc(p.id)}')"
           onmouseenter="iniziaHoverPreview(event,'${esc(p.id)}')" onmouseleave="annullaHoverPreview()"
           onclick="event.stopPropagation(); if(_ultimoDragEffettivo){_ultimoDragEffettivo=false;} else {apriModificaPrenotazione('${esc(p.id)}')}">
-          ${datiIncompleti ? '<span class="alert-dot" title="Dati ospiti/alloggiati incompleti"></span>' : ''}
+          ${motiviAttenzione.length ? `<span class="alert-dot" title="${esc(motiviAttenzione.join(' · '))}"></span>` : ''}
           ${contoNonSaldato ? '<span class="alert-dot alert-dot-conto" title="Conto con importi da pagare"></span>' : ''}
           <div class="nome">${esc(p.nome||'—')}</div>
           <div class="meta">${flags.join('')}${p.adulti||0}+${p.bambini||0}</div>
@@ -1599,6 +1975,7 @@ function renderGrid() {
   });
 
   grid.innerHTML = html;
+  hydrateIcons(grid);
 }
 
 function onTrackClick(ev, alloggioId) {
@@ -1832,6 +2209,74 @@ function setCheck(id, val) {
 // contenitore stabile basta per intercettare qualsiasi modifica.
 document.getElementById('ospiti-list').addEventListener('input', () => scheduleAutosave());
 document.getElementById('ospiti-list').addEventListener('change', () => scheduleAutosave());
+// Suggerimenti comune/provincia/stato/cittadinanza mentre si digita, per
+// velocizzare la compilazione della schedina Alloggiati Web.
+const AC_CAMPI_OSPITE = {
+  'osp-comune-nascita':    () => (window.COMUNI_ITALIANI || []).map(c => c[0]),
+  'osp-provincia-nascita': () => (window.PROVINCE_ITALIANE || []).map(p => p[1]),
+  'osp-stato-nascita':     () => (window.PAESI_MONDO || []).map(p => p[0]),
+  'osp-cittadinanza':      () => (window.PAESI_MONDO || []).map(p => p[1]),
+};
+let acListBox = null;
+function chiudiAutocompleteOspite() {
+  if (acListBox) { acListBox.remove(); acListBox = null; }
+}
+// Ordina i suggerimenti mettendo prima le corrispondenze più "esatte": intera
+// stringa che inizia col testo digitato, poi una parola che inizia così,
+// infine semplice sottostringa — altrimenti con migliaia di comuni una città
+// come "Roma" finirebbe sepolta sotto "Bagno di Romagna" e simili.
+function filtraSuggerimentiOspite(valori, q) {
+  const inizio = [], paroleInizio = [], contiene = [];
+  for (const v of valori) {
+    const lv = v.toLowerCase();
+    if (lv.startsWith(q)) inizio.push(v);
+    else if (lv.split(/\s+/).some(w => w.startsWith(q))) paroleInizio.push(v);
+    else if (lv.includes(q)) contiene.push(v);
+  }
+  const perLunghezza = arr => arr.sort((a,b) => a.length - b.length);
+  return [...perLunghezza(inizio), ...perLunghezza(paroleInizio), ...perLunghezza(contiene)].slice(0, 8);
+}
+function mostraAutocompleteOspite(input, valori) {
+  const q = input.value.trim().toLowerCase();
+  chiudiAutocompleteOspite();
+  if (!q) return;
+  const risultati = filtraSuggerimentiOspite(valori, q);
+  if (!risultati.length) return;
+  const box = document.createElement('div');
+  box.className = 'ac-list';
+  const r = input.getBoundingClientRect();
+  box.style.left = (r.left + window.scrollX) + 'px';
+  box.style.top = (r.bottom + window.scrollY + 2) + 'px';
+  box.style.width = r.width + 'px';
+  box.innerHTML = risultati.map(v => `<div class="ac-item">${esc(v)}</div>`).join('');
+  document.body.appendChild(box);
+  box.querySelectorAll('.ac-item').forEach((el, i) => {
+    el.onmousedown = (e) => {
+      e.preventDefault();
+      input.value = risultati[i];
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      chiudiAutocompleteOspite();
+    };
+  });
+  acListBox = box;
+}
+document.getElementById('ospiti-list').addEventListener('input', (e) => {
+  const campo = Object.keys(AC_CAMPI_OSPITE).find(c => e.target.classList && e.target.classList.contains(c));
+  if (campo) mostraAutocompleteOspite(e.target, AC_CAMPI_OSPITE[campo]());
+  else chiudiAutocompleteOspite();
+});
+document.getElementById('ospiti-list').addEventListener('focusout', () => setTimeout(chiudiAutocompleteOspite, 150));
+// Se si sceglie un comune riconosciuto e la provincia è vuota, la compila da sola.
+function autocompletaProvinciaDaComune(input) {
+  const card = input.closest('.ospite-card');
+  if (!card) return;
+  const provInput = card.querySelector('.osp-provincia-nascita');
+  if (!provInput || provInput.value.trim()) return;
+  const nome = input.value.trim().toLowerCase();
+  const match = (window.COMUNI_ITALIANI || []).find(c => c[0].toLowerCase() === nome);
+  if (match) provInput.value = match[1];
+}
 function setQty(id, val) { document.getElementById(id).value = val || 0; }
 function adjustQty(id, delta) {
   const el = document.getElementById(id);
@@ -1914,6 +2359,7 @@ function aggiornaPreventivo(opzioni) {
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
   aggiornaRiepilogoPrenotazione();
+  aggiornaTabAlertPrenotazioneCorrente();
 }
 
 // Riepilogo generale in cima al modale, per capire il contenuto della
@@ -1979,19 +2425,19 @@ function ospiteCardHtml(i, o) {
       </div>
       <div>
         <label class="f-label">Nato a (comune o stato)${isCapo ? '<span class="req">*</span>' : ''}</label>
-        <input class="f-input osp-comune-nascita" type="text" placeholder="Es. Milano" value="${esc(o.comune_nascita||'')}">
+        <input class="f-input osp-comune-nascita" type="text" autocomplete="off" placeholder="Es. Milano" value="${esc(o.comune_nascita||'')}" onchange="autocompletaProvinciaDaComune(this)">
       </div>
       <div>
         <label class="f-label">Provincia</label>
-        <input class="f-input osp-provincia-nascita" type="text" maxlength="2" placeholder="Es. MI" value="${esc(o.provincia_nascita||'')}">
+        <input class="f-input osp-provincia-nascita" type="text" autocomplete="off" maxlength="2" placeholder="Es. MI" value="${esc(o.provincia_nascita||'')}">
       </div>
       <div>
         <label class="f-label">Stato di nascita${isCapo ? '<span class="req">*</span>' : ''}</label>
-        <input class="f-input osp-stato-nascita" type="text" placeholder="Es. Italia" value="${esc(o.stato_nascita||'')}">
+        <input class="f-input osp-stato-nascita" type="text" autocomplete="off" placeholder="Es. Italia" value="${esc(o.stato_nascita||'')}">
       </div>
       <div>
         <label class="f-label">Cittadinanza${isCapo ? '<span class="req">*</span>' : ''}</label>
-        <input class="f-input osp-cittadinanza" type="text" placeholder="Es. Italiana" value="${esc(o.cittadinanza||'')}">
+        <input class="f-input osp-cittadinanza" type="text" autocomplete="off" placeholder="Es. Italiana" value="${esc(o.cittadinanza||'')}">
       </div>
     </div>
     ${isCapo ? `
@@ -2017,6 +2463,19 @@ function ospiteCardHtml(i, o) {
 function renderOspitiList(list) {
   const wrap = document.getElementById('ospiti-list');
   wrap.innerHTML = (list && list.length ? list : [{}]).map((o,i) => ospiteCardHtml(i,o)).join('');
+}
+// Nome/Cognome della prenotazione (Dettagli) sono per forza la stessa
+// persona del capofamiglia in Alloggiati Web: li riportiamo qui invece di
+// farli riscrivere due volte. Solo il capofamiglia (indice 0) — i familiari
+// restano indipendenti, possono avere cognomi diversi.
+function sincronizzaCapofamiglia() {
+  const capoCard = document.querySelector('#ospiti-list .ospite-card[data-idx="0"]');
+  if (!capoCard) return;
+  const nomeInput = capoCard.querySelector('.osp-nome');
+  const cognomeInput = capoCard.querySelector('.osp-cognome');
+  if (nomeInput) nomeInput.value = document.getElementById('f-nome').value;
+  if (cognomeInput) cognomeInput.value = document.getElementById('f-cognome').value;
+  aggiornaBadgeOspiti();
 }
 // Cambia solo lo stato di presenza di un ospite, senza ridisegnare tutta la
 // lista: così non si perde quello che si sta scrivendo negli altri campi.
@@ -2106,10 +2565,19 @@ async function impostaStatoPrenotazione(campo, valore) {
   }
 }
 function toggleCheckin()  { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('checkin_fatto', !p.checkin_fatto); }
-function toggleCheckout() { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('checkout_fatto', !p.checkout_fatto); }
+function toggleCheckout() {
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p) return;
+  const nuovoValore = !p.checkout_fatto;
+  impostaStatoPrenotazione('checkout_fatto', nuovoValore);
+  // Al check-out l'alloggio passa in automatico "da pulire": lo staff lo
+  // conferma "pronta" con un click sull'icona in calendario o dal modulo Alloggi.
+  if (nuovoValore && p.alloggio_id) impostaStatoAlloggioDaCalendario(p.alloggio_id, 'checkout_ok');
+}
 
 function openNuovaPrenotazione(alloggioId, checkinIso) {
   editingId = null;
+  _importAgenziaIdCorrente = null; // apertura "normale": non è una riga di import
   document.getElementById('form-modal-title').textContent = 'Nuova prenotazione';
   document.getElementById('btn-elimina').classList.add('hidden');
   resetPrenTabs();
@@ -2140,14 +2608,15 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
+  document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
-  document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function apriModificaPrenotazione(id) {
   const p = prenotazioni.find(x => x.id === id);
   if (!p) return;
   editingId = id;
+  _importAgenziaIdCorrente = null; // si sta modificando una prenotazione già reale, non più una bozza di import
   document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
   document.getElementById('btn-elimina').classList.remove('hidden');
   resetPrenTabs();
@@ -2178,14 +2647,26 @@ function apriModificaPrenotazione(id) {
   impostaConto(p.conto);
   document.getElementById('documenti-btn-badge').textContent = (p.documenti && p.documenti.length) || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
+  document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
-  document.getElementById('form-modal-overlay').classList.remove('hidden');
 }
 function closeFormModal() {
   document.getElementById('form-modal-overlay').classList.add('hidden');
   document.getElementById('ospiti-modal-overlay').classList.add('hidden');
   editingId = null;
+  _importAgenziaIdCorrente = null;
+  // Se la scheda era stata aperta da una riga dell'elenco import (v.
+  // apriPrenotazioneDaImportRiga), si torna lì per continuare con la
+  // prenotazione successiva. Se non era stata toccata non è stato scritto
+  // nulla (niente autosave finché non si modifica qualcosa), quindi chiudere
+  // senza aver fatto nulla NON la importa; se invece è stata modificata, è
+  // già salvata come qualsiasi altra prenotazione — non si perde nulla.
+  if (_importReviewActive) {
+    _importReviewActive = false;
+    renderRisultatiImportazione();
+    document.getElementById('import-modal-overlay').classList.remove('hidden');
+  }
 }
 
 // ── MENU LATERALE PRENOTAZIONE — Dettagli/Conto/Bici/Ristorazione/
@@ -2519,16 +3000,187 @@ async function rimuoviPosizioneSpiaggia(beachPrenotazioneId) {
 // con quelli già presenti in "prenotazioni" e si scrive su Firestore solo
 // dopo conferma esplicita, riga per riga già rivista dall'utente.
 let _importRighe = [];
+let _importReviewActive = false; // true mentre la scheda prenotazione è aperta da una riga dell'elenco import
+// Valorizzato solo mentre si compila una prenotazione aperta da una riga di
+// import non ancora scritta: dice a scriviPrenotazione() di usare l'id
+// deterministico "agenzia_<id>" invece di uno casuale, così la scheda che
+// hai davanti diventa DAVVERO quella riga quando la salvi (autosave
+// compreso), non un duplicato. Si azzera appena la prenotazione esiste già
+// (v. scriviPrenotazione) o quando si apre qualunque altra scheda.
+let _importAgenziaIdCorrente = null;
 
 function apriImportModal() {
   document.getElementById('import-file-input').value = '';
   document.getElementById('import-risultati').innerHTML = '';
   document.getElementById('btn-conferma-import').classList.add('hidden');
   _importRighe = [];
+  sorgenteImportSelezionata = 'agenzia_standard';
+  popolaSelectSorgenteImport();
   document.getElementById('import-modal-overlay').classList.remove('hidden');
 }
 function chiudiImportModal() {
   document.getElementById('import-modal-overlay').classList.add('hidden');
+}
+
+// ── ESPORTA DOCUMENTI (check-in / ristorazione) ─────────────────────────────
+// Stesso schema del report stampabile già usato in Ristorazione (font
+// Montserrat, intestazioni verde #1a5c32): un file HTML autonomo scaricato
+// via Blob, che si apre già pronto per la stampa — non tocca Firestore.
+function apriExportModal() {
+  document.getElementById('export-data-input').value = isoToday(0);
+  document.getElementById('export-modal-overlay').classList.remove('hidden');
+}
+function chiudiExportModal() {
+  document.getElementById('export-modal-overlay').classList.add('hidden');
+}
+function dataDocumentoScelta() {
+  return document.getElementById('export-data-input').value || isoToday(0);
+}
+function dataLeggibileIt(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const s = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+// Scarica un documento con lo stesso guscio grafico del Report Famiglie di
+// Ristorazione (font, colori, @page) — solo orientamento e corpo cambiano.
+function scaricaDocumentoStileRistorazione(titolo, sottotitolo, corpoHtml, nomeFile, orientamento) {
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
+  <title>${esc(titolo)} — Garden River</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Montserrat',sans-serif;padding:10mm 14mm;font-size:11px;color:#111}
+    h1{font-size:18px;font-weight:800;color:#1a5c32;margin-bottom:4px}
+    .sub{font-size:11px;color:#666;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#1a5c32;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;text-align:left}
+    td{padding:7px 8px;border-bottom:1px solid #e5e7eb;vertical-align:middle}
+    .tavolo-box{border:2px dashed #1a5c32;border-radius:6px;padding:10px 12px;margin-bottom:16px;break-inside:avoid}
+    .tavolo-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#1a5c32;margin-bottom:8px}
+    .doc-check{display:inline-block;width:15px;height:15px;border:1.5px solid #999;border-radius:3px}
+    @page{size:A4 ${orientamento};margin:10mm 12mm}
+    @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+  </style></head><body>
+  <h1>${esc(titolo)} · Garden River</h1>
+  <div class="sub">${esc(sottotitolo)}</div>
+  ${corpoHtml}
+  <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script>
+  </body></html>`;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeFile;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+// Report Check-in (verticale): un rigo per arrivo, con le due caselle da
+// spuntare a mano (alloggio pronto / cliente arrivato) e la data di uscita
+// per capire subito quanto si ferma.
+function scaricaDocumentoCheckin() {
+  const data = dataDocumentoScelta();
+  const arrivi = prenotazioni.filter(p => p.checkin === data)
+    .sort((a,b) => (a.alloggio_nome||'').localeCompare(b.alloggio_nome||'', undefined, {numeric:true}));
+  const righe = arrivi.map(p => `<tr>
+    <td>${esc(p.alloggio_nome||'—')}</td>
+    <td>${esc(p.nome||'—')}</td>
+    <td style="text-align:center">${(p.adulti||0)+(p.bambini||0)}</td>
+    <td style="text-align:center">${p.biancheria_kit_matrimoniale||0}</td>
+    <td style="text-align:center">${p.biancheria_kit_singolo||0}</td>
+    <td style="text-align:center">${p.biancheria_kit_bagno||0}</td>
+    <td>${esc(fmtDataIt(p.checkout))}</td>
+    <td style="text-align:center"><span class="doc-check"></span></td>
+    <td style="text-align:center"><span class="doc-check"></span></td>
+  </tr>`).join('');
+  const corpo = `<table><thead><tr>
+      <th>Alloggio</th><th>Cliente</th><th>Persone</th><th>Kit matr.</th><th>Kit sing.</th><th>Kit bagno</th><th>Uscita</th><th>Alloggio pronto</th><th>Cliente arrivato</th>
+    </tr></thead><tbody>
+      ${righe || '<tr><td colspan="9" style="text-align:center;color:#999;padding:14px">Nessun arrivo previsto in questo giorno</td></tr>'}
+    </tbody></table>`;
+  scaricaDocumentoStileRistorazione('Report Check-in', `Arrivi del ${dataLeggibileIt(data)} · ${arrivi.length} arrivi`, corpo, `checkin-${data}.html`, 'portrait');
+}
+// Report Ristorazione: stessa identica logica del Report Famiglie già usato
+// in Ristorazione (raggruppamento per tavolo, riquadro recuperi pasti), solo
+// riletta da qui — legge "famiglie_ristorazione" già sincronizzata in tempo
+// reale (v. startFamiglieRistorazioneAlertSync), nessuna collezione nuova.
+function recuperoPastiLabelCal(f) {
+  if (f.trattamento !== 'PC' || !f.ora_arrivo) return '';
+  if (f.ora_arrivo === 'dopo_pranzo') return 'Recupero: Colazione + Pranzo';
+  if (f.ora_arrivo === 'sera')        return 'Recupero: Colazione + Pranzo + Cena';
+  return '';
+}
+function scaricaDocumentoRistorazione() {
+  const fams = Object.entries(famiglieRistorazioneCache).map(([id, d]) => ({ id, ...d }));
+  if (!fams.length) { showToast('Nessuna famiglia in Ristorazione da includere nel report'); return; }
+
+  const trattLabel = t => t==='PC'?'Pensione completa':t==='MP'?'Mezza pensione':t||'—';
+  const fmtData = iso => iso ? iso.slice(5).split('-').reverse().join('/') : '';
+
+  const thead = `<thead><tr>
+    <th>Nome</th><th>Alloggio</th><th>Telefono</th><th>Trattamento</th><th>Adulti</th><th>Bambini</th><th>Età bambini</th><th>Periodo</th><th>Recupero pasti</th><th>Note</th>
+  </tr></thead>`;
+
+  function rigaFam(f) {
+    const bambiniStr = (f.bambini||[]).map((e,i) => e===0?`Bimbo ${i+1}: <1a`:`Bimbo ${i+1}: ${e}a`).join(', ');
+    const dateStr = [fmtData(f.checkin), fmtData(f.checkout)].filter(Boolean).join(' → ');
+    return `<tr>
+      <td>${esc(f.nome)}</td>
+      <td>${esc(f.unita||'—')}</td>
+      <td>${esc(f.tel||'—')}</td>
+      <td>${esc(trattLabel(f.trattamento))}</td>
+      <td style="text-align:center">${f.adulti||0}</td>
+      <td style="text-align:center">${(f.bambini||[]).length}</td>
+      <td>${bambiniStr||'—'}</td>
+      <td>${dateStr||'—'}</td>
+      <td style="color:#B45309;font-weight:700">${esc(recuperoPastiLabelCal(f)||'—')}</td>
+      <td style="color:#DC2626">${esc(f.note||'—')}</td>
+    </tr>`;
+  }
+
+  const tavoliMap = {};
+  fams.filter(f => f.tavolo).forEach(f => { (tavoliMap[f.tavolo] = tavoliMap[f.tavolo]||[]).push(f); });
+  const tavoliOrdinati = Object.keys(tavoliMap).sort((a,b) => a.localeCompare(b, undefined, {numeric:true}));
+  const senzaTavolo = fams.filter(f => !f.tavolo);
+
+  const famiglieConRecupero = fams.filter(f => recuperoPastiLabelCal(f));
+  let recuperiBlock = '';
+  if (famiglieConRecupero.length) {
+    recuperiBlock = `<div style="border:2px solid #D97706;border-radius:8px;padding:12px 16px;margin-bottom:20px;background:#FFFBEB;break-inside:avoid">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#D97706;margin-bottom:10px">Recupero pasti</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Famiglia</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Alloggio</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Check-out</th>
+          <th style="background:#D97706;color:#fff;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:5px 8px;text-align:left">Pasti da recuperare</th>
+        </tr></thead>
+        <tbody>${famiglieConRecupero.map(f => `<tr>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.nome)}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${esc(f.unita||'—')}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A">${fmtData(f.checkout)||'—'}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #FDE68A;font-weight:700;color:#B45309">${esc(recuperoPastiLabelCal(f))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  let blocchi = recuperiBlock;
+  tavoliOrdinati.forEach(t => {
+    blocchi += `<div class="tavolo-box">
+      <div class="tavolo-label">Tavolo ${esc(t)}</div>
+      <table>${thead}<tbody>${tavoliMap[t].map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  });
+  if (senzaTavolo.length) {
+    blocchi += `<div style="margin-top:${tavoliOrdinati.length?'20px':'0'}">
+      ${tavoliOrdinati.length ? '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin-bottom:8px">Altre famiglie</div>' : ''}
+      <table>${thead}<tbody>${senzaTavolo.map(rigaFam).join('')}</tbody></table>
+    </div>`;
+  }
+
+  scaricaDocumentoStileRistorazione('Report Famiglie', `Generato il ${new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})} · ${fams.length} famiglie`, blocchi, 'report-famiglie.html', 'landscape');
 }
 
 // Le date nel file possono arrivare come testo "gg-mm-aaaa", come numero
@@ -2589,7 +3241,11 @@ function trovaPrenotazioneEsistentePerAgenziaId(agenziaId) {
 // quali alloggi sono già stati assegnati ad altre righe del file — altrimenti
 // due prenotazioni diverse nello stesso file potrebbero finire sullo stesso
 // alloggio nello stesso periodo.
-function elaboraRigaImportazione(row, riservatePerCategoria) {
+// Nomi/formato colonne di questa specifica agenzia. Per aggiungerne una
+// nuova con un file diverso: scrivere una funzione analoga a questa (stessa
+// firma, stesso oggetto risultato) e aggiungerla a SORGENTI_IMPORT più sotto
+// — nessun altro punto del modulo va toccato.
+function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
   const agenziaId = String(row['id prenotazione'] || '').trim();
   const cliente = String(row['cliente'] || '').trim();
   const checkin = parseDataAgenzia(row['arrivo']);
@@ -2609,6 +3265,7 @@ function elaboraRigaImportazione(row, riservatePerCategoria) {
     caparra: parseFloat(row['caparra']) || 0,
     alloggioId: null, alloggioNome: null,
     stato: null, erroreMsg: null,
+    selezionata: true, // spunta laterale: se disattivata, la riga viene saltata dall'import in blocco
   };
   if (!agenziaId || !cliente || !checkin || !checkout || checkout <= checkin) {
     risultato.stato = 'errore';
@@ -2640,6 +3297,28 @@ function elaboraRigaImportazione(row, riservatePerCategoria) {
   }
   return risultato;
 }
+// Elenco delle sorgenti/agenzie supportate: ognuna ha solo il proprio
+// "elaboraRiga" (formato colonne del file). Per collegarne una nuova basta
+// aggiungere una voce qui — il resto del flusso di importazione (spunte,
+// apertura scheda, conferma in blocco) resta identico e non va toccato.
+const SORGENTI_IMPORT = {
+  agenzia_standard: { nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard },
+};
+let sorgenteImportSelezionata = 'agenzia_standard';
+function popolaSelectSorgenteImport() {
+  const sel = document.getElementById('import-sorgente-select');
+  if (!sel) return;
+  sel.innerHTML = Object.entries(SORGENTI_IMPORT).map(([k, s]) => `<option value="${esc(k)}">${esc(s.nome)}</option>`).join('');
+  sel.value = sorgenteImportSelezionata;
+}
+function cambiaSorgenteImport(valore) {
+  sorgenteImportSelezionata = valore;
+  // Cambiare sorgente a metà lettura non avrebbe senso: si riparte da capo.
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-risultati').innerHTML = '';
+  document.getElementById('btn-conferma-import').classList.add('hidden');
+  _importRighe = [];
+}
 async function analizzaFileImportazione(inputEl) {
   const file = inputEl.files[0];
   const wrap = document.getElementById('import-risultati');
@@ -2653,11 +3332,55 @@ async function analizzaFileImportazione(inputEl) {
     const righeGrezze = XLSX.utils.sheet_to_json(foglio, { defval: '' });
     if (!righeGrezze.length) { wrap.innerHTML = '<p class="section-hint">Il file non contiene righe leggibili.</p>'; return; }
     const riservatePerCategoria = {};
-    _importRighe = righeGrezze.map(r => elaboraRigaImportazione(r, riservatePerCategoria));
+    const elaboraRiga = SORGENTI_IMPORT[sorgenteImportSelezionata].elaboraRiga;
+    _importRighe = righeGrezze.map(r => elaboraRiga(r, riservatePerCategoria));
     renderRisultatiImportazione();
   } catch(e) {
     console.error('Errore lettura file importazione:', e);
     wrap.innerHTML = `<p class="section-hint">Errore lettura file: ${esc(e.message)}</p>`;
+  }
+}
+// Costruisce il payload Firestore di una riga importata — condiviso tra
+// l'import in blocco e l'apertura singola della scheda (v.
+// apriPrenotazioneDaImportRiga), così le due strade producono esattamente
+// lo stesso risultato.
+function costruisciDatiImportRiga(r) {
+  const bambiniTotale = r.bambiniFasce.b0_2 + r.bambiniFasce.b3_4 + r.bambiniFasce.b5_9 + r.bambiniFasce.b10_17;
+  const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
+  if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
+  const data = {
+    alloggio_id: r.alloggioId || '',
+    alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
+    nome: r.cliente, checkin: r.checkin, checkout: r.checkout,
+    tel: r.tel, targa: '', provenienza: 'Agenzia',
+    adulti: r.adulti, bambini: bambiniTotale,
+    bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
+    trattamento_ristorazione: r.trattamento,
+    biancheria_kit_bagno: 0, biancheria_kit_singolo: 0, biancheria_kit_matrimoniale: 0,
+    bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: false,
+    preventivo_stimato: null,
+    note: noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : [],
+    conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
+    ospiti: [],
+    agenzia_id: r.agenziaId,
+    codice: generaCodice(),
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  return { idDoc: `agenzia_${r.agenziaId}`, data };
+}
+function toggleSelezioneImport(i, checked) {
+  if (_importRighe[i]) _importRighe[i].selezionata = checked;
+  aggiornaContatoreImportSelezionati();
+}
+function aggiornaContatoreImportSelezionati() {
+  const daImportare = _importRighe.filter(r => (r.stato === 'nuova' || r.stato === 'da_assegnare') && r.selezionata !== false);
+  const btnConferma = document.getElementById('btn-conferma-import');
+  if (daImportare.length > 0) {
+    btnConferma.textContent = `Conferma importazione (${daImportare.length})`;
+    btnConferma.classList.remove('hidden');
+  } else {
+    btnConferma.classList.add('hidden');
   }
 }
 function renderRisultatiImportazione() {
@@ -2671,7 +3394,8 @@ function renderRisultatiImportazione() {
     <span style="color:var(--terracotta-2)">● ${daAssegnare.length} da assegnare a mano</span>
     <span style="color:var(--gray-500)">● ${esistenti.length} già presenti (saltate)</span>
     ${errori.length ? `<span style="color:var(--red)">● ${errori.length} con errori (saltate)</span>` : ''}
-  </div>`;
+  </div>
+  <p class="section-hint" style="margin-top:-4px">Usa le spunte per escludere una riga dall'importazione in blocco, oppure clicca sull'anagrafica per aprirla già compilata e completarla a mano prima di salvarla.</p>`;
   const statoLabel = { nuova: 'Nuova', da_assegnare: 'Da assegnare', esistente: 'Già presente', errore: 'Errore' };
   const statoColore = {
     nuova: ['var(--green-bg)', 'var(--green-700)'],
@@ -2679,32 +3403,99 @@ function renderRisultatiImportazione() {
     esistente: ['var(--gray-100)', 'var(--gray-500)'],
     errore: ['var(--red-bg)', 'var(--red)'],
   };
-  const righeHtml = _importRighe.map(r => {
+  const righeHtml = _importRighe.map((r, i) => {
     const metaParts = [];
     if (r.checkin && r.checkout) metaParts.push(`${esc(fmtDataIt(r.checkin))} → ${esc(fmtDataIt(r.checkout))}`);
     metaParts.push(esc(r.alloggioNome || r.tipoAlloggio || ''));
     if (r.erroreMsg) metaParts.push(esc(r.erroreMsg));
+    const selezionabile = r.stato === 'nuova' || r.stato === 'da_assegnare';
+    const apribile = r.stato !== 'errore';
+    const checkboxHtml = selezionabile
+      ? `<input type="checkbox" class="import-row-check" ${r.selezionata !== false ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleSelezioneImport(${i}, this.checked)">`
+      : `<span class="import-row-check-spacer"></span>`;
+    const label = r.importataOra ? 'Importata' : statoLabel[r.stato];
     return `<div class="import-row ${r.stato}">
-      <div>
+      ${checkboxHtml}
+      <div class="import-row-content${apribile ? ' clickable' : ''}"${apribile ? ` onclick="apriPrenotazioneDaImportRiga(${i})"` : ''}>
         <div class="ir-titolo">${esc(r.cliente || '(senza nome)')}</div>
         <div class="ir-meta">${metaParts.filter(Boolean).join(' · ')}</div>
       </div>
-      <span class="ir-stato" style="background:${statoColore[r.stato][0]};color:${statoColore[r.stato][1]}">${statoLabel[r.stato]}</span>
+      <span class="ir-stato" style="background:${statoColore[r.stato][0]};color:${statoColore[r.stato][1]}">${esc(label)}</span>
     </div>`;
   }).join('');
   wrap.innerHTML = summaryHtml + righeHtml;
-  const daImportare = nuove.length + daAssegnare.length;
-  const btnConferma = document.getElementById('btn-conferma-import');
-  btnConferma.disabled = false;
-  if (daImportare > 0) {
-    btnConferma.textContent = `Conferma importazione (${daImportare})`;
-    btnConferma.classList.remove('hidden');
-  } else {
-    btnConferma.classList.add('hidden');
+  document.getElementById('btn-conferma-import').disabled = false;
+  aggiornaContatoreImportSelezionati();
+}
+// Apre la riga importata come una prenotazione vera e propria, pre-compilata
+// con i dati letti dal file: se non esiste ancora la crea subito su
+// Firestore (stessa forma dati dell'import in blocco) e poi apre la scheda
+// di modifica standard, che da qui in poi salva da sola a ogni modifica
+// (v. scheduleAutosave) — chiudendo la scheda non si perde nulla, e si torna
+// automaticamente all'elenco per continuare con la prenotazione successiva.
+// Apre la riga importata come una prenotazione — pre-compilata ma NON
+// ancora scritta su Firestore: diventa reale solo quando la tocchi (parte
+// l'autosave, come per "+ Nuova prenotazione") o premi Salva. Guardarla e
+// chiuderla senza modificarla non la importa da sola.
+function apriPrenotazioneDaImportRiga(idx) {
+  const r = _importRighe[idx];
+  if (!r || r.stato === 'errore') return;
+  document.getElementById('import-modal-overlay').classList.add('hidden');
+  if (r.stato === 'esistente') {
+    const esistente = trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
+    if (!esistente) { document.getElementById('import-modal-overlay').classList.remove('hidden'); return; }
+    _importReviewActive = true;
+    apriModificaPrenotazione(esistente.id);
+    return;
   }
+  editingId = null;
+  document.getElementById('form-modal-title').textContent = 'Nuova prenotazione (da import)';
+  document.getElementById('btn-elimina').classList.add('hidden');
+  resetPrenTabs();
+  renderStatoBox();
+  populateAlloggioSelect(r.alloggioId);
+  const nomeParti = (r.cliente || '').trim().split(/\s+/);
+  document.getElementById('f-nome').value    = nomeParti[0] || '';
+  document.getElementById('f-cognome').value = nomeParti.slice(1).join(' ');
+  document.getElementById('f-tel').value = r.tel || '';
+  document.getElementById('f-targa').value = '';
+  populateProvenienzaSelect('Agenzia');
+  document.getElementById('f-checkin').value  = r.checkin;
+  document.getElementById('f-checkout').value = r.checkout;
+  document.getElementById('f-adulti').value   = r.adulti;
+  document.getElementById('f-bambini-0-2').value   = r.bambiniFasce.b0_2;
+  document.getElementById('f-bambini-3-4').value   = r.bambiniFasce.b3_4;
+  document.getElementById('f-bambini-5-9').value   = r.bambiniFasce.b5_9;
+  document.getElementById('f-bambini-10-17').value = r.bambiniFasce.b10_17;
+  document.getElementById('f-trattamento').value = r.trattamento;
+  setQty('f-kit-bagno', 0);
+  setQty('f-kit-singolo', 0);
+  setQty('f-kit-matrimoniale', 0);
+  setCheck('f-bici', false);
+  setCheck('f-spiaggia', false);
+  setCheck('f-animali', r.animali);
+  setCheck('f-pacchetto-servizi', false);
+  const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
+  impostaNote(noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []);
+  impostaConto(null);
+  document.getElementById('documenti-btn-badge').textContent = '';
+  resetOspitiRows(1);
+  document.getElementById('form-modal-overlay').classList.remove('hidden');
+  aggiornaPreventivo();
+  aggiornaBadgeOspiti();
+  // Il totale/caparra riportati dall'agenzia sostituiscono il preventivo da
+  // listino appena calcolato sopra — restano comunque modificabili a mano.
+  const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
+  if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  contoCorrente = righeConto;
+  contoModificatoManualmente = true;
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  _importAgenziaIdCorrente = r.agenziaId;
+  _importReviewActive = true;
 }
 async function confermaImportazione() {
-  const daImportare = _importRighe.filter(r => r.stato === 'nuova' || r.stato === 'da_assegnare');
+  const daImportare = _importRighe.filter(r => (r.stato === 'nuova' || r.stato === 'da_assegnare') && r.selezionata !== false);
   if (!daImportare.length) return;
   const btn = document.getElementById('btn-conferma-import');
   btn.disabled = true;
@@ -2713,29 +3504,7 @@ async function confermaImportazione() {
   let ok = 0, falliti = 0;
   for (const r of daImportare) {
     try {
-      const bambiniTotale = r.bambiniFasce.b0_2 + r.bambiniFasce.b3_4 + r.bambiniFasce.b5_9 + r.bambiniFasce.b10_17;
-      const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
-      if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
-      const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
-      const data = {
-        alloggio_id: r.alloggioId || '',
-        alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
-        nome: r.cliente, checkin: r.checkin, checkout: r.checkout,
-        tel: r.tel, targa: '', provenienza: 'Agenzia',
-        adulti: r.adulti, bambini: bambiniTotale,
-        bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
-        trattamento_ristorazione: r.trattamento,
-        biancheria_kit_bagno: 0, biancheria_kit_singolo: 0, biancheria_kit_matrimoniale: 0,
-        bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: false,
-        preventivo_stimato: null,
-        note: noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : [],
-        conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
-        ospiti: [],
-        agenzia_id: r.agenziaId,
-        codice: generaCodice(),
-        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      };
-      const idDoc = `agenzia_${r.agenziaId}`;
+      const { idDoc, data } = costruisciDatiImportRiga(r);
       await setDoc(doc(db, 'prenotazioni', idDoc), data);
       if (data.trattamento_ristorazione === 'PC' || data.trattamento_ristorazione === 'MP') sincronizzaFamigliaRistorazione(idDoc, data);
       ok++;
@@ -2884,16 +3653,22 @@ function renderContoInline(motivoNonDisponibile) {
       <input class="conto-label-inline" type="text" value="${esc(r.label)}" readonly>
     </div>` : r.acconto ? `
     <div class="conto-row-inline conto-row-acconto" data-idx="${i}">
+      <input type="checkbox" class="conto-select-riga" data-idx="${i}" title="Seleziona per lo scontrino">
       <span class="conto-pagato-btn acconto" title="Caparra/acconto già incassato, riduce il saldo da pagare">Caparra</span>
       <input class="conto-label-inline" type="text" value="${esc(r.label)}" oninput="aggiornaVoceConto(${i})">
       <input class="conto-importo-inline" type="number" step="0.01" value="${r.importo}" oninput="aggiornaVoceConto(${i})">
       <button type="button" class="conto-remove-btn" title="Rimuovi voce" onclick="rimuoviVoceConto(${i})">${XICON}</button>
     </div>` : `
     <div class="conto-row-inline" data-idx="${i}">
-      <button type="button" class="conto-pagato-btn ${r.pagato?'pagato':'da-pagare'}" onclick="toggleContoPagato(${i})" title="Clicca per segnare come ${r.pagato?'da pagare':'pagato'}">${r.pagato?'Pagato':'Da pagare'}</button>
-      <input class="conto-label-inline" type="text" value="${esc(r.label)}" ${r.manuale ? '' : 'readonly'} oninput="aggiornaVoceConto(${i})">
-      <input class="conto-importo-inline" type="number" step="0.01" value="${r.importo}" oninput="aggiornaVoceConto(${i})">
-      <button type="button" class="conto-remove-btn" title="Rimuovi voce" onclick="rimuoviVoceConto(${i})">${XICON}</button>
+      <input type="checkbox" class="conto-select-riga" data-idx="${i}" title="${r.fiscalizzato ? 'Già fiscalizzata' : 'Seleziona per lo scontrino'}" ${r.fiscalizzato ? 'disabled' : ''}>
+      ${r.fiscalizzato
+        ? `<span class="conto-fiscalizzato-badge" title="Scontrino fiscale già emesso per questa voce">&#10003; Fiscalizzata</span>`
+        : `<button type="button" class="conto-pagato-btn ${r.pagato?'pagato':'da-pagare'}" onclick="toggleContoPagato(${i})" title="Clicca per segnare come ${r.pagato?'da pagare':'pagato'}">${r.pagato?'Pagato':'Da pagare'}</button>`}
+      <input class="conto-label-inline" type="text" value="${esc(r.label)}" ${(r.manuale && !r.fiscalizzato) ? '' : 'readonly'} oninput="aggiornaVoceConto(${i})">
+      <input class="conto-importo-inline" type="number" step="0.01" value="${r.importo}" ${r.fiscalizzato ? 'readonly' : ''} oninput="aggiornaVoceConto(${i})">
+      ${r.fiscalizzato
+        ? ''
+        : `<button type="button" class="conto-remove-btn" title="Rimuovi voce" onclick="rimuoviVoceConto(${i})">${XICON}</button>`}
     </div>`).join('');
   aggiornaTotaleConto();
 }
@@ -2969,6 +3744,110 @@ async function ricaricaContoDaPreventivo() {
 }
 function raccogliConto() {
   return { righe: contoCorrente, totale: calcolaSaldoConto(contoCorrente).totale };
+}
+
+// ── FISCALIZZAZIONE CONTO (Registratore Telematico ItalRetail, protocollo
+//    Custom S.p.A. — v. italretail_rt.py). Emette un documento commerciale
+//    REALE sulla memoria fiscale della cassa: non è una stampa di prova.
+//    Passa dal proxy locale (Avvia Proxy ItalRetail.command) perché il
+//    browser non può aprire una socket TCP raw verso il registratore. ─────
+function classificaCategoriaRiga(label) {
+  const l = (label || '').toLowerCase();
+  if (l.includes('tassa') && l.includes('soggiorno')) return 'tassa_soggiorno';
+  if (l.includes('penale') || l.includes('no show') || l.includes('no-show')) return 'penale_no_show';
+  return 'soggiorno';
+}
+
+function apriFiscalizzazione() {
+  const checkbox = Array.from(document.querySelectorAll('#conto-list-inline .conto-select-riga:checked'));
+  if (!checkbox.length) { showToast('Seleziona almeno una voce da fiscalizzare'); return; }
+  const indici = checkbox.map(c => parseInt(c.dataset.idx, 10));
+  const righe = indici.map(i => contoCorrente[i]).filter(Boolean);
+  if (!righe.length) return;
+
+  const totale = righe.reduce((s, r) => s + Math.abs(r.importo || 0), 0);
+  const righeHtml = righe.map(r =>
+    `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0">
+       <span>${esc(r.label)}</span><span>€ ${Math.abs(r.importo || 0).toFixed(2)}</span>
+     </div>`
+  ).join('');
+
+  const bodyHtml = `
+    <div style="margin-bottom:12px">${righeHtml}</div>
+    <div style="display:flex;justify-content:space-between;font-weight:800;border-top:1px solid var(--gray-200);padding-top:8px;margin-bottom:14px">
+      <span>Totale</span><span>€ ${totale.toFixed(2)}</span>
+    </div>
+    <label class="f-label">Metodo di pagamento</label>
+    <div style="display:flex;gap:14px;margin-top:6px">
+      <label class="f-check"><input type="radio" name="fisc-pagamento" value="contanti"> Contanti</label>
+      <label class="f-check"><input type="radio" name="fisc-pagamento" value="carta_di_credito"> Carta</label>
+      <label class="f-check"><input type="radio" name="fisc-pagamento" value="bancomat"> Bancomat</label>
+    </div>
+  `;
+
+  apriModaleConferma('Fiscalizza conto', bodyHtml, () => confermaFiscalizzazionePagamento(indici, righe, totale), 'Avanti', false);
+}
+
+async function confermaFiscalizzazionePagamento(indici, righe, totale) {
+  const sel = document.querySelector('input[name="fisc-pagamento"]:checked');
+  if (!sel) { showToast('Seleziona un metodo di pagamento'); apriFiscalizzazione(); return; }
+  const metodoPagamento = sel.value;
+  const metodoLabel = { contanti: 'Contanti', carta_di_credito: 'Carta di credito', bancomat: 'Bancomat' }[metodoPagamento];
+
+  const ok = await confermaAsync(
+    'Conferma emissione documento fiscale',
+    `<p>Stai per emettere un <strong>documento fiscale reale</strong> da <strong>€ ${totale.toFixed(2)}</strong> (${esc(metodoLabel)}) sul registratore telematico.</p>
+     <p>Una volta emesso entra nella memoria fiscale della cassa: non è un'operazione annullabile con un semplice "indietro". Procedere?</p>`
+  );
+  if (!ok) return;
+
+  await eseguiFiscalizzazione(indici, righe, metodoPagamento);
+}
+
+async function eseguiFiscalizzazione(indici, righe, metodoPagamento) {
+  // IP/porta/timeout NON si chiedono qui: sono configurati una volta per tutte
+  // in Impostazioni > Fiscalizzazione, salvati dal proxy locale su disco (non
+  // nel browser — v. nota in renderFiscalizzazionePanel). Il proxy li usa in
+  // automatico se non li passiamo esplicitamente nella richiesta.
+  const righePayload = righe.map(r => ({
+    categoria: classificaCategoriaRiga(r.label),
+    descrizione: r.label,
+    prezzo_eur: Math.abs(r.importo || 0),
+    quantita: 1,
+  }));
+
+  // Interruttore di test: localStorage.setItem('italretail_dry_run','1') dalla console
+  // del browser. In dry-run il proxy costruisce e valida tutti i comandi ma NON apre
+  // la socket verso la cassa — nessuna operazione fiscale reale. Ricordarsi di
+  // rimuoverlo (localStorage.removeItem('italretail_dry_run')) prima dell'uso normale.
+  const dryRun = localStorage.getItem('italretail_dry_run') === '1';
+
+  showToast(dryRun ? '[TEST] Simulazione in corso…' : 'Emissione documento fiscale in corso…');
+  let data;
+  try {
+    const res = await fetch('https://localhost:8766/scontrino', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun }),
+    });
+    data = await res.json();
+  } catch (e) {
+    showToast('Errore di connessione al proxy ItalRetail: ' + e.message);
+    return;
+  }
+  if (!data.ok) { showToast('Errore fiscalizzazione: ' + (data.errore || 'sconosciuto')); return; }
+
+  if (dryRun) {
+    console.log('[italretail dry-run] dettagli:', data.dettagli);
+    showToast('[TEST] Simulazione OK — nessun dato inviato alla cassa, nessuna voce segnata come pagata');
+    return;
+  }
+
+  indici.forEach(i => { if (contoCorrente[i]) { contoCorrente[i].pagato = true; contoCorrente[i].fiscalizzato = true; } });
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  scheduleAutosave();
+  showToast('Documento fiscale emesso, voci segnate come pagate');
 }
 
 // ── DOCUMENTI (Firebase Storage) ───────────────────────────────────────────
@@ -3156,12 +4035,23 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
     idPrenotazione = editingId;
     await updateDoc(doc(db, 'prenotazioni', editingId), data);
   } else {
-    idPrenotazione = `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
-    await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, codice: generaCodice(), createdAt: new Date().toISOString() });
+    // Se stiamo salvando per la prima volta una bozza aperta da una riga di
+    // import (v. apriPrenotazioneDaImportRiga), usa l'id deterministico
+    // "agenzia_<id>" e riporta il riferimento all'agenzia sul documento —
+    // altrimenti un id casuale come sempre.
+    const agenziaId = _importAgenziaIdCorrente;
+    idPrenotazione = agenziaId ? `agenzia_${agenziaId}` : `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
+    const extra = agenziaId ? { agenzia_id: agenziaId } : {};
+    await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, ...extra, codice: generaCodice(), createdAt: new Date().toISOString() });
     editingId = idPrenotazione;
     document.getElementById('btn-elimina').classList.remove('hidden');
     document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
     renderStatoBox();
+    if (agenziaId) {
+      const riga = _importRighe.find(r => r.agenziaId === agenziaId);
+      if (riga) { riga.stato = 'esistente'; riga.importataOra = true; }
+      _importAgenziaIdCorrente = null; // da qui in poi è un salvataggio normale: editingId è già valorizzato
+    }
   }
   sincronizzaFamigliaRistorazione(idPrenotazione, data); // non blocca il salvataggio se fallisce
   return idPrenotazione;
@@ -3368,6 +4258,93 @@ function startOspitiPensioneSync() {
   });
 }
 
+// Cache in sola lettura di manutenzione e ristorazione, tenute aggiornate in
+// tempo reale solo per calcolare gli allert (pallino sulla barra e sulle
+// schede) su tutte le prenotazioni contemporaneamente — altrimenti si
+// saprebbe di un ticket aperto o di un dato Ristorazione mancante solo
+// aprendo la singola scheda della prenotazione uno per uno.
+let maintenanceTickets = [];
+let _unsubManutenzioneAlert = null;
+function startManutenzioneAlertSync() {
+  waitForFirebase().then(() => {
+    const { db, collection, onSnapshot } = window._fb;
+    _unsubManutenzioneAlert = onSnapshot(collection(db, 'maintenance_tickets'), (snap) => {
+      maintenanceTickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderGrid();
+      aggiornaTabAlertPrenotazioneCorrente();
+    }, (err) => console.error('Errore sync allerta manutenzione:', err));
+  });
+}
+// Bici in noleggio (sola lettura, per il filtro "con bici attualmente
+// noleggiata"): un doc per bicicletta fisica, "occupata" + clienteAlloggio
+// valorizzato mentre è fuori, liberata al rientro — v. modulo Bici.
+let biciAttiveCache = [];
+let _unsubBiciAttiveFiltro = null;
+function startBiciAttiveSync() {
+  waitForFirebase().then(() => {
+    const { db, collection, onSnapshot } = window._fb;
+    _unsubBiciAttiveFiltro = onSnapshot(collection(db, 'bici'), (snap) => {
+      biciAttiveCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.stato === 'occupata' && b.clienteAlloggio);
+      if (filtroBiciAttiva) renderGrid();
+    }, (err) => console.error('Errore sync bici attive:', err));
+  });
+}
+let famiglieRistorazioneCache = {};
+let _unsubFamiglieRistorazioneAlert = null;
+function startFamiglieRistorazioneAlertSync() {
+  waitForFirebase().then(() => {
+    const { db, collection, onSnapshot } = window._fb;
+    _unsubFamiglieRistorazioneAlert = onSnapshot(collection(db, 'famiglie_ristorazione'), (snap) => {
+      famiglieRistorazioneCache = {};
+      snap.docs.forEach(d => { famiglieRistorazioneCache[d.id] = d.data(); });
+      renderGrid();
+      aggiornaTabAlertPrenotazioneCorrente();
+    }, (err) => console.error('Errore sync allerta ristorazione:', err));
+  });
+}
+function prenotazioneManutenzioneAperta(p) {
+  return maintenanceTickets.some(t => t.housing_unit === p.alloggio_nome && !t.status);
+}
+// Trattamento con pasti ma anagrafica non ancora creata, o creata ma priva
+// di dati che servono davvero in cucina/sala (primo pasto, tavolo).
+function prenotazioneRistorazioneIncompleta(p) {
+  if (p.trattamento_ristorazione !== 'PC' && p.trattamento_ristorazione !== 'MP') return false;
+  const fam = famiglieRistorazioneCache['cal_' + p.id];
+  if (!fam) return true;
+  // Solo il primo pasto: è l'unico dato di competenza di chi lavora da
+  // Calendario. Il tavolo si assegna solo dal modulo Ristorazione (spesso il
+  // giorno stesso, al momento del pasto) — pretenderlo qui terrebbe
+  // l'allert acceso per sempre anche a prenotazione "completa" dal punto di
+  // vista della reception.
+  return !fam.ora_arrivo;
+}
+// Elenco leggibile dei motivi per cui una prenotazione ha bisogno di
+// attenzione, usato sia per decidere se mostrare il pallino sulla barra sia
+// per il testo del tooltip.
+function motiviAttenzionePrenotazione(p) {
+  const motivi = [];
+  if (prenotazioneDatiIncompleti(p)) motivi.push('dati ospiti/alloggiati incompleti');
+  if (prenotazioneManutenzioneAperta(p)) motivi.push('ticket di manutenzione aperto');
+  if (prenotazioneRistorazioneIncompleta(p)) motivi.push('dati Ristorazione incompleti');
+  return motivi;
+}
+// Aggiorna i pallini sulle schede Ristorazione/Manutenzione del modale
+// attualmente aperto (se aperto) in base alle cache più recenti — serve
+// perché queste due possono cambiare mentre il modale è già aperto (un altro
+// operatore chiude un ticket, ad esempio), non solo quando si clicca la
+// scheda la prima volta.
+function aggiornaTabAlertPrenotazioneCorrente() {
+  const overlay = document.getElementById('form-modal-overlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  const p = editingId ? prenotazioni.find(x => x.id === editingId) : null;
+  const alloggioSel = document.getElementById('f-alloggio');
+  const alloggioNome = alloggioSel.selectedOptions[0] ? alloggioSel.selectedOptions[0].dataset.nome : '';
+  const manutenzioneEl = document.getElementById('manutenzione-tab-alert');
+  if (manutenzioneEl) manutenzioneEl.classList.toggle('hidden', !maintenanceTickets.some(t => t.housing_unit === alloggioNome && !t.status));
+  const ristorazioneEl = document.getElementById('ristorazione-tab-alert');
+  if (ristorazioneEl) ristorazioneEl.classList.toggle('hidden', !(p && prenotazioneRistorazioneIncompleta(p)));
+}
+
 function eliminaPrenotazioneCorrente() {
   if (!editingId) return;
   const id = editingId;
@@ -3565,9 +4542,11 @@ function switchListinoTab(tab) {
   document.getElementById('tab-villini').classList.toggle('active', tab === 'villini');
   document.getElementById('tab-campeggio').classList.toggle('active', tab === 'campeggio');
   document.getElementById('tab-generali').classList.toggle('active', tab === 'generali');
+  document.getElementById('tab-fiscalizzazione').classList.toggle('active', tab === 'fiscalizzazione');
   document.getElementById('listino-villini-panel').classList.toggle('hidden', tab !== 'villini');
   document.getElementById('listino-campeggio-panel').classList.toggle('hidden', tab !== 'campeggio');
   document.getElementById('listino-generali-panel').classList.toggle('hidden', tab !== 'generali');
+  document.getElementById('listino-fiscalizzazione-panel').classList.toggle('hidden', tab !== 'fiscalizzazione');
   renderListiniSettings();
 }
 function fmtPeriodoLabel(p) { return `${fmtDataIt(p.da).slice(0,5)}–${fmtDataIt(p.a).slice(0,5)}`; }
@@ -3575,7 +4554,8 @@ function fmtPeriodoLabel(p) { return `${fmtDataIt(p.da).slice(0,5)}–${fmtDataI
 function renderListiniSettings() {
   if (listinoTabAttiva === 'villini') renderListinoVilliniPanel();
   else if (listinoTabAttiva === 'campeggio') renderListinoCampeggioPanel();
-  else renderGeneraliPanel();
+  else if (listinoTabAttiva === 'generali') renderGeneraliPanel();
+  else renderFiscalizzazionePanel();
 }
 
 function renderListinoVilliniPanel() {
@@ -3772,6 +4752,91 @@ async function salvaGenerali() {
   } catch(e) { console.error('Errore salvataggio impostazioni calendario:', e); showToast('Errore: ' + e.message); }
 }
 
+// ── IMPOSTAZIONI FISCALIZZAZIONE (Registratore Telematico ItalRetail) ─────
+// IP/porta/timeout si salvano SUL PROXY LOCALE (file italretail_config.json
+// accanto a proxy_italretail.py), non nel browser: aperta come file:// (non
+// da un indirizzo web), molti browser — Safari in particolare — non
+// persistono davvero il localStorage, quindi non è una fonte affidabile per
+// un'impostazione che deve restare configurata una volta per tutte. Il proxy
+// gira sempre in locale ed è affidabile, quindi è lui l'unica fonte di verità.
+async function renderFiscalizzazionePanel() {
+  const panel = document.getElementById('listino-fiscalizzazione-panel');
+  panel.innerHTML = `<div class="listino-card">Caricamento configurazione dal proxy…</div>`;
+  let config = { ip: '', porta: 9100, timeout: 5 };
+  let erroreProxy = '';
+  try {
+    const res = await fetch('https://localhost:8766/configurazione');
+    const data = await res.json();
+    if (data.ok) config = data;
+  } catch (e) {
+    erroreProxy = e.message;
+  }
+  panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Registratore telematico ItalRetail</h3>
+      <p class="subtitle">Parametri di collegamento alla cassa fiscale, salvati dal proxy locale su disco: si configurano una volta sola e restano validi per sempre su questa postazione, senza richiederli di nuovo ad ogni scontrino. Richiede il proxy locale attivo (v. cartella installer-stampanti).</p>
+      ${erroreProxy ? `<p style="color:var(--red);font-size:12.5px;font-weight:700;margin-bottom:12px">Proxy locale non raggiungibile (${esc(erroreProxy)}) — verifica che sia avviato prima di configurare o salvare.</p>` : ''}
+      <div class="listino-extra-grid">
+        <div class="listino-extra-field"><label>Indirizzo IP</label><input type="text" id="fisc-ip" placeholder="192.168.5.4" value="${esc(config.ip || '')}"></div>
+        <div class="listino-extra-field"><label>Porta</label><input type="number" id="fisc-porta" value="${esc(config.porta || 9100)}"></div>
+        <div class="listino-extra-field"><label>Timeout (secondi)</label><input type="number" step="0.5" min="1" id="fisc-timeout" value="${esc(config.timeout || 5)}"></div>
+      </div>
+      <div class="listino-save-row" style="margin-top:14px;gap:10px">
+        <button type="button" class="listino-save-btn" style="background:var(--gray-200);color:var(--gray-800)" onclick="testaConnessioneFiscalizzazione()">Testa connessione</button>
+        <button type="button" class="listino-save-btn" onclick="salvaFiscalizzazione()">Salva</button>
+      </div>
+      <div id="fisc-test-esito" style="margin-top:10px;font-size:12.5px;font-weight:700"></div>
+    </div>`;
+}
+function leggiCampiFiscalizzazione() {
+  return {
+    ip: document.getElementById('fisc-ip').value.trim(),
+    porta: document.getElementById('fisc-porta').value.trim(),
+    timeout: document.getElementById('fisc-timeout').value.trim(),
+  };
+}
+async function salvaFiscalizzazione() {
+  const { ip, porta, timeout } = leggiCampiFiscalizzazione();
+  if (!ip) { showToast('Inserisci un indirizzo IP'); return; }
+  try {
+    const res = await fetch('https://localhost:8766/configurazione', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, porta: porta || undefined, timeout: timeout || undefined }),
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast('Errore salvataggio: ' + (data.errore || 'sconosciuto')); return; }
+    showToast('Parametri salvati — configurazione permanente, non verrà più richiesta');
+  } catch (e) {
+    showToast('Errore di connessione al proxy locale: ' + e.message);
+  }
+}
+async function testaConnessioneFiscalizzazione() {
+  const { ip, porta, timeout } = leggiCampiFiscalizzazione();
+  if (!ip) { showToast('Inserisci un indirizzo IP prima di testare'); return; }
+  const esitoEl = document.getElementById('fisc-test-esito');
+  esitoEl.textContent = 'Test in corso…';
+  esitoEl.style.color = 'var(--gray-600)';
+  try {
+    const res = await fetch('https://localhost:8766/test-connessione', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, porta: porta || undefined, timeout: timeout || undefined }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      esitoEl.textContent = '✓ Connessione riuscita';
+      esitoEl.style.color = 'var(--green-ok)';
+    } else {
+      esitoEl.textContent = 'Errore: ' + (data.errore || 'sconosciuto');
+      esitoEl.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    esitoEl.textContent = 'Errore di connessione al proxy locale: ' + e.message;
+    esitoEl.style.color = 'var(--red)';
+  }
+}
+
 // ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
 let _dataReady = false, _loadingHidden = false;
 function hideLoadingScreen() {
@@ -3817,6 +4882,9 @@ async function start() {
   startImpostazioniCalendarioSync();
   ensureDefaultImpostazioniCalendario();
   startOspitiPensioneSync();
+  startManutenzioneAlertSync();
+  startFamiglieRistorazioneAlertSync();
+  startBiciAttiveSync();
 }
 start();
 </script>
