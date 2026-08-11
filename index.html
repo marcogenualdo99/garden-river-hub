@@ -9,6 +9,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css?v=1786056020">
+<style>
+/* ══ SCONTRINO LIBERO — scontrino fiscale svincolato da prenotazioni/conti ══ */
+.sl-riga { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--gray-100); }
+.sl-riga:first-child { border-top: none; }
+.sl-riga-label { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
+.sl-riga-label:focus { border-color: var(--green-400); }
+.sl-riga-importo { flex: none; width: 96px; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; text-align: right; font-family: var(--font); color: var(--gray-900); outline: none; }
+.sl-riga-importo:focus { border-color: var(--green-400); }
+.sl-riga-remove { flex: none; width: 36px; height: 36px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.sl-riga-remove:hover { background: var(--red-bg); color: var(--red); }
+.sl-add-btn { margin-top: 10px; background: none; border: none; padding: 0; font-size: 12.5px; font-weight: 700; color: var(--green-700); cursor: pointer; font-family: var(--font); }
+.sl-total-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 800; color: var(--gray-900); padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--gray-100); }
+.sl-total-row span:last-child { color: var(--green-700); }
+.sl-label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; }
+.sl-pay-options { display: flex; gap: 14px; margin-bottom: 18px; }
+.sl-pay-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray-700); cursor: pointer; }
+.sl-fiscalizza-btn { width: 100%; height: 48px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
+.sl-fiscalizza-btn:active { opacity: .85; }
+.sl-fiscalizza-btn:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
+</style>
 <script src="assets/icons.js?v=1785930089"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -263,7 +283,7 @@
     <div class="nav-group-items">
       <a class="nav-item active" href="index.html" onclick="event.preventDefault();closeSettings()"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -290,7 +310,7 @@
 <aside class="rail" id="rail">
   <div class="rail-item active" onclick="closeSettings()"><span data-icon="HOME"></span><span>Home</span></div>
   <div class="rail-item" onclick="openModule('calendario/')"><span data-icon="CALENDAR"></span><span>Cal.</span></div>
-  <div class="rail-item" onclick="openModule('alloggi/')"><span data-icon="ALLOGGI"></span><span>Alloggi</span></div>
+  <div class="rail-item" onclick="openModule('alloggi/')"><span data-icon="ALLOGGI"></span><span>Pulizie</span></div>
   <div class="rail-item" onclick="openModule('magazzino/')"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></div>
   <div class="rail-item" onclick="openModule('conti/')"><span data-icon="CONTI"></span><span>Conti</span></div>
   <div class="rail-item" onclick="openModule('ristorazione/staff.html')"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></div>
@@ -316,7 +336,7 @@
     <div class="nav-group-items">
       <a class="nav-item active" href="index.html" onclick="event.preventDefault();toggleDrawer(false);closeSettings()"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -356,6 +376,9 @@
       </div>
     </div>
     <div class="header-btns">
+      <button class="hbtn ghost icon" id="btn-scontrino-libero" onclick="openScontrinoLibero()" title="Scontrino libero">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+      </button>
       <button class="hbtn ghost icon" id="btn-search" onclick="toggleSearch()" title="Cerca">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
@@ -447,6 +470,35 @@
     </div>
   </div>
 
+  <!-- ══ SCONTRINO LIBERO ═══════════════════════════════════════════════════ -->
+  <div id="sec-scontrino-libero" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="closeScontrinoLibero()">&#8592;</button>
+      <div class="back-title">Scontrino libero</div>
+    </div>
+
+    <div class="card">
+      <h3>Voci</h3>
+      <p class="subtitle">Emetti uno scontrino fiscale reale senza legarlo a nessuna prenotazione o conto: aggiungi una o più voci libere, controlla il totale e fiscalizza.</p>
+      <div id="sl-righe-list"></div>
+      <button type="button" class="sl-add-btn" onclick="aggiungiVoceScontrinoLibero()">+ Aggiungi voce</button>
+    </div>
+
+    <div class="card">
+      <div class="sl-total-row">
+        <span>Totale conto</span>
+        <span id="sl-totale">€ 0,00</span>
+      </div>
+      <label class="sl-label">Metodo di pagamento</label>
+      <div class="sl-pay-options">
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="contanti" checked> Contanti</label>
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="carta_di_credito"> Carta</label>
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="bancomat"> Bancomat</label>
+      </div>
+      <button type="button" id="sl-fiscalizza-btn" class="sl-fiscalizza-btn" onclick="apriFiscalizzaScontrinoLibero()">Fiscalizza</button>
+    </div>
+  </div>
+
 </main>
 
 </div>
@@ -499,14 +551,14 @@ hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 const MODULES = [
   {
     id: 'alloggi',
-    nome: 'Gestione Alloggi',
-    titolo: 'Gestione alloggi',
+    nome: 'Gestione Pulizie',
+    titolo: 'Gestione pulizie',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
     tile: 'green',
     statKey: 'alloggi',
     sezioni: [
-      { id: 'alloggi', nome: 'Alloggi' },
+      { id: 'alloggi', nome: 'Pulizie' },
     ],
   },
   {
@@ -1332,6 +1384,118 @@ function closeNotifiche() {
   document.getElementById('sec-notifiche').classList.remove('active');
   document.getElementById('sec-home').classList.add('active');
   renderHome();
+}
+
+// ── SCONTRINO LIBERO — scontrino fiscale reale svincolato da prenotazioni o
+//    conti, per vendite estemporanee (es. al banco). Passa dallo stesso proxy
+//    locale ItalRetail (v. calendario/index.html per la stessa logica) —
+//    IP/porta/timeout della cassa sono già configurati lì, il proxy è unico
+//    per tutta la postazione. ─────────────────────────────────────────────
+let scontrinoLibero = [];
+
+function nuovaVoceScontrinoLibero() { return { label: '', importo: null }; }
+
+function openScontrinoLibero() {
+  scontrinoLibero = [nuovaVoceScontrinoLibero()];
+  const radio = document.querySelector('input[name="sl-pagamento"][value="contanti"]');
+  if (radio) radio.checked = true;
+  document.getElementById('sec-home').classList.remove('active');
+  document.getElementById('sec-scontrino-libero').classList.add('active');
+  renderScontrinoLibero();
+}
+function closeScontrinoLibero() {
+  document.getElementById('sec-scontrino-libero').classList.remove('active');
+  document.getElementById('sec-home').classList.add('active');
+  renderHome();
+}
+
+function renderScontrinoLibero() {
+  const wrap = document.getElementById('sl-righe-list');
+  wrap.innerHTML = scontrinoLibero.map((r, i) => `
+    <div class="sl-riga">
+      <input class="sl-riga-label" type="text" placeholder="Descrizione voce…" value="${escHtml(r.label)}" oninput="aggiornaVoceScontrinoLibero(${i},'label',this.value)">
+      <input class="sl-riga-importo" type="number" step="0.01" min="0" placeholder="0,00" value="${r.importo === null ? '' : r.importo}" oninput="aggiornaVoceScontrinoLibero(${i},'importo',this.value)">
+      <button type="button" class="sl-riga-remove" title="Rimuovi voce" onclick="rimuoviVoceScontrinoLibero(${i})">&times;</button>
+    </div>`).join('');
+  aggiornaTotaleScontrinoLibero();
+}
+function aggiungiVoceScontrinoLibero() {
+  scontrinoLibero.push(nuovaVoceScontrinoLibero());
+  renderScontrinoLibero();
+}
+function rimuoviVoceScontrinoLibero(i) {
+  scontrinoLibero.splice(i, 1);
+  if (!scontrinoLibero.length) scontrinoLibero.push(nuovaVoceScontrinoLibero());
+  renderScontrinoLibero();
+}
+function aggiornaVoceScontrinoLibero(i, campo, valore) {
+  if (!scontrinoLibero[i]) return;
+  scontrinoLibero[i][campo] = campo === 'importo' ? (valore === '' ? null : parseFloat(valore)) : valore;
+  aggiornaTotaleScontrinoLibero();
+}
+function totaleScontrinoLibero() {
+  return scontrinoLibero.reduce((s, r) => s + (Number(r.importo) > 0 ? Number(r.importo) : 0), 0);
+}
+function aggiornaTotaleScontrinoLibero() {
+  const totale = totaleScontrinoLibero();
+  document.getElementById('sl-totale').textContent = '€ ' + totale.toFixed(2).replace('.', ',');
+  document.getElementById('sl-fiscalizza-btn').disabled = totale <= 0;
+}
+
+function apriFiscalizzaScontrinoLibero() {
+  const righe = scontrinoLibero.filter(r => r.label.trim() && Number(r.importo) > 0);
+  if (!righe.length) { showToast('Aggiungi almeno una voce con descrizione e importo'); return; }
+  const sel = document.querySelector('input[name="sl-pagamento"]:checked');
+  const metodoPagamento = sel ? sel.value : 'contanti';
+  const metodoLabel = { contanti: 'Contanti', carta_di_credito: 'Carta di credito', bancomat: 'Bancomat' }[metodoPagamento];
+  const totale = righe.reduce((s, r) => s + Number(r.importo), 0);
+  showModal(
+    'Conferma emissione documento fiscale',
+    `Stai per emettere un documento fiscale REALE da € ${totale.toFixed(2).replace('.', ',')} (${metodoLabel}) sul registratore telematico. Una volta emesso entra nella memoria fiscale della cassa e non è annullabile con un semplice "indietro". Procedere?`,
+    'Fiscalizza',
+    'var(--green-700)',
+    () => eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento)
+  );
+}
+
+async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
+  const righePayload = righe.map(r => ({
+    categoria: 'bar',
+    descrizione: r.label.trim(),
+    prezzo_eur: Number(r.importo),
+    quantita: 1,
+  }));
+
+  // Interruttore di test, v. nota gemella in calendario/index.html.
+  const dryRun = localStorage.getItem('italretail_dry_run') === '1';
+
+  showToast(dryRun ? '[TEST] Simulazione in corso…' : 'Emissione documento fiscale in corso…');
+  let data;
+  try {
+    const res = await fetch('https://localhost:8766/scontrino', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun }),
+    });
+    data = await res.json();
+  } catch (e) {
+    showToast('Errore di connessione al proxy ItalRetail: ' + e.message);
+    return;
+  }
+  if (!data.ok) { showToast('Errore fiscalizzazione: ' + (data.errore || 'sconosciuto')); return; }
+
+  if (dryRun) {
+    console.log('[italretail dry-run] dettagli:', data.dettagli);
+    showToast('[TEST] Simulazione OK — nessun dato inviato alla cassa');
+    return;
+  }
+
+  showToast('Documento fiscale emesso');
+  closeScontrinoLibero();
+}
+
+function escHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function aggiornaStatoNotifiche() {
