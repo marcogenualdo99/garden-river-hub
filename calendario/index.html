@@ -267,9 +267,15 @@
 .conto-select-riga { flex-shrink: 0; width: 15px; height: 15px; accent-color: var(--green-700); cursor: pointer; }
 .conto-row-inline:first-child { border-top: none; }
 .conto-label-inline, .conto-importo-inline { border: none; background: transparent; font-family: var(--font); padding: 4px 6px; border-radius: 6px; color: var(--gray-900); }
-.conto-label-inline { flex: 1; font-size: 12.5px; }
+/* min-width:0 è indispensabile qui: un <input> flessibile senza questo non
+   scende mai sotto la sua larghezza "naturale" (~20 caratteri di default),
+   quindi su schermi stretti la riga (checkbox + pillola + etichetta +
+   importo + cestino) sfondava la larghezza della card invece di stringersi,
+   spingendo l'importo fuori dalla vista e costringendo la card a scorrere
+   in orizzontale. */
+.conto-label-inline { flex: 1; min-width: 0; font-size: 12.5px; }
 .conto-label-inline[readonly] { color: var(--gray-700); }
-.conto-importo-inline { width: 92px; text-align: right; font-size: 12.5px; font-weight: 700; }
+.conto-importo-inline { width: 92px; flex-shrink: 0; text-align: right; font-size: 12.5px; font-weight: 700; }
 .conto-label-inline:not([readonly]):hover, .conto-importo-inline:hover { background: var(--white); box-shadow: inset 0 0 0 1.5px var(--gray-200); }
 .conto-label-inline:focus, .conto-importo-inline:focus { background: var(--white); outline: none; box-shadow: inset 0 0 0 1.5px var(--green-400); }
 .conto-remove-btn { width: 22px; height: 22px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
