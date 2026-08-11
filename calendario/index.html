@@ -1974,12 +1974,23 @@ async function impostaStatoAlloggioDaCalendario(alloggioId, nuovoStato) {
   try {
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'alloggi', alloggioId), { stato: nuovoStato, log: newLog });
+    notificaCambioStatoAlloggio(alloggioId, a.nome, nuovoStato);
   } catch(e) {
     console.error('Errore aggiornamento stato alloggio:', e);
     showToast('Errore di salvataggio stato alloggio — riprova');
     a.stato = precedente;
     renderGrid();
   }
+}
+// Notifica push allo staff con notifiche attive (stessa infrastruttura di
+// Ristorazione — v. cloud-functions/notifiche-pulizie). "Fire and forget":
+// un errore di rete qui non deve mai far sembrare fallito il cambio di
+// stato, che a questo punto è già salvato su Firestore.
+function notificaCambioStatoAlloggio(alloggioId, alloggioNome, nuovoStato) {
+  fetch('https://invia-notifica-pulizie-113994721180.europe-west1.run.app', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ evento:'cambio_stato', alloggio_id:alloggioId, alloggio_nome:alloggioNome, nuovo_stato:nuovoStato, op:currentOperatore || 'Operatore' }),
+  }).catch(() => {});
 }
 function renderGrid() {
   const grid = document.getElementById('cal-grid');
