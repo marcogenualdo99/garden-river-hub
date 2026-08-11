@@ -182,11 +182,17 @@
 .form-modal-box { background: var(--white); border-radius: var(--radius-lg); width: 100%; max-width: 440px; max-height: 88vh; overflow: hidden; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
 .form-modal-scroll { overflow-y: auto; padding: 22px 20px; flex: 1; min-height: 0; }
 .form-modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
-.form-modal-title-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+.form-modal-title-row { display: flex; align-items: baseline; gap: 8px; position: sticky; top: -22px; margin: -22px -20px 16px; padding: 22px 20px 14px; background: var(--white); z-index: 5; }
 .form-modal-title-row .form-modal-title { margin-bottom: 0; }
 .autosave-status { font-size: 11px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--gray-400); }
 .autosave-status.in-corso { color: var(--gray-500); }
 .autosave-status.errore { color: var(--red); }
+.log-info-btn { width: 24px; height: 24px; padding: 0; border-radius: 50%; font-size: 12px; font-weight: 800; font-style: italic; flex-shrink: 0; }
+.log-entry { border: 1.5px solid var(--gray-100); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px; }
+.log-entry-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; margin-bottom: 6px; }
+.log-entry-head strong { color: var(--gray-900); }
+.log-entry-head span { color: var(--gray-500); font-weight: 600; }
+.log-entry-list { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--gray-700); line-height: 1.6; }
 .stato-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--gray-50); border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 10px 12px; margin: -8px 0 16px; }
 .stato-badge { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 20px; font-size: 12px; font-weight: 800; color: #fff; }
 .stato-badge.st-confermata  { background: var(--terracotta-2); color: #4A3208; }
@@ -216,6 +222,9 @@
 .prev-box { position: relative; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); padding: 10px 14px; margin-bottom: 14px; }
 .prev-head { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 800; color: var(--gray-700); text-transform: uppercase; letter-spacing: .03em; margin-top: 6px; padding-top: 8px; border-top: 1.5px solid var(--gray-200); }
 .prev-total { margin-left: auto; font-size: 15px; font-weight: 800; color: var(--green-700); text-transform: none; letter-spacing: 0; }
+.servizi-unificati-box { padding: 16px 18px; }
+.servizi-sub-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--gray-500); margin-bottom: 8px; }
+.servizi-sub-divider { border-top: 1.5px solid var(--gray-200); margin: 16px -18px 0; padding: 16px 18px 0; }
 .conto-ripristina-btn { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; border: 2px solid var(--white); border-radius: 50%; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .conto-ripristina-btn:hover { background: var(--red); color: #fff; }
 .conto-fiscalizza-btn { height: 26px; padding: 0 12px; border: none; border-radius: 14px; background: var(--green-700); color: #fff; font-size: 11px; font-weight: 800; text-transform: none; letter-spacing: 0; cursor: pointer; font-family: var(--font); }
@@ -708,6 +717,7 @@
   <div class="form-modal-scroll">
     <div class="form-modal-title-row">
       <div class="form-modal-title" id="form-modal-title">Nuova prenotazione</div>
+      <button type="button" class="hbtn ghost log-info-btn hidden" id="btn-log-modifiche" onclick="apriLogModifiche()" title="Log modifiche">i</button>
       <span class="autosave-status" id="autosave-status"></span>
     </div>
 
@@ -867,13 +877,7 @@
       </div>
 
       <div class="pren-panel" data-panel="conto">
-        <label class="f-label">Altri servizi</label>
-        <div class="f-check-row">
-          <label class="f-check" id="chk-bici-wrap" title="Solo promemoria: non ha un prezzo fisso da listino, l'importo entra nel conto automaticamente dalla scheda Bici quando si registra un noleggio collegato a questo alloggio"><input type="checkbox" id="f-bici"> Bici</label>
-          <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="toggleServizioConPrezzo()"> Spiaggia</label>
-          <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="toggleServizioConPrezzo()"> Animali al seguito</label>
-          <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
-        </div>
+        <label class="f-label">Conto</label>
         <div class="prev-box" id="conto-box">
           <button type="button" class="conto-ripristina-btn" onclick="ricaricaContoDaPreventivo()" title="Riparti dal preventivo: cancella tutte le voci del conto e le sostituisce con quelle attuali calcolate dal listino">&#8635;</button>
           <div id="conto-list-inline"></div>
@@ -892,10 +896,70 @@
             <span class="conto-add-placeholder">Caparra o acconto</span>
           </div>
         </div>
+
+        <label class="f-label">Servizi e biancheria</label>
+        <div class="prev-box servizi-unificati-box">
+          <div class="servizi-sub-label">Servizi a corpo</div>
+          <div class="f-check-row">
+            <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="toggleServizioConPrezzo()"> Spiaggia</label>
+            <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="toggleServizioConPrezzo()"> Animali al seguito</label>
+            <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
+          </div>
+
+          <div class="servizi-sub-divider">
+            <div class="servizi-sub-label">Biancheria</div>
+            <div class="kit-section" style="margin-bottom:0">
+              <div class="kit-row">
+                <span class="kit-label">Kit bagno</span>
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-bagno-2',-1)">−</button>
+                  <input class="qty-val" id="f-kit-bagno-2" type="number" min="0" value="0" readonly>
+                  <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-bagno-2',1)">+</button>
+                </div>
+              </div>
+              <div class="kit-row">
+                <span class="kit-label">Kit singolo</span>
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-singolo-2',-1)">−</button>
+                  <input class="qty-val" id="f-kit-singolo-2" type="number" min="0" value="0" readonly>
+                  <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-singolo-2',1)">+</button>
+                </div>
+              </div>
+              <div class="kit-row">
+                <span class="kit-label">Kit matrimoniale</span>
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn minus" onclick="adjustQty('f-kit-matrimoniale-2',-1)">−</button>
+                  <input class="qty-val" id="f-kit-matrimoniale-2" type="number" min="0" value="0" readonly>
+                  <button type="button" class="qty-btn plus" onclick="adjustQty('f-kit-matrimoniale-2',1)">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="servizi-sub-divider">
+            <div class="servizi-sub-label">Aggiungi dal catalogo</div>
+            <p class="section-hint" style="margin-bottom:10px">Scegli un servizio (configurabile da Impostazioni → Generali) e la quantità: viene aggiunto come voce al conto qui sopra.</p>
+            <div class="f-row">
+              <div>
+                <label class="f-label">Servizio</label>
+                <select class="f-select" id="servizio-extra-sel"></select>
+              </div>
+              <div style="max-width:110px">
+                <label class="f-label">Quantità</label>
+                <div class="qty-stepper">
+                  <button type="button" class="qty-btn minus" onclick="adjustServizioExtraQty(-1)">−</button>
+                  <input class="qty-val" id="servizio-extra-qty" type="number" min="1" value="1" readonly>
+                  <button type="button" class="qty-btn plus" onclick="adjustServizioExtraQty(1)">+</button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="add-ospite-btn" id="btn-aggiungi-servizio-extra" onclick="aggiungiServizioExtra()" style="margin-top:2px">+ Aggiungi al conto</button>
+          </div>
+        </div>
       </div>
 
       <div class="pren-panel" data-panel="bici">
-        <p class="section-hint">Noleggi collegati con certezza a questo alloggio (impostato in Bici al momento del ritiro) — l'importo, una volta incassato, viene aggiunto automaticamente al Conto di questa prenotazione.</p>
+        <p class="section-hint">Noleggi collegati con certezza a questo alloggio (impostato in Bici al momento del ritiro). L'importo entra nel Conto di questa prenotazione quando viene incassato in contanti, oppure subito se in Bici si chiude il noleggio con "Aggiungi al conto" (da pagare al check-out).</p>
         <div id="pren-bici-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
       </div>
 
@@ -926,6 +990,19 @@
       <button class="del-btn hidden" id="btn-elimina" onclick="eliminaPrenotazioneCorrente()">Elimina</button>
       <button class="modal-btn-cancel" style="flex:1" onclick="closeFormModal()">Annulla</button>
       <button class="modal-btn-confirm" style="flex:1" onclick="salvaPrenotazione()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE LOG MODIFICHE ═══════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="log-modal-overlay">
+  <div class="form-modal-box" style="max-width:520px">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title">Log modifiche</div>
+    <div id="log-modifiche-list"><p class="section-hint">Caricamento…</p></div>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiLogModifiche()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -1145,6 +1222,7 @@ const IMPOSTAZIONI_CALENDARIO_DEFAULT = {
   provenienze: ['Telefonata', 'Email', 'Sito web', 'Diretta (walk-in)', 'Agenzia', 'OTA / Booking', 'Social', 'Passaparola', 'Altro'],
   documentiTag: ['Documento d\'identità', 'Contratto', 'Fattura', 'Ricevuta caparra', 'Altro'],
   categorieNote: ['Generali', 'Ristorazione', 'Pulizie', 'Bar', 'OTA'],
+  serviziAggiuntivi: [], // [{nome, prezzo}] — catalogo usato dal blocco "Servizi aggiuntivi" nel Conto
 };
 let impostazioniCalendario = null; // caricate da Firestore
 
@@ -1291,6 +1369,7 @@ function startImpostazioniCalendarioSync() {
     _unsubImpostazioniCalendario = onSnapshot(doc(db, 'impostazioni', 'calendario'), (snap) => {
       impostazioniCalendario = { ...IMPOSTAZIONI_CALENDARIO_DEFAULT, ...(snap.exists() ? snap.data() : {}) };
       populateProvenienzaSelect();
+      populateServiziExtraSelect();
       if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
     }, (err) => console.error('Errore lettura impostazioni calendario:', err));
   });
@@ -1311,6 +1390,19 @@ function populateProvenienzaSelect(selectedValue) {
   const attuale = selectedValue !== undefined ? selectedValue : sel.value;
   sel.innerHTML = lista.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
   if (attuale && lista.includes(attuale)) sel.value = attuale;
+}
+function populateServiziExtraSelect() {
+  const sel = document.getElementById('servizio-extra-sel');
+  if (!sel) return;
+  const lista = (impostazioniCalendario && impostazioniCalendario.serviziAggiuntivi) || [];
+  const btn = document.getElementById('btn-aggiungi-servizio-extra');
+  if (!lista.length) {
+    sel.innerHTML = '<option value="">Nessun servizio configurato</option>';
+    if (btn) btn.disabled = true;
+    return;
+  }
+  if (btn) btn.disabled = false;
+  sel.innerHTML = lista.map((s,i) => `<option value="${i}">${esc(s.nome)} — € ${Number(s.prezzo||0).toFixed(2)}</option>`).join('');
 }
 
 // ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
@@ -1376,6 +1468,7 @@ let alloggiList  = [];   // [{id, categoria, categoriaLabel, numero, nome, stato
 let prenotazioni = [];   // [{id, alloggio_id, alloggio_nome, nome, checkin, checkout, ...}]
 let viewStart    = isoToday(0);
 let editingId    = null;
+let datiPrenotazionePrecedenti = null; // istantanea dei dati salvati, per calcolare il diff da scrivere nel log modifiche
 
 function waitForFirebase() {
   return new Promise(resolve => {
@@ -1495,7 +1588,7 @@ async function startRealtimeSync() {
       prenotazioni = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setSyncStatus('live');
       renderGrid();
-      if (editingId) renderStatoBox();
+      if (editingId) { renderStatoBox(); sincronizzaContoEsternoAperto(); }
       _dataReady = true;
       maybeHideLoading();
     }, (err) => { console.error('Errore lettura prenotazioni:', err); setSyncStatus('error'); });
@@ -2050,7 +2143,7 @@ function iniziaDragPrenotazione(ev, id) {
     origLeft: parseFloat(barEl.style.left) || 0,
     origWidth: parseFloat(barEl.style.width) || 0,
     barEl, origTrackEl: trackEl,
-    origAlloggioId: p.alloggio_id, origCheckin: p.checkin, origCheckout: p.checkout,
+    origAlloggioId: p.alloggio_id, origAlloggioNome: p.alloggio_nome, origCheckin: p.checkin, origCheckout: p.checkout,
     moved: false,
     ghostEl: null,
   };
@@ -2113,11 +2206,31 @@ function onDragMouseUp(ev) {
     const nuovoCheckout = addDaysIso(ctx.origCheckout, dayDelta);
     const overlap = trovaOverlap(nuovoAlloggioId, nuovoCheckin, nuovoCheckout, ctx.id);
     if (overlap) {
-      const conferma = await confermaAsync(
-        'Sovrapposizione rilevata',
-        `Nella nuova posizione risulta già prenotato <strong>${esc(overlap.nome)}</strong> (${esc(overlap.checkin)} → ${esc(overlap.checkout)}). Spostare comunque?`
-      );
-      if (!conferma) { renderGrid(); return; }
+      // Una prenotazione non può mai finire su una casella già occupata da
+      // un'altra: l'unica eccezione è lo scambio di alloggio fra due
+      // prenotazioni con le stesse identiche date (check-in e check-out
+      // uguali) — in quel caso non c'è nessuna sovrapposizione risultante,
+      // solo un'inversione di chi sta dove. Qualunque altro caso (date
+      // diverse che si intersecano) è bloccato, senza possibilità di forzare.
+      if (nuovoCheckin === overlap.checkin && nuovoCheckout === overlap.checkout) {
+        try {
+          const { db, doc, updateDoc } = window._fb;
+          await updateDoc(doc(db, 'prenotazioni', ctx.id), {
+            alloggio_id: nuovoAlloggioId, alloggio_nome: nuovoAlloggioNome || nuovoAlloggioId,
+          });
+          await updateDoc(doc(db, 'prenotazioni', overlap.id), {
+            alloggio_id: ctx.origAlloggioId, alloggio_nome: ctx.origAlloggioNome || ctx.origAlloggioId,
+          });
+          showToast('Alloggi scambiati: ' + (ctx.origAlloggioNome||'') + ' ↔ ' + (nuovoAlloggioNome||''));
+        } catch(e) {
+          console.error('Errore scambio prenotazioni:', e);
+          showToast('Errore: ' + e.message);
+        }
+      } else {
+        showToast((nuovoAlloggioNome||'Alloggio') + ' è già occupato da ' + overlap.nome + ' in quel periodo — spostamento annullato');
+      }
+      renderGrid();
+      return;
     }
     try {
       const { db, doc, updateDoc } = window._fb;
@@ -2198,7 +2311,7 @@ function setCheck(id, val) {
   el.checked = val;
   el.closest('.f-check').classList.toggle('on', val);
 }
-['f-bici','f-spiaggia','f-animali','f-pacchetto-servizi'].forEach(id => {
+['f-spiaggia','f-animali','f-pacchetto-servizi'].forEach(id => {
   document.getElementById(id).addEventListener('change', e => {
     e.target.closest('.f-check').classList.toggle('on', e.target.checked);
     scheduleAutosave();
@@ -2277,12 +2390,25 @@ function autocompletaProvinciaDaComune(input) {
   const match = (window.COMUNI_ITALIANI || []).find(c => c[0].toLowerCase() === nome);
   if (match) provInput.value = match[1];
 }
-function setQty(id, val) { document.getElementById(id).value = val || 0; }
+// I kit biancheria compaiono due volte nel form (scheda Dettagli e scheda
+// Conto, per non dover cambiare scheda per verificare l'importo): stesso
+// dato, due input con id gemello "-2" da tenere sempre allineati.
+function idGemello(id) { return id.endsWith('-2') ? id.slice(0, -2) : id + '-2'; }
+function setQty(id, val) {
+  document.getElementById(id).value = val || 0;
+  const gemello = document.getElementById(idGemello(id));
+  if (gemello) gemello.value = val || 0;
+}
 function adjustQty(id, delta) {
   const el = document.getElementById(id);
-  el.value = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
-  aggiornaPreventivo({preservaAlloggio:true});
-  scheduleAutosave();
+  const nuovoValore = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
+  el.value = nuovoValore;
+  const gemello = document.getElementById(idGemello(id));
+  if (gemello) gemello.value = nuovoValore;
+  // I kit biancheria si aggiornano nel conto come Animali/Spiaggia/Pacchetto
+  // (v. PREFISSI_SERVIZI_CONTO): sempre in tempo reale, anche se il conto è
+  // già stato toccato a mano altrove — non serve premere "Salva" per vederlo.
+  toggleServizioConPrezzo();
 }
 
 // ── PREVENTIVO STIMATO (dal listino, live nel form) ───────────────────────
@@ -2312,7 +2438,19 @@ function leggiDatiPreventivoDaForm() {
 // senza toccare le altre — così i tre servizi aggiungono/tolgono sempre il
 // loro importo, anche se il conto è già stato "congelato" da una modifica
 // manuale altrove (caparra, voce manuale, importo corretto a mano...).
-const PREFISSI_SERVIZI_CONTO = ['Animali ·', 'Pulizia finale in presenza di animali', 'Pacchetto biancheria + spiaggia', 'Spiaggia ·'];
+const PREFISSI_SERVIZI_CONTO = ['Animali ·', 'Pulizia finale in presenza di animali', 'Pacchetto biancheria + spiaggia', 'Spiaggia ·', 'Kit bagno ×', 'Kit singolo ×', 'Kit matrimoniale ×'];
+// Tutte le etichette che calcolaPreventivo() può generare (le stesse di
+// PREFISSI_SERVIZI_CONTO più Alloggio e le fasce Adulti/Bambini): usate da
+// aggiornaPreventivo() per distinguere le righe "del listino" — le uniche
+// che il ricalcolo automatico può toccare — da qualunque riga arrivata da
+// fuori (noleggi Bici addebitati dal modulo Bici, servizi extra dal
+// catalogo, voci libere, Conto Pensione collegato...). Per molte di queste
+// il conto è l'unico posto dove il loro importo viene registrato: un
+// ricalcolo che non le riconoscesse le farebbe sparire per sempre al primo
+// salvataggio dopo aver riaperto la prenotazione (era esattamente il bug
+// segnalato: chiudere un noleggio Bici con "Aggiungi al conto" e non
+// vederlo comparire nel conto della prenotazione).
+const PREFISSI_RIGHE_LISTINO = ['Alloggio ·', 'Adulti ×', 'Ragazzi 10-17 ×', 'Bambini 5-9 ×', 'Bambini 3-4 ×', 'Bambini 0-2 ×', ...PREFISSI_SERVIZI_CONTO];
 function toggleServizioConPrezzo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
   if (risultato.disponibile) {
@@ -2347,14 +2485,19 @@ function aggiornaPreventivo(opzioni) {
     // Le caparre/acconti già registrati sono un incasso reale: il ricalcolo
     // automatico dal listino non deve mai farle sparire.
     const acconti = contoCorrente.filter(r => r.acconto);
+    // Righe non generate dal listino (v. PREFISSI_RIGHE_LISTINO): il
+    // ricalcolo automatico riguarda solo Alloggio/Persone/Animali/
+    // Biancheria/Spiaggia, tutto il resto va preservato così com'è.
+    const altreVociEsterne = contoCorrente.filter(r =>
+      !r.acconto && !PREFISSI_RIGHE_LISTINO.some(pre => r.label.startsWith(pre)));
     if (preservaAlloggio) {
       const alloggioEsistente = contoCorrente.filter(r => r.label.startsWith('Alloggio ·'));
       const restoNuovo = risultato.righe
         .filter(r => !r.label.startsWith('Alloggio ·'))
         .map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato: !!pagatoPerLabel[r.label] }));
-      contoCorrente = [...alloggioEsistente, ...restoNuovo, ...acconti];
+      contoCorrente = [...alloggioEsistente, ...restoNuovo, ...altreVociEsterne, ...acconti];
     } else {
-      contoCorrente = [...risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato: !!pagatoPerLabel[r.label] })), ...acconti];
+      contoCorrente = [...risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato: !!pagatoPerLabel[r.label] })), ...altreVociEsterne, ...acconti];
     }
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
@@ -2577,9 +2720,11 @@ function toggleCheckout() {
 
 function openNuovaPrenotazione(alloggioId, checkinIso) {
   editingId = null;
+  datiPrenotazionePrecedenti = null;
   _importAgenziaIdCorrente = null; // apertura "normale": non è una riga di import
   document.getElementById('form-modal-title').textContent = 'Nuova prenotazione';
   document.getElementById('btn-elimina').classList.add('hidden');
+  document.getElementById('btn-log-modifiche').classList.add('hidden');
   resetPrenTabs();
   renderStatoBox();
   populateAlloggioSelect(alloggioId);
@@ -2600,7 +2745,6 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   setQty('f-kit-bagno', 0);
   setQty('f-kit-singolo', 0);
   setQty('f-kit-matrimoniale', 0);
-  setCheck('f-bici', false);
   setCheck('f-spiaggia', false);
   setCheck('f-animali', false);
   setCheck('f-pacchetto-servizi', false);
@@ -2608,6 +2752,8 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
+  populateServiziExtraSelect();
+  document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
@@ -2616,9 +2762,11 @@ function apriModificaPrenotazione(id) {
   const p = prenotazioni.find(x => x.id === id);
   if (!p) return;
   editingId = id;
+  datiPrenotazionePrecedenti = { ...p };
   _importAgenziaIdCorrente = null; // si sta modificando una prenotazione già reale, non più una bozza di import
   document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
   document.getElementById('btn-elimina').classList.remove('hidden');
+  document.getElementById('btn-log-modifiche').classList.remove('hidden');
   resetPrenTabs();
   renderStatoBox();
   populateAlloggioSelect(p.alloggio_id);
@@ -2639,7 +2787,6 @@ function apriModificaPrenotazione(id) {
   setQty('f-kit-bagno', p.biancheria_kit_bagno);
   setQty('f-kit-singolo', p.biancheria_kit_singolo);
   setQty('f-kit-matrimoniale', p.biancheria_kit_matrimoniale);
-  setCheck('f-bici', !!p.bici);
   setCheck('f-spiaggia', !!p.spiaggia);
   setCheck('f-animali', !!p.animali);
   setCheck('f-pacchetto-servizi', !!p.pacchetto_servizi);
@@ -2647,6 +2794,8 @@ function apriModificaPrenotazione(id) {
   impostaConto(p.conto);
   document.getElementById('documenti-btn-badge').textContent = (p.documenti && p.documenti.length) || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
+  populateServiziExtraSelect();
+  document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
@@ -2685,6 +2834,12 @@ function switchPrenTab(tab) {
   else if (tab === 'ristorazione') caricaPannelloRistorazione();
   else if (tab === 'manutenzione') caricaPannelloManutenzione();
   else if (tab === 'spiaggia') caricaPannelloSpiaggia();
+  // Aprendo la scheda Conto la rileggiamo subito da Firestore invece di
+  // fidarci solo del listener realtime (che può restare bloccato, v.
+  // auto-recovery connessione): così una voce aggiunta da Bici/Ristorazione
+  // poco prima si vede subito, senza dover aspettare un salvataggio o il
+  // prossimo giro dell'auto-recovery.
+  else if (tab === 'conto') sincronizzaContoPrimaDiSalvare();
 }
 // La scheda Spiaggia ha senso solo se in conto c'è davvero un servizio
 // spiaggia: va richiamata ogni volta che il conto si aggiorna.
@@ -3449,8 +3604,10 @@ function apriPrenotazioneDaImportRiga(idx) {
     return;
   }
   editingId = null;
+  datiPrenotazionePrecedenti = null;
   document.getElementById('form-modal-title').textContent = 'Nuova prenotazione (da import)';
   document.getElementById('btn-elimina').classList.add('hidden');
+  document.getElementById('btn-log-modifiche').classList.add('hidden');
   resetPrenTabs();
   renderStatoBox();
   populateAlloggioSelect(r.alloggioId);
@@ -3471,7 +3628,6 @@ function apriPrenotazioneDaImportRiga(idx) {
   setQty('f-kit-bagno', 0);
   setQty('f-kit-singolo', 0);
   setQty('f-kit-matrimoniale', 0);
-  setCheck('f-bici', false);
   setCheck('f-spiaggia', false);
   setCheck('f-animali', r.animali);
   setCheck('f-pacchetto-servizi', false);
@@ -3480,6 +3636,8 @@ function apriPrenotazioneDaImportRiga(idx) {
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
+  populateServiziExtraSelect();
+  document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
   aggiornaBadgeOspiti();
@@ -3629,6 +3787,87 @@ function impostaConto(conto) {
   // non aggiornava più il conto finché non si premeva "Ricarica dal
   // preventivo". Il vero distacco avviene solo toccando a mano una voce.
   contoModificatoManualmente = false;
+  impostaVociContoConosciute(contoCorrente);
+}
+// Quante volte abbiamo già "visto e incorporato" ogni etichetta del conto,
+// da quando la scheda è aperta — cresce solo quando arriva davvero una voce
+// nuova dal server, non scende mai per una rimozione fatta qui (v. sotto).
+let contoVociConosciute = {};
+function impostaVociContoConosciute(righe) {
+  contoVociConosciute = (righe || []).reduce((m, r) => (m[r.label] = (m[r.label] || 0) + 1, m), {});
+}
+// Estrae dalle righe del server SOLO quelle mai viste finora (contate per
+// etichetta, non con un Set: due noleggi della stessa bici allo stesso
+// ospite hanno la stessa etichetta, e un controllo "esiste già" scarterebbe
+// per errore ogni ripetizione successiva anche se è una voce nuova e
+// distinta). Il confronto è contro contoVociConosciute, MAI contro
+// contoCorrente: contoCorrente scende quando l'operatore rimuove una voce,
+// e finché quella rimozione non è salvata il server la mostra ancora — se
+// confrontassimo con contoCorrente la ririconosceremmo come "nuova" e la
+// rimetteremmo dentro da sola, annullando la rimozione appena fatta (era
+// esattamente il bug segnalato: cancellare una voce e vedersela ricomparire).
+// contoVociConosciute invece non scende mai per una rimozione, solo quando
+// un salvataggio la conferma (v. impostaVociContoConosciute chiamata dopo
+// ogni scrittura riuscita), quindi una voce già vista non torna più indietro
+// da sola finché non viene davvero ri-registrata da un altro modulo.
+function estraiVociContoNuove(righeServer) {
+  if (!Array.isArray(righeServer) || !righeServer.length) return [];
+  const vistiFinora = {};
+  const nuove = [];
+  righeServer.forEach(r => {
+    vistiFinora[r.label] = (vistiFinora[r.label] || 0) + 1;
+    if (vistiFinora[r.label] > (contoVociConosciute[r.label] || 0)) {
+      contoVociConosciute[r.label] = vistiFinora[r.label];
+      nuove.push(r);
+    }
+  });
+  return nuove;
+}
+// contoCorrente è un'istantanea presa all'apertura della scheda: se nel
+// frattempo un altro modulo (Bici "Aggiungi al conto", Conto Pensione da
+// Ristorazione, Spiaggia...) scrive direttamente su Firestore una nuova voce
+// per QUESTA prenotazione, la scheda aperta non lo saprebbe mai — e il primo
+// autosave dopo la modifica esterna sovrascriverebbe il conto tornando alla
+// versione vecchia, perdendo l'addebito appena registrato altrove. Qui
+// aggiungiamo solo le voci nuove arrivate dall'esterno, appena la
+// sottoscrizione realtime su "prenotazioni" le vede passare.
+function sincronizzaContoEsternoAperto() {
+  const overlay = document.getElementById('form-modal-overlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p || !p.conto) return;
+  const nuoveVoci = estraiVociContoNuove(p.conto.righe);
+  if (!nuoveVoci.length) return;
+  contoCorrente = [...contoCorrente, ...nuoveVoci.map(r => ({...r}))];
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  showToast('Conto aggiornato: nuova voce da un altro modulo');
+}
+// Rete di sicurezza finale, chiamata appena prima di scrivere (salvataggio
+// manuale E autosave): la sincronizzazione "in ascolto" qui sopra dipende
+// dalla sottoscrizione realtime, che può avere ritardi o restare bloccata
+// (v. auto-recovery connessione). Se in quella finestra di tempo arriva un
+// altro autosave da questa stessa scheda, scriverebbe comunque la versione
+// vecchia del conto sovrascrivendo l'addebito esterno appena registrato — un
+// vero e proprio "ultimo salvataggio vince" fra moduli diversi che scrivono
+// sullo stesso documento. Rileggendo il conto direttamente dal server subito
+// prima di ogni scrittura, indipendentemente dallo stato della sottoscrizione
+// realtime, la finestra in cui può succedere si riduce al tempo di questa
+// singola lettura invece che a "quanto resta aperta la scheda".
+async function sincronizzaContoPrimaDiSalvare() {
+  if (!editingId) return;
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'prenotazioni', editingId));
+    if (!snap.exists()) return;
+    const contoServer = snap.data().conto;
+    if (!contoServer) return;
+    const nuoveVoci = estraiVociContoNuove(contoServer.righe);
+    if (!nuoveVoci.length) return;
+    contoCorrente = [...contoCorrente, ...nuoveVoci.map(r => ({...r}))];
+    renderContoInline();
+    aggiornaRiepilogoPrenotazione();
+  } catch(e) { console.error('Errore sincronizzazione conto pre-salvataggio:', e); }
 }
 function contoDaPreventivo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
@@ -3730,6 +3969,30 @@ function rimuoviVoceConto(i) {
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
   scheduleAutosave();
+}
+// ── SERVIZI AGGIUNTIVI (catalogo Impostazioni → Generali) ──────────────────
+// Scegli un servizio e una quantità, il picker aggiunge una riga al conto
+// (nome × quantità, prezzo unitario dal catalogo): dopo l'aggiunta è una
+// normale voce manuale, modificabile/rimovibile come le altre.
+function adjustServizioExtraQty(delta) {
+  const el = document.getElementById('servizio-extra-qty');
+  el.value = Math.max(1, (parseInt(el.value, 10) || 1) + delta);
+}
+function aggiungiServizioExtra() {
+  const sel = document.getElementById('servizio-extra-sel');
+  const idx = sel.value;
+  const lista = (impostazioniCalendario && impostazioniCalendario.serviziAggiuntivi) || [];
+  const servizio = lista[idx];
+  if (!servizio) { showToast('Seleziona un servizio'); return; }
+  const qty = parseInt(document.getElementById('servizio-extra-qty').value, 10) || 1;
+  const importo = Math.round(servizio.prezzo * qty * 100) / 100;
+  contoCorrente.push({ label: `${servizio.nome} × ${qty}`, importo, manuale: true, pagato: false });
+  contoModificatoManualmente = true;
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  scheduleAutosave();
+  document.getElementById('servizio-extra-qty').value = 1;
+  showToast('Servizio aggiunto al conto');
 }
 async function ricaricaContoDaPreventivo() {
   if (contoCorrente.length) {
@@ -4011,7 +4274,6 @@ function costruisciDatiPrenotazione() {
       biancheria_kit_bagno:        parseInt(document.getElementById('f-kit-bagno').value, 10) || 0,
       biancheria_kit_singolo:      parseInt(document.getElementById('f-kit-singolo').value, 10) || 0,
       biancheria_kit_matrimoniale: parseInt(document.getElementById('f-kit-matrimoniale').value, 10) || 0,
-      bici:       document.getElementById('f-bici').checked,
       spiaggia:   document.getElementById('f-spiaggia').checked,
       animali:    document.getElementById('f-animali').checked,
       pacchetto_servizi: document.getElementById('f-pacchetto-servizi').checked,
@@ -4030,6 +4292,7 @@ function costruisciDatiPrenotazione() {
 // crearne uno nuovo ogni volta.
 async function scriviPrenotazione(alloggioId, checkin, data) {
   const { db, doc, setDoc, updateDoc } = window._fb;
+  const eraNuova = !editingId;
   let idPrenotazione;
   if (editingId) {
     idPrenotazione = editingId;
@@ -4045,6 +4308,7 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
     await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, ...extra, codice: generaCodice(), createdAt: new Date().toISOString() });
     editingId = idPrenotazione;
     document.getElementById('btn-elimina').classList.remove('hidden');
+    document.getElementById('btn-log-modifiche').classList.remove('hidden');
     document.getElementById('form-modal-title').textContent = 'Modifica prenotazione';
     renderStatoBox();
     if (agenziaId) {
@@ -4053,11 +4317,117 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
       _importAgenziaIdCorrente = null; // da qui in poi è un salvataggio normale: editingId è già valorizzato
     }
   }
+  registraLogModifiche(idPrenotazione, eraNuova, data); // non blocca il salvataggio se fallisce
   sincronizzaFamigliaRistorazione(idPrenotazione, data); // non blocca il salvataggio se fallisce
   return idPrenotazione;
 }
 
+// ── LOG MODIFICHE (icona "i" nel form prenotazione) ────────────────────────
+// Ad ogni salvataggio (anche in autosave) confrontiamo i dati appena scritti
+// con l'istantanea precedente (datiPrenotazionePrecedenti, aggiornata qui
+// sotto) e registriamo solo i campi che sono davvero cambiati, con chi e
+// quando — in una sottocollezione per prenotazione, così restano anche se la
+// prenotazione viene poi cancellata (è un log, non deve sparire con lei).
+const FIELD_LABELS_LOG = {
+  alloggio_nome: 'Alloggio',
+  nome: 'Nome ospite',
+  checkin: 'Check-in',
+  checkout: 'Check-out',
+  tel: 'Telefono',
+  targa: 'Targa auto',
+  provenienza: 'Provenienza',
+  adulti: 'Adulti',
+  bambini_0_2: 'Bambini 0-2',
+  bambini_3_4: 'Bambini 3-4',
+  bambini_5_9: 'Bambini 5-9',
+  bambini_10_17: 'Bambini 10-17',
+  trattamento_ristorazione: 'Trattamento ristorazione',
+  biancheria_kit_bagno: 'Kit bagno',
+  biancheria_kit_singolo: 'Kit singolo',
+  biancheria_kit_matrimoniale: 'Kit matrimoniale',
+  bici: 'Bici',
+  spiaggia: 'Spiaggia',
+  animali: 'Animali al seguito',
+  pacchetto_servizi: 'Pacchetto biancheria + spiaggia',
+};
+function fmtValoreLog(v) {
+  if (v === true) return 'sì';
+  if (v === false) return 'no';
+  if (v == null || v === '') return '—';
+  return String(v);
+}
+function diffPrenotazione(vecchio, nuovo) {
+  const voci = [];
+  Object.keys(FIELD_LABELS_LOG).forEach(campo => {
+    const a = vecchio ? vecchio[campo] : undefined;
+    const b = nuovo[campo];
+    const av = a == null ? '' : a, bv = b == null ? '' : b;
+    if (av !== bv) voci.push(`${FIELD_LABELS_LOG[campo]}: ${fmtValoreLog(a)} → ${fmtValoreLog(b)}`);
+  });
+  const noteVecchie = JSON.stringify((vecchio && vecchio.note) || []);
+  const noteNuove = JSON.stringify(nuovo.note || []);
+  if (noteVecchie !== noteNuove) voci.push('Note modificate');
+  const ospitiVecchi = JSON.stringify((vecchio && vecchio.ospiti) || []);
+  const ospitiNuovi = JSON.stringify(nuovo.ospiti || []);
+  if (ospitiVecchi !== ospitiNuovi) voci.push('Dettaglio ospiti modificato');
+  // Conto: confronto riga per riga (per etichetta), non solo il totale — così
+  // si vede esattamente quale voce è stata aggiunta/rimossa/corretta.
+  const righeVecchie = (vecchio && vecchio.conto && vecchio.conto.righe) || [];
+  const righeNuove = (nuovo.conto && nuovo.conto.righe) || [];
+  const mapVecchie = new Map(righeVecchie.map(r => [r.label, r]));
+  const mapNuove = new Map(righeNuove.map(r => [r.label, r]));
+  mapNuove.forEach((r, label) => {
+    const prima = mapVecchie.get(label);
+    if (!prima) voci.push(`Conto: aggiunta voce "${label}" (€ ${Number(r.importo).toFixed(2)})`);
+    else if (Number(prima.importo) !== Number(r.importo)) voci.push(`Conto: "${label}" € ${Number(prima.importo).toFixed(2)} → € ${Number(r.importo).toFixed(2)}`);
+  });
+  mapVecchie.forEach((r, label) => {
+    if (!mapNuove.has(label)) voci.push(`Conto: rimossa voce "${label}" (€ ${Number(r.importo).toFixed(2)})`);
+  });
+  return voci;
+}
+async function registraLogModifiche(idPrenotazione, eraNuova, data) {
+  const voci = eraNuova ? ['Prenotazione creata'] : diffPrenotazione(datiPrenotazionePrecedenti, data);
+  datiPrenotazionePrecedenti = { ...data };
+  if (!voci.length) return;
+  try {
+    const { db, collection, addDoc } = window._fb;
+    await addDoc(collection(db, 'prenotazioni', idPrenotazione, 'log'), {
+      timestamp: new Date().toISOString(),
+      operatore: currentOperatore || 'Sconosciuto',
+      voci,
+    });
+  } catch(e) { console.error('Errore scrittura log modifiche:', e); }
+}
+function apriLogModifiche() {
+  if (!editingId) return;
+  document.getElementById('log-modal-overlay').classList.remove('hidden');
+  caricaLogModifiche();
+}
+function chiudiLogModifiche() {
+  document.getElementById('log-modal-overlay').classList.add('hidden');
+}
+async function caricaLogModifiche() {
+  const wrap = document.getElementById('log-modifiche-list');
+  wrap.innerHTML = '<p class="section-hint">Caricamento…</p>';
+  try {
+    const { db, collection, getDocs } = window._fb;
+    const snap = await getDocs(collection(db, 'prenotazioni', editingId, 'log'));
+    const voci = snap.docs.map(d => d.data()).sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||''));
+    if (!voci.length) { wrap.innerHTML = '<p class="section-hint">Nessuna modifica registrata.</p>'; return; }
+    wrap.innerHTML = voci.map(v => `
+      <div class="log-entry">
+        <div class="log-entry-head"><strong>${esc(v.operatore || 'Sconosciuto')}</strong><span>${esc(fmtDataOraIt(v.timestamp))}</span></div>
+        <ul class="log-entry-list">${(v.voci||[]).map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      </div>`).join('');
+  } catch(e) {
+    console.error('Errore caricamento log modifiche:', e);
+    wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
+}
+
 async function salvaPrenotazione() {
+  await sincronizzaContoPrimaDiSalvare();
   const costruiti = costruisciDatiPrenotazione();
   if (!costruiti) {
     const alloggioId = document.getElementById('f-alloggio').value;
@@ -4071,13 +4441,15 @@ async function salvaPrenotazione() {
   }
   const { alloggioId, alloggioNome, checkin, checkout, data } = costruiti;
 
+  // Una prenotazione non può mai essere scritta su un alloggio già occupato
+  // in un periodo che si sovrappone — l'unico modo per mettere una
+  // prenotazione su una casella occupata è lo scambio dalla griglia (v.
+  // onDragMouseUp), e solo a parità esatta di date. Qui il blocco è rigido:
+  // niente "salva comunque".
   const overlap = trovaOverlap(alloggioId, checkin, checkout, editingId);
   if (overlap) {
-    const conferma = await confermaAsync(
-      'Sovrapposizione rilevata',
-      `${esc(alloggioNome)} risulta già prenotato da <strong>${esc(overlap.nome)}</strong> (${esc(overlap.checkin)} → ${esc(overlap.checkout)}) in un periodo che si sovrappone. Salvare comunque?`
-    );
-    if (!conferma) return;
+    showToast(alloggioNome + ' è già prenotato da ' + overlap.nome + ' (' + fmtDataIt(overlap.checkin) + ' → ' + fmtDataIt(overlap.checkout) + ') in un periodo che si sovrappone — cambia alloggio o date');
+    return;
   }
 
   try {
@@ -4110,12 +4482,29 @@ function impostaStatoAutosave(testo, tipo) {
 async function autosalvaPrenotazione() {
   const overlay = document.getElementById('form-modal-overlay');
   if (!overlay || overlay.classList.contains('hidden')) return; // modale già chiuso, non c'è più nulla da salvare
+  await sincronizzaContoPrimaDiSalvare();
   const costruiti = costruisciDatiPrenotazione();
   if (!costruiti) return; // dati minimi non ancora completi: niente da salvare finché non lo sono
-  const { alloggioId, checkin, data } = costruiti;
+  const { alloggioId, alloggioNome, checkin, checkout, data } = costruiti;
+  // Stesso blocco rigido del salvataggio manuale (v. salvaPrenotazione):
+  // l'autosave scriveva prima senza controllare le sovrapposizioni affatto,
+  // ed era proprio così che nascevano le prenotazioni doppie sullo stesso
+  // alloggio — bastava iniziare a compilare il form su una casella già
+  // occupata. Qui non salviamo affatto, lasciando lo stato "non salvato" in
+  // vista finché l'operatore non cambia alloggio o date.
+  const overlap = trovaOverlap(alloggioId, checkin, checkout, editingId);
+  if (overlap) {
+    impostaStatoAutosave(alloggioNome + ' già occupato da ' + overlap.nome + ' in quel periodo — non salvato', 'errore');
+    return;
+  }
   try {
     impostaStatoAutosave('Salvataggio…', 'in-corso');
     await scriviPrenotazione(alloggioId, checkin, data);
+    // Il conto appena salvato è ora la verità: se conteneva una rimozione,
+    // "dimentichiamo" quella voce (v. estraiVociContoNuove) così una futura
+    // voce davvero nuova con la stessa etichetta (es. un altro noleggio della
+    // stessa bici) torna ad essere riconosciuta come tale.
+    impostaVociContoConosciute(contoCorrente);
     impostaStatoAutosave('Salvato');
   } catch(e) {
     console.error('Errore autosave prenotazione:', e);
@@ -4349,8 +4738,15 @@ function eliminaPrenotazioneCorrente() {
   if (!editingId) return;
   const id = editingId;
   apriModaleConferma('Eliminare prenotazione', 'Vuoi eliminare definitivamente questa prenotazione? L\'operazione non è reversibile.', async () => {
-    const { db, doc, deleteDoc } = window._fb;
+    const { db, doc, deleteDoc, collection, getDocs } = window._fb;
     try {
+      // Ripulisce anche i dati collegati che altrimenti restano orfani in
+      // Spiaggia (posizionamento ombrellone) e Ristorazione (anagrafica
+      // famiglia): non basta cancellare solo il documento in "prenotazioni".
+      const snapSpiaggia = await getDocs(collection(db, 'beach_prenotazioni'));
+      const posizioniCollegate = snapSpiaggia.docs.filter(d => d.data().calendario_prenotazione_id === id);
+      await Promise.all(posizioniCollegate.map(d => deleteDoc(doc(db, 'beach_prenotazioni', d.id))));
+      await deleteDoc(doc(db, 'famiglie_ristorazione', 'cal_' + id));
       await deleteDoc(doc(db, 'prenotazioni', id));
       showToast('Prenotazione eliminata');
       closeFormModal();
@@ -4372,6 +4768,12 @@ function eliminaPrenotazioneCorrente() {
 function padR(str, len) { str = (str==null?'':String(str)); return str.length >= len ? str.slice(0,len) : str + ' '.repeat(len - str.length); }
 function padL(str, len, ch) { str = (str==null?'':String(str)); ch = ch || '0'; return str.length >= len ? str.slice(-len) : ch.repeat(len - str.length) + str; }
 function fmtDataIt(iso) { if (!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function fmtDataOraIt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
 
 function validaOspiti(ospiti) {
   const errori = [];
@@ -4705,7 +5107,43 @@ const LISTE_GENERALI = [
 function renderGeneraliPanel() {
   const panel = document.getElementById('listino-generali-panel');
   if (!impostazioniCalendario) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
-  panel.innerHTML = LISTE_GENERALI.map(renderListaEditabileHtml).join('');
+  panel.innerHTML = LISTE_GENERALI.map(renderListaEditabileHtml).join('') + renderServiziAggiuntiviHtml();
+}
+// ── SERVIZI AGGIUNTIVI (catalogo nome+prezzo, usato dal blocco "Servizi
+// aggiuntivi" nella scheda Conto della prenotazione) ───────────────────────
+function renderServiziAggiuntiviHtml() {
+  const valori = impostazioniCalendario.serviziAggiuntivi || [];
+  const righe = valori.map((s, i) => `
+    <div class="generali-row" data-idx="${i}">
+      <input class="f-input" type="text" placeholder="Nome servizio" value="${esc(s.nome||'')}">
+      <input class="f-input" type="number" step="0.01" min="0" placeholder="Prezzo €" value="${s.prezzo!=null?s.prezzo:''}" style="max-width:110px">
+      <button type="button" class="ospite-remove-btn" title="Rimuovi" onclick="rimuoviServizioAggiuntivo(${i})">${XICON}</button>
+    </div>`).join('');
+  return `
+    <div class="listino-card">
+      <h3>Servizi aggiuntivi</h3>
+      <p class="subtitle">Catalogo di servizi extra (nome e prezzo) selezionabili con quantità dalla scheda Conto di ogni prenotazione.</p>
+      <div id="generali-list-serviziAggiuntivi">${righe}</div>
+      <button type="button" class="add-ospite-btn" onclick="aggiungiServizioAggiuntivo()">+ Aggiungi servizio</button>
+      <div class="listino-save-row" style="margin-top:14px"><button type="button" class="listino-save-btn" onclick="salvaGenerali()">Salva tutto</button></div>
+    </div>`;
+}
+function leggiServiziAggiuntivi() {
+  return Array.from(document.querySelectorAll('#generali-list-serviziAggiuntivi .generali-row')).map(row => {
+    const inputs = row.querySelectorAll('input');
+    return { nome: inputs[0].value.trim(), prezzo: parseFloat(inputs[1].value) || 0 };
+  });
+}
+function aggiungiServizioAggiuntivo() {
+  impostazioniCalendario.serviziAggiuntivi = leggiServiziAggiuntivi();
+  impostazioniCalendario.serviziAggiuntivi.push({ nome:'', prezzo:0 });
+  renderGeneraliPanel();
+}
+function rimuoviServizioAggiuntivo(i) {
+  const valori = leggiServiziAggiuntivi();
+  valori.splice(i, 1);
+  impostazioniCalendario.serviziAggiuntivi = valori;
+  renderGeneraliPanel();
 }
 function renderListaEditabileHtml(def) {
   const valori = impostazioniCalendario[def.campo] || [];
@@ -4744,11 +5182,13 @@ async function salvaGenerali() {
     const valori = leggiListaGenerale(def.campo).map(v => v.trim()).filter(Boolean);
     if (valori.length) impostazioniCalendario[def.campo] = valori;
   });
+  impostazioniCalendario.serviziAggiuntivi = leggiServiziAggiuntivi().filter(s => s.nome);
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'calendario'), impostazioniCalendario);
     showToast('Impostazioni salvate');
     populateProvenienzaSelect();
+    populateServiziExtraSelect();
   } catch(e) { console.error('Errore salvataggio impostazioni calendario:', e); showToast('Errore: ' + e.message); }
 }
 
