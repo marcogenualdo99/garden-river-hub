@@ -410,6 +410,24 @@
 .pren-link-item .pren-link-meta { color: var(--gray-500); font-size: 11.5px; margin-top: 2px; }
 .pren-link-item .pren-link-stato { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 10px; }
 
+/* ══ SCHEDA PULIZIE — riepilogo per chi pulisce l'alloggio + pulsante per
+   segnalare alle Pulizie che il cliente è arrivato in struttura (v. modulo
+   Alloggi/Pulizie, che legge questo avviso in realtime dallo stesso
+   documento alloggio già condiviso tra i due moduli). ══════════════════════ */
+.pulizie-riepilogo { background: var(--gray-50); border-radius: var(--radius-sm); padding: 4px 14px; margin-bottom: 4px; }
+.pulizie-riga { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--gray-100); font-size: 13px; }
+.pulizie-riga:first-child { border-top: none; }
+.pulizie-riga span { color: var(--gray-500); }
+.pulizie-riga b { color: var(--gray-900); font-weight: 700; text-align: right; }
+.pulizie-campanella-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border: none; border-radius: var(--radius-xl); background: var(--red); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); margin-top: 16px; transition: opacity .15s; }
+.pulizie-campanella-btn:active { opacity: .85; }
+.pulizie-campanella-btn svg { width: 17px; height: 17px; }
+.pulizie-avviso-attivo { display: flex; align-items: center; gap: 10px; background: var(--red-bg); border: 1.5px solid var(--red-bd); border-radius: var(--radius-lg); padding: 12px 14px; margin-top: 16px; }
+.pulizie-avviso-attivo svg { width: 18px; height: 18px; color: var(--red); flex-shrink: 0; }
+.pulizie-avviso-titolo { font-size: 13px; font-weight: 800; color: var(--red); }
+.pulizie-avviso-sub { font-size: 11.5px; color: var(--gray-600); margin-top: 2px; }
+.pulizie-avviso-annulla { flex-shrink: 0; height: 32px; padding: 0 12px; border: 1px solid var(--red-bd); border-radius: 18px; background: var(--white); color: var(--red); font-size: 11.5px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+
 .cal-import-banner { display: flex; align-items: center; gap: 8px; background: var(--red-bg); color: var(--red); border: 1.5px solid var(--red-bd); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
 .export-doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 .export-doc-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--gray-50); cursor: pointer; font-family: var(--font); text-align: left; }
@@ -531,7 +549,7 @@
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item active" href="./"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -558,7 +576,7 @@
 <aside class="rail" id="rail">
   <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
   <a class="rail-item active" href="./"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
-  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Alloggi</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
   <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
   <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
   <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
@@ -584,7 +602,7 @@
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item active" href="./"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -751,7 +769,7 @@
         <button type="button" class="pren-tab" data-tab="ristorazione" onclick="switchPrenTab('ristorazione')"><span data-icon="RISTORAZIONE"></span>Ristorazione<span class="alert-dot hidden" id="ristorazione-tab-alert" title="Dati Ristorazione incompleti" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
         <button type="button" class="pren-tab" data-tab="manutenzione" onclick="switchPrenTab('manutenzione')"><span data-icon="MANUTENZIONE"></span>Manutenzione<span class="alert-dot hidden" id="manutenzione-tab-alert" title="Ticket di manutenzione aperti per questo alloggio" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
         <button type="button" class="pren-tab hidden" data-tab="spiaggia" id="pren-tab-spiaggia" onclick="switchPrenTab('spiaggia')"><span data-icon="SPIAGGIA"></span>Spiaggia</button>
-        <button type="button" class="pren-tab" data-tab="pulizie" onclick="switchPrenTab('pulizie')"><span data-icon="ALLOGGI"></span>Pulizie</button>
+        <button type="button" class="pren-tab" data-tab="pulizie" onclick="switchPrenTab('pulizie')"><span data-icon="ALLOGGI"></span>Pulizie<span class="alert-dot hidden" id="pulizie-tab-alert" title="Avviso attivo: cliente arrivato in struttura" style="position:static;margin-left:6px;vertical-align:middle"></span></button>
       </div>
       <div class="pren-panels">
       <div class="pren-panel active" data-panel="dettagli">
@@ -985,7 +1003,8 @@
       </div>
 
       <div class="pren-panel" data-panel="pulizie">
-        <p class="section-hint">Sezione in arrivo — la definiamo insieme più avanti.</p>
+        <p class="section-hint">Informazioni per chi pulisce questo alloggio, e avviso rapido quando il cliente è arrivato in struttura.</p>
+        <div id="pren-pulizie-content"><p class="section-hint">Apri questa scheda per caricare i dati.</p></div>
       </div>
 
       </div>
@@ -2847,6 +2866,7 @@ function switchPrenTab(tab) {
   else if (tab === 'ristorazione') caricaPannelloRistorazione();
   else if (tab === 'manutenzione') caricaPannelloManutenzione();
   else if (tab === 'spiaggia') caricaPannelloSpiaggia();
+  else if (tab === 'pulizie') caricaPannelloPulizie();
   // Aprendo la scheda Conto la rileggiamo subito da Firestore invece di
   // fidarci solo del listener realtime (che può restare bloccato, v.
   // auto-recovery connessione): così una voce aggiunta da Bici/Ristorazione
@@ -2909,6 +2929,110 @@ async function caricaPannelloBici() {
   } catch(e) {
     console.error('Errore caricamento bici:', e);
     wrap.innerHTML = `<p class="section-hint">Errore caricamento: ${esc(e.message)}</p>`;
+  }
+}
+
+// ── SCHEDA PULIZIE ────────────────────────────────────────────────────────
+// Riepilogo di sola lettura (ospite, arrivo/partenza, kit biancheria — dati
+// già presenti nel form) + nota dedicata (stessa categoria "Pulizie" già
+// prevista in categorieNote) + il pulsante campanella che avvisa il modulo
+// Pulizie/Alloggi. L'avviso è scritto sul documento dell'alloggio in
+// Firestore (stessa collezione "alloggi" già scritta da questo modulo per
+// stato/log — v. impostaStatoAlloggioDaCalendario), non sulla prenotazione:
+// così Pulizie lo legge in realtime senza dover incrociare le prenotazioni.
+function fmtOraBreve(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) + ' ' +
+         d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function caricaPannelloPulizie() {
+  const wrap = document.getElementById('pren-pulizie-content');
+  const alloggioSel = document.getElementById('f-alloggio');
+  const alloggioId = alloggioSel.value;
+  if (!alloggioId) { wrap.innerHTML = '<p class="section-hint">Seleziona un alloggio per vedere le informazioni per le pulizie.</p>'; return; }
+  const nome = [document.getElementById('f-nome').value, document.getElementById('f-cognome').value].filter(Boolean).join(' ').trim() || '—';
+  const checkin  = document.getElementById('f-checkin').value;
+  const checkout = document.getElementById('f-checkout').value;
+  const kitBagno        = parseInt(document.getElementById('f-kit-bagno').value, 10) || 0;
+  const kitSingolo      = parseInt(document.getElementById('f-kit-singolo').value, 10) || 0;
+  const kitMatrimoniale = parseInt(document.getElementById('f-kit-matrimoniale').value, 10) || 0;
+  const kitParti = [];
+  if (kitMatrimoniale) kitParti.push(kitMatrimoniale + ' matrimoniale');
+  if (kitSingolo)      kitParti.push(kitSingolo + ' singolo');
+  if (kitBagno)         kitParti.push(kitBagno + ' bagno');
+
+  wrap.innerHTML = `
+    <div class="pulizie-riepilogo">
+      <div class="pulizie-riga"><span>Ospite</span><b>${esc(nome)}</b></div>
+      <div class="pulizie-riga"><span>Arrivo</span><b>${checkin ? esc(fmtDataIt(checkin)) : '—'}</b></div>
+      <div class="pulizie-riga"><span>Partenza</span><b>${checkout ? esc(fmtDataIt(checkout)) : '—'}</b></div>
+      <div class="pulizie-riga"><span>Kit biancheria</span><b>${kitParti.length ? esc(kitParti.join(', ')) : 'Nessuno'}</b></div>
+    </div>
+    <label class="f-label" style="margin-top:14px;display:block">Note per le pulizie</label>
+    <textarea class="f-textarea" id="f-note-pulizie-testo" placeholder="Es. attenzione al cane, letto king al posto di due singoli…" oninput="salvaTestoNotaPulizie(); scheduleAutosave()"></textarea>
+    <div id="pulizie-avviso-box"></div>
+  `;
+  const notaPulizie = noteCorrenti.find(n => n.categoria === 'Pulizie');
+  document.getElementById('f-note-pulizie-testo').value = notaPulizie ? notaPulizie.testo : '';
+  renderAvvisoPuliziaBox(alloggioId, nome);
+}
+function salvaTestoNotaPulizie() {
+  const n = noteCorrenti.find(n => n.categoria === 'Pulizie');
+  if (n) n.testo = document.getElementById('f-note-pulizie-testo').value;
+  renderNoteTabsSoloPallini();
+}
+function renderAvvisoPuliziaBox(alloggioId, nomeOspite) {
+  const box = document.getElementById('pulizie-avviso-box');
+  if (!box) return;
+  const a = alloggiList.find(x => x.id === alloggioId);
+  const avviso = a && a.avviso && a.avviso.attivo ? a.avviso : null;
+  if (avviso) {
+    box.innerHTML = `
+      <div class="pulizie-avviso-attivo">
+        <span data-icon="BELL"></span>
+        <div style="flex:1;min-width:0">
+          <div class="pulizie-avviso-titolo">Avviso inviato alle Pulizie</div>
+          <div class="pulizie-avviso-sub">Cliente arrivato in struttura · ${esc(fmtOraBreve(avviso.ts))}</div>
+        </div>
+        <button type="button" class="pulizie-avviso-annulla" onclick="annullaAvvisoPulizie('${esc(alloggioId)}')">Annulla</button>
+      </div>`;
+  } else {
+    box.innerHTML = `
+      <button type="button" class="pulizie-campanella-btn" onclick="inviaAvvisoPulizie('${esc(alloggioId)}')">
+        <span data-icon="BELL"></span>Segnala alle Pulizie: cliente arrivato
+      </button>`;
+  }
+  hydrateIcons(box);
+}
+async function inviaAvvisoPulizie(alloggioId) {
+  if (!alloggioId) { showToast('Seleziona prima un alloggio'); return; }
+  const nome = [document.getElementById('f-nome').value, document.getElementById('f-cognome').value].filter(Boolean).join(' ').trim();
+  const avviso = { attivo: true, messaggio: 'Cliente arrivato in struttura', ospite: nome, ts: new Date().toISOString(), op: currentOperatore || 'Operatore' };
+  const a = alloggiList.find(x => x.id === alloggioId);
+  if (a) a.avviso = avviso; // ottimistico: si vede subito, poi si salva
+  renderAvvisoPuliziaBox(alloggioId, nome);
+  aggiornaTabAlertPrenotazioneCorrente();
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'alloggi', alloggioId), { avviso });
+    showToast('Avviso inviato alle Pulizie');
+  } catch(e) {
+    console.error('Errore invio avviso pulizie:', e);
+    showToast('Errore durante l\'invio dell\'avviso');
+  }
+}
+async function annullaAvvisoPulizie(alloggioId) {
+  const a = alloggiList.find(x => x.id === alloggioId);
+  if (a) a.avviso = null;
+  renderAvvisoPuliziaBox(alloggioId, '');
+  aggiornaTabAlertPrenotazioneCorrente();
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'alloggi', alloggioId), { avviso: null });
+  } catch(e) {
+    console.error('Errore annullamento avviso pulizie:', e);
+    showToast('Errore durante l\'annullamento');
   }
 }
 
@@ -4765,6 +4889,11 @@ function aggiornaTabAlertPrenotazioneCorrente() {
   if (manutenzioneEl) manutenzioneEl.classList.toggle('hidden', !maintenanceTickets.some(t => t.housing_unit === alloggioNome && !t.status));
   const ristorazioneEl = document.getElementById('ristorazione-tab-alert');
   if (ristorazioneEl) ristorazioneEl.classList.toggle('hidden', !(p && prenotazioneRistorazioneIncompleta(p)));
+  const pulizieEl = document.getElementById('pulizie-tab-alert');
+  if (pulizieEl) {
+    const a = alloggiList.find(x => x.id === alloggioSel.value);
+    pulizieEl.classList.toggle('hidden', !(a && a.avviso && a.avviso.attivo));
+  }
 }
 
 function eliminaPrenotazioneCorrente() {
