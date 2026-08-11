@@ -2291,7 +2291,14 @@ async function verificaContoDopoSpostamento(p, categoria, nuovoCheckin, nuovoChe
   // Le caparre/acconti già incassati restano: rappresentano soldi già
   // ricevuti, indipendenti dalla tariffa da listino che è cambiata.
   const acconti = p.conto.righe.filter(r => r.acconto);
-  const righe = [...risultato.righe.map(r => ({ label: r.label, importo: Math.round(r.importo * 100) / 100, pagato: !!pagatoPerLabel[r.label] })), ...acconti];
+  // Righe non generate dal listino (v. PREFISSI_RIGHE_LISTINO): un noleggio
+  // Bici, una voce libera, un servizio extra dal catalogo, un Conto
+  // Pensione collegato... il ricalcolo dopo uno spostamento riguarda solo
+  // Alloggio/Persone/Animali/Biancheria/Spiaggia, tutto il resto va
+  // preservato così com'è (stesso bug già corretto in aggiornaPreventivo()).
+  const altreVociEsterne = p.conto.righe.filter(r =>
+    !r.acconto && !PREFISSI_RIGHE_LISTINO.some(pre => r.label.startsWith(pre)));
+  const righe = [...risultato.righe.map(r => ({ label: r.label, importo: Math.round(r.importo * 100) / 100, pagato: !!pagatoPerLabel[r.label] })), ...altreVociEsterne, ...acconti];
   return { righe, totale: calcolaSaldoConto(righe).totale };
 }
 
@@ -3823,6 +3830,22 @@ function estraiVociContoNuove(righeServer) {
   });
   return nuove;
 }
+// Da chiamare subito dopo ogni contoCorrente.push(...) che aggiunge una voce
+// in locale (voce libera, acconto, servizio extra dal catalogo...): senza
+// questo, tra il push e l'autosave (900ms) può arrivare un aggiornamento
+// realtime sulla collezione "prenotazioni" — anche il semplice eco della
+// nostra stessa scrittura appena partita, o una modifica di un altro
+// operatore su un'ALTRA prenotazione, dato che l'ascoltatore è sull'intera
+// collezione — che richiama sincronizzaContoEsternoAperto(): quella, non
+// sapendo che la voce è già in contoCorrente perché non ancora "conosciuta",
+// la scambierebbe per arrivata da un altro modulo e la raddoppierebbe (era
+// esattamente il bug segnalato: un servizio dal catalogo inserito due volte).
+// Solo un aumento, mai una diminuzione, per non rompere l'invariante sopra
+// (una rimozione non salvata non deve mai far riapparire la voce da sola).
+function registraVoceContoAggiuntaLocalmente(label) {
+  const countInLocale = contoCorrente.filter(r => r.label === label).length;
+  contoVociConosciute[label] = Math.max(contoVociConosciute[label] || 0, countInLocale);
+}
 // contoCorrente è un'istantanea presa all'apertura della scheda: se nel
 // frattempo un altro modulo (Bici "Aggiungi al conto", Conto Pensione da
 // Ristorazione, Spiaggia...) scrive direttamente su Firestore una nuova voce
@@ -3947,6 +3970,7 @@ function aggiornaTotaleConto() {
 }
 function aggiungiVoceConto() {
   contoCorrente.push({ label:'Voce manuale', importo:0, manuale:true, pagato:false });
+  registraVoceContoAggiuntaLocalmente('Voce manuale');
   contoModificatoManualmente = true;
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
@@ -3958,6 +3982,7 @@ function aggiungiVoceConto() {
 // scrive nell'etichetta, modificabile come le altre voci manuali.
 function aggiungiAccontoConto() {
   contoCorrente.push({ label: 'Caparra/acconto (Contanti)', importo: 0, acconto: true, manuale: true, pagato: true });
+  registraVoceContoAggiuntaLocalmente('Caparra/acconto (Contanti)');
   contoModificatoManualmente = true;
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
@@ -3986,7 +4011,9 @@ function aggiungiServizioExtra() {
   if (!servizio) { showToast('Seleziona un servizio'); return; }
   const qty = parseInt(document.getElementById('servizio-extra-qty').value, 10) || 1;
   const importo = Math.round(servizio.prezzo * qty * 100) / 100;
-  contoCorrente.push({ label: `${servizio.nome} × ${qty}`, importo, manuale: true, pagato: false });
+  const label = `${servizio.nome} × ${qty}`;
+  contoCorrente.push({ label, importo, manuale: true, pagato: false });
+  registraVoceContoAggiuntaLocalmente(label);
   contoModificatoManualmente = true;
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
