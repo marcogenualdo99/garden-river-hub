@@ -1974,13 +1974,28 @@ async function impostaStatoAlloggioDaCalendario(alloggioId, nuovoStato) {
   try {
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'alloggi', alloggioId), { stato: nuovoStato, log: newLog });
-    notificaCambioStatoAlloggio(alloggioId, a.nome, nuovoStato);
+    chiediInvioNotificaCambioStato(alloggioId, a.nome, nuovoStato);
   } catch(e) {
     console.error('Errore aggiornamento stato alloggio:', e);
     showToast('Errore di salvataggio stato alloggio — riprova');
     a.stato = precedente;
     renderGrid();
   }
+}
+// Lo stato è già salvato a questo punto: il popup chiede solo se avvisare
+// anche tutto lo staff con una notifica push, per non spammare a ogni tocco
+// (correzioni rapide, alloggio sbagliato per errore, ecc.) — v. anche
+// STATO_ALLOGGIO_META per l'etichetta mostrata nel messaggio.
+function chiediInvioNotificaCambioStato(alloggioId, alloggioNome, nuovoStato) {
+  const meta = STATO_ALLOGGIO_META[nuovoStato];
+  const label = meta ? meta.label : nuovoStato;
+  apriModaleConferma(
+    'Inviare la notifica?',
+    `Hai impostato <b>${esc(alloggioNome)}</b> su "<b>${esc(label)}</b>". Vuoi avvisare lo staff con una notifica push?`,
+    () => notificaCambioStatoAlloggio(alloggioId, alloggioNome, nuovoStato),
+    'Invia notifica',
+    false
+  );
 }
 // Notifica push allo staff con notifiche attive (stessa infrastruttura di
 // Ristorazione — v. cloud-functions/notifiche-pulizie). "Fire and forget":
