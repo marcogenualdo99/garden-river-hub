@@ -436,7 +436,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <label>Giacenza iniziale</label>
         <input type="text" inputmode="numeric" pattern="[0-9]*" id="new-pezzi" placeholder="0" value="0">
       </div>
-      <button class="btn-primary" onclick="addProduct()">Aggiungi al magazzino</button>
+      <button class="btn-primary" id="add-product-btn" onclick="addProduct()">Aggiungi al magazzino</button>
     </div>
   </div>
 
@@ -758,7 +758,7 @@ async function ensureDefaultData() {
     const snapP = await getDocs(collection(db, 'prodotti'));
     if (snapP.empty) {
       for (const p of DEFAULT_PRODUCTS) {
-        const id = uid();
+        const id = 'seed-' + p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
         await setDoc(doc(db, 'prodotti', id), p);
       }
     }
@@ -951,7 +951,9 @@ function deleteProduct(id) {
 }
 
 // ── AGGIUNGI PRODOTTO ─────────────────────────────────────────────────────────
+let _addingProduct = false;
 async function addProduct() {
+  if (_addingProduct) return;
   const name = document.getElementById('new-name').value.trim();
   const cat  = document.getElementById('new-cat').value;
   const min  = parseInt(document.getElementById('new-min').value) || 0;
@@ -960,7 +962,12 @@ async function addProduct() {
   const pz   = parseInt(document.getElementById('new-pezzi').value) || 0;
   if (!name) { showToast('⚠️ Inserisci il nome del prodotto'); return; }
   if (!cat || cat === '__new__') { showToast('⚠️ Seleziona una categoria'); return; }
+  const dup = products.some(p => p.cat === cat && p.name.trim().toLowerCase() === name.toLowerCase());
+  if (dup) { showToast(`⚠️ "${name}" esiste già in questa categoria`); return; }
   const newP = { id: uid(), name, cat, min, pxc, pz, forn };
+  const btn = document.getElementById('add-product-btn');
+  _addingProduct = true;
+  if (btn) btn.disabled = true;
   try {
     await fsSetProduct(newP);
     document.getElementById('new-name').value = '';
@@ -970,6 +977,10 @@ async function addProduct() {
     showToast(`✅ "${name}" aggiunto!`);
     switchTab('giacenze');
   } catch(e) { showToast('Errore salvataggio'); }
+  finally {
+    _addingProduct = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 function populateCatSelect() {
