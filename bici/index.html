@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/theme.css?v=1786056323">
+<link rel="stylesheet" href="../assets/theme.css?v=1786535809">
 <script src="../assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -226,6 +226,27 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 .status-chip .n { font-size: 26px; font-weight: 900; line-height: 1; }
 .status-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
 
+/* ══ STORICO NOLEGGI — elenco delle chiusure passate, ricavato dal campo
+   "log" salvato su ogni singola bici (ultime 30 per bici, v. segnalaRientro/
+   riscuoti/riscuotiSulConto). Righe compatte, una per bici per noleggio: nei
+   noleggi multi-bici il log non porta un gruppoId in comune, quindi qui non
+   si raggruppa — si mostra una riga per ogni bici coinvolta. ═══════════════ */
+.storico-search { margin-bottom: 10px; }
+.storico-list { display: flex; flex-direction: column; gap: 8px; }
+.storico-row { display: flex; align-items: center; gap: 12px; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); padding: 10px 14px; }
+.storico-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; letter-spacing: -.3px; }
+.storico-info { min-width: 0; flex: 1; }
+.storico-name { font-size: 13px; font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.storico-bike { font-size: 10.5px; font-weight: 700; color: var(--gray-500); background: var(--gray-100); border-radius: 20px; padding: 2px 8px; }
+.storico-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; line-height: 1.5; }
+.storico-cost { text-align: right; flex-shrink: 0; }
+.storico-cost-val { font-size: 14px; font-weight: 900; color: var(--gray-900); }
+.storico-cost-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.storico-cost-badge.contanti { color: var(--green-ok); }
+.storico-cost-badge.conto    { color: var(--amber); }
+.storico-more { width: 100%; height: 42px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-size: 12.5px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.storico-more:hover { background: var(--gray-50); }
+
 /* ══ ALERT BANNER ════════════════════════════════════════════════════════ */
 .alert-banner { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; border: 1px solid; }
 .alert-banner.orange { background: var(--orange-bg); border-color: #FDE68A; }
@@ -322,7 +343,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -349,7 +370,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 <aside class="rail" id="rail">
   <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
   <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
-  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Alloggi</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
   <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
   <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
   <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
@@ -375,7 +396,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -414,6 +435,9 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost icon" onclick="openStorico()" id="btn-storico" title="Storico noleggi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      </button>
       <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -436,6 +460,21 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
   </div>
 </div>
 
+<!-- ══ HEADER STORICO ═══════════════════════════════════════════════════════ -->
+<div class="top-bar hidden" id="top-bar-storico">
+  <div class="header-inner">
+    <div class="header-left">
+      <button class="hbtn ghost icon" onclick="closeStorico()" title="Torna">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <div>
+        <div class="header-name">Storico noleggi</div>
+        <div class="header-role">Tutti i noleggi conclusi</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <main id="main-view">
   <div class="page-head">
     <div class="page-eyebrow"><span data-icon="BICI"></span><span>Bici</span></div>
@@ -453,6 +492,10 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
       </div>
     </div>
   </div>
+</main>
+
+<main id="storico-view" class="hidden">
+  <div id="storico-noleggi"></div>
 </main>
 
 <main id="settings-view" class="hidden">
@@ -556,7 +599,10 @@ let alertsCollapsed  = {};
 let editingBike      = {};   // id -> bool
 let editingTemp      = {};   // id -> { nome, costo, ritiroTs, rientroPrevistoTs }
 let settingsOpen     = false;
+let storicoOpen       = false;
 let optFieldsOpen    = false; // campi opzionali nel form di inserimento
+let storicoQuery     = '';
+let storicoShown     = 20;
 // Form inserimento — ora supporta più bici per anagrafica
 let formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
 let alloggiList = [];
@@ -787,7 +833,7 @@ async function checkConnessione() {
 setInterval(checkConnessione, 30000);
 // Ogni 30s aggiorniamo anche solo per far avanzare l'orario/il costo delle
 // bici occupate mostrate a schermo (nessuna chiamata di rete, solo render).
-setInterval(() => { if (!settingsOpen) render(); }, 30000);
+setInterval(() => { if (!settingsOpen && !storicoOpen) render(); }, 30000);
 
 // ── LOGIN / PERMESSI (single sign-on dalla Hub) ──────────────────────────────
 function loadHubSession() {
@@ -873,6 +919,7 @@ function render() {
   renderFormInserimento();
   renderActiveRentals();
   renderBikeStatus();
+  if (storicoOpen) renderStoricoNoleggi();
   if (settingsOpen) renderSettings();
 }
 
@@ -1188,6 +1235,83 @@ function renderBikeStatus() {
       '<div class="status-chip"><div class="status-chip-icon" style="background:var(--green-bg);color:var(--green-ok)">'+ICONS.BICI+'</div><div class="n" style="color:var(--green-ok)">'+libere+'</div><div class="l">Libere</div></div>'+
       (nonDisp > 0 ? '<div class="status-chip"><div class="status-chip-icon" style="background:var(--gray-100);color:var(--gray-400)">'+ICONS.BICI+'</div><div class="n" style="color:var(--gray-400)">'+nonDisp+'</div><div class="l">Non disp.</div></div>' : '')+
     '</div>';
+}
+
+// ── STORICO NOLEGGI ───────────────────────────────────────────────────────
+// Aggrega il campo "log" (chiusure passate) salvato su ogni singola bici in
+// un unico elenco, più recenti prima. Una riga per bici per noleggio: nei
+// noleggi multi-bici ogni bici del gruppo ha la propria voce di log separata
+// (v. riscuoti/riscuotiSulConto/segnalaRientro, chiamate una per bici dai
+// wrapper *Gruppo), senza un id comune con cui raggrupparle qui.
+function raccogliStorico() {
+  const righe = [];
+  Object.values(bikesMap).forEach(b => {
+    (b.log || []).forEach(entry => righe.push(Object.assign({ numero: b.numero }, entry)));
+  });
+  righe.sort((a, b) => new Date(b.rientroTs || 0) - new Date(a.rientroTs || 0));
+  return righe;
+}
+
+function renderStoricoRow(r) {
+  const initiali = (r.clienteNome || '?').trim().slice(0, 2).toUpperCase();
+  const durataMs = (r.rientroTs && r.ritiroTs) ? (new Date(r.rientroTs) - new Date(r.ritiroTs)) : 0;
+  const badgeClass = r.alConto ? 'conto' : 'contanti';
+  const badgeLabel = r.alConto ? 'Al conto' : (r.pagamentoAnticipato ? 'Pagato al ritiro' : 'Contanti');
+  const operatori = [r.opRitiro, r.opRiscossione].filter(Boolean).join(' · ');
+  return '<div class="storico-row">'+
+    '<div class="storico-avatar">'+initiali+'</div>'+
+    '<div class="storico-info">'+
+      '<div class="storico-name">'+(r.clienteNome||'—')+'<span class="storico-bike">Bici N°'+r.numero+'</span></div>'+
+      '<div class="storico-meta">'+
+        (r.clienteAlloggio ? r.clienteAlloggio+' · ' : '')+
+        fmtDT(r.ritiroTs)+' → '+fmtDT(r.rientroTs)+
+        (durataMs > 0 ? ' ('+fmtElapsed(durataMs)+')' : '')+
+        (operatori ? '<br>'+operatori : '')+
+      '</div>'+
+    '</div>'+
+    '<div class="storico-cost">'+
+      '<div class="storico-cost-val">'+(r.costo||0).toFixed(2).replace('.',',')+'€</div>'+
+      '<div class="storico-cost-badge '+badgeClass+'">'+badgeLabel+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderStoricoNoleggi() {
+  const container = document.getElementById('storico-noleggi');
+  if (!container) return;
+  const tutte = raccogliStorico();
+  if (!tutte.length) {
+    container.innerHTML = '<div class="sec-label">Storico noleggi</div><div class="empty-state">Nessun noleggio concluso finora</div>';
+    return;
+  }
+  const q = storicoQuery.trim().toLowerCase();
+  const filtrate = q
+    ? tutte.filter(r =>
+        (r.clienteNome||'').toLowerCase().includes(q) ||
+        (r.clienteAlloggio||'').toLowerCase().includes(q) ||
+        String(r.numero) === q)
+    : tutte;
+  const daMostrare = filtrate.slice(0, storicoShown);
+  const righeHtml = daMostrare.length
+    ? daMostrare.map(renderStoricoRow).join('')
+    : '<div class="empty-state" style="padding:24px 20px">Nessun risultato per questa ricerca</div>';
+  // Ricreare l'input ad ogni tasto premuto (come per il resto dell'app, che
+  // ricostruisce sempre l'innerHTML) sposterebbe il focus fuori dal campo
+  // dopo il primo carattere: qui lo stato del focus/cursore va quindi
+  // salvato prima e ripristinato dopo, a differenza degli altri campi
+  // dell'app che invece non triggerano mai un render ad ogni oninput.
+  const searchEl = document.getElementById('storico-search-input');
+  const hadFocus = !!searchEl && document.activeElement === searchEl;
+  const cursorPos = hadFocus ? searchEl.selectionStart : null;
+  container.innerHTML =
+    '<div class="sec-label">Storico noleggi ('+tutte.length+')</div>'+
+    '<div class="storico-search"><input class="f-input" id="storico-search-input" type="text" placeholder="Cerca cliente, alloggio o numero bici…" value="'+storicoQuery.replace(/"/g,'&quot;')+'" oninput="storicoQuery=this.value;storicoShown=20;renderStoricoNoleggi()"></div>'+
+    '<div class="storico-list">'+righeHtml+'</div>'+
+    (filtrate.length > daMostrare.length ? '<button class="storico-more" onclick="storicoShown+=20;renderStoricoNoleggi()">Mostra altri ('+(filtrate.length-daMostrare.length)+')</button>' : '');
+  if (hadFocus) {
+    const el = document.getElementById('storico-search-input');
+    if (el) { el.focus(); if (cursorPos !== null) el.setSelectionRange(cursorPos, cursorPos); }
+  }
 }
 
 // ── AZIONI ────────────────────────────────────────────────────────────────
@@ -1810,6 +1934,24 @@ async function salvaModificaCosto(id, nuovoCosto) {
     console.error('Errore aggiornamento costo:', e);
     showToast('Errore di salvataggio — riprova');
   }
+}
+
+// ── STORICO NOLEGGI (vista separata, aperta dall'icona orologio in header) ──
+function openStorico() {
+  storicoOpen = true;
+  document.getElementById('top-bar-main').classList.add('hidden');
+  document.getElementById('top-bar-storico').classList.remove('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('storico-view').classList.remove('hidden');
+  renderStoricoNoleggi();
+}
+function closeStorico() {
+  storicoOpen = false;
+  document.getElementById('top-bar-storico').classList.add('hidden');
+  document.getElementById('top-bar-main').classList.remove('hidden');
+  document.getElementById('storico-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+  render();
 }
 
 // ── IMPOSTAZIONI (solo admin): aggiungi / elimina / disattiva una bici ──────
