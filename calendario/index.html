@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/theme.css?v=1786056020">
+<link rel="stylesheet" href="../assets/theme.css?v=1786535809">
 <script src="../assets/icons.js"></script>
 <!-- Comuni/province/paesi per l'autocompletamento dei campi Alloggiati Web. -->
 <script src="../assets/dati-alloggiati.js?v=1786056020"></script>
@@ -254,7 +254,7 @@
 .listino-input { width: 66px; height: 28px; text-align: center; border: 1px solid var(--gray-200); border-radius: 6px; font-family: var(--font); font-size: 12px; color: var(--gray-900); }
 .listino-input:focus { border-color: var(--green-400); outline: none; }
 .listino-extra-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-bottom: 16px; }
-.listino-extra-field label { display: block; font-size: 10.5px; color: var(--gray-500); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.listino-extra-field label { display: block; min-height: 27px; font-size: 10.5px; color: var(--gray-500); margin-bottom: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
 .listino-extra-field input { width: 100%; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
 .listino-save-row { display: flex; justify-content: flex-end; }
 .listino-save-btn { height: 46px; padding: 0 22px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-weight: 700; font-size: 14px; cursor: pointer; font-family: var(--font); }
@@ -370,6 +370,8 @@
 .ospite-badge.familiare { background: var(--gray-200); color: var(--gray-700); }
 .ospite-remove-btn { width: 28px; height: 28px; border: none; border-radius: 50%; background: transparent; color: var(--gray-400); font-size: 15px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; }
 .ospite-remove-btn:hover { background: var(--red-bg); color: var(--red); }
+.ospite-capo-btn { margin-left: auto; height: 22px; padding: 0 9px; border: 1.5px solid var(--gray-200); border-radius: 20px; background: var(--white); color: var(--gray-600); font-size: 10px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; transition: border-color .15s, color .15s; }
+.ospite-capo-btn:hover { border-color: var(--green-ok); color: var(--green-ok); }
 .presenza-row { display: flex; gap: 6px; margin-bottom: 12px; }
 .presenza-btn { flex: 1; height: 32px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: 20px; font-size: 11px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); transition: background .15s, color .15s, border-color .15s; }
 .presenza-btn:hover { border-color: var(--green-400); }
@@ -815,17 +817,17 @@
         <div class="f-row">
           <div>
             <label class="f-label">Check-in</label>
-            <input class="f-input" id="f-checkin" type="date" oninput="aggiornaPreventivo(); scheduleAutosave()">
+            <input class="f-input" id="f-checkin" type="date" oninput="aggiornaPreventivo(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">Check-out</label>
-            <input class="f-input" id="f-checkout" type="date" oninput="aggiornaPreventivo(); scheduleAutosave()">
+            <input class="f-input" id="f-checkout" type="date" oninput="aggiornaPreventivo(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
         </div>
         <div class="f-row">
           <div>
             <label class="f-label">Adulti</label>
-            <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo({preservaAlloggio:true}); scheduleAutosave()">
+            <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">Trattamento ristorazione</label>
@@ -840,19 +842,19 @@
         <div class="f-row">
           <div>
             <label class="f-label">0-2 anni</label>
-            <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">3-4 anni</label>
-            <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">5-9 anni</label>
-            <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">10-17 anni</label>
-            <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
         </div>
 
@@ -908,6 +910,10 @@
           <div class="conto-row-inline conto-row-add" onclick="aggiungiVoceConto()">
             <span class="conto-add-icon">+</span>
             <span class="conto-add-placeholder">Voce libera</span>
+          </div>
+          <div class="conto-row-inline conto-row-add" onclick="forzaAggiornaTassaSoggiorno()" title="Ricalcola subito la tassa di soggiorno, senza aspettare il ricalcolo automatico">
+            <span class="conto-add-icon">+</span>
+            <span class="conto-add-placeholder">Aggiorna tassa di soggiorno</span>
           </div>
           <div class="prev-head">
             <span>Conto</span>
@@ -1248,6 +1254,16 @@ const IMPOSTAZIONI_CALENDARIO_DEFAULT = {
   documentiTag: ['Documento d\'identità', 'Contratto', 'Fattura', 'Ricevuta caparra', 'Altro'],
   categorieNote: ['Generali', 'Ristorazione', 'Pulizie', 'Bar', 'OTA'],
   serviziAggiuntivi: [], // [{nome, prezzo}] — catalogo usato dal blocco "Servizi aggiuntivi" nel Conto
+  // Tassa di soggiorno comunale (importo escluso IVA ex Art. 15 DPR 633/72):
+  // parametri configurabili da Impostazioni → Generali, v. calcolaTassaSoggiorno().
+  tassaSoggiorno: {
+    importoGiorno: 1.00,           // € per persona per notte
+    dataInizioGiorno: 1, dataInizioMese: 7,   // 01/07
+    dataFineGiorno: 31, dataFineMese: 8,      // 31/08 incluso
+    etaMinEsente: 13,              // esenti sotto questa età (0-12 compiuti)
+    etaMaxEsente: 70,              // esenti da questa età in su (70+)
+    maxNottiPagantiPerPersona: 7,  // cap notti pagabili per persona, cumulativo nell'anno solare
+  },
 };
 let impostazioniCalendario = null; // caricate da Firestore
 
@@ -1345,6 +1361,98 @@ function calcolaPreventivo(input) {
     }
   }
   return { disponibile:true, righe, totale };
+}
+
+// ── TASSA DI SOGGIORNO ─────────────────────────────────────────────────────
+// Importo escluso IVA ex Art. 15 DPR 633/72 (anticipazione in nome e per
+// conto del Comune): la riga generata qui NON entra nell'imponibile IVA, va
+// solo mappata sul reparto/codice esenzione corretto in fase di
+// fiscalizzazione (v. classificaCategoriaRiga, reparto "tassa_soggiorno" già
+// configurato sul registratore telematico).
+function tassaSoggiornoConfig() {
+  return (impostazioniCalendario && impostazioniCalendario.tassaSoggiorno) || IMPOSTAZIONI_CALENDARIO_DEFAULT.tassaSoggiorno;
+}
+function etaAllaData(dataNascita, riferimentoIso) {
+  if (!dataNascita || !riferimentoIso) return null;
+  const nascita = new Date(dataNascita + 'T00:00:00');
+  const rif = new Date(riferimentoIso + 'T00:00:00');
+  if (isNaN(nascita) || isNaN(rif)) return null;
+  let eta = rif.getFullYear() - nascita.getFullYear();
+  const primaCompleanno = (rif.getMonth() < nascita.getMonth()) ||
+    (rif.getMonth() === nascita.getMonth() && rif.getDate() < nascita.getDate());
+  if (primaCompleanno) eta--;
+  return eta;
+}
+// Confronto mese/giorno con la finestra di validità: assume una finestra che
+// non attraversa il capodanno (es. 01/07–31/08), coerente con la regola
+// comunale attuale — se in futuro la finestra dovesse coprire fine anno,
+// questa funzione andrebbe estesa a gestire anche il caso "inizio > fine".
+function dataInFinestraTassaSoggiorno(mese, giorno, cfg) {
+  const dopoInizio = mese > cfg.dataInizioMese || (mese === cfg.dataInizioMese && giorno >= cfg.dataInizioGiorno);
+  const primaFine   = mese < cfg.dataFineMese   || (mese === cfg.dataFineMese   && giorno <= cfg.dataFineGiorno);
+  return dopoInizio && primaFine;
+}
+// Notti del soggiorno (indipendenti dall'ospite) che ricadono nella finestra
+// di validità: per soggiorni a cavallo del periodo si contano solo quelle
+// dentro, notte per notte, qualunque sia l'anno di ciascuna notte.
+function nottiTassaSoggiornoInFinestra(checkin, checkout, cfg) {
+  if (!checkin || !checkout || checkout <= checkin) return 0;
+  const notti = diffDays(checkin, checkout);
+  let count = 0;
+  for (let i = 0; i < notti; i++) {
+    const iso = addDaysIso(checkin, i);
+    if (dataInFinestraTassaSoggiorno(Number(iso.slice(5,7)), Number(iso.slice(8,10)), cfg)) count++;
+  }
+  return count;
+}
+// Chiave naturale per riconoscere lo stesso ospite tra prenotazioni diverse
+// (non esiste un id anagrafico stabile per i familiari, solo per il
+// capofamiglia): cognome + nome + data di nascita, normalizzati.
+function chiaveOspiteTassaSoggiorno(o) {
+  return [(o.cognome||'').trim().toUpperCase(), (o.nome||'').trim().toUpperCase(), o.data_nascita||''].join('|');
+}
+// L'esenzione (età minore/anziano/disabilità) è quella scelta nella casella
+// "Esenzione tassa di soggiorno" della scheda ospite — compilata in
+// automatico dall'età ma sempre correggibile a mano (v. aggiornaEsenzioneOspiteCard).
+function eEsenteTassaSoggiorno(ospite) {
+  return !!(ospite && ospite.esenzione_tassa_soggiorno);
+}
+// Notti già tassate allo stesso ospite in altre prenotazioni dello stesso
+// anno solare, con checkin precedente a quella corrente (le prenotazioni si
+// consumano il cap del cumulo in ordine cronologico di arrivo). Si legge
+// dall'array "prenotazioni" già in memoria (sincronizzato realtime da
+// Firestore, v. onSnapshot su collection 'prenotazioni'), niente query.
+function nottiGiaTassateAnno(chiave, anno, checkinCorrente, tuttePrenotazioni, escludiId) {
+  let somma = 0;
+  (tuttePrenotazioni || []).forEach(p => {
+    if (p.id === escludiId) return;
+    if (!p.checkin || Number(p.checkin.slice(0,4)) !== anno) return;
+    if (p.checkin >= checkinCorrente) return;
+    (p.ospiti || []).forEach(o => {
+      if (chiaveOspiteTassaSoggiorno(o) === chiave) somma += (o.notti_tassa_soggiorno || 0);
+    });
+  });
+  return somma;
+}
+// Calcolo completo: per ogni ospite non esente, notti pagabili = min(notti
+// del soggiorno in finestra, cap residuo dopo aver tolto le notti già
+// tassate nell'anno in altre prenotazioni). Ritorna anche "dettaglio" (una
+// voce per ospite, stesso ordine dell'array ospiti) per poter persistere
+// notti_tassa_soggiorno su ciascun ospite al salvataggio.
+function calcolaTassaSoggiorno(checkin, checkout, ospiti, cfg, tuttePrenotazioni, escludiId) {
+  cfg = cfg || tassaSoggiornoConfig();
+  const nottiFinestra = nottiTassaSoggiornoInFinestra(checkin, checkout, cfg);
+  const dettaglio = (ospiti || []).map(o => {
+    if (!nottiFinestra || eEsenteTassaSoggiorno(o)) return { notti: 0 };
+    const chiave = chiaveOspiteTassaSoggiorno(o);
+    const anno = Number(checkin.slice(0,4));
+    const giaPagate = nottiGiaTassateAnno(chiave, anno, checkin, tuttePrenotazioni, escludiId);
+    const residuo = Math.max(0, cfg.maxNottiPagantiPerPersona - giaPagate);
+    return { notti: Math.min(nottiFinestra, residuo) };
+  });
+  const nottiPersonaTotali = dettaglio.reduce((s, d) => s + d.notti, 0);
+  const importo = Math.round(nottiPersonaTotali * cfg.importoGiorno * 100) / 100;
+  return { importo, nottiPersonaTotali, dettaglio };
 }
 
 // ── SINCRONIZZAZIONE LISTINI (Firestore) ──────────────────────────────────
@@ -2379,7 +2487,11 @@ function setCheck(id, val) {
 // listener sui singoli input andrebbe perso): un solo ascoltatore sul
 // contenitore stabile basta per intercettare qualsiasi modifica.
 document.getElementById('ospiti-list').addEventListener('input', () => scheduleAutosave());
-document.getElementById('ospiti-list').addEventListener('change', () => scheduleAutosave());
+document.getElementById('ospiti-list').addEventListener('change', e => {
+  if (e.target.classList.contains('osp-data-nascita')) aggiornaEsenzioneOspiteCard(e.target.closest('.ospite-card'));
+  aggiornaTassaSoggiorno();
+  scheduleAutosave();
+});
 // Suggerimenti comune/provincia/stato/cittadinanza mentre si digita, per
 // velocizzare la compilazione della schedina Alloggiati Web.
 const AC_CAMPI_OSPITE = {
@@ -2508,6 +2620,10 @@ const PREFISSI_SERVIZI_CONTO = ['Animali ·', 'Pulizia finale in presenza di ani
 // salvataggio dopo aver riaperto la prenotazione (era esattamente il bug
 // segnalato: chiudere un noleggio Bici con "Aggiungi al conto" e non
 // vederlo comparire nel conto della prenotazione).
+// "Tassa di soggiorno ·" NON è qui di proposito: è gestita a parte da
+// aggiornaTassaSoggiorno() (v. sezione CONTO), che deve poterla congelare da
+// sola una volta fiscalizzata — se fosse in questa lista, il ricalcolo di
+// aggiornaPreventivo() la ricreerebbe da zero perdendo il flag "fiscalizzato".
 const PREFISSI_RIGHE_LISTINO = ['Alloggio ·', 'Adulti ×', 'Ragazzi 10-17 ×', 'Bambini 5-9 ×', 'Bambini 3-4 ×', 'Bambini 0-2 ×', ...PREFISSI_SERVIZI_CONTO];
 function toggleServizioConPrezzo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
@@ -2599,6 +2715,7 @@ function ospiteCardHtml(i, o) {
   return `<div class="ospite-card ${isCapo ? 'capo' : ''}" data-idx="${i}" data-presenza="${presenza}">
     <div class="ospite-card-head">
       <span class="ospite-badge ${isCapo ? 'capo' : 'familiare'}">${isCapo ? 'Capo' : 'Familiare'}</span>
+      ${!isCapo ? `<button type="button" class="ospite-capo-btn" title="Rendi questo ospite il capofamiglia" onclick="rendiCapofamiglia(${i})">Rendi capofamiglia</button>` : ''}
       <button type="button" class="ospite-remove-btn" title="Rimuovi ospite" onclick="removeOspiteRow(${i})">${XICON}</button>
     </div>
     <div class="presenza-row">
@@ -2639,6 +2756,15 @@ function ospiteCardHtml(i, o) {
       <div>
         <label class="f-label">Cittadinanza${isCapo ? '<span class="req">*</span>' : ''}</label>
         <input class="f-input osp-cittadinanza" type="text" autocomplete="off" placeholder="Es. Italiana" value="${esc(o.cittadinanza||'')}">
+      </div>
+      <div>
+        <label class="f-label">Esenzione tassa di soggiorno</label>
+        <select class="f-select osp-esenzione-tassa">
+          <option value="" ${!o.esenzione_tassa_soggiorno?'selected':''}>Nessuna (paga)</option>
+          <option value="eta_minore" ${o.esenzione_tassa_soggiorno==='eta_minore'?'selected':''}>Età — minore di 13 anni</option>
+          <option value="eta_over" ${o.esenzione_tassa_soggiorno==='eta_over'?'selected':''}>Età — 70 anni o più</option>
+          <option value="disabilita" ${o.esenzione_tassa_soggiorno==='disabilita'?'selected':''}>Disabile / accompagnatore</option>
+        </select>
       </div>
     </div>
     ${isCapo ? `
@@ -2701,6 +2827,7 @@ function raccogliOspitiDaForm() {
       provincia_nascita: val('.osp-provincia-nascita').toUpperCase(),
       stato_nascita: val('.osp-stato-nascita'),
       cittadinanza: val('.osp-cittadinanza'),
+      esenzione_tassa_soggiorno: val('.osp-esenzione-tassa'),
     };
     if (i === 0) {
       o.tipo_documento = val('.osp-tipo-documento');
@@ -2710,11 +2837,41 @@ function raccogliOspitiDaForm() {
     return o;
   });
 }
+// Come raccogliOspitiDaForm(), ma calcola e allega anche notti_tassa_soggiorno
+// per ciascun ospite: è il valore che le ALTRE prenotazioni leggeranno per
+// sapere quante notti di questo stesso ospite sono già state tassate
+// nell'anno (cap cumulativo, v. nottiGiaTassateAnno) — va quindi persistito
+// su Firestore ad ogni scrittura di "ospiti", non solo tenuto nel form.
+function raccogliOspitiConTassaSoggiorno() {
+  const checkin = document.getElementById('f-checkin').value;
+  const checkout = document.getElementById('f-checkout').value;
+  const ospiti = raccogliOspitiDaForm();
+  const risultato = calcolaTassaSoggiorno(checkin, checkout, ospiti, tassaSoggiornoConfig(), prenotazioni, editingId);
+  return ospiti.map((o, i) => ({ ...o, notti_tassa_soggiorno: (risultato.dettaglio[i] || {}).notti || 0 }));
+}
+// Compila in automatico la casella "Esenzione" in base all'età alla data di
+// check-in (minori di 13, over 70): non tocca mai una scelta manuale di
+// "Disabile / accompagnatore", l'unico caso che non si può dedurre dai dati.
+function aggiornaEsenzioneOspiteCard(card) {
+  if (!card) return;
+  const select = card.querySelector('.osp-esenzione-tassa');
+  if (!select || select.value === 'disabilita') return;
+  const dataNascita = card.querySelector('.osp-data-nascita').value;
+  const checkin = document.getElementById('f-checkin').value;
+  const eta = etaAllaData(dataNascita, checkin);
+  if (eta == null) return;
+  const cfg = tassaSoggiornoConfig();
+  select.value = eta < cfg.etaMinEsente ? 'eta_minore' : eta >= cfg.etaMaxEsente ? 'eta_over' : '';
+}
+function applicaEsenzioneAutomaticaATutteLeSchedeOspiti() {
+  document.querySelectorAll('#ospiti-list .ospite-card').forEach(aggiornaEsenzioneOspiteCard);
+}
 function addOspiteRow() {
   const current = raccogliOspitiDaForm();
   current.push({});
   renderOspitiList(current);
   aggiornaBadgeOspiti();
+  aggiornaTassaSoggiorno();
   scheduleAutosave();
 }
 function removeOspiteRow(i) {
@@ -2723,10 +2880,38 @@ function removeOspiteRow(i) {
   current.splice(i, 1);
   renderOspitiList(current);
   aggiornaBadgeOspiti();
+  aggiornaTassaSoggiorno();
   scheduleAutosave();
 }
 function resetOspitiRows(count) {
   renderOspitiList(Array.from({ length: Math.max(1, count) }, () => ({})));
+}
+// Tiene il numero di schede ospite allineato al numero di persone della
+// prenotazione (adulti + bambini): aggiunge righe vuote se ne mancano, toglie
+// le ultime in eccesso — non tocca mai il capofamiglia (indice 0) e preserva
+// tutti i dati già inseriti negli ospiti che restano.
+function sincronizzaNumeroOspiti() {
+  const target = Math.max(1, totalePersoneDaForm());
+  const current = raccogliOspitiDaForm();
+  if (current.length === target) return;
+  while (current.length < target) current.push({});
+  current.length = target;
+  renderOspitiList(current);
+  aggiornaBadgeOspiti();
+}
+// Sposta l'ospite i in testa alla lista, rendendolo il nuovo capofamiglia
+// (unico che richiede il documento d'identità): gli altri restano familiari
+// nello stesso ordine relativo.
+function rendiCapofamiglia(i) {
+  if (i === 0) return;
+  const current = raccogliOspitiDaForm();
+  if (i < 0 || i >= current.length) return;
+  const nuovoCapo = current.splice(i, 1)[0];
+  current.unshift(nuovoCapo);
+  renderOspitiList(current);
+  aggiornaBadgeOspiti();
+  aggiornaTassaSoggiorno();
+  scheduleAutosave();
 }
 
 // ── STATO SOGGIORNO NEL FORM (badge + pulsanti check-in/check-out) ────────
@@ -2810,10 +2995,12 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
+  sincronizzaNumeroOspiti();
   populateServiziExtraSelect();
   document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
+  aggiornaTassaSoggiorno();
   aggiornaBadgeOspiti();
 }
 function apriModificaPrenotazione(id) {
@@ -2852,10 +3039,12 @@ function apriModificaPrenotazione(id) {
   impostaConto(p.conto);
   document.getElementById('documenti-btn-badge').textContent = (p.documenti && p.documenti.length) || '';
   renderOspitiList(p.ospiti && p.ospiti.length ? p.ospiti : [{}]);
+  sincronizzaNumeroOspiti();
   populateServiziExtraSelect();
   document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
   aggiornaPreventivo();
+  aggiornaTassaSoggiorno();
   aggiornaBadgeOspiti();
 }
 function closeFormModal() {
@@ -3799,6 +3988,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
+  sincronizzaNumeroOspiti();
   populateServiziExtraSelect();
   document.getElementById('servizio-extra-qty').value = 1;
   document.getElementById('form-modal-overlay').classList.remove('hidden');
@@ -3812,6 +4002,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   contoModificatoManualmente = true;
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
+  aggiornaTassaSoggiorno(); // il totale agenzia non include la tassa comunale: va aggiunta comunque
   _importAgenziaIdCorrente = r.agenziaId;
   _importReviewActive = true;
 }
@@ -4051,6 +4242,52 @@ async function sincronizzaContoPrimaDiSalvare() {
 function contoDaPreventivo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
   return risultato.disponibile ? risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato:false })) : [];
+}
+// La riga "Tassa di soggiorno ·" è gestita a parte, fuori da
+// PREFISSI_RIGHE_LISTINO/PREFISSI_SERVIZI_CONTO: si ricalcola sempre in
+// automatico (cambio date, ospiti, o parametri da Impostazioni), tranne
+// quando è già stata fiscalizzata — a quel punto è un dato fiscale emesso,
+// non più modificabile da un ricalcolo automatico.
+function aggiornaTassaSoggiorno() {
+  applicaEsenzioneAutomaticaATutteLeSchedeOspiti();
+  const giaFiscalizzata = contoCorrente.some(r => r.label && r.label.startsWith('Tassa di soggiorno') && r.fiscalizzato);
+  if (giaFiscalizzata) return;
+  const checkin = document.getElementById('f-checkin').value;
+  const checkout = document.getElementById('f-checkout').value;
+  const ospiti = raccogliOspitiDaForm();
+  const risultato = calcolaTassaSoggiorno(checkin, checkout, ospiti, tassaSoggiornoConfig(), prenotazioni, editingId);
+  const esistente = contoCorrente.find(r => r.label && r.label.startsWith('Tassa di soggiorno'));
+  const altre = contoCorrente.filter(r => !(r.label && r.label.startsWith('Tassa di soggiorno')));
+  const nuove = [];
+  if (risultato.importo > 0) {
+    const n = risultato.nottiPersonaTotali;
+    nuove.push({
+      label: `Tassa di soggiorno · ${n} nott${n===1?'e':'i'}-persona`,
+      importo: risultato.importo,
+      pagato: esistente ? !!esistente.pagato : false,
+    });
+  }
+  contoCorrente = [...altre, ...nuove];
+  // Senza questa riga la voce appena creata non risulta "conosciuta" (v.
+  // registraVoceContoAggiuntaLocalmente): il prossimo eco realtime del nostro
+  // stesso autosave la scambierebbe per una voce nuova arrivata da un altro
+  // modulo e la raddoppierebbe (era esattamente il bug segnalato: aggiungere
+  // un ospite duplicava la riga "Tassa di soggiorno").
+  if (nuove.length) registraVoceContoAggiuntaLocalmente(nuove[0].label);
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+}
+// Pulsante "Aggiorna tassa di soggiorno" nella scheda Conto: forza subito lo
+// stesso ricalcolo automatico (utile quando si vuole la certezza di vedere il
+// valore aggiornato senza aspettare l'evento che lo scatena da solo) e dà un
+// riscontro esplicito con un toast.
+function forzaAggiornaTassaSoggiorno() {
+  const giaFiscalizzata = contoCorrente.some(r => r.label && r.label.startsWith('Tassa di soggiorno') && r.fiscalizzato);
+  if (giaFiscalizzata) { showToast('Tassa di soggiorno già fiscalizzata: non più modificabile'); return; }
+  aggiornaTassaSoggiorno();
+  const riga = contoCorrente.find(r => r.label && r.label.startsWith('Tassa di soggiorno'));
+  showToast(riga ? `Tassa di soggiorno aggiornata: € ${riga.importo.toFixed(2)}` : 'Nessuna tassa di soggiorno dovuta per questo soggiorno');
+  scheduleAutosave();
 }
 // Le voci del preventivo sono di sola lettura sull'etichetta (si clicca solo
 // l'importo, per non rischiare di storpiare un nome che deve poi confrontarsi
@@ -4463,7 +4700,7 @@ function costruisciDatiPrenotazione() {
       preventivo_stimato: preventivo.disponibile ? preventivo.totale : null,
       note: raccogliNote(),
       conto: raccogliConto(),
-      ospiti: raccogliOspitiDaForm(),
+      ospiti: raccogliOspitiConTassaSoggiorno(),
       updatedAt: new Date().toISOString(),
     },
   };
@@ -5061,7 +5298,7 @@ async function simulaInvioAlloggiatiWeb() {
     // davvero: il check-in scatta automaticamente insieme all'invio, non va
     // più segnato a mano in questo caso.
     await updateDoc(doc(db, 'prenotazioni', editingId), {
-      ospiti: raccogliOspitiDaForm(),
+      ospiti: raccogliOspitiConTassaSoggiorno(),
       alloggiati_web: { stato: 'simulato', generato_il: new Date().toISOString() },
       checkin_fatto: true,
     });
@@ -5295,7 +5532,27 @@ const LISTE_GENERALI = [
 function renderGeneraliPanel() {
   const panel = document.getElementById('listino-generali-panel');
   if (!impostazioniCalendario) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
-  panel.innerHTML = LISTE_GENERALI.map(renderListaEditabileHtml).join('') + renderServiziAggiuntiviHtml();
+  panel.innerHTML = LISTE_GENERALI.map(renderListaEditabileHtml).join('') + renderTassaSoggiornoHtml() + renderServiziAggiuntiviHtml();
+}
+// ── TASSA DI SOGGIORNO (parametri di calcolo, v. calcolaTassaSoggiorno) ────
+function renderTassaSoggiornoHtml() {
+  const t = impostazioniCalendario.tassaSoggiorno || IMPOSTAZIONI_CALENDARIO_DEFAULT.tassaSoggiorno;
+  return `
+    <div class="listino-card">
+      <h3>Tassa di soggiorno</h3>
+      <p class="subtitle">Parametri della tassa di soggiorno comunale, applicata in automatico al conto di ogni prenotazione (importo escluso IVA ex Art. 15 DPR 633/72).</p>
+      <div class="listino-extra-grid">
+        <div class="listino-extra-field"><label>Importo € / notte / persona</label><input type="number" step="0.01" min="0" id="ts-importo" value="${t.importoGiorno}"></div>
+        <div class="listino-extra-field"><label>Max notti pagabili / persona</label><input type="number" min="0" id="ts-max-notti" value="${t.maxNottiPagantiPerPersona}"></div>
+        <div class="listino-extra-field"><label>Inizio validità — giorno</label><input type="number" min="1" max="31" id="ts-inizio-giorno" value="${t.dataInizioGiorno}"></div>
+        <div class="listino-extra-field"><label>Inizio validità — mese</label><input type="number" min="1" max="12" id="ts-inizio-mese" value="${t.dataInizioMese}"></div>
+        <div class="listino-extra-field"><label>Fine validità — giorno</label><input type="number" min="1" max="31" id="ts-fine-giorno" value="${t.dataFineGiorno}"></div>
+        <div class="listino-extra-field"><label>Fine validità — mese</label><input type="number" min="1" max="12" id="ts-fine-mese" value="${t.dataFineMese}"></div>
+        <div class="listino-extra-field"><label>Esente sotto età (anni)</label><input type="number" min="0" id="ts-eta-min" value="${t.etaMinEsente}"></div>
+        <div class="listino-extra-field"><label>Esente da età (anni)</label><input type="number" min="0" id="ts-eta-max" value="${t.etaMaxEsente}"></div>
+      </div>
+      <div class="listino-save-row" style="margin-top:14px"><button type="button" class="listino-save-btn" onclick="salvaGenerali()">Salva tutto</button></div>
+    </div>`;
 }
 // ── SERVIZI AGGIUNTIVI (catalogo nome+prezzo, usato dal blocco "Servizi
 // aggiuntivi" nella scheda Conto della prenotazione) ───────────────────────
@@ -5371,12 +5628,23 @@ async function salvaGenerali() {
     if (valori.length) impostazioniCalendario[def.campo] = valori;
   });
   impostazioniCalendario.serviziAggiuntivi = leggiServiziAggiuntivi().filter(s => s.nome);
+  impostazioniCalendario.tassaSoggiorno = {
+    importoGiorno: parseFloat(document.getElementById('ts-importo').value) || 0,
+    maxNottiPagantiPerPersona: parseInt(document.getElementById('ts-max-notti').value, 10) || 0,
+    dataInizioGiorno: parseInt(document.getElementById('ts-inizio-giorno').value, 10) || 1,
+    dataInizioMese:   parseInt(document.getElementById('ts-inizio-mese').value, 10) || 1,
+    dataFineGiorno:   parseInt(document.getElementById('ts-fine-giorno').value, 10) || 31,
+    dataFineMese:     parseInt(document.getElementById('ts-fine-mese').value, 10) || 12,
+    etaMinEsente: parseInt(document.getElementById('ts-eta-min').value, 10) || 0,
+    etaMaxEsente: parseInt(document.getElementById('ts-eta-max').value, 10) || 200,
+  };
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'calendario'), impostazioniCalendario);
     showToast('Impostazioni salvate');
     populateProvenienzaSelect();
     populateServiziExtraSelect();
+    if (document.getElementById('form-modal-overlay') && !document.getElementById('form-modal-overlay').classList.contains('hidden')) aggiornaTassaSoggiorno();
   } catch(e) { console.error('Errore salvataggio impostazioni calendario:', e); showToast('Errore: ' + e.message); }
 }
 
