@@ -2635,6 +2635,12 @@ function toggleServizioConPrezzo() {
       .filter(r => PREFISSI_SERVIZI_CONTO.some(pre => r.label.startsWith(pre)))
       .map(r => ({ label: r.label, importo: Math.round(r.importo * 100) / 100, pagato: !!pagatoPerLabel[r.label] }));
     contoCorrente = [...altreVoci, ...nuoveVociServizio];
+    // Registra subito le righe appena (ri)calcolate come "conosciute": senza
+    // questo, l'eco realtime del prossimo autosave (che arriva PRIMA che
+    // autosalvaPrenotazione registri le voci, v. sotto) scambierebbe una riga
+    // del listino appena tornata a un valore già visto in passato per una
+    // voce nuova arrivata da un altro modulo, duplicandola.
+    impostaVociContoConosciute(contoCorrente);
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
   aggiornaBadgeOspiti();
@@ -2673,6 +2679,11 @@ function aggiornaPreventivo(opzioni) {
     } else {
       contoCorrente = [...risultato.righe.map(r => ({ label:r.label, importo:Math.round(r.importo*100)/100, pagato: !!pagatoPerLabel[r.label] })), ...altreVociEsterne, ...acconti];
     }
+    // V. stesso commento in toggleServizioConPrezzo(): registra le righe
+    // appena ricalcolate come "conosciute" per evitare che l'eco realtime del
+    // prossimo autosave le scambi per voci nuove e le duplichi (era esattamente
+    // il bug segnalato: alternare 2→1→2 adulti duplicava "Adulti × 2...").
+    impostaVociContoConosciute(contoCorrente);
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
   aggiornaRiepilogoPrenotazione();
