@@ -8,7 +8,168 @@
 <link rel="icon" type="image/png" href="logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/theme.css?v=1786056020">
+<link rel="stylesheet" href="assets/theme.css?v=1786535809">
+<style>
+/* ══ SCONTRINO LIBERO — scontrino fiscale svincolato da prenotazioni/conti ══ */
+.sl-riga { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--gray-100); }
+.sl-riga:first-child { border-top: none; }
+.sl-riga-label { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
+.sl-riga-label:focus { border-color: var(--green-400); }
+.sl-riga-importo { flex: none; width: 96px; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; text-align: right; font-family: var(--font); color: var(--gray-900); outline: none; }
+.sl-riga-importo:focus { border-color: var(--green-400); }
+.sl-riga-remove { flex: none; width: 36px; height: 36px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.sl-riga-remove:hover { background: var(--red-bg); color: var(--red); }
+.sl-add-btn { margin-top: 10px; background: none; border: none; padding: 0; font-size: 12.5px; font-weight: 700; color: var(--green-700); cursor: pointer; font-family: var(--font); }
+.sl-total-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 800; color: var(--gray-900); padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--gray-100); }
+.sl-total-row span:last-child { color: var(--green-700); }
+.sl-label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; }
+.sl-pay-options { display: flex; gap: 14px; margin-bottom: 18px; }
+.sl-pay-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray-700); cursor: pointer; }
+.sl-fiscalizza-btn { width: 100%; height: 48px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
+.sl-fiscalizza-btn:active { opacity: .85; }
+.sl-fiscalizza-btn:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
+
+/* ══ REPORT HOME: presenti+ricerca, oggi in struttura ═══════════════════════ */
+/* #module-list è un flusso verticale: i moduli si raggruppano in blocchi
+   .module-grid (la griglia bento esistente), i blocchi report sono figli a
+   sé stanti a piena larghezza — così non ereditano l'altezza di riga fissa
+   della griglia moduli (era quello a rendere la barra "oggi in struttura"
+   sproporzionata: da figlia della griglia, veniva stirata a 132/168px). */
+#module-list { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 768px) { #module-list { gap: 16px; } }
+
+/* Ritmo verticale uniforme tra TUTTI i blocchi della home (ricerca, KPI,
+   oggi in struttura, moduli): un unico gap sul contenitore, invece dei
+   margin-bottom scollegati che c'erano su .page-head/.kpi-strip. */
+#sec-home.active { display: flex; flex-direction: column; gap: 16px; }
+@media (min-width: 768px) { #sec-home.active { gap: 20px; } }
+#sec-home .page-head { margin-bottom: 0; }
+#sec-home .kpi-strip { margin-bottom: 0; }
+#report-presenti-slot:empty { display: none; }
+
+/* ── tre dimensioni di card modulo: piccola (1x1, default), media (larga
+   1 riga), grande (larga e alta 2x2) — la griglia usa "dense" così i tile
+   piccoli riempiono da soli i buchi lasciati da quelli medi/grandi invece
+   di lasciare celle vuote. */
+#module-list .module-grid { grid-auto-flow: dense; }
+.module-tile.size-medium { grid-column: span 2; }
+.module-tile.size-large { grid-column: span 2; grid-row: span 2; }
+.module-tile.size-large .module-icon-chip { width: 48px; height: 48px; border-radius: 15px; }
+.module-tile.size-large .module-icon-chip svg { width: 25px; height: 25px; }
+.module-tile.size-large .module-title { font-size: 19px; margin-bottom: 4px; }
+.module-tile.size-large .module-sub { font-size: 12.5px; }
+@media (min-width: 768px) {
+  .module-tile.size-large .module-icon-chip { width: 52px; height: 52px; }
+}
+
+.gr-hero { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); padding: 20px; display: grid; grid-template-columns: 1fr; gap: 20px; cursor: default; }
+@media (min-width: 700px) { .gr-hero { grid-template-columns: 210px 1fr; gap: 26px; } }
+.gr-count { display: flex; align-items: center; gap: 14px; }
+.gr-ring text { font-family: var(--font); font-weight: 800; fill: var(--green-700); }
+.gr-count-num { font-size: 28px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.gr-count-lbl { font-size: 12px; color: var(--gray-500); font-weight: 600; margin-top: 4px; line-height: 1.4; }
+.gr-search-side { border-left: 0; padding-top: 2px; }
+@media (min-width: 700px) { .gr-search-side { border-left: 1px solid var(--gray-100); padding-left: 26px; } }
+.gr-search-box { position: relative; margin-bottom: 4px; }
+.gr-search-box svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--gray-400); }
+.gr-search-box input { width: 100%; height: 42px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+  padding: 0 14px 0 38px; font-size: 13.5px; font-family: var(--font); color: var(--gray-900); background: var(--gray-50); outline: none; }
+.gr-search-box input:focus { border-color: var(--green-400); background: var(--white); }
+.gr-search-results { max-height: 260px; overflow-y: auto; }
+.gr-result-row { display: flex; align-items: center; gap: 11px; padding: 9px 4px; border-bottom: 1px solid var(--gray-100); cursor: pointer; border-radius: 8px; }
+.gr-result-row:hover { background: var(--gray-50); }
+.gr-result-row:last-child { border-bottom: none; }
+.gr-result-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--green-bg); color: var(--green-700);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+.gr-result-info { flex: 1; min-width: 0; }
+.gr-result-name { font-size: 13px; font-weight: 700; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-result-meta { font-size: 11px; color: var(--gray-500); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gr-result-stay { text-align: right; flex-shrink: 0; font-size: 11px; color: var(--gray-500); font-variant-numeric: tabular-nums; }
+.gr-result-empty { font-size: 12.5px; color: var(--gray-500); padding: 10px 4px; }
+.gr-search-hint { font-size: 12px; color: var(--gray-400); padding: 2px 4px; }
+
+.gr-seg-bar { display: flex; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden; cursor: default; }
+.gr-seg { flex: 1; padding: 16px 8px; text-align: center; border-right: 1px solid var(--gray-100); cursor: pointer; transition: background .15s; }
+.gr-seg:hover { background: var(--gray-50); }
+.kpi-chip { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.kpi-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.gr-seg:last-child { border-right: none; }
+.gr-seg-dot { width: 6px; height: 6px; border-radius: 50%; margin: 0 auto 8px; }
+.gr-dot-green { background: var(--green-500); }
+.gr-dot-orange { background: var(--terracotta); }
+.gr-dot-gray { background: var(--gray-300); }
+.gr-seg-num { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.gr-seg-lbl { font-size: 10.5px; color: var(--gray-500); font-weight: 600; margin-top: 5px; }
+
+/* ── riordino card home: pannello dedicato, non drag sulla griglia viva ──
+   Un tentativo precedente trascinava le card direttamente nella griglia bento:
+   con tile di grandezze diverse (la "in evidenza" occupa 2 righe) il riordino
+   si inceppava e un tap sbagliato apriva il modulo sotto. Qui il riordino
+   avviene in un pannello a elenco verticale separato, con frecce su/giù
+   (nessuna gestualità da indovinare) e una stella per scegliere la card
+   grande — poi si applica alla griglia vera solo al salvataggio. */
+/* Titolo e "Riordina" sulla stessa riga, niente più grafico decorativo
+   dietro (era .page-head-motif, tolto dal markup della home). */
+.page-head-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.home-toolbar { display: flex; flex-shrink: 0; }
+.reorder-toggle-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px;
+  border: 1.5px solid var(--gray-200); background: var(--white); color: var(--gray-700); font-size: 12.5px; font-weight: 700;
+  font-family: var(--font); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+.reorder-toggle-btn svg { width: 15px; height: 15px; }
+
+.reorder-overlay { position: fixed; inset: 0; background: rgba(13,43,30,.5); z-index: 200;
+  display: flex; align-items: flex-end; justify-content: center; }
+.reorder-overlay.hidden { display: none; }
+@media (min-width: 640px) { .reorder-overlay { align-items: center; } }
+.reorder-panel { background: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; width: 100%; max-width: 480px;
+  max-height: 82vh; display: flex; flex-direction: column; overflow: hidden; }
+@media (min-width: 640px) { .reorder-panel { border-radius: var(--radius-lg); max-height: 78vh; } }
+.reorder-panel-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--gray-100); flex-shrink: 0; }
+.reorder-panel-head h3 { font-size: 16px; font-weight: 800; color: var(--gray-900); }
+.reorder-panel-head p { font-size: 12px; color: var(--gray-500); margin-top: 3px; line-height: 1.5; }
+.reorder-list { overflow-y: auto; padding: 8px 10px; flex: 1; }
+.reorder-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 12px; }
+.reorder-row + .reorder-row { margin-top: 2px; }
+.reorder-row-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--gray-50); color: var(--green-700);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.reorder-row-icon svg { width: 17px; height: 17px; }
+.reorder-row-title { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: var(--gray-900); }
+.reorder-row-title small { display: block; font-weight: 500; color: var(--gray-500); font-size: 11px; margin-top: 1px; }
+.reorder-size-group { display: flex; gap: 2px; background: var(--gray-100); border-radius: 9px; padding: 2px; flex-shrink: 0; }
+.reorder-size-btn { width: 25px; height: 26px; border: none; background: transparent; color: var(--gray-500);
+  font-size: 10px; font-weight: 800; border-radius: 7px; cursor: pointer; font-family: var(--font); }
+.reorder-size-btn.active { background: var(--white); color: var(--green-700); box-shadow: var(--shadow-sm); }
+.reorder-move-btns { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.reorder-move-btn { width: 26px; height: 20px; border: none; background: var(--gray-100); color: var(--gray-600); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.reorder-move-btn:disabled { opacity: .3; cursor: default; }
+.reorder-move-btn svg { width: 13px; height: 13px; }
+.reorder-panel-foot { padding: 12px 20px 18px; border-top: 1px solid var(--gray-100); flex-shrink: 0;
+  display: flex; gap: 10px; }
+.reorder-panel-foot button { flex: 1; height: 44px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 700;
+  font-family: var(--font); cursor: pointer; border: none; }
+.reorder-cancel-btn { background: var(--gray-100); color: var(--gray-700); }
+.reorder-save-btn { background: var(--green-700); color: #fff; }
+
+/* ── scheda ospite: modal locale, niente navigazione a Calendario solo per guardare ── */
+.guest-panel-head { position: relative; padding-right: 46px; }
+.guest-panel-head h3 { font-size: 17px; }
+.guest-close-btn { position: absolute; top: 14px; right: 16px; width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: var(--gray-100); color: var(--gray-600); font-size: 18px; line-height: 1; cursor: pointer; }
+.guest-panel-body { overflow-y: auto; padding: 16px 20px; flex: 1; }
+.guest-row { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--gray-100); }
+.guest-row:last-of-type { border-bottom: none; }
+.guest-row-label { font-size: 11.5px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; padding-top: 1px; }
+.guest-row-value { font-size: 13.5px; font-weight: 600; color: var(--gray-900); text-align: right; }
+.guest-family-title { font-size: 11.5px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; margin: 16px 0 8px; }
+.guest-family-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.guest-family-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--green-bg); color: var(--green-700);
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; flex-shrink: 0; }
+.guest-family-name { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+.guest-family-meta { font-size: 11.5px; color: var(--gray-500); }
+</style>
 <script src="assets/icons.js?v=1785930089"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -263,7 +424,7 @@
     <div class="nav-group-items">
       <a class="nav-item active" href="index.html" onclick="event.preventDefault();closeSettings()"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -290,7 +451,7 @@
 <aside class="rail" id="rail">
   <div class="rail-item active" onclick="closeSettings()"><span data-icon="HOME"></span><span>Home</span></div>
   <div class="rail-item" onclick="openModule('calendario/')"><span data-icon="CALENDAR"></span><span>Cal.</span></div>
-  <div class="rail-item" onclick="openModule('alloggi/')"><span data-icon="ALLOGGI"></span><span>Alloggi</span></div>
+  <div class="rail-item" onclick="openModule('alloggi/')"><span data-icon="ALLOGGI"></span><span>Pulizie</span></div>
   <div class="rail-item" onclick="openModule('magazzino/')"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></div>
   <div class="rail-item" onclick="openModule('conti/')"><span data-icon="CONTI"></span><span>Conti</span></div>
   <div class="rail-item" onclick="openModule('ristorazione/staff.html')"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></div>
@@ -316,7 +477,7 @@
     <div class="nav-group-items">
       <a class="nav-item active" href="index.html" onclick="event.preventDefault();toggleDrawer(false);closeSettings()"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -356,6 +517,9 @@
       </div>
     </div>
     <div class="header-btns">
+      <button class="hbtn ghost icon" id="btn-scontrino-libero" onclick="openScontrinoLibero()" title="Scontrino libero">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>
+      </button>
       <button class="hbtn ghost icon" id="btn-search" onclick="toggleSearch()" title="Cerca">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
@@ -384,19 +548,20 @@
   <!-- ══ HOME ════════════════════════════════════════════════════════════════ -->
   <div id="sec-home" class="section active">
     <div class="page-head">
-      <svg class="page-head-motif" viewBox="0 0 400 180" fill="none" preserveAspectRatio="none">
-        <path d="M-10 85 Q100 35 200 80 T400 65" stroke="currentColor" stroke-width="4"/>
-        <path d="M-10 125 Q110 90 210 120 T400 105" stroke="currentColor" stroke-width="4"/>
-        <path d="M330 15 Q360 32 351 62 Q322 53 308 26 Q301 8 330 15Z" fill="currentColor"/>
-      </svg>
-      <div class="page-eyebrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
-        <span id="home-eyebrow"></span>
+      <div class="page-head-row">
+        <div>
+          <div class="page-eyebrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
+            <span id="home-eyebrow"></span>
+          </div>
+          <div class="page-title" id="home-title"></div>
+        </div>
+        <div id="home-toolbar" class="home-toolbar"></div>
       </div>
-      <div class="page-title" id="home-title"></div>
     </div>
+    <div id="report-presenti-slot"></div>
     <div id="kpi-strip" class="kpi-strip"></div>
-    <div id="module-list" class="module-grid"></div>
+    <div id="module-list"></div>
   </div>
 
   <!-- ══ IMPOSTAZIONI ════════════════════════════════════════════════════════ -->
@@ -447,9 +612,69 @@
     </div>
   </div>
 
+  <!-- ══ SCONTRINO LIBERO ═══════════════════════════════════════════════════ -->
+  <div id="sec-scontrino-libero" class="section">
+    <div class="back-header">
+      <button class="back-btn" onclick="closeScontrinoLibero()">&#8592;</button>
+      <div class="back-title">Scontrino libero</div>
+    </div>
+
+    <div class="card">
+      <h3>Voci</h3>
+      <p class="subtitle">Emetti uno scontrino fiscale reale senza legarlo a nessuna prenotazione o conto: aggiungi una o più voci libere, controlla il totale e fiscalizza.</p>
+      <div id="sl-righe-list"></div>
+      <button type="button" class="sl-add-btn" onclick="aggiungiVoceScontrinoLibero()">+ Aggiungi voce</button>
+    </div>
+
+    <div class="card">
+      <div class="sl-total-row">
+        <span>Totale conto</span>
+        <span id="sl-totale">€ 0,00</span>
+      </div>
+      <label class="sl-label">Metodo di pagamento</label>
+      <div class="sl-pay-options">
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="contanti" checked> Contanti</label>
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="carta_di_credito"> Carta</label>
+        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="bancomat"> Bancomat</label>
+      </div>
+      <button type="button" id="sl-fiscalizza-btn" class="sl-fiscalizza-btn" onclick="apriFiscalizzaScontrinoLibero()">Fiscalizza</button>
+    </div>
+  </div>
+
 </main>
 
 </div>
+</div>
+
+<!-- ══ RIORDINO CARD HOME ═══════════════════════════════════════════════════ -->
+<div id="reorder-overlay" class="reorder-overlay hidden" onclick="if(event.target===this) closeReorderPanel()">
+  <div class="reorder-panel">
+    <div class="reorder-panel-head">
+      <h3>Riordina la home</h3>
+      <p>Sposta le card con le frecce e scegli la dimensione di ogni modulo: piccola, media o grande.</p>
+    </div>
+    <div class="reorder-list" id="reorder-list"></div>
+    <div class="reorder-panel-foot">
+      <button class="reorder-cancel-btn" onclick="closeReorderPanel()">Annulla</button>
+      <button class="reorder-save-btn" onclick="saveReorderPanel()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCHEDA OSPITE (dalla ricerca in home) ═══════════════════════════════ -->
+<div id="guest-overlay" class="reorder-overlay hidden" onclick="if(event.target===this) closeGuestCard()">
+  <div class="reorder-panel guest-panel">
+    <div class="reorder-panel-head guest-panel-head">
+      <h3 id="guest-card-title"></h3>
+      <p id="guest-card-sub"></p>
+      <button class="guest-close-btn" onclick="closeGuestCard()" title="Chiudi">&times;</button>
+    </div>
+    <div class="guest-panel-body" id="guest-card-body"></div>
+    <div class="reorder-panel-foot">
+      <button class="reorder-cancel-btn" onclick="closeGuestCard()">Chiudi</button>
+      <button class="reorder-save-btn" id="guest-card-open-cal" onclick="">Apri in Calendario</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MODAL CONFIRM ══════════════════════════════════════════════════════════ -->
@@ -499,14 +724,14 @@ hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 const MODULES = [
   {
     id: 'alloggi',
-    nome: 'Gestione Alloggi',
-    titolo: 'Gestione alloggi',
+    nome: 'Gestione Pulizie',
+    titolo: 'Gestione pulizie',
     url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
     icon: ICON_BED,
     tile: 'green',
     statKey: 'alloggi',
     sezioni: [
-      { id: 'alloggi', nome: 'Alloggi' },
+      { id: 'alloggi', nome: 'Pulizie' },
     ],
   },
   {
@@ -630,10 +855,21 @@ function waitForFirebase() {
   });
 }
 
+// Crea gli operatori di default SOLO al primissimo avvio in assoluto. Un
+// flag persistente in 'meta/init' evita di riseminare Marco/Giulia/Luca/Sara
+// ogni volta che la lettura di 'operatori' risulta vuota per un motivo
+// transitorio (rete lenta, cache locale non ancora popolata, tab offline) —
+// prima il controllo si basava solo su "la collezione è vuota", che poteva
+// essere vero anche dopo che gli account fittizi erano stati cancellati
+// apposta, facendoli ricomparire da soli.
 async function ensureDefaultData() {
   await waitForFirebase();
-  const { db, collection, getDocs, setDoc, doc, query, limit } = window._fb;
+  const { db, collection, getDocs, getDoc, setDoc, doc, query, limit } = window._fb;
   try {
+    const initRef = doc(db, 'meta', 'init');
+    const initSnap = await getDoc(initRef);
+    if (initSnap.exists()) return;
+
     const snap = await getDocs(query(collection(db, 'operatori'), limit(1)));
     if (snap.empty) {
       const defaults = [
@@ -646,6 +882,7 @@ async function ensureDefaultData() {
         await setDoc(doc(db, 'operatori', d.nome), { nome: d.nome, ruolo: d.ruolo, pin: '' });
       }
     }
+    await setDoc(initRef, { seeded: true, at: Date.now() });
   } catch(e) { console.error('Errore init dati default:', e); }
 }
 
@@ -746,10 +983,19 @@ async function fsDeleteOperatore(nome) {
   const { db, doc, deleteDoc } = window._fb;
   await deleteDoc(doc(db, 'operatori', nome));
 }
-async function fsSetPermessi(nome, moduli) {
+async function fsSetPermessi(nome, moduli, report) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
-  await setDoc(doc(db, 'permessi', nome), { moduli });
+  await setDoc(doc(db, 'permessi', nome), { moduli, report });
+}
+
+// I report della home sono visibili di default finché l'admin non li
+// disattiva esplicitamente per quell'operatore (stesso criterio "assente =
+// consentito" già usato per le sezioni dei moduli in moduleAccessible).
+function reportVisibile(nome, key) {
+  if (isAdmin()) return true;
+  const r = (permessi[nome] && permessi[nome].report) || {};
+  return r[key] !== false;
 }
 async function fsDeletePermessi(nome) {
   await waitForFirebase();
@@ -805,9 +1051,33 @@ async function startHomeStatsSync() {
     onSnapshot(collection(db, 'alloggi'), (snap) => {
       const alloggi = snap.docs.map(d => d.data());
       const occupati = alloggi.filter(a => a.stato === 'occupata').length;
-      homeStats.alloggi = { occupati, totale: alloggi.length };
+      const daPulire = alloggi.filter(a => a.stato === 'da_pulire' || a.stato === 'checkout_ok').length;
+      homeStats.alloggi = { occupati, totale: alloggi.length, daPulire };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche alloggi:', err));
+
+    // ── Prenotazioni (Calendario): arrivi/partenze/presenti oggi + compleanni,
+    //    per il blocco "Presenti in struttura + ricerca" della home ──
+    onSnapshot(collection(db, 'prenotazioni'), (snap) => {
+      prenotazioniList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const oggi = new Date().toISOString().slice(0, 10);
+      const oggiMese = oggi.slice(5); // "MM-DD"
+      let arrivi = 0, partenze = 0, headcount = 0, compleanni = 0;
+      prenotazioniList.forEach(p => {
+        if (p.checkin === oggi) arrivi++;
+        if (p.checkout === oggi) partenze++;
+        const inCasa = p.checkin && p.checkout && p.checkin <= oggi && oggi < p.checkout;
+        if (inCasa) {
+          headcount += (p.adulti || 0) + (p.bambini || 0);
+          (p.ospiti || []).forEach(o => {
+            if (o.data_nascita && o.data_nascita.slice(5) === oggiMese) compleanni++;
+          });
+        }
+      });
+      homeStats.presenti = { headcount, arrivi, partenze };
+      homeStats.oggiStruttura = { arrivi, partenze, compleanni };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche prenotazioni:', err));
 
     onSnapshot(collection(db, 'bici'), (snap) => {
       const bici = snap.docs.map(d => d.data());
@@ -940,6 +1210,7 @@ function initLogin() {
         document.getElementById('login-screen').classList.add('hidden');
         applyHeader();
         renderHome();
+        syncHomeLayout(currentOperatore);
         hideLoadingScreen();
         return;
       }
@@ -1050,6 +1321,7 @@ function loginSuccess(op) {
   document.getElementById('login-screen').classList.add('hidden');
   applyHeader();
   renderHome();
+  syncHomeLayout(currentOperatore);
   showToast('Benvenuto, ' + op + '!');
   maybeOpenDeepLink();
 }
@@ -1057,6 +1329,8 @@ function loginSuccess(op) {
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire da ' + (currentOperatore || '') + '?', 'Esci', 'var(--red)', () => {
     currentOperatore = null; currentRuolo = null;
+    homeLayoutOrder = null; homeSizes = {};
+    if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
     sessionStorage.removeItem('gr_session');
     sessionStorage.removeItem('gr_permessi');
     pinBuffer = ''; loginTargetOp = null;
@@ -1122,6 +1396,287 @@ function moduleAccessible(mod) {
   return mod.sezioni.some(s => !sez || sez[s.id] !== false);
 }
 
+// ── REPORT HOME: "Presenti in struttura + ricerca" e "Oggi in struttura" ───
+const REPORT_DEFS = [
+  { id: 'report-presenti',      permKey: 'presenti' },
+  { id: 'report-oggiStruttura', permKey: 'oggiStruttura' },
+];
+
+function initiali(nome) {
+  const parti = (nome || '').trim().split(/\s+/);
+  return ((parti[0]||'')[0] || '') + ((parti[1]||'')[0] || '');
+}
+
+// Stessa logica di ricerca già usata in Calendario (cercaPrenotazioni /
+// ospiteFamigliaCorrispondente): nome/cognome della prenotazione, familiari
+// censiti in Alloggiati Web, targa — qui in sola lettura, il click apre una
+// scheda riassuntiva locale (v. apriSchedaOspite) senza lasciare la home.
+function ospiteFamigliaCorrispondenteHome(p, q) {
+  return (p.ospiti || []).find(o => `${o.nome||''} ${o.cognome||''}`.trim().toLowerCase().includes(q));
+}
+function cercaOspitiHome() {
+  const input = document.getElementById('gr-search-input');
+  const resultsEl = document.getElementById('gr-search-results');
+  if (!input || !resultsEl) return;
+  const q = input.value.trim().toLowerCase();
+  if (!q) { resultsEl.innerHTML = `<div class="gr-search-hint">Cerca per nome/cognome prenotazione, ospiti o targa…</div>`; return; }
+  const match = prenotazioniList.filter(p =>
+    (p.nome||'').toLowerCase().includes(q) ||
+    (p.targa||'').toLowerCase().includes(q) ||
+    ospiteFamigliaCorrispondenteHome(p, q)
+  ).slice(0, 6);
+  resultsEl.innerHTML = match.length ? match.map(p => `
+    <div class="gr-result-row" onclick="apriSchedaOspite('${p.id}')">
+      <div class="gr-result-avatar">${esc(initiali(p.nome).toUpperCase())}</div>
+      <div class="gr-result-info">
+        <div class="gr-result-name">${esc(p.nome||'—')}</div>
+        <div class="gr-result-meta">${esc(p.alloggio_nome||'')}${p.targa?' · '+esc(p.targa):''}</div>
+      </div>
+      <div class="gr-result-stay">${esc(fmtDataBreve(p.checkin))} → ${esc(fmtDataBreve(p.checkout))}</div>
+    </div>`).join('') : `<div class="gr-result-empty">Nessuna prenotazione trovata</div>`;
+}
+function fmtDataBreve(iso) {
+  if (!iso) return '—';
+  const [, m, d] = iso.split('-');
+  return `${d}/${m}`;
+}
+function esc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function calcNotti(checkin, checkout) {
+  if (!checkin || !checkout) return null;
+  return Math.round((new Date(checkout+'T12:00:00') - new Date(checkin+'T12:00:00')) / 86400000);
+}
+function fmtDataItBreve(iso) {
+  if (!iso) return '—';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function etaDa(dataNascita) {
+  if (!dataNascita) return null;
+  const oggi = new Date();
+  const dn = new Date(dataNascita+'T00:00:00');
+  if (isNaN(dn)) return null;
+  let eta = oggi.getFullYear() - dn.getFullYear();
+  const primaCompleanno = (oggi.getMonth() < dn.getMonth()) || (oggi.getMonth() === dn.getMonth() && oggi.getDate() < dn.getDate());
+  if (primaCompleanno) eta--;
+  return eta;
+}
+
+// Scheda riassuntiva locale — usa i dati già sincronizzati in prenotazioniList
+// (nessuna nuova lettura Firestore), sola lettura. "Apri in Calendario" resta
+// disponibile per chi deve davvero modificare la prenotazione.
+function apriSchedaOspite(id) {
+  const p = prenotazioniList.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('guest-card-title').textContent = p.nome || '—';
+  document.getElementById('guest-card-sub').textContent = p.alloggio_nome || '';
+
+  const notti = calcNotti(p.checkin, p.checkout);
+  const totOspiti = (p.adulti || 0) + (p.bambini || 0);
+  const rows = [
+    ['Check-in', fmtDataItBreve(p.checkin)],
+    ['Check-out', fmtDataItBreve(p.checkout) + (notti != null ? ` · ${notti} nott${notti === 1 ? 'e' : 'i'}` : '')],
+    ['Alloggio', p.alloggio_nome || '—'],
+    ['Ospiti', totOspiti ? `${totOspiti} totali (${p.adulti || 0} adulti${p.bambini ? ', ' + p.bambini + ' bambini' : ''})` : '—'],
+    ['Telefono', p.tel || '—'],
+    ['Targa', p.targa || '—'],
+    ['Provenienza', p.provenienza || '—'],
+  ];
+  let html = rows.map(([l, v]) => `<div class="guest-row"><div class="guest-row-label">${esc(l)}</div><div class="guest-row-value">${esc(v)}</div></div>`).join('');
+
+  if ((p.ospiti || []).length) {
+    html += `<div class="guest-family-title">Ospiti in prenotazione (${p.ospiti.length})</div>` + p.ospiti.map(o => {
+      const nome = `${o.nome || ''} ${o.cognome || ''}`.trim() || '—';
+      const eta = etaDa(o.data_nascita);
+      return `<div class="guest-family-row">
+        <div class="guest-family-avatar">${esc(initiali(nome).toUpperCase())}</div>
+        <div>
+          <div class="guest-family-name">${esc(nome)}${o.capofamiglia ? ' · capofamiglia' : ''}</div>
+          ${eta != null ? `<div class="guest-family-meta">${eta} anni</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('guest-card-body').innerHTML = html;
+  document.getElementById('guest-card-open-cal').onclick = () => { location.href = 'calendario/?apri=' + encodeURIComponent(id); };
+  document.getElementById('guest-overlay').classList.remove('hidden');
+}
+function closeGuestCard() {
+  document.getElementById('guest-overlay').classList.add('hidden');
+}
+
+function renderReportPresenti() {
+  const pr = homeStats.presenti;
+  const al = homeStats.alloggi;
+  const loading = !pr || !al;
+  const pct = (al && al.totale) ? Math.round(al.occupati / al.totale * 100) : 0;
+  const circ = 2 * Math.PI * 27;
+  const offset = circ * (1 - pct / 100);
+  return `
+  <div class="gr-hero" data-item-id="report-presenti">
+    <div class="gr-count">
+      <svg class="gr-ring" width="60" height="60" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="27" fill="none" stroke="var(--green-100)" stroke-width="6"/>
+        <circle cx="30" cy="30" r="27" fill="none" stroke="var(--green-500)" stroke-width="6"
+          stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"/>
+        <text x="30" y="35" font-size="14" text-anchor="middle">${pct}%</text>
+      </svg>
+      <div>
+        <div class="gr-count-num">${loading ? '…' : (pr.headcount||0) + ' ospiti'}</div>
+        <div class="gr-count-lbl">${loading ? 'Caricamento…' : `in ${al.occupati} alloggi occupati su ${al.totale}`}</div>
+      </div>
+    </div>
+    <div class="gr-search-side">
+      <div class="gr-search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" id="gr-search-input" placeholder="Nome, ospite o targa…" oninput="cercaOspitiHome()" onclick="event.stopPropagation()">
+      </div>
+      <div class="gr-search-results" id="gr-search-results">
+        <div class="gr-search-hint">Cerca per nome/cognome prenotazione, ospiti o targa…</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderReportOggi() {
+  const os = homeStats.oggiStruttura;
+  const al = homeStats.alloggi;
+  const man = homeStats.manutenzione;
+  const loading = !os || !al || !man;
+  const seg = (val, lbl, dot, url) => `<div class="gr-seg" onclick="openModule('${url}')"><span class="gr-seg-dot gr-dot-${dot}"></span><div class="gr-seg-num">${loading ? '—' : val}</div><div class="gr-seg-lbl">${lbl}</div></div>`;
+  return `
+  <div class="gr-seg-bar" data-item-id="report-oggiStruttura">
+    ${seg(loading?0:os.arrivi, 'Arrivi', 'green', 'calendario/')}
+    ${seg(loading?0:os.partenze, 'Partenze', 'gray', 'calendario/')}
+    ${seg(loading?0:al.daPulire, 'Da pulire', 'orange', 'alloggi/')}
+    ${seg(loading?0:man.aperti, 'Ticket', 'orange', 'manutenzione/')}
+    ${seg(loading?0:os.compleanni, 'Compleanni', 'gray', 'calendario/')}
+  </div>`;
+}
+
+// ── RIORDINO CARD HOME (moduli + report), personalizzato per operatore ─────
+// Ordine: ricerca ospiti per prima, poi i moduli, poi la barra "oggi in
+// struttura" in fondo. Il riordino avviene in un pannello a elenco
+// (non trascinando le card vere in griglia — con tile di grandezze diverse
+// il drag dal vivo si inceppava e un tap sbagliato apriva il modulo sotto).
+let homeLayoutOrder = null; // null = non ancora arrivato da Firestore → si usa l'ordine di default
+let homeSizes = {};         // { [moduleId]: 'small'|'medium'|'large' } — solo i moduli, non i blocchi report
+let _homeLayoutUnsub = null;
+let _reorderDraftOrder = [];
+let _reorderDraftSizes = {};
+
+const SIZE_LABELS = { small: 'S', medium: 'M', large: 'L' };
+
+// "Presenti in struttura + ricerca" ha una posizione fissa (sempre subito
+// sotto il titolo, prima della striscia KPI) e non fa più parte del set
+// riordinabile: qui restano solo la barra "oggi in struttura" e i moduli.
+function defaultHomeOrder() {
+  return ['report-oggiStruttura', ...MODULES.map(m => m.id)];
+}
+function resolvedHomeOrder() {
+  const def = defaultHomeOrder();
+  if (!homeLayoutOrder || !homeLayoutOrder.length) return def;
+  const kept = homeLayoutOrder.filter(id => def.includes(id));
+  const missing = def.filter(id => !kept.includes(id));
+  return [...kept, ...missing];
+}
+// Default storico: il primo modulo (Alloggi) grande, il resto piccolo —
+// il più vicino possibile a come si presentava la griglia originale.
+function defaultSize(id) {
+  return id === MODULES[0].id ? 'large' : 'small';
+}
+function resolvedSize(id) {
+  return homeSizes[id] || defaultSize(id);
+}
+
+async function syncHomeLayout(nome) {
+  await waitForFirebase();
+  if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
+  if (!nome) return;
+  const { db, doc, onSnapshot } = window._fb;
+  _homeLayoutUnsub = onSnapshot(doc(db, 'home_layout', nome), (snap) => {
+    const data = snap.exists() ? snap.data() : {};
+    homeLayoutOrder = data.order || null;
+    homeSizes = data.sizes || {};
+    renderHome();
+  }, (err) => console.error('Errore lettura layout home:', err));
+}
+async function saveHomeLayoutOrder(order, sizes) {
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'home_layout', currentOperatore), { order, sizes });
+  } catch(e) { console.error('Errore salvataggio layout home:', e); showToast('Errore salvataggio ordine home'); }
+}
+
+function reorderRowLabel(id) {
+  const mod = MODULES.find(m => m.id === id);
+  if (mod) return { title: mod.titolo || mod.nome, sub: '', icon: mod.icon, resizable: true };
+  if (id === 'report-oggiStruttura') return { title: 'Oggi in struttura', sub: 'Arrivi, partenze, ticket…', icon: ICONS.CALENDAR, resizable: false };
+  return { title: id, sub: '', icon: '', resizable: false };
+}
+
+function openReorderPanel() {
+  const visibleIds = new Set(resolvedHomeOrder().filter(id => {
+    const mod = MODULES.find(m => m.id === id);
+    if (mod) return moduleAccessible(mod);
+    const rep = REPORT_DEFS.find(r => r.id === id);
+    return rep ? reportVisibile(currentOperatore, rep.permKey) : false;
+  }));
+  _reorderDraftOrder = resolvedHomeOrder().filter(id => visibleIds.has(id));
+  _reorderDraftSizes = {};
+  MODULES.forEach(m => { _reorderDraftSizes[m.id] = resolvedSize(m.id); });
+  document.getElementById('reorder-overlay').classList.remove('hidden');
+  renderReorderList();
+}
+function closeReorderPanel() {
+  document.getElementById('reorder-overlay').classList.add('hidden');
+}
+function renderReorderList() {
+  const wrap = document.getElementById('reorder-list');
+  wrap.innerHTML = _reorderDraftOrder.map((id, i) => {
+    const { title, sub, icon, resizable } = reorderRowLabel(id);
+    const curSize = _reorderDraftSizes[id];
+    return `
+    <div class="reorder-row">
+      <div class="reorder-row-icon">${icon}</div>
+      <div class="reorder-row-title">${title}${sub ? `<small>${sub}</small>` : ''}</div>
+      ${resizable ? `
+      <div class="reorder-size-group">
+        ${['small','medium','large'].map(sz => `
+          <button class="reorder-size-btn${curSize===sz?' active':''}" title="${sz==='small'?'Piccola':sz==='medium'?'Media':'Grande'}" onclick="setDraftSize('${id}','${sz}')">${SIZE_LABELS[sz]}</button>
+        `).join('')}
+      </div>` : ''}
+      <div class="reorder-move-btns">
+        <button class="reorder-move-btn" ${i===0?'disabled':''} onclick="moveDraftItem('${id}',-1)" title="Sposta su">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <button class="reorder-move-btn" ${i===_reorderDraftOrder.length-1?'disabled':''} onclick="moveDraftItem('${id}',1)" title="Sposta giù">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function moveDraftItem(id, dir) {
+  const i = _reorderDraftOrder.indexOf(id);
+  const j = i + dir;
+  if (i === -1 || j < 0 || j >= _reorderDraftOrder.length) return;
+  [_reorderDraftOrder[i], _reorderDraftOrder[j]] = [_reorderDraftOrder[j], _reorderDraftOrder[i]];
+  renderReorderList();
+}
+function setDraftSize(id, size) {
+  _reorderDraftSizes[id] = size;
+  renderReorderList();
+}
+function saveReorderPanel() {
+  homeLayoutOrder = _reorderDraftOrder.slice();
+  homeSizes = { ..._reorderDraftSizes };
+  closeReorderPanel();
+  renderHome();
+  saveHomeLayoutOrder(homeLayoutOrder, homeSizes);
+}
+
 let _searchOpen = false;
 function toggleSearch() {
   _searchOpen = !_searchOpen;
@@ -1149,7 +1704,8 @@ function clearSearch() {
 // Calcolate dai dati reali delle altre app (lette in sola lettura dalle
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
-let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null };
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null, presenti: null, oggiStruttura: null };
+let prenotazioniList = []; // sola lettura da 'prenotazioni' (Calendario) — per il blocco "Presenti + ricerca" in home
 
 function statoModulo(mod) {
   if (!mod.statKey) return { sub: '', badge: null };
@@ -1204,95 +1760,158 @@ function renderKpiStrip() {
     icon: ICONS.ALLOGGI, tile: 'sage', label: 'Alloggi occupati',
     value: al.occupati, small: ` / ${al.totale}`,
     pct: al.totale ? Math.round(al.occupati / al.totale * 100) : 0,
+    url: 'alloggi/',
   });
   const man = homeStats.manutenzione;
   if (man) rows.push({
     icon: ICONS.MANUTENZIONE, tile: 'amber', label: 'Ticket manutenzione',
     value: man.aperti, small: man.aperti === 1 ? ' aperto' : ' aperti',
     pct: man.aperti > 0 ? Math.min(100, man.aperti * 20) : 4,
+    url: 'manutenzione/',
   });
   const ri = homeStats.ristorazione;
   if (ri) rows.push({
     icon: ICONS.RISTORAZIONE, tile: 'sage', label: 'Ordini ristorazione',
     value: ri.ordiniOggi, small: ' oggi',
     pct: ri.ordiniOggi > 0 ? Math.min(100, ri.ordiniOggi * 8) : 4,
+    url: 'ristorazione/staff.html',
   });
   const bi = homeStats.bici;
   if (bi) rows.push({
     icon: ICONS.BICI, tile: 'amber', label: 'Bici in uso',
     value: bi.occupate, small: ` / ${bi.totale}`,
     pct: bi.totale ? Math.round(bi.occupate / bi.totale * 100) : 0,
+    url: 'bici/',
   });
   if (!rows.length) { wrap.innerHTML = ''; return; }
   const accent = t => t === 'amber' ? 'var(--terracotta)' : 'var(--green-700)';
   wrap.innerHTML = rows.map(r => `
-    <div class="kpi-chip">
+    <div class="kpi-chip" onclick="openModule('${r.url}')">
       <div class="kpi-icon" style="background:var(--tile-${r.tile}-bg);color:${accent(r.tile)}">${r.icon}</div>
       <div><div class="kpi-label">${r.label}</div><div class="kpi-value">${r.value}<small>${r.small}</small></div></div>
       <div class="kpi-bar"><i style="width:${r.pct}%;background:${accent(r.tile)}"></i></div>
     </div>`).join('');
 }
 
+// Disegna un singolo tile modulo (usato dentro un chunk .module-grid).
+function renderModuleTile(m, size) {
+  const { sub, badge } = statoModulo(m);
+  const tileClass = size === 'small' ? '' : ` size-${size}`;
+  // L'anello di progresso compare solo su Alloggi in dimensione grande —
+  // l'unico modulo con una percentuale (occupazione) che ha senso mostrare
+  // in un anello, e solo quando la card è abbastanza grande da contenerlo.
+  const al = homeStats.alloggi;
+  const showRing = size === 'large' && m.statKey === 'alloggi' && al && al.totale > 0;
+  const body = showRing ? (() => {
+    const pct = Math.round(al.occupati / al.totale * 100);
+    const circ = 2 * Math.PI * 42;
+    const offset = circ * (1 - pct / 100);
+    return `
+    <div class="hero-row">
+      <div>
+        <div class="module-title">${m.titolo || m.nome}</div>
+        ${sub ? `<div class="module-sub">${sub}</div>` : ''}
+      </div>
+      <div class="hero-ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="9"/>
+          <circle cx="50" cy="50" r="42" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 50 50)"/>
+          <text x="50" y="56" text-anchor="middle" font-size="24">${pct}%</text>
+        </svg>
+      </div>
+    </div>`;
+  })() : `
+    <div>
+      <div class="module-title">${m.titolo || m.nome}</div>
+      ${sub ? `<div class="module-sub">${sub}</div>` : ''}
+    </div>`;
+  return `
+  <div class="module-tile tile-${m.tile}${tileClass}" onclick="openModule('${m.url}')">
+    ${badge ? `<span class="module-badge">${badge}</span>` : ''}
+    <div class="module-icon-chip">${m.icon}</div>
+    ${body}
+  </div>`;
+}
+
+// Disegna un blocco consecutivo di moduli come griglia bento: ogni card ha
+// la propria dimensione (piccola/media/grande) scelta nel pannello di
+// riordino, e la griglia "dense" (v. CSS) impacchetta da sola i tile
+// piccoli negli spazi lasciati da quelli medi/grandi — nessun calcolo
+// manuale di incastro necessario qui.
+function renderModuleChunk(mods) {
+  const tiles = mods.map(m => renderModuleTile(m, resolvedSize(m.id))).join('');
+  return `<div class="module-grid">${tiles}</div>`;
+}
+
 function renderHome() {
+  // Preserva testo/focus della ricerca ospiti: renderHome() viene richiamata
+  // spesso (ogni aggiornamento di homeStats), e riscrivendo l'innerHTML
+  // perderemmo quello che l'operatore sta digitando nel box di ricerca.
+  const prevSearchInput = document.getElementById('gr-search-input');
+  const prevSearchVal = prevSearchInput ? prevSearchInput.value : '';
+  const prevSearchFocused = prevSearchInput && document.activeElement === prevSearchInput;
+  const prevSelStart = prevSearchFocused ? prevSearchInput.selectionStart : null;
+
+  // "Presenti + ricerca" ha posizione fissa, subito sotto il titolo — non
+  // passa dal pannello di riordino.
+  const presentiSlot = document.getElementById('report-presenti-slot');
+  presentiSlot.innerHTML = (currentOperatore && reportVisibile(currentOperatore, 'presenti')) ? renderReportPresenti() : '';
+  if (prevSearchVal) {
+    const newInput = document.getElementById('gr-search-input');
+    if (newInput) {
+      newInput.value = prevSearchVal;
+      cercaOspitiHome();
+      if (prevSearchFocused) { newInput.focus(); newInput.setSelectionRange(prevSelStart, prevSelStart); }
+    }
+  }
+
   renderKpiStrip();
+  renderReorderToggle();
+
   const q = (document.getElementById('search-input').value || '').toLowerCase();
-  const list = MODULES.filter(m => m.nome.toLowerCase().includes(q) && moduleAccessible(m));
+  const searching = !!q;
+  const modList = MODULES.filter(m => m.nome.toLowerCase().includes(q) && moduleAccessible(m));
+  const showOggiBar = !searching && currentOperatore && reportVisibile(currentOperatore, 'oggiStruttura');
   const wrap = document.getElementById('module-list');
-  if (!list.length) {
+
+  if (!modList.length && !showOggiBar) {
     wrap.innerHTML = `<div class="module-empty">${
       q ? 'Nessuna funzione corrisponde alla ricerca.'
         : "Nessuna funzione disponibile per il tuo profilo.<br>Chiedi all'amministratore di abilitarti dalla Hub."
     }</div>`;
     return;
   }
-  // La prima tessera è "in evidenza" (alta, doppia riga) solo quando ci sono
-  // almeno 3 moduli visibili. Le successive riempiono la colonna a fianco a
-  // due a due; se alla fine resta un modulo da solo in una nuova riga, gli
-  // diamo larghezza piena (classe "solo") così non lascia un buco vuoto.
-  const hasFeature = list.length >= 3;
-  const subsequentCount = list.length - 3; // moduli dopo i primi due accanto alla tessera alta
-  const lastIsLonely = hasFeature && subsequentCount > 0 && subsequentCount % 2 === 1;
-  wrap.innerHTML = list.map((m, idx) => {
-    let tileClass = '';
-    if (hasFeature && idx === 0) tileClass = ' feature';
-    else if (!hasFeature && list.length === 1) tileClass = ' solo';
-    else if (lastIsLonely && idx === list.length - 1) tileClass = ' solo';
-    const { sub, badge } = statoModulo(m);
-    // La tessera in evidenza mostra l'anello di progresso solo per Alloggi,
-    // l'unico modulo con una percentuale (occupazione) che ha senso in un
-    // anello — per gli altri resta il testo normale sotto il titolo.
-    const al = homeStats.alloggi;
-    const showRing = tileClass === ' feature' && m.statKey === 'alloggi' && al && al.totale > 0;
-    const body = showRing ? (() => {
-      const pct = Math.round(al.occupati / al.totale * 100);
-      const circ = 2 * Math.PI * 42;
-      const offset = circ * (1 - pct / 100);
-      return `
-      <div class="hero-row">
-        <div>
-          <div class="module-title">${m.titolo || m.nome}</div>
-          ${sub ? `<div class="module-sub">${sub}</div>` : ''}
-        </div>
-        <div class="hero-ring">
-          <svg viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="9"/>
-            <circle cx="50" cy="50" r="42" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 50 50)"/>
-            <text x="50" y="56" text-anchor="middle" font-size="24">${pct}%</text>
-          </svg>
-        </div>
-      </div>`;
-    })() : `
-      <div>
-        <div class="module-title">${m.titolo || m.nome}</div>
-        ${sub ? `<div class="module-sub">${sub}</div>` : ''}
-      </div>`;
-    return `
-    <div class="module-tile tile-${m.tile}${tileClass}" onclick="openModule('${m.url}')">
-      ${badge ? `<span class="module-badge">${badge}</span>` : ''}
-      <div class="module-icon-chip">${m.icon}</div>
-      ${body}
-    </div>`;
-  }).join('');
+
+  const modIds = new Set(modList.map(m => m.id));
+  const items = resolvedHomeOrder()
+    .map(id => modIds.has(id) ? { type: 'module', id }
+             : (id === 'report-oggiStruttura' && showOggiBar) ? { type: 'report', id }
+             : null)
+    .filter(Boolean);
+
+  // Raggruppa le sequenze consecutive di moduli in un unico blocco griglia;
+  // la barra "oggi in struttura" resta a sé, a piena larghezza naturale.
+  const html = [];
+  let runMods = [];
+  const flushRun = () => {
+    if (runMods.length) { html.push(renderModuleChunk(runMods)); runMods = []; }
+  };
+  items.forEach(it => {
+    if (it.type === 'module') { runMods.push(MODULES.find(m => m.id === it.id)); return; }
+    flushRun();
+    html.push(renderReportOggi());
+  });
+  flushRun();
+  wrap.innerHTML = html.join('');
+}
+
+function renderReorderToggle() {
+  const bar = document.getElementById('home-toolbar');
+  if (!bar) return;
+  bar.innerHTML = `<button class="reorder-toggle-btn" onclick="openReorderPanel()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+    Riordina
+  </button>`;
 }
 
 function openModule(url) { location.href = url; }
@@ -1332,6 +1951,118 @@ function closeNotifiche() {
   document.getElementById('sec-notifiche').classList.remove('active');
   document.getElementById('sec-home').classList.add('active');
   renderHome();
+}
+
+// ── SCONTRINO LIBERO — scontrino fiscale reale svincolato da prenotazioni o
+//    conti, per vendite estemporanee (es. al banco). Passa dallo stesso proxy
+//    locale ItalRetail (v. calendario/index.html per la stessa logica) —
+//    IP/porta/timeout della cassa sono già configurati lì, il proxy è unico
+//    per tutta la postazione. ─────────────────────────────────────────────
+let scontrinoLibero = [];
+
+function nuovaVoceScontrinoLibero() { return { label: '', importo: null }; }
+
+function openScontrinoLibero() {
+  scontrinoLibero = [nuovaVoceScontrinoLibero()];
+  const radio = document.querySelector('input[name="sl-pagamento"][value="contanti"]');
+  if (radio) radio.checked = true;
+  document.getElementById('sec-home').classList.remove('active');
+  document.getElementById('sec-scontrino-libero').classList.add('active');
+  renderScontrinoLibero();
+}
+function closeScontrinoLibero() {
+  document.getElementById('sec-scontrino-libero').classList.remove('active');
+  document.getElementById('sec-home').classList.add('active');
+  renderHome();
+}
+
+function renderScontrinoLibero() {
+  const wrap = document.getElementById('sl-righe-list');
+  wrap.innerHTML = scontrinoLibero.map((r, i) => `
+    <div class="sl-riga">
+      <input class="sl-riga-label" type="text" placeholder="Descrizione voce…" value="${escHtml(r.label)}" oninput="aggiornaVoceScontrinoLibero(${i},'label',this.value)">
+      <input class="sl-riga-importo" type="number" step="0.01" min="0" placeholder="0,00" value="${r.importo === null ? '' : r.importo}" oninput="aggiornaVoceScontrinoLibero(${i},'importo',this.value)">
+      <button type="button" class="sl-riga-remove" title="Rimuovi voce" onclick="rimuoviVoceScontrinoLibero(${i})">&times;</button>
+    </div>`).join('');
+  aggiornaTotaleScontrinoLibero();
+}
+function aggiungiVoceScontrinoLibero() {
+  scontrinoLibero.push(nuovaVoceScontrinoLibero());
+  renderScontrinoLibero();
+}
+function rimuoviVoceScontrinoLibero(i) {
+  scontrinoLibero.splice(i, 1);
+  if (!scontrinoLibero.length) scontrinoLibero.push(nuovaVoceScontrinoLibero());
+  renderScontrinoLibero();
+}
+function aggiornaVoceScontrinoLibero(i, campo, valore) {
+  if (!scontrinoLibero[i]) return;
+  scontrinoLibero[i][campo] = campo === 'importo' ? (valore === '' ? null : parseFloat(valore)) : valore;
+  aggiornaTotaleScontrinoLibero();
+}
+function totaleScontrinoLibero() {
+  return scontrinoLibero.reduce((s, r) => s + (Number(r.importo) > 0 ? Number(r.importo) : 0), 0);
+}
+function aggiornaTotaleScontrinoLibero() {
+  const totale = totaleScontrinoLibero();
+  document.getElementById('sl-totale').textContent = '€ ' + totale.toFixed(2).replace('.', ',');
+  document.getElementById('sl-fiscalizza-btn').disabled = totale <= 0;
+}
+
+function apriFiscalizzaScontrinoLibero() {
+  const righe = scontrinoLibero.filter(r => r.label.trim() && Number(r.importo) > 0);
+  if (!righe.length) { showToast('Aggiungi almeno una voce con descrizione e importo'); return; }
+  const sel = document.querySelector('input[name="sl-pagamento"]:checked');
+  const metodoPagamento = sel ? sel.value : 'contanti';
+  const metodoLabel = { contanti: 'Contanti', carta_di_credito: 'Carta di credito', bancomat: 'Bancomat' }[metodoPagamento];
+  const totale = righe.reduce((s, r) => s + Number(r.importo), 0);
+  showModal(
+    'Conferma emissione documento fiscale',
+    `Stai per emettere un documento fiscale REALE da € ${totale.toFixed(2).replace('.', ',')} (${metodoLabel}) sul registratore telematico. Una volta emesso entra nella memoria fiscale della cassa e non è annullabile con un semplice "indietro". Procedere?`,
+    'Fiscalizza',
+    'var(--green-700)',
+    () => eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento)
+  );
+}
+
+async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
+  const righePayload = righe.map(r => ({
+    categoria: 'bar',
+    descrizione: r.label.trim(),
+    prezzo_eur: Number(r.importo),
+    quantita: 1,
+  }));
+
+  // Interruttore di test, v. nota gemella in calendario/index.html.
+  const dryRun = localStorage.getItem('italretail_dry_run') === '1';
+
+  showToast(dryRun ? '[TEST] Simulazione in corso…' : 'Emissione documento fiscale in corso…');
+  let data;
+  try {
+    const res = await fetch('https://localhost:8766/scontrino', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun }),
+    });
+    data = await res.json();
+  } catch (e) {
+    showToast('Errore di connessione al proxy ItalRetail: ' + e.message);
+    return;
+  }
+  if (!data.ok) { showToast('Errore fiscalizzazione: ' + (data.errore || 'sconosciuto')); return; }
+
+  if (dryRun) {
+    console.log('[italretail dry-run] dettagli:', data.dettagli);
+    showToast('[TEST] Simulazione OK — nessun dato inviato alla cassa');
+    return;
+  }
+
+  showToast('Documento fiscale emesso');
+  closeScontrinoLibero();
+}
+
+function escHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function aggiornaStatoNotifiche() {
@@ -1497,6 +2228,7 @@ function renderPermessiForm(nome) {
     return;
   }
   const userModuli = (permessi[nome] && permessi[nome].moduli) || {};
+  const userReport = (permessi[nome] && permessi[nome].report) || {};
   wrap.innerHTML = MODULES.map(mod => {
     const sez = (userModuli[mod.id] && userModuli[mod.id].sezioni) || {};
     return `<div class="perm-module">
@@ -1506,7 +2238,13 @@ function renderPermessiForm(nome) {
         return `<label class="perm-row"><input type="checkbox" id="perm-${mod.id}-${s.id}" ${checked?'checked':''}> ${s.nome}</label>`;
       }).join('')}
     </div>`;
-  }).join('') + `<button class="btn-primary" onclick="savePermessi('${nome}')">Salva permessi di ${nome}</button>`;
+  }).join('') + `
+    <div class="perm-module">
+      <div class="perm-module-title">Report home</div>
+      <label class="perm-row"><input type="checkbox" id="perm-report-presenti" ${userReport.presenti!==false?'checked':''}> Presenti in struttura + ricerca</label>
+      <label class="perm-row"><input type="checkbox" id="perm-report-oggiStruttura" ${userReport.oggiStruttura!==false?'checked':''}> Oggi in struttura</label>
+    </div>`
+    + `<button class="btn-primary" onclick="savePermessi('${nome}')">Salva permessi di ${nome}</button>`;
 }
 
 async function savePermessi(nome) {
@@ -1516,7 +2254,11 @@ async function savePermessi(nome) {
     mod.sezioni.forEach(s => { sezioni[s.id] = document.getElementById(`perm-${mod.id}-${s.id}`).checked; });
     moduli[mod.id] = { sezioni };
   });
-  try { await fsSetPermessi(nome, moduli); showToast('Permessi salvati per ' + nome); }
+  const report = {
+    presenti:      document.getElementById('perm-report-presenti').checked,
+    oggiStruttura: document.getElementById('perm-report-oggiStruttura').checked,
+  };
+  try { await fsSetPermessi(nome, moduli, report); showToast('Permessi salvati per ' + nome); }
   catch(e) { showToast('Errore salvataggio permessi'); }
 }
 
@@ -1597,6 +2339,7 @@ async function start() {
         currentRuolo = parsed.ruolo;
         applyHeader();
         renderHome();
+        syncHomeLayout(currentOperatore);
         hideLoadingScreen();
       }
     } catch(e) { /* sessione corrotta, procede con login normale */ }

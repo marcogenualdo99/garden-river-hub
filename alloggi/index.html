@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Gestione Alloggi · Garden River</title>
+<title>Pulizie · Garden River</title>
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/theme.css?v=1786056020">
+<link rel="stylesheet" href="../assets/theme.css?v=1786535809">
 <script src="../assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Alloggi">
+<meta name="apple-mobile-web-app-title" content="Pulizie">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- Firebase SDK -->
 <script type="module">
@@ -55,109 +55,107 @@
   setTimeout(segnalaPronto, 8000);
 </script>
 <style>
-:root {
-  --green-900: #0D2B1E;
-  --green-700: #1B4332;
-  --green-500: #2D6A4F;
-  --green-400: #40916C;
-  --green-200: #95D5B2;
-  --green-100: #D8F3DC;
-  --green-50:  #F0FAF4;
-  --gray-900:  #111827;
-  --gray-700:  #374151;
-  --gray-500:  #6B7280;
-  --gray-400:  #9CA3AF;
-  --gray-300:  #D1D5DB;
-  --gray-100:  #F3F4F6;
-  --gray-50:   #F9FAFB;
-  --white:     #FFFFFF;
-  --orange:    #E07B00;
-  --orange-bg: #FFF8F0;
-  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
-  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
-  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
-  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
-  --radius-sm: 12px;
-  --radius:    16px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
-  --shadow:    0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
-  --font: 'Inter', -apple-system, sans-serif;
-}
+/* Colori, raggi, ombre e font condivisi vengono da assets/theme.css (stessi
+   di Hub, Calendario e Bici) — qui solo il layout specifico di questa pagina,
+   nessuna ridefinizione di variabili o di componenti già comuni (login,
+   header, sidebar/rail/drawer, modal, toast). */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
 body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 
-/* ══ LOGIN (stesso stile delle altre app della suite) ════════════════════════ */
-.login-screen { position: fixed; inset: 0; z-index: 999; background: var(--green-700); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
-.login-screen.hidden { display: none; }
-.login-logo { height: 72px; width: auto; max-width: 140px; margin-bottom: 16px; object-fit: contain; }
-.login-title { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
-.login-sub   { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 32px; }
-.login-card  { background: var(--white); border-radius: var(--radius-lg); padding: 24px 20px; width: 100%; max-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.btn-primary { width: 100%; height: 50px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); margin-top: 4px; }
-.btn-primary:active { opacity: .85; }
-
-/* ══ HEADER ═══════════════════════════════════════════════════════════════ */
-.top-bar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 1px solid var(--gray-100); padding-top: env(safe-area-inset-top); }
-.header-inner { display: flex; align-items: center; justify-content: space-between; max-width: 750px; margin: 0 auto; padding: 10px 16px; }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--white); letter-spacing: -.5px; flex-shrink: 0; }
-.header-name  { font-size: 14px; font-weight: 800; color: var(--gray-900); line-height: 1.2; }
-.header-role  { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
-.header-btns  { display: flex; align-items: center; gap: 6px; }
-.hbtn { height: 32px; padding: 0 12px; border: none; border-radius: 18px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); white-space: nowrap; }
-.hbtn.icon  { width: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
-.hbtn.ghost { background: var(--gray-100); color: var(--gray-700); border: none; }
-.hbtn:active { opacity: .8; }
-
 main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
+@media (min-width: 768px) { main { max-width: none; margin: 0; padding: 20px 24px 56px; } }
+@media (min-width: 1024px) { main { padding: 24px 32px 60px; } }
+.page-head { margin-bottom: 8px; }
 
-/* ══ STATS ════════════════════════════════════════════════════════════════ */
-.stats-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-.stat-chip { flex: 1; min-width: 78px; background: var(--white); border-radius: var(--radius); padding: 10px 8px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; -webkit-tap-highlight-color: transparent; }
-.stat-chip:active { transform: scale(.96); }
-.stat-chip .n { font-size: 26px; font-weight: 800; line-height: 1; }
-.stat-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+/* Stessi 3 stati "come li pensa lo staff" del Calendario (v.
+   STATO_ALLOGGIO_META/STATO_FILTRO_GRUPPI in calendario/index.html): questi
+   colori sono condivisi tra i due moduli, per questo restano variabili di
+   pagina invece che nel tema — non sono colori "di brand" ma un codice
+   stato che deve restare identico ovunque compaia. */
+:root {
+  --stato-pulire:   #FFCF48;
+  --stato-pronta:   #92BA7F;
+  --stato-occupata: #FF6E6E;
+}
+@keyframes gr-bell-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+/* ══ AVVISI (cliente arrivato in struttura, segnalato dall'ufficio in
+   Calendario) — banner ben visibile in cima alla pagina, così non serve
+   aprire la categoria giusta per accorgersene. ═══════════════════════════ */
+.avvisi-banner { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.avviso-riga { display: flex; align-items: center; gap: 12px; background: var(--red-bg); border: 1.5px solid var(--red-bd); border-radius: var(--radius-lg); padding: 12px 14px; }
+.avviso-riga-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; animation: gr-bell-pulse 1.6s ease-in-out infinite; }
+.avviso-riga-icon svg { width: 18px; height: 18px; }
+.avviso-riga-text { flex: 1; min-width: 0; }
+.avviso-riga-title { font-size: 13px; font-weight: 800; color: var(--red); }
+.avviso-riga-sub { font-size: 11.5px; color: var(--gray-600); margin-top: 2px; }
+.avviso-riga-dismiss { flex-shrink: 0; height: 34px; padding: 0 14px; border: none; border-radius: 20px; background: var(--red); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); }
+
+/* ══ STATS — una sola barra sottile invece di 4 card separate: solo un
+   riepilogo rapido su cui toccare per filtrare, non deve pesare sulla
+   pagina. ═════════════════════════════════════════════════════════════════ */
+.stats-row { display: flex; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 16px; overflow: hidden; }
+.stat-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 10px 6px; text-align: left; cursor: pointer; border-right: 1px solid var(--gray-100); transition: background .15s; -webkit-tap-highlight-color: transparent; }
+.stat-chip:last-child { border-right: none; }
+.stat-chip:active { background: var(--gray-50); }
+.stat-chip-icon { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+.stat-chip-icon svg { width: 12px; height: 12px; }
+.stat-chip-text { min-width: 0; }
+.stat-chip .n { font-size: 15px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-chip .l { font-size: 8.5px; font-weight: 700; color: var(--gray-500); margin-top: 2px; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .filter-label { font-size: 15px; font-weight: 800; }
-.filter-clear { background: var(--white); border: none; box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
+.filter-clear { background: var(--white); border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
 .empty-filter { text-align: center; padding: 40px 20px; color: var(--gray-500); font-size: 13px; }
 
 /* ══ CATEGORIE (accordion) ═══════════════════════════════════════════════════ */
 .cat-block { margin-bottom: 10px; }
-.cat-header { width: 100%; min-height: 76px; background: var(--white); border: none; border-radius: var(--radius-lg); padding: 22px 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+.cat-header { width: 100%; min-height: 76px; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); padding: 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-sm); cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
 .cat-header:active { background: var(--gray-50); }
 .cat-header .nome { font-size: 19px; font-weight: 800; color: var(--gray-900); }
 .cat-header .meta { display: flex; align-items: center; gap: 12px; }
-.cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--white); background: var(--orange); padding: 6px 14px; border-radius: 20px; }
-.cat-header .chev { font-size: 20px; color: var(--orange); transition: transform .2s; display: inline-block; }
+.cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--green-900); background: var(--stato-pulire); padding: 6px 14px; border-radius: 20px; }
+.cat-header .chev { font-size: 20px; color: var(--gray-400); transition: transform .2s; display: inline-block; }
 .cat-header .chev.open { transform: rotate(180deg); }
 .cat-units { margin-top: 10px; }
 
-/* ══ UNIT CARD ════════════════════════════════════════════════════════════ */
-.unit-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 10px; }
-.unit-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+/* ══ UNIT CARD — stessa "grammatica" delle rental-card di Bici: header con
+   avatar+badge di stato, blocco informativo, azioni in fondo separate da un
+   divisore. ═════════════════════════════════════════════════════════════ */
+.unit-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; }
+.unit-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 16px 0; }
+.unit-who { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.unit-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; margin-top: 1px; }
+.unit-avatar svg { width: 17px; height: 17px; }
+.unit-who-text { min-width: 0; }
 .unit-nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
-.unit-sub  { font-size: 12px; color: var(--gray-500); margin-top: 3px; }
+.unit-sub  { font-size: 11.5px; color: var(--gray-500); margin-top: 2px; }
 .unit-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.unit-status .lbl { font-size: 13px; font-weight: 800; white-space: nowrap; }
+.unit-badge { font-size: 11px; font-weight: 800; color: var(--gray-900); padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
 .info-btn { width: 22px; height: 22px; border-radius: 50%; background: var(--gray-100); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray-500); font-size: 12px; font-weight: 800; flex-shrink: 0; font-family: var(--font); font-style: italic; }
-.unit-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-.unit-actions button { height: 52px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
-.unit-actions button:active { transform: scale(.97); }
+.unit-bell { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--red); color: #fff; vertical-align: -3px; margin-left: 5px; cursor: pointer; animation: gr-bell-pulse 1.6s ease-in-out infinite; }
+.unit-bell svg { width: 10px; height: 10px; }
+
+.unit-guest { margin: 12px 16px 0; background: var(--gray-50); border-radius: var(--radius-sm); padding: 4px 12px; }
+.unit-guest.urgente { background: var(--terracotta-soft); }
+.unit-guest-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.05); font-size: 12.5px; }
+.unit-guest-row:first-child { border-top: none; }
+.unit-guest-row span { color: var(--gray-500); flex-shrink: 0; }
+.unit-guest-row b { color: var(--gray-900); font-weight: 700; text-align: right; }
+.unit-guest-note { padding: 8px 0 10px; border-top: 1px solid rgba(0,0,0,.05); font-size: 12px; color: var(--gray-700); line-height: 1.5; }
+.unit-guest-note b { color: var(--gray-900); }
+
+.unit-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 16px 16px; margin-top: 2px; border-top: 1px solid var(--gray-100); }
+.unit-actions button { height: 50px; border: none; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; transition: opacity .15s, transform .1s; padding: 0 4px; }
+.unit-actions button:active { transform: scale(.97); opacity: .88; }
 .unit-actions button:disabled { opacity: .35; pointer-events: none; }
-.unit-log { margin-top: 10px; background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
+.unit-nondisp { margin: 14px 16px 16px; background: var(--gray-100); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
+.unit-log { margin: 0 16px 14px; background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
 .log-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
 .log-row:first-child { border-top: none; }
 .log-row .op { color: var(--gray-700); font-weight: 700; flex-shrink: 0; }
 .log-row .ts { color: var(--gray-500); flex: 1; text-align: center; }
-
-.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.hidden { display: none !important; }
 
 /* ══ IMPOSTAZIONI ═════════════════════════════════════════════════════════ */
 .settings-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; margin-bottom: 16px; }
@@ -173,14 +171,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .settings-row .btns button { height: 36px; padding: 0 12px; border: none; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); white-space: nowrap; }
 .btn-toggle  { background: var(--gray-100); color: var(--gray-700); }
 .btn-delete  { background: var(--red-bg); color: var(--red); }
-
-/* ══ MODAL ════════════════════════════════════════════════════════════════ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-.modal-box { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 320px; box-shadow: var(--shadow-lg); }
-.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-.modal-body { font-size: 13px; color: var(--gray-700); line-height: 1.6; }
-.modal-btn-cancel  { flex: 1; height: 46px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
-.modal-btn-confirm { flex: 1; height: 46px; background: var(--red); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 </style>
 </head>
 <body>
@@ -194,7 +184,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 <!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
 <div id="login-screen" class="login-screen hidden">
   <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
-  <div class="login-title">Gestione Alloggi</div>
+  <div class="login-title">Pulizie</div>
   <div class="login-sub">Centro Vacanze Garden River</div>
   <div class="login-card" style="text-align:center">
     <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
@@ -208,7 +198,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 <!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
 <div id="no-access-screen" class="login-screen hidden">
   <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
-  <div class="login-title">Gestione Alloggi</div>
+  <div class="login-title">Pulizie</div>
   <div class="login-sub">Centro Vacanze Garden River</div>
   <div class="login-card" style="text-align:center">
     <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
@@ -219,9 +209,108 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
   </div>
 </div>
 
+<div class="app-shell">
+
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
+     Stessa struttura a tre livelli di Hub, Calendario e Bici (v. assets/theme.css),
+     riusata identica qui: stesse icone (assets/icons.js), stessi font e colori. ══ -->
+<div class="nav-zone">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Pulizie</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item active" href="./"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item active" href="./"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Pulizie</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item active" href="./"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
+
+<div class="main-col">
+
 <!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
 <div class="top-bar" id="top-bar-main">
   <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
     <div class="header-left">
       <div class="header-avatar" id="header-avatar"></div>
       <div>
@@ -230,15 +319,11 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn ghost icon" onclick="location.href=HUB_URL" title="Torna alla Hub">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
       <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <button class="hbtn ghost" onclick="doLogout()" title="Logout">Esci</button>
     </div>
   </div>
 </div>
@@ -251,7 +336,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       </button>
       <div>
-        <div class="header-name">Impostazioni alloggi</div>
+        <div class="header-name">Impostazioni pulizie</div>
         <div class="header-role">Aggiungi, elimina o disattiva un alloggio</div>
       </div>
     </div>
@@ -259,6 +344,11 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 </div>
 
 <main id="main-view">
+  <div class="page-head">
+    <div class="page-eyebrow"><span data-icon="ALLOGGI"></span><span>Pulizie</span></div>
+    <div class="page-title">Pulizie alloggi</div>
+  </div>
+  <div id="avvisi-container"></div>
   <div class="stats-row" id="stats-row"></div>
   <div id="cats-container"></div>
 </main>
@@ -266,6 +356,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 <main id="settings-view" class="hidden">
   <div id="settings-container"></div>
 </main>
+
+</div>
+</div>
 
 <div class="modal-overlay hidden" id="modal-overlay">
   <div class="modal-box">
@@ -285,6 +378,20 @@ const HUB_URL      = '../';
 const MODULE_ID    = 'alloggi';
 const SECTION_IDS  = ['alloggi'];
 
+hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
+
+// ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
+//    (stessa logica della Hub, del Calendario e di Bici) ─────────────────────
+function toggleNavGroup(btn) {
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.body.classList.toggle('drawer-open', open);
+}
+
 // 👉 Per aggiungere/modificare una categoria o il range di numeri al suo
 //    interno, basta modificare questo array — il resto dell'app si adatta.
 const CATS = [
@@ -296,24 +403,42 @@ const CATS = [
   { key:'joy',            label:'Joy',             from:1,  to:6  },
 ];
 
+// Stessi 5 stati reali, stessi colori e stesse icone di STATO_ALLOGGIO_META
+// nel modulo Calendario (calendario/index.html) — condivisi tra i due
+// moduli sulla stessa collezione Firestore "alloggi", devono restare
+// identici in entrambi i posti.
 const STATUS_META = {
-  checkout_ok:    { label:'Check-out ok',    color:'#FF6E6E', btnBg:'#FF6E6E', btnFg:'#fff' },
-  da_pulire:      { label:'Da pulire',       color:'#FFCF48', btnBg:'#FFCF48', btnFg:'#fff' },
-  pronta:         { label:'Pronta',          color:'#92BA7F', btnBg:'#92BA7F', btnFg:'#fff' },
-  occupata:       { label:'Occupata',        color:'#7EB7A9', btnBg:'#7EB7A9', btnFg:'#fff' },
-  non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)', btnBg:'var(--gray-500)', btnFg:'#fff' },
+  checkout_ok:    { label:'Check-out ok',    color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#fff', icon:'BROOM' },
+  da_pulire:      { label:'Da pulire',       color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#fff', icon:'BROOM' },
+  pronta:         { label:'Pronta',          color:'var(--stato-pronta)',   btnBg:'var(--stato-pronta)',   btnFg:'#fff', icon:'CHECK' },
+  occupata:       { label:'Occupata',        color:'var(--stato-occupata)', btnBg:'var(--stato-occupata)', btnFg:'#fff', icon:'BED' },
+  non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)',       btnBg:'var(--gray-500)',       btnFg:'#fff', icon:'BLOCK' },
 };
-// Le 4 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
-// nella vista principale. "non_disponibile" si gestisce solo da Impostazioni,
-// per evitare che venga toccata per errore durante il lavoro di tutti i giorni.
-const OPERATIONAL_KEYS = ['checkout_ok','da_pulire','pronta','occupata'];
+// Le 3 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
+// nella vista principale — stessi 3 stati del menu rapido di Calendario.
+// "checkout_ok" resta un valore reale (lo imposta in automatico Calendario al
+// check-out) ma non è più scelto a mano da qui: il pulsante "Da pulire"
+// scrive sempre 'da_pulire', esattamente come impostaStatoAlloggioDaCalendario.
+// "non_disponibile" si gestisce solo da Impostazioni, per evitare che venga
+// toccata per errore durante il lavoro di tutti i giorni.
+const OPERATIONAL_KEYS = ['da_pulire','pronta','occupata'];
 const STATUS_KEYS = Object.keys(STATUS_META);
+// Stessi 3 stati (stessi colori, stesso ordine) del menu rapido di Calendario
+// (v. STATO_FILTRO_GRUPPI/apriMenuStatoAlloggio in calendario/index.html):
+// check-out fatto e da pulire sono la stessa cosa da fare. "Non disponibile"
+// resta fuori da qui esattamente come lì — si gestisce solo da Impostazioni.
+const STATO_GRUPPI = [
+  { key:'da_pulire', label:'Check-out fatto / Da pulire', short:'Da pulire', color:'var(--stato-pulire)',   icon:'BROOM', match: s => s === 'checkout_ok' || s === 'da_pulire' },
+  { key:'pronta',    label:'Pronta',                      short:'Pronta',    color:'var(--stato-pronta)',   icon:'CHECK', match: s => s === 'pronta' },
+  { key:'occupata',  label:'Occupata',                    short:'Occupata',  color:'var(--stato-occupata)', icon:'BED',   match: s => s === 'occupata' },
+];
 
 let hubSession       = null;
 let hubPermessi       = { sezioni: {} };
 let allowedSections   = new Set(SECTION_IDS);
 let currentOperatore  = null;
 let alloggiMap        = {};  // id -> { id, categoria, categoriaLabel, numero, nome, stato, log }
+let prenotazioniList  = [];  // sola lettura dalla collezione "prenotazioni" (Calendario): solo per mostrare arrivo/kit biancheria
 let expanded          = {};  // categoria key -> bool
 let logOpen           = {};  // unit id -> bool
 let settingsOpen      = false;
@@ -325,6 +450,129 @@ function fmtTs(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'}) + ' ' +
          d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+}
+function todayIso() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function addDaysIso(iso, n) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fmtDataBreve(iso) {
+  const [, m, d] = iso.split('-');
+  return d + '/' + m;
+}
+function needsCleaning(u) { return u.stato === 'checkout_ok' || u.stato === 'da_pulire'; }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Primo arrivo noto (da Calendario) per questo alloggio, da oggi in poi —
+// serve solo a dare priorità/contesto a chi pulisce, il modulo Alloggi resta
+// l'unico a poter cambiare lo stato di pulizia.
+function prossimoArrivo(nome) {
+  const oggi = todayIso();
+  return prenotazioniList
+    .filter(p => p.alloggio_nome === nome && p.checkin >= oggi)
+    .sort((a,b) => a.checkin.localeCompare(b.checkin))[0] || null;
+}
+// Ospite attualmente in soggiorno (già arrivato, non ancora partito) —
+// per gli alloggi "Occupata" conta più questo del prossimo arrivo futuro.
+function soggiornoAttuale(nome) {
+  const oggi = todayIso();
+  return prenotazioniList.find(p => p.alloggio_nome === nome && p.checkin <= oggi && p.checkout > oggi) || null;
+}
+// Quale prenotazione mostrare sulla card: per un alloggio occupato conta chi
+// c'è dentro adesso, per tutti gli altri stati conta il prossimo arrivo.
+function prenotazioneRilevante(u) {
+  if (u.stato === 'occupata') return soggiornoAttuale(u.nome) || prossimoArrivo(u.nome);
+  return prossimoArrivo(u.nome) || soggiornoAttuale(u.nome);
+}
+function kitLabel(p) {
+  const parti = [];
+  if (p.biancheria_kit_matrimoniale) parti.push(p.biancheria_kit_matrimoniale + ' matrimoniale');
+  if (p.biancheria_kit_singolo)      parti.push(p.biancheria_kit_singolo + ' singolo');
+  if (p.biancheria_kit_bagno)        parti.push(p.biancheria_kit_bagno + ' bagno');
+  return parti.join(', ');
+}
+// Nota della categoria "Pulizie" scritta in Calendario per questa
+// prenotazione (v. categorieNote/scheda "Pulizie" in calendario/index.html).
+function notaPulizie(p) {
+  if (!p || !Array.isArray(p.note)) return '';
+  const n = p.note.find(x => x.categoria === 'Pulizie');
+  return n ? n.testo : '';
+}
+// 0 = arriva oggi, 1 = domani, 2 = più avanti ma noto, 3 = nessun arrivo noto.
+function arrivoRank(u) {
+  const arrivo = prossimoArrivo(u.nome);
+  if (!arrivo) return 3;
+  const oggi = todayIso();
+  if (arrivo.checkin === oggi) return 0;
+  if (arrivo.checkin === addDaysIso(oggi, 1)) return 1;
+  return 2;
+}
+// Ordinamento pensato per le pulizie: gli alloggi da pulire vengono prima di
+// tutto il resto, e tra quelli chi ha un arrivo più imminente sale in cima.
+function prioritaPulizia(u) {
+  return (needsCleaning(u) ? 0 : 10) + arrivoRank(u);
+}
+// Blocco informativo sulla card: ospite, arrivo → partenza, kit biancheria e
+// nota pulizie — tutto letto in sola lettura dalla prenotazione collegata.
+function renderGuestBlock(u) {
+  if (u.stato === 'non_disponibile') return '';
+  const p = prenotazioneRilevante(u);
+  if (!p) return '';
+  const oggi = todayIso();
+  const domani = addDaysIso(oggi, 1);
+  const fmt = iso => iso === oggi ? 'Oggi' : iso === domani ? 'Domani' : fmtDataBreve(iso);
+  const kit = kitLabel(p);
+  const nota = notaPulizie(p);
+  const urgente = needsCleaning(u) && (p.checkin === oggi || p.checkin === domani);
+  let html = '<div class="unit-guest'+(urgente ? ' urgente' : '')+'">'+
+    '<div class="unit-guest-row"><span>Ospite</span><b>'+esc(p.nome || '—')+'</b></div>'+
+    '<div class="unit-guest-row"><span>Arrivo → Partenza</span><b>'+fmt(p.checkin)+' → '+fmt(p.checkout)+'</b></div>'+
+    (kit ? '<div class="unit-guest-row"><span>Kit biancheria</span><b>'+esc(kit)+'</b></div>' : '');
+  if (nota) html += '<div class="unit-guest-note"><b>Nota pulizie:</b> '+esc(nota)+'</div>';
+  html += '</div>';
+  return html;
+}
+
+// ── AVVISI "cliente arrivato" (segnalati dall'ufficio da Calendario) ────────
+// Campo scritto sul documento dell'alloggio stesso (stessa collezione già
+// scritta da entrambi i moduli per stato/log), così Alloggi lo legge in
+// realtime senza bisogno di incrociare le prenotazioni.
+function renderAvvisiGlobali() {
+  const box = document.getElementById('avvisi-container');
+  if (!box) return;
+  const lista = Object.values(alloggiMap)
+    .filter(u => u.avviso && u.avviso.attivo)
+    .sort((a,b) => (b.avviso.ts || '').localeCompare(a.avviso.ts || ''));
+  if (!lista.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="avvisi-banner">' + lista.map(u => (
+    '<div class="avviso-riga">'+
+      '<span class="avviso-riga-icon" data-icon="BELL"></span>'+
+      '<div class="avviso-riga-text">'+
+        '<div class="avviso-riga-title">'+esc(u.nome)+' · Cliente arrivato in struttura</div>'+
+        '<div class="avviso-riga-sub">'+(u.avviso.ospite ? esc(u.avviso.ospite)+' · ' : '')+fmtTs(u.avviso.ts)+(u.avviso.op ? ' · segnalato da '+esc(u.avviso.op) : '')+'</div>'+
+      '</div>'+
+      '<button class="avviso-riga-dismiss" onclick="dismissAvviso(\''+u.id+'\')">OK, gestito</button>'+
+    '</div>'
+  )).join('') + '</div>';
+}
+async function dismissAvviso(id) {
+  const u = alloggiMap[id];
+  if (!u) return;
+  u.avviso = null;
+  render();
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'alloggi', id), { avviso: null });
+  } catch(e) {
+    console.error('Errore chiusura avviso:', e);
+    showToast('Errore di salvataggio — riprova');
+  }
 }
 
 // ── FIREBASE ──────────────────────────────────────────────────────────────
@@ -389,6 +637,20 @@ async function startRealtimeSync() {
       maybeHideLoading();
     }, (err) => { console.error('Errore listener alloggi:', err); setSyncStatus('error'); });
   } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
+}
+
+// Ascolto in sola lettura della collezione "prenotazioni" (la stessa usata da
+// Calendario), solo per mostrare arrivo/kit biancheria sulle card: nessuna
+// scrittura viene mai fatta da qui.
+async function startRealtimeSyncPrenotazioni() {
+  await waitForFirebase();
+  const { db, collection, onSnapshot } = window._fb;
+  try {
+    onSnapshot(collection(db, 'prenotazioni'), (snap) => {
+      prenotazioniList = snap.docs.map(d => d.data());
+      render();
+    }, (err) => console.error('Errore listener prenotazioni:', err));
+  } catch(e) { console.error('Errore avvio sync prenotazioni:', e); }
 }
 
 async function forceRefresh(manual) {
@@ -456,10 +718,21 @@ async function setStato(id, nuovoStato) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'alloggi', id), { stato: nuovoStato, log: newLog });
+    notificaCambioStato(id, u.nome, nuovoStato);
   } catch(e) {
     console.error('Errore salvataggio stato:', e);
     showToast('Errore di salvataggio — riprova');
   }
+}
+// Notifica push allo staff con notifiche attive (stessa infrastruttura di
+// Ristorazione — v. cloud-functions/notifiche-pulizie). "Fire and forget":
+// un errore di rete qui non deve mai far sembrare fallito il cambio di
+// stato, che a questo punto è già salvato su Firestore.
+function notificaCambioStato(alloggioId, alloggioNome, nuovoStato) {
+  fetch('https://invia-notifica-pulizie-113994721180.europe-west1.run.app', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ evento:'cambio_stato', alloggio_id:alloggioId, alloggio_nome:alloggioNome, nuovo_stato:nuovoStato, op:currentOperatore || 'Operatore' }),
+  }).catch(() => {});
 }
 function toggleCat(key) { expanded[key] = !expanded[key]; render(); }
 function toggleLog(id)  { logOpen[id] = !logOpen[id]; render(); }
@@ -549,15 +822,25 @@ function doLogout() {
 let activeFilter = null; // null oppure una delle chiavi di STATUS_META
 
 // ── RENDER ────────────────────────────────────────────────────────────────
-function render() { renderStats(); renderCats(); if (settingsOpen) renderSettings(); }
+function render() {
+  renderAvvisiGlobali();
+  renderStats();
+  renderCats();
+  if (settingsOpen) renderSettings();
+  hydrateIcons(); // ri-inietta le icone anche dentro il contenuto appena generato
+}
 
 function renderStats() {
-  const counts = {}; STATUS_KEYS.forEach(k => counts[k] = 0);
-  Object.values(alloggiMap).forEach(u => { if (counts[u.stato] !== undefined) counts[u.stato]++; });
-  document.getElementById('stats-row').innerHTML = STATUS_KEYS.map(k => {
-    const m = STATUS_META[k];
-    const active = activeFilter === k;
-    return '<div class="stat-chip'+(active?' active':'')+'" onclick="toggleStatFilter(\''+k+'\')" style="'+(active?'box-shadow:0 0 0 2.5px '+m.color+';':'')+'"><div class="n" style="color:'+m.color+'">'+counts[k]+'</div><div class="l">'+m.label+'</div></div>';
+  const counts = {}; STATO_GRUPPI.forEach(g => counts[g.key] = 0);
+  Object.values(alloggiMap).forEach(u => {
+    const g = STATO_GRUPPI.find(g => g.match(u.stato));
+    if (g) counts[g.key]++;
+  });
+  document.getElementById('stats-row').innerHTML = STATO_GRUPPI.map(g => {
+    const active = activeFilter === g.key;
+    return '<div class="stat-chip" onclick="toggleStatFilter(\''+g.key+'\')" style="'+(active?'background:var(--gray-50);box-shadow:inset 0 0 0 2px '+g.color+';':'')+'">'+
+      '<div class="stat-chip-icon" style="background:'+g.color+'"><span data-icon="'+g.icon+'"></span></div>'+
+      '<div class="stat-chip-text"><div class="n">'+counts[g.key]+'</div><div class="l">'+g.short+'</div></div></div>';
   }).join('');
 }
 function toggleStatFilter(key) {
@@ -567,24 +850,32 @@ function toggleStatFilter(key) {
 function unitsForCat(catKey) {
   return Object.values(alloggiMap).filter(u => u.categoria === catKey).sort((a,b) => a.numero - b.numero);
 }
+// Stessa lista, ma ordinata mettendo prima chi va pulito e, tra quelli, chi
+// ha l'arrivo più vicino — usata solo nella vista principale (le Impostazioni
+// restano in ordine numerico, più comodo per gestire l'elenco).
+function unitsForCatOrdinatePulizia(catKey) {
+  return unitsForCat(catKey).slice().sort((a,b) => prioritaPulizia(a) - prioritaPulizia(b) || a.numero - b.numero);
+}
 function unitsDaGestire(catKey) {
+  const gruppo = STATO_GRUPPI.find(g => g.key === 'da_pulire');
   let n = 0;
-  Object.values(alloggiMap).forEach(u => {
-    if (u.categoria === catKey && (u.stato === 'da_pulire' || u.stato === 'checkout_ok')) n++;
-  });
+  Object.values(alloggiMap).forEach(u => { if (u.categoria === catKey && gruppo.match(u.stato)) n++; });
   return n;
 }
 function renderUnitCard(u) {
   if (!u) return '';
   const m = STATUS_META[u.stato] || STATUS_META.pronta;
   const last = (u.log && u.log[0]) || { op:'-', ts:null };
+  const avvisoAttivo = u.avviso && u.avviso.attivo;
   let actionsHtml;
   if (u.stato === 'non_disponibile') {
-    actionsHtml = '<div style="margin-top:12px;background:var(--gray-100);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--gray-500);text-align:center">Alloggio non disponibile — gestiscilo dalle Impostazioni</div>';
+    actionsHtml = '<div class="unit-nondisp">Alloggio non disponibile — gestiscilo dalle Impostazioni</div>';
   } else {
     const btns = OPERATIONAL_KEYS.map(k => {
       const sm = STATUS_META[k];
-      const dis = k === u.stato;
+      // "Da pulire" conta come già selezionato anche se lo stato reale è
+      // 'checkout_ok' (stesso gruppo, stesso badge — v. needsCleaning).
+      const dis = k === 'da_pulire' ? needsCleaning(u) : k === u.stato;
       return '<button '+(dis?'disabled':'')+' onclick="setStato(\''+u.id+'\',\''+k+'\')" style="background:'+sm.btnBg+';color:'+sm.btnFg+'">'+sm.label+'</button>';
     }).join('');
     actionsHtml = '<div class="unit-actions">'+btns+'</div>';
@@ -593,32 +884,39 @@ function renderUnitCard(u) {
   if (logOpen[u.id] && u.log && u.log.length) {
     logHtml = '<div class="unit-log">' + u.log.map(le => {
       const lm = STATUS_META[le.stato] || STATUS_META.pronta;
-      return '<div class="log-row"><span class="op">'+le.op+'</span><span class="ts">'+fmtTs(le.ts)+'</span><span style="color:'+lm.color+';font-weight:700">'+lm.label+'</span></div>';
+      return '<div class="log-row"><span class="op">'+esc(le.op)+'</span><span class="ts">'+fmtTs(le.ts)+'</span><span style="color:'+lm.color+';font-weight:700">'+lm.label+'</span></div>';
     }).join('') + '</div>';
   }
-  return '<div class="unit-card" style="border-left:4px solid '+m.color+'">'+
-    '<div class="unit-top">'+
-      '<div><div class="unit-nome">'+u.nome+'</div>'+
-        '<div class="unit-sub">Stato modificato da \''+last.op+'\'</div>'+
-        (last.ts ? '<div class="unit-sub">'+fmtTs(last.ts)+'</div>' : '')+
+  return '<div class="unit-card">'+
+    '<div class="unit-card-header">'+
+      '<div class="unit-who">'+
+        '<div class="unit-avatar" style="background:'+m.color+'"><span data-icon="'+m.icon+'"></span></div>'+
+        '<div class="unit-who-text">'+
+          '<div class="unit-nome">'+u.nome+(avvisoAttivo ? ' <span class="unit-bell" data-icon="BELL" title="Cliente arrivato in struttura — tocca per chiudere l\'avviso" onclick="event.stopPropagation();dismissAvviso(\''+u.id+'\')"></span>' : '')+'</div>'+
+          '<div class="unit-sub">Da \''+esc(last.op)+'\''+(last.ts ? ' · '+fmtTs(last.ts) : '')+'</div>'+
+        '</div>'+
       '</div>'+
       '<div class="unit-status">'+
-        '<span class="lbl" style="color:'+m.color+'">'+m.label+'</span>'+
+        '<span class="unit-badge" style="background:'+m.color+'">'+m.label+'</span>'+
         '<button class="info-btn" onclick="toggleLog(\''+u.id+'\')" aria-label="Storico modifiche">i</button>'+
       '</div>'+
     '</div>'+
+    renderGuestBlock(u)+
     actionsHtml+
     logHtml+
   '</div>';
 }
 function renderCats() {
   if (activeFilter) {
-    const m = STATUS_META[activeFilter];
+    const g = STATO_GRUPPI.find(x => x.key === activeFilter);
+    const cleaningFilter = activeFilter === 'da_pulire';
     const lista = Object.values(alloggiMap)
-      .filter(u => u.stato === activeFilter)
-      .sort((a,b) => (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero);
+      .filter(u => g.match(u.stato))
+      .sort((a,b) => cleaningFilter
+        ? (arrivoRank(a) - arrivoRank(b)) || (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero
+        : (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero);
     let html = '<div class="filter-bar">'+
-      '<span class="filter-label" style="color:'+m.color+'">'+m.label+' · '+lista.length+'</span>'+
+      '<span class="filter-label" style="color:'+g.color+'">'+g.label+' · '+lista.length+'</span>'+
       '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
     '</div>';
     html += lista.length ? lista.map(u => renderUnitCard(u)).join('') : '<div class="empty-filter">Nessun alloggio in questo stato</div>';
@@ -630,7 +928,7 @@ function renderCats() {
     const daGestire = unitsDaGestire(cat.key);
     let unitsHtml = '';
     if (open) {
-      unitsForCat(cat.key).forEach(u => { unitsHtml += renderUnitCard(u); });
+      unitsForCatOrdinatePulizia(cat.key).forEach(u => { unitsHtml += renderUnitCard(u); });
     }
     return '<div class="cat-block">'+
       '<button class="cat-header" onclick="toggleCat(\''+cat.key+'\')">'+
@@ -779,6 +1077,7 @@ async function start() {
   // arrivano, mentre il controllo di inizializzazione gira in background
   // (serve solo al primissimo avvio in assoluto, non deve far aspettare).
   startRealtimeSync();
+  startRealtimeSyncPrenotazioni();
   ensureDefaultData();
 }
 start();

@@ -362,7 +362,7 @@ main { max-width: 750px; margin: 0 auto; padding: 18px 16px 100px; }
 .modal-btn-cancel  { flex: 1; height: 48px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 .modal-btn-confirm { flex: 1; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 15px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--gray-900); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 999; box-shadow: var(--shadow-lg); }
+.toast { position: fixed; top: calc(env(safe-area-inset-top) + 16px); left: 50%; transform: translateX(-50%) translateY(-10px); background: var(--green-700); color: var(--white); padding: 11px 20px; border-radius: 24px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 1200; box-shadow: var(--shadow-lg); }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .hidden { display: none !important; }
 

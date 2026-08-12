@@ -1,0 +1,44 @@
+Installer proxy stampanti — Garden River
+==========================================
+
+Questa cartella contiene tutto il necessario per far funzionare, su una
+nuova postazione di reception, sia la stampante termica Epson (ricevute
+interne) sia il registratore telematico ItalRetail (scontrini fiscali).
+
+COME INSTALLARE
+----------------
+- Su Mac: fai doppio clic su "Installa (macOS).command"
+  (se il Mac si rifiuta di aprirlo: tasto destro sul file > Apri)
+- Su Windows: fai doppio clic su "Installa (Windows).bat"
+
+L'installer copia i file necessari in una cartella dedicata e registra i
+due proxy per l'avvio automatico ad ogni accensione/login del computer —
+da quel momento in poi non serve più avviarli a mano.
+
+DOPO L'INSTALLAZIONE (una tantum, per ogni postazione)
+--------------------------------------------------------
+Il browser deve "fidarsi" del certificato dei due proxy. Apri il browser
+che userai per Calendario/Conti e visita, una sola volta, questi due
+indirizzi, accettando l'avviso di sicurezza (è normale, sono i proxy
+locali, non siti esterni):
+
+  https://localhost:8765   (proxy stampante Epson)
+  https://localhost:8766   (proxy registratore ItalRetail)
+
+Vedrai una paginetta con una spunta verde: a quel punto puoi chiudere la
+scheda e usare normalmente Calendario/Conti.
+
+IMPOSTARE L'IP DELLE STAMPANTI
+---------------------------------
+Al primo utilizzo dei pulsanti di stampa/fiscalizzazione, l'app chiederà
+l'indirizzo IP della stampante Epson e/o del registratore ItalRetail sulla
+rete locale di quella postazione — va inserito una volta sola, resta
+salvato nel browser.
+
+SE QUALCOSA NON FUNZIONA
+---------------------------
+- Mac: i log dei due proxy sono in
+  ~/Library/Application Support/GardenRiverStampanti/*.log
+- Windows: apri "Utilità di pianificazione" (Task Scheduler) e cerca
+  "GardenRiverProxyStampante" / "GardenRiverProxyItalRetail" per vedere
+  se le attività sono presenti e attive.

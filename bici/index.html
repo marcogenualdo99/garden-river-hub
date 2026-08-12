@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../assets/theme.css?v=1786056323">
+<link rel="stylesheet" href="../assets/theme.css?v=1786535809">
 <script src="../assets/icons.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,7 +17,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -38,7 +38,7 @@
   const db    = getFirestore(fbApp);
   const auth  = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, query, where, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -205,6 +205,9 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 .r-btn-primary.late  { background: var(--amber); }
 .r-btn-secondary { background: none; border: none; font-size: 12.5px; font-weight: 700; color: var(--gray-500); cursor: pointer; font-family: var(--font); padding: 2px 4px; -webkit-tap-highlight-color: transparent; }
 .r-btn-secondary:hover { color: var(--gray-700); }
+.r-btn-outline { width: 100%; height: 44px; border: 1.5px solid var(--green-700); border-radius: var(--radius-sm); background: var(--white); font-size: 13px; font-weight: 800; color: var(--green-700); cursor: pointer; font-family: var(--font); transition: background .15s; -webkit-tap-highlight-color: transparent; }
+.r-btn-outline:hover { background: var(--green-bg); }
+.r-btn-outline:active { opacity: .85; }
 
 /* Edit form inside rental card */
 .rental-edit { padding: 12px 16px 14px; border-top: 1px solid var(--gray-100); background: var(--gray-50); }
@@ -222,6 +225,27 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 .status-chip-icon svg { width: 20px; height: 20px; }
 .status-chip .n { font-size: 26px; font-weight: 900; line-height: 1; }
 .status-chip .l { font-size: 10px; font-weight: 700; color: var(--gray-500); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* ══ STORICO NOLEGGI — elenco delle chiusure passate, ricavato dal campo
+   "log" salvato su ogni singola bici (ultime 30 per bici, v. segnalaRientro/
+   riscuoti/riscuotiSulConto). Righe compatte, una per bici per noleggio: nei
+   noleggi multi-bici il log non porta un gruppoId in comune, quindi qui non
+   si raggruppa — si mostra una riga per ogni bici coinvolta. ═══════════════ */
+.storico-search { margin-bottom: 10px; }
+.storico-list { display: flex; flex-direction: column; gap: 8px; }
+.storico-row { display: flex; align-items: center; gap: 12px; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); padding: 10px 14px; }
+.storico-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; letter-spacing: -.3px; }
+.storico-info { min-width: 0; flex: 1; }
+.storico-name { font-size: 13px; font-weight: 800; color: var(--gray-900); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.storico-bike { font-size: 10.5px; font-weight: 700; color: var(--gray-500); background: var(--gray-100); border-radius: 20px; padding: 2px 8px; }
+.storico-meta { font-size: 11px; color: var(--gray-400); margin-top: 2px; line-height: 1.5; }
+.storico-cost { text-align: right; flex-shrink: 0; }
+.storico-cost-val { font-size: 14px; font-weight: 900; color: var(--gray-900); }
+.storico-cost-badge { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; margin-top: 2px; }
+.storico-cost-badge.contanti { color: var(--green-ok); }
+.storico-cost-badge.conto    { color: var(--amber); }
+.storico-more { width: 100%; height: 42px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-size: 12.5px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); margin-top: 4px; }
+.storico-more:hover { background: var(--gray-50); }
 
 /* ══ ALERT BANNER ════════════════════════════════════════════════════════ */
 .alert-banner { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; border: 1px solid; }
@@ -319,7 +343,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -346,7 +370,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 <aside class="rail" id="rail">
   <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
   <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
-  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Alloggi</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
   <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
   <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
   <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
@@ -372,7 +396,7 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="nav-group-items">
       <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
       <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Alloggi</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
     </div>
   </div>
   <div class="nav-group">
@@ -411,6 +435,9 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <button class="hbtn ghost icon" onclick="openStorico()" id="btn-storico" title="Storico noleggi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      </button>
       <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -433,6 +460,21 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
   </div>
 </div>
 
+<!-- ══ HEADER STORICO ═══════════════════════════════════════════════════════ -->
+<div class="top-bar hidden" id="top-bar-storico">
+  <div class="header-inner">
+    <div class="header-left">
+      <button class="hbtn ghost icon" onclick="closeStorico()" title="Torna">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <div>
+        <div class="header-name">Storico noleggi</div>
+        <div class="header-role">Tutti i noleggi conclusi</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <main id="main-view">
   <div class="page-head">
     <div class="page-eyebrow"><span data-icon="BICI"></span><span>Bici</span></div>
@@ -450,6 +492,10 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
       </div>
     </div>
   </div>
+</main>
+
+<main id="storico-view" class="hidden">
+  <div id="storico-noleggi"></div>
 </main>
 
 <main id="settings-view" class="hidden">
@@ -553,9 +599,12 @@ let alertsCollapsed  = {};
 let editingBike      = {};   // id -> bool
 let editingTemp      = {};   // id -> { nome, costo, ritiroTs, rientroPrevistoTs }
 let settingsOpen     = false;
+let storicoOpen       = false;
 let optFieldsOpen    = false; // campi opzionali nel form di inserimento
+let storicoQuery     = '';
+let storicoShown     = 20;
 // Form inserimento — ora supporta più bici per anagrafica
-let formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+let formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
 let alloggiList = [];
 
 function alloggiOptionsHtml(selected) {
@@ -580,44 +629,97 @@ function alloggiOptionsHtml(selected) {
 // Selezionando l'alloggio nel form di noleggio, se il cliente non è ancora
 // stato scritto a mano andiamo a recuperarlo dalla prenotazione in corso per
 // quell'alloggio in Calendario — così non si reinserisce a mano un'anagrafica
-// già censita altrove.
+// già censita altrove. Ad ogni cambio di alloggio si rilegge da capo (non
+// solo la prima volta): altrimenti, cambiando alloggio, restava il nome
+// dell'alloggio precedente — o restava vuoto se il primo alloggio scelto non
+// aveva una prenotazione attiva. Un nome scritto a mano dall'operatore
+// (nomeAuto=false) non viene mai toccato da qui.
 async function onAlloggioNoleggioChange(valore) {
   formTemp.alloggio = valore;
-  if (valore && !(formTemp.nome || '').trim()) {
-    try {
-      await waitForFirebase();
-      const { db, collection, getDocs, query, where } = window._fb;
-      const oggi = new Date().toISOString().slice(0, 10);
-      const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', valore)));
-      // Solo chi è effettivamente già in casa (check-in fatto, check-out non
-      // ancora avvenuto): con una finestra più larga, in caso di turnover
-      // ravvicinato sullo stesso alloggio si rischia di trovare due
-      // anagrafiche valide insieme e prendere quella sbagliata.
-      const match = snap.docs.map(d => d.data()).find(p => oggi >= p.checkin && oggi < p.checkout);
-      if (match && match.nome) formTemp.nome = match.nome;
-    } catch(e) { console.error('Errore recupero anagrafica per alloggio:', e); }
-  }
+  if (formTemp.nomeAuto === false) { renderFormInserimento(); return; }
+  formTemp.nome = '';
   renderFormInserimento();
-}
-
-// Inserisce l'importo del noleggio come voce nel conto della prenotazione
-// Calendario collegata all'alloggio (se l'alloggio è stato indicato al
-// ritiro). Non blocca mai il flusso bici se fallisce o non trova nulla: è un
-// arricchimento, non un requisito per noleggiare una bici.
-async function inserisciCostoBiciNelConto(alloggioNome, label, importo) {
-  if (!alloggioNome) return;
+  if (!valore) return;
   try {
     await waitForFirebase();
-    const { db, collection, getDocs, query, where, doc, updateDoc } = window._fb;
+    const { db, collection, getDocs, query, where } = window._fb;
+    const oggi = new Date().toISOString().slice(0, 10);
+    const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', valore)));
+    // Solo chi è effettivamente già in casa (check-in fatto, check-out non
+    // ancora avvenuto): con una finestra più larga, in caso di turnover
+    // ravvicinato sullo stesso alloggio si rischia di trovare due
+    // anagrafiche valide insieme e prendere quella sbagliata.
+    const match = snap.docs.map(d => d.data()).find(p => oggi >= p.checkin && oggi < p.checkout);
+    // Se nel frattempo l'operatore ha già cambiato di nuovo l'alloggio (o
+    // scritto un nome a mano), questo risultato è vecchio: si scarta.
+    if (formTemp.alloggio === valore && formTemp.nomeAuto !== false) {
+      formTemp.nome = (match && match.nome) ? match.nome : '';
+      renderFormInserimento();
+    }
+  } catch(e) { console.error('Errore recupero anagrafica per alloggio:', e); }
+}
+
+// Trova la prenotazione Calendario attiva oggi (check-in fatto, check-out non
+// ancora avvenuto) per un dato alloggio — usata sia per pre-compilare
+// l'anagrafica al ritiro, sia per sapere se un noleggio si può addebitare sul
+// conto di una prenotazione realmente in corso.
+async function trovaPrenotazioneAttivaPerAlloggio(alloggioNome) {
+  if (!alloggioNome) return null;
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, where } = window._fb;
     const oggi = new Date().toISOString().slice(0, 10);
     const snap = await getDocs(query(collection(db, 'prenotazioni'), where('alloggio_nome', '==', alloggioNome)));
     const match = snap.docs.map(d => ({ id: d.id, ...d.data() })).find(p => oggi >= p.checkin && oggi < p.checkout);
-    if (!match) return;
+    return match || null;
+  } catch(e) { console.error('Errore ricerca prenotazione per alloggio:', e); return null; }
+}
+// Inserisce l'importo del noleggio come voce nel conto della prenotazione
+// Calendario indicata da prenotazioneId. Con pagato=true (incasso in
+// contanti, uso storico) non blocca mai il flusso bici se fallisce o non
+// trova nulla: è un arricchimento, non un requisito. Con pagato=false
+// (addebito "Aggiungi al conto") il chiamante usa invece il valore di
+// ritorno per decidere se davvero chiudere il noleggio, perché lì l'aggiunta
+// al conto è l'unico modo in cui l'importo viene registrato da qualche parte.
+async function inserisciCostoBiciNelConto(prenotazioneId, label, importo, pagato) {
+  if (pagato === undefined) pagato = true;
+  if (!prenotazioneId) return false;
+  try {
+    await waitForFirebase();
+    const { db, doc, getDoc, updateDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'prenotazioni', prenotazioneId));
+    if (!snap.exists()) return false;
+    const match = snap.data();
     const righe = (match.conto && Array.isArray(match.conto.righe)) ? match.conto.righe.slice() : [];
-    righe.push({ label, importo: Math.round(importo * 100) / 100, pagato: true });
+    righe.push({ label, importo: Math.round(importo * 100) / 100, pagato: !!pagato });
     const totale = Math.round(righe.reduce((s, r) => s + (r.importo || 0), 0) * 100) / 100;
-    await updateDoc(doc(db, 'prenotazioni', match.id), { conto: { righe, totale } });
-  } catch(e) { console.error('Errore inserimento costo bici nel conto:', e); }
+    await updateDoc(doc(db, 'prenotazioni', prenotazioneId), { conto: { righe, totale } });
+    return true;
+  } catch(e) { console.error('Errore inserimento costo bici nel conto:', e); return false; }
+}
+// Ricava l'id della prenotazione Calendario a cui addebitare il noleggio:
+// usa sempre l'id agganciato al ritiro (b.clientePrenotazioneId, v.
+// idPrenotazioneAttivaPerAlloggio richiamata da segnalaRitiroMultiExec/
+// eseguiRitiroPagatoMulti), così l'addebito arriva sempre sulla stessa
+// prenotazione vista dall'operatore al ritiro — anche se il noleggio dura
+// più giorni e nel frattempo cambia quale prenotazione risulti "attiva" per
+// quell'alloggio. Ricalcolarlo da capo per nome+data alla chiusura (come
+// avveniva prima) è ambiguo appena esistono due prenotazioni per lo stesso
+// alloggio con date sovrapposte — turnover, correzioni, o anche solo dati
+// di test — e può far finire l'addebito su una prenotazione diversa da
+// quella realmente in corso, che così sembra "sparito". Solo i noleggi
+// aperti prima di questa modifica (senza l'id salvato) ripiegano sulla
+// vecchia ricerca per nome+data, come compatibilità.
+async function idPrenotazioneCollegata(b) {
+  if (b.clientePrenotazioneId) return b.clientePrenotazioneId;
+  if (!b.clienteAlloggio) return null;
+  const match = await trovaPrenotazioneAttivaPerAlloggio(b.clienteAlloggio);
+  return match ? match.id : null;
+}
+async function idPrenotazioneAttivaPerAlloggio(alloggioNome) {
+  if (!alloggioNome) return null;
+  const match = await trovaPrenotazioneAttivaPerAlloggio(alloggioNome);
+  return match ? match.id : null;
 }
 
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -731,7 +833,7 @@ async function checkConnessione() {
 setInterval(checkConnessione, 30000);
 // Ogni 30s aggiorniamo anche solo per far avanzare l'orario/il costo delle
 // bici occupate mostrate a schermo (nessuna chiamata di rete, solo render).
-setInterval(() => { if (!settingsOpen) render(); }, 30000);
+setInterval(() => { if (!settingsOpen && !storicoOpen) render(); }, 30000);
 
 // ── LOGIN / PERMESSI (single sign-on dalla Hub) ──────────────────────────────
 function loadHubSession() {
@@ -817,6 +919,7 @@ function render() {
   renderFormInserimento();
   renderActiveRentals();
   renderBikeStatus();
+  if (storicoOpen) renderStoricoNoleggi();
   if (settingsOpen) renderSettings();
 }
 
@@ -875,7 +978,7 @@ function renderFormInserimento() {
       '</div>'+
       '<div style="margin-bottom:12px">'+
         '<div class="f-label">Cliente</div>'+
-        '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value">'+
+        '<input class="f-input" type="text" placeholder="Nome Cognome" value="'+(t.nome||'').replace(/"/g,'&quot;')+'" oninput="formTemp.nome=this.value;formTemp.nomeAuto=false">'+
       '</div>'+
       '<div class="form-divider"></div>'+
       '<div class="form-step-title"><span class="num">3</span>Durata e prezzo</div>'+
@@ -913,7 +1016,7 @@ function renderFormInserimento() {
           '</div>'+
           '<div>'+
             '<div class="f-label" style="margin-top:10px">Rientro previsto <span style="opacity:.5">(vuoto = timer)</span></div>'+
-            '<input class="f-input" type="datetime-local" value="'+(t.rientroTs||'')+'" oninput="formTemp.rientroTs=this.value">'+
+            '<input class="f-input" type="datetime-local" value="'+(t.rientroTs||'')+'" oninput="formTemp.rientroTs=this.value;formTemp.rientroAuto=false">'+
           '</div>'+
         '</div>'
       : '')+
@@ -1059,11 +1162,18 @@ function renderRentalCard(group) {
 
   // Action buttons — un'unica azione primaria (colorata come il resto della
   // card) più "Modifica" come link secondario, invece di due pulsanti dello
-  // stesso peso visivo.
+  // stesso peso visivo. Se il noleggio non è ancora pagato ed è collegato a
+  // un alloggio, si aggiunge "Aggiungi al conto" come alternativa
+  // all'incasso in contanti (v. riscuotiSulConto): addebita la prenotazione
+  // Calendario invece di chiedere i contanti allo sportello.
+  const contoBtnHtml = (!isPaid && b0.clienteAlloggio)
+    ? '<button class="r-btn-outline" onclick="confermaRiscuotiSulContoGruppo(\''+groupKey+'\')">Aggiungi al conto</button>'
+    : '';
   const actionsHtml = isPaid
     ? '<button class="r-btn-primary '+cardClass+'" onclick="confermaRientroGruppo(\''+groupKey+'\')">Segna rientro</button>'+
       '<button class="r-btn-secondary" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>'
     : '<button class="r-btn-primary '+cardClass+'" onclick="confermaRiscuotiGruppo(\''+groupKey+'\')">Riscuoti e chiudi</button>'+
+      contoBtnHtml+
       '<button class="r-btn-secondary" onclick="attivaModificaBici(\''+b0.id+'\')">Modifica</button>';
 
   return '<div class="rental-card '+cardClass+'">'+
@@ -1127,6 +1237,83 @@ function renderBikeStatus() {
     '</div>';
 }
 
+// ── STORICO NOLEGGI ───────────────────────────────────────────────────────
+// Aggrega il campo "log" (chiusure passate) salvato su ogni singola bici in
+// un unico elenco, più recenti prima. Una riga per bici per noleggio: nei
+// noleggi multi-bici ogni bici del gruppo ha la propria voce di log separata
+// (v. riscuoti/riscuotiSulConto/segnalaRientro, chiamate una per bici dai
+// wrapper *Gruppo), senza un id comune con cui raggrupparle qui.
+function raccogliStorico() {
+  const righe = [];
+  Object.values(bikesMap).forEach(b => {
+    (b.log || []).forEach(entry => righe.push(Object.assign({ numero: b.numero }, entry)));
+  });
+  righe.sort((a, b) => new Date(b.rientroTs || 0) - new Date(a.rientroTs || 0));
+  return righe;
+}
+
+function renderStoricoRow(r) {
+  const initiali = (r.clienteNome || '?').trim().slice(0, 2).toUpperCase();
+  const durataMs = (r.rientroTs && r.ritiroTs) ? (new Date(r.rientroTs) - new Date(r.ritiroTs)) : 0;
+  const badgeClass = r.alConto ? 'conto' : 'contanti';
+  const badgeLabel = r.alConto ? 'Al conto' : (r.pagamentoAnticipato ? 'Pagato al ritiro' : 'Contanti');
+  const operatori = [r.opRitiro, r.opRiscossione].filter(Boolean).join(' · ');
+  return '<div class="storico-row">'+
+    '<div class="storico-avatar">'+initiali+'</div>'+
+    '<div class="storico-info">'+
+      '<div class="storico-name">'+(r.clienteNome||'—')+'<span class="storico-bike">Bici N°'+r.numero+'</span></div>'+
+      '<div class="storico-meta">'+
+        (r.clienteAlloggio ? r.clienteAlloggio+' · ' : '')+
+        fmtDT(r.ritiroTs)+' → '+fmtDT(r.rientroTs)+
+        (durataMs > 0 ? ' ('+fmtElapsed(durataMs)+')' : '')+
+        (operatori ? '<br>'+operatori : '')+
+      '</div>'+
+    '</div>'+
+    '<div class="storico-cost">'+
+      '<div class="storico-cost-val">'+(r.costo||0).toFixed(2).replace('.',',')+'€</div>'+
+      '<div class="storico-cost-badge '+badgeClass+'">'+badgeLabel+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function renderStoricoNoleggi() {
+  const container = document.getElementById('storico-noleggi');
+  if (!container) return;
+  const tutte = raccogliStorico();
+  if (!tutte.length) {
+    container.innerHTML = '<div class="sec-label">Storico noleggi</div><div class="empty-state">Nessun noleggio concluso finora</div>';
+    return;
+  }
+  const q = storicoQuery.trim().toLowerCase();
+  const filtrate = q
+    ? tutte.filter(r =>
+        (r.clienteNome||'').toLowerCase().includes(q) ||
+        (r.clienteAlloggio||'').toLowerCase().includes(q) ||
+        String(r.numero) === q)
+    : tutte;
+  const daMostrare = filtrate.slice(0, storicoShown);
+  const righeHtml = daMostrare.length
+    ? daMostrare.map(renderStoricoRow).join('')
+    : '<div class="empty-state" style="padding:24px 20px">Nessun risultato per questa ricerca</div>';
+  // Ricreare l'input ad ogni tasto premuto (come per il resto dell'app, che
+  // ricostruisce sempre l'innerHTML) sposterebbe il focus fuori dal campo
+  // dopo il primo carattere: qui lo stato del focus/cursore va quindi
+  // salvato prima e ripristinato dopo, a differenza degli altri campi
+  // dell'app che invece non triggerano mai un render ad ogni oninput.
+  const searchEl = document.getElementById('storico-search-input');
+  const hadFocus = !!searchEl && document.activeElement === searchEl;
+  const cursorPos = hadFocus ? searchEl.selectionStart : null;
+  container.innerHTML =
+    '<div class="sec-label">Storico noleggi ('+tutte.length+')</div>'+
+    '<div class="storico-search"><input class="f-input" id="storico-search-input" type="text" placeholder="Cerca cliente, alloggio o numero bici…" value="'+storicoQuery.replace(/"/g,'&quot;')+'" oninput="storicoQuery=this.value;storicoShown=20;renderStoricoNoleggi()"></div>'+
+    '<div class="storico-list">'+righeHtml+'</div>'+
+    (filtrate.length > daMostrare.length ? '<button class="storico-more" onclick="storicoShown+=20;renderStoricoNoleggi()">Mostra altri ('+(filtrate.length-daMostrare.length)+')</button>' : '');
+  if (hadFocus) {
+    const el = document.getElementById('storico-search-input');
+    if (el) { el.focus(); if (cursorPos !== null) el.setSelectionRange(cursorPos, cursorPos); }
+  }
+}
+
 // ── AZIONI ────────────────────────────────────────────────────────────────
 async function segnalaRitiro(id) {
   if (!id) { showToast('Seleziona una bici'); return; }
@@ -1147,7 +1334,7 @@ async function segnalaRitiro(id) {
   b.fasciaPreselezionata = r.fascia;
   b.dettaglioPreselezionato = r.dettaglio;
   b.rientroPrevistoTs = rientroPrevistoTs;
-  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
   render();
   try {
     await waitForFirebase();
@@ -1185,6 +1372,7 @@ async function riscuoti(id) {
     ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
     : calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
   const alloggio = b.clienteAlloggio || null;
+  const prenotazioneId = alloggio ? await idPrenotazioneCollegata(b) : null;
   const entry = {
     clienteNome: b.clienteNome || '', clienteAlloggio: alloggio || '',
     ritiroTs: b.ritiroTs, rientroTs: nowIso,
@@ -1193,7 +1381,7 @@ async function riscuoti(id) {
   };
   const newLog = [entry].concat(b.log || []).slice(0, 30);
   b.stato = 'libera';
-  b.clienteNome = null; b.clienteAlloggio = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.clienteNome = null; b.clienteAlloggio = null; b.clientePrenotazioneId = null; b.ritiroTs = null; b.ritiroOp = null;
   b.costoPreselezionato = null; b.fasciaPreselezionata = null;
   b.dettaglioPreselezionato = null; b.rientroPrevistoTs = null;
   b.log = newLog;
@@ -1203,7 +1391,7 @@ async function riscuoti(id) {
     await waitForFirebase();
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'bici', id), {
-      stato: 'libera', clienteNome: null, clienteAlloggio: null, ritiroTs: null, ritiroOp: null,
+      stato: 'libera', clienteNome: null, clienteAlloggio: null, clientePrenotazioneId: null, ritiroTs: null, ritiroOp: null,
       costoPreselezionato: null, fasciaPreselezionata: null,
       dettaglioPreselezionato: null, rientroPrevistoTs: null, log: newLog,
     });
@@ -1211,7 +1399,64 @@ async function riscuoti(id) {
     console.error('Errore riscossione:', e);
     showToast('Errore di salvataggio — riprova');
   }
-  if (alloggio) inserisciCostoBiciNelConto(alloggio, 'Bici N°' + b.numero + (entry.clienteNome ? ' (' + entry.clienteNome + ')' : ''), r.costo);
+  // Deve essere in await: chiamata "e dimenticata" qui sembrava innocua, ma
+  // se questa è una fra più bici chiuse insieme nello stesso gruppo (stesso
+  // alloggio), un'altra chiamata parallela poteva leggere il conto PRIMA che
+  // questa scrittura fosse arrivata e sovrascriverla, perdendo l'addebito di
+  // una delle due bici (v. i loop sequenziali in confermaRiscuotiGruppo/
+  // confermaRiscuotiSulContoGruppo, che esistono proprio per questo).
+  if (prenotazioneId) await inserisciCostoBiciNelConto(prenotazioneId, 'Bici N°' + b.numero + (entry.clienteNome ? ' (' + entry.clienteNome + ')' : ''), r.costo);
+}
+
+// Chiude il noleggio senza incassare contanti: addebita l'importo sul conto
+// della prenotazione Calendario collegata all'alloggio, da saldare al
+// check-out. A differenza di riscuoti(), qui l'addebito è l'unico posto in
+// cui l'importo viene registrato — se non si trova una prenotazione attiva
+// per quell'alloggio il noleggio NON viene chiuso, per non perdere l'incasso.
+async function riscuotiSulConto(id) {
+  const b = bikesMap[id];
+  if (!b || b.stato !== 'occupata') return;
+  const alloggio = b.clienteAlloggio || null;
+  if (!alloggio) { showToast('Nessun alloggio collegato a questo noleggio'); return; }
+  const prenotazioneId = await idPrenotazioneCollegata(b);
+  const nowIso = new Date().toISOString();
+  const usaFisso = !!b.rientroPrevistoTs;
+  const r = usaFisso
+    ? { fascia: b.fasciaPreselezionata || '', dettaglio: b.dettaglioPreselezionato || '', costo: b.costoPreselezionato }
+    : calcolaCostoBici(new Date(nowIso).getTime() - new Date(b.ritiroTs).getTime());
+  const label = 'Bici N°' + b.numero + (b.clienteNome ? ' (' + b.clienteNome + ')' : '');
+  const aggiunta = await inserisciCostoBiciNelConto(prenotazioneId, label, r.costo, false);
+  if (!aggiunta) {
+    showToast('Nessuna prenotazione attiva trovata per l\'alloggio ' + alloggio + ' — noleggio non chiuso');
+    return;
+  }
+  const entry = {
+    clienteNome: b.clienteNome || '', clienteAlloggio: alloggio,
+    ritiroTs: b.ritiroTs, rientroTs: nowIso,
+    fascia: r.fascia, dettaglio: r.dettaglio, costo: r.costo,
+    opRitiro: b.ritiroOp || '', opRiscossione: currentOperatore || 'Operatore',
+    alConto: true,
+  };
+  const newLog = [entry].concat(b.log || []).slice(0, 30);
+  b.stato = 'libera';
+  b.clienteNome = null; b.clienteAlloggio = null; b.clientePrenotazioneId = null; b.ritiroTs = null; b.ritiroOp = null;
+  b.costoPreselezionato = null; b.fasciaPreselezionata = null;
+  b.dettaglioPreselezionato = null; b.rientroPrevistoTs = null;
+  b.log = newLog;
+  render();
+  showToast('Bici N°' + b.numero + ' addebitata sul conto (' + r.costo.toFixed(2).replace('.',',') + '€)');
+  try {
+    await waitForFirebase();
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'bici', id), {
+      stato: 'libera', clienteNome: null, clienteAlloggio: null, clientePrenotazioneId: null, ritiroTs: null, ritiroOp: null,
+      costoPreselezionato: null, fasciaPreselezionata: null,
+      dettaglioPreselezionato: null, rientroPrevistoTs: null, log: newLog,
+    });
+  } catch(e) {
+    console.error('Errore chiusura noleggio (addebito conto):', e);
+    showToast('Errore di salvataggio — riprova');
+  }
 }
 
 // ── MULTI-BIKE ACTIONS ────────────────────────────────────────────────────
@@ -1221,13 +1466,20 @@ async function segnalaRitiroMulti() {
   const nome = (formTemp.nome || '').trim();
   if (!nome) { showToast('Inserisci nome e cognome'); return; }
   const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
-  for (const id of ids) await segnalaRitiroMultiExec(id, gruppoId);
-  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  // Risolto una sola volta per l'intero gruppo, non dentro il loop per
+  // bici: così tutte le bici ritirate insieme restano agganciate alla
+  // stessa identica prenotazione (v. idPrenotazioneAttivaPerAlloggio),
+  // invece di essere ricalcolate una per una alla chiusura — dove, in
+  // presenza di più prenotazioni per lo stesso alloggio con date
+  // sovrapposte, il ricalcolo può risultare ambiguo.
+  const prenotazioneId = formTemp.alloggio ? await idPrenotazioneAttivaPerAlloggio(formTemp.alloggio) : null;
+  for (const id of ids) await segnalaRitiroMultiExec(id, gruppoId, prenotazioneId);
+  formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
   render();
   showToast(ids.length > 1 ? ids.length+' bici segnalate in uscita' : 'Bici segnalata in uscita');
 }
 
-async function segnalaRitiroMultiExec(id, gruppoId) {
+async function segnalaRitiroMultiExec(id, gruppoId, prenotazioneId) {
   const b = bikesMap[id];
   if (!b) return;
   const t = formTemp;
@@ -1244,6 +1496,7 @@ async function segnalaRitiroMultiExec(id, gruppoId) {
   b.rientroPrevistoTs = rientroPrevistoTs;
   b.note = note || null;
   b.clienteAlloggio = t.alloggio || null;
+  b.clientePrenotazioneId = prenotazioneId || null;
   if (gruppoId) b.gruppoId = gruppoId;
   try {
     await waitForFirebase();
@@ -1256,6 +1509,7 @@ async function segnalaRitiroMultiExec(id, gruppoId) {
       rientroPrevistoTs: rientroPrevistoTs !== null ? rientroPrevistoTs : deleteField(),
       note: note || null,
       clienteAlloggio: t.alloggio || null,
+      clientePrenotazioneId: prenotazioneId || null,
       ...(gruppoId ? { gruppoId } : {}),
     });
   } catch(e) { console.error('Errore segnalazione ritiro:', e); showToast('Errore di salvataggio'); }
@@ -1285,6 +1539,7 @@ async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
   const gruppoId = ids.length > 1 ? ('g_' + Date.now()) : null;
   const note = (formTemp.note || '').trim();
   const alloggio = formTemp.alloggio || null;
+  const prenotazioneId = alloggio ? await idPrenotazioneAttivaPerAlloggio(alloggio) : null;
   for (const id of ids) {
     const b = bikesMap[id];
     if (!b) continue;
@@ -1297,6 +1552,7 @@ async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
     b.rientroPrevistoTs = rientroTs;
     b.note = note || null;
     b.clienteAlloggio = alloggio;
+    b.clientePrenotazioneId = prenotazioneId;
     if (gruppoId) b.gruppoId = gruppoId;
     try {
       await waitForFirebase();
@@ -1309,16 +1565,20 @@ async function eseguiRitiroPagatoMulti(ids, nome, ritiroTs, rientroTs, r) {
         rientroPrevistoTs: rientroTs !== null ? rientroTs : deleteField(),
         note: note || null,
         clienteAlloggio: alloggio,
+        clientePrenotazioneId: prenotazioneId,
         ...(gruppoId ? { gruppoId } : {}),
       });
     } catch(e) { console.error('Errore ritiro pagato:', e); showToast('Errore di salvataggio'); }
   }
-  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
   render();
   showToast('Incassati ' + (r.costo * ids.length).toFixed(2).replace('.',',') + '€ per ' + ids.length + ' bici');
-  if (alloggio) {
+  // In await anche qui, per lo stesso motivo del ritiro/riscossione singola:
+  // scrivere "e dimenticare" rischia di perdere l'addebito se un'altra
+  // operazione sul conto della stessa prenotazione arriva nel frattempo.
+  if (prenotazioneId) {
     const bikeNums = ids.map(id => bikesMap[id] ? 'N°'+bikesMap[id].numero : '?').join(', ');
-    inserisciCostoBiciNelConto(alloggio, 'Bici ' + bikeNums + ' (' + nome + ')', r.costo * ids.length);
+    await inserisciCostoBiciNelConto(prenotazioneId, 'Bici ' + bikeNums + ' (' + nome + ')', r.costo * ids.length);
   }
 }
 
@@ -1335,7 +1595,34 @@ function confermaRiscuotiGruppo(groupKey) {
     'Riscuoti ' + totale.toFixed(2).replace('.',',') + '€',
     'Bici '+bikeNums+' — '+(bikes[0].clienteNome||'')+'. Confermi di aver incassato il pagamento?',
     'Riscuoti',
-    () => { bikes.forEach(b => riscuoti(b.id)); }
+    // Una alla volta, non in parallelo: se più bici del gruppo sono collegate
+    // allo stesso alloggio, ognuna legge-modifica-scrive lo stesso conto —
+    // in parallelo la seconda scrittura arriva prima che la prima abbia
+    // finito e la sovrascrive, perdendo l'addebito della prima bici.
+    async () => { for (const b of bikes) await riscuoti(b.id); }
+  );
+}
+
+// Variante di confermaRiscuotiGruppo() che addebita sul conto della
+// prenotazione invece di incassare contanti — v. riscuotiSulConto().
+function confermaRiscuotiSulContoGruppo(groupKey) {
+  const group = getRentalGroups().find(g => g.key === groupKey);
+  if (!group) return;
+  const bikes = group.bikes;
+  let totale = 0;
+  bikes.forEach(b => {
+    totale += !!b.rientroPrevistoTs ? (b.costoPreselezionato||0) : calcolaCostoBici(Date.now() - new Date(b.ritiroTs).getTime()).costo;
+  });
+  const bikeNums = bikes.sort((a,b)=>a.numero-b.numero).map(b=>'N°'+b.numero).join(', ');
+  const alloggio = bikes[0].clienteAlloggio || '';
+  showModal(
+    'Aggiungi al conto — ' + totale.toFixed(2).replace('.',',') + '€',
+    'Bici '+bikeNums+' — '+(bikes[0].clienteNome||'')+'. L\'importo verrà addebitato sul conto della prenotazione collegata all\'alloggio '+alloggio+', da pagare al check-out. Confermi?',
+    'Aggiungi al conto',
+    // Stesso motivo del loop sequenziale in confermaRiscuotiGruppo: qui è
+    // ancora più delicato, perché a differenza dei contanti l'addebito sul
+    // conto è l'unico posto dove l'importo di ogni bici viene registrato.
+    async () => { for (const b of bikes) await riscuotiSulConto(b.id); }
   );
 }
 
@@ -1361,7 +1648,7 @@ function stepCosto(delta) {
   if (el) el.value = t.costoManuale.toFixed(2);
 }
 
-function aggiornaRientroSuggerito(id, t) {
+function aggiornaRientroSuggerito(t) {
   const r = calcolaSelezioneDurata(t);
   const s = new Date(Date.now() + r.ms);
   t.rientroTs = new Date(s.getTime() - s.getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -1371,12 +1658,24 @@ function cambiaOre(delta) {
   formTemp.fasciaKey = null;
   if (delta !== 0) formTemp.ore = Math.max(1, (formTemp.ore || 1) + delta);
   formTemp.costoManuale = null;
+  // Se "Rientro previsto" era stato riempito in automatico da una fascia
+  // fissa (½ giornata/giornata/settimana), tornando alla tariffa oraria lo
+  // svuotiamo di nuovo: "vuoto" è la modalità timer, quella giusta per un
+  // noleggio a ore. Un rientro inserito a mano dall'operatore invece resta.
+  if (formTemp.rientroAuto) { formTemp.rientroTs = ''; formTemp.rientroAuto = false; }
   renderFormInserimento();
 }
 
 function selFascia(key) {
   formTemp.fasciaKey = key;
   formTemp.costoManuale = null;
+  // Le fasce fisse hanno un prezzo indipendente dai minuti effettivi: senza
+  // un "Rientro previsto" impostato, la card del noleggio attivo ricade sul
+  // timer a tariffa oraria (v. renderRentalCard) e mostra il prezzo sbagliato
+  // (es. "½ Giornata" da 5€ che appare come "1€" appena avviato). Impostarlo
+  // qui in automatico blocca subito il prezzo fisso corretto.
+  aggiornaRientroSuggerito(formTemp);
+  formTemp.rientroAuto = true;
   renderFormInserimento();
 }
 
@@ -1412,7 +1711,7 @@ async function eseguiRitiroPagato(id, nome, ritiroTs, rientroTs, r) {
   b.fasciaAnticipata = r.fascia;
   b.dettaglioAnticipato = r.dettaglio;
   b.rientroPrevistoTs = rientroTs;
-  formTemp = { nome:'', alloggio:'', bikeIds:[], fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', note:'' };
+  formTemp = { nome:'', alloggio:'', bikeIds:[], nomeAuto:true, fasciaKey:null, ore:1, costoManuale:null, ritiroTs:'', rientroTs:'', rientroAuto:false, note:'' };
   render();
   showToast('Incassati ' + r.costo.toFixed(2).replace('.',',') + '€ per la Bici N°' + b.numero);
   try {
@@ -1635,6 +1934,24 @@ async function salvaModificaCosto(id, nuovoCosto) {
     console.error('Errore aggiornamento costo:', e);
     showToast('Errore di salvataggio — riprova');
   }
+}
+
+// ── STORICO NOLEGGI (vista separata, aperta dall'icona orologio in header) ──
+function openStorico() {
+  storicoOpen = true;
+  document.getElementById('top-bar-main').classList.add('hidden');
+  document.getElementById('top-bar-storico').classList.remove('hidden');
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('storico-view').classList.remove('hidden');
+  renderStoricoNoleggi();
+}
+function closeStorico() {
+  storicoOpen = false;
+  document.getElementById('top-bar-storico').classList.add('hidden');
+  document.getElementById('top-bar-main').classList.remove('hidden');
+  document.getElementById('storico-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+  render();
 }
 
 // ── IMPOSTAZIONI (solo admin): aggiungi / elimina / disattiva una bici ──────
