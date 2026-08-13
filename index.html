@@ -1564,15 +1564,13 @@ function renderReportPresenti() {
 function renderReportOggi() {
   const os = homeStats.oggiStruttura;
   const al = homeStats.alloggi;
-  const man = homeStats.manutenzione;
-  const loading = !os || !al || !man;
+  const loading = !os || !al;
   const seg = (val, lbl, dot, url) => `<div class="gr-seg" onclick="openModule('${url}')"><span class="gr-seg-dot gr-dot-${dot}"></span><div class="gr-seg-num">${loading ? '—' : val}</div><div class="gr-seg-lbl">${lbl}</div></div>`;
   return `
   <div class="gr-seg-bar" data-item-id="report-oggiStruttura">
     ${seg(loading?0:os.arrivi, 'Arrivi', 'green', 'calendario/')}
     ${seg(loading?0:os.partenze, 'Partenze', 'gray', 'calendario/')}
     ${seg(loading?0:al.daPulire, 'Da pulire', 'orange', 'alloggi/')}
-    ${seg(loading?0:man.aperti, 'Ticket', 'orange', 'manutenzione/')}
     ${seg(loading?0:os.compleanni, 'Compleanni', 'gray', 'calendario/')}
   </div>`;
 }
@@ -1784,6 +1782,13 @@ function renderKpiStrip() {
     value: al.occupati, small: ` / ${al.totale}`,
     pct: al.totale ? Math.round(al.occupati / al.totale * 100) : 0,
     url: 'alloggi/',
+  });
+  const man = homeStats.manutenzione;
+  if (man) rows.push({
+    icon: ICONS.MANUTENZIONE, tile: 'amber', label: 'Ticket manutenzione',
+    value: man.aperti, small: man.aperti === 1 ? ' aperto' : ' aperti',
+    pct: man.aperti > 0 ? Math.min(100, man.aperti * 20) : 4,
+    url: 'manutenzione/',
   });
   const ri = homeStats.ristorazione;
   if (ri) rows.push({
