@@ -1282,7 +1282,13 @@ function updatePinDots() {
 
 document.addEventListener('keydown', (e) => {
   const pinStep = document.getElementById('login-step-pin');
+  const loginScreen = document.getElementById('login-screen');
+  // Doppio controllo (stile inline della schermata PIN + overlay di login non
+  // nascosto): un solo controllo, in passato, è bastato a lasciare questo
+  // listener "armato" per l'intera sessione dopo un login riuscito, rompendo
+  // Backspace/Delete ovunque nell'app (v. il reset in loginSuccess più sopra).
   if (!pinStep || pinStep.style.display !== 'block') return;
+  if (!loginScreen || loginScreen.classList.contains('hidden')) return;
   if (e.key >= '0' && e.key <= '9') {
     e.preventDefault();
     pinPress(e.key);
@@ -1318,6 +1324,14 @@ function loginSuccess(op) {
   sessionStorage.setItem('gr_session', JSON.stringify({ nome: op, ruolo: currentRuolo }));
   sessionStorage.setItem('gr_permessi', JSON.stringify(permessi[op] || {}));
   document.getElementById('login-screen').classList.add('hidden');
+  // Il listener keydown qui sotto intercetta Backspace/Delete SOLO quando
+  // login-step-pin ha display:block. Senza questo reset, dopo un login
+  // riuscito restava bloccato su 'block' per sempre (l'overlay veniva
+  // nascosto solo dalla classe .hidden, non da questo stile inline): da quel
+  // momento ogni Backspace/Delete premuto in qualsiasi campo di tutta l'app
+  // veniva intercettato e mandato al PIN invece che al campo di testo — causa
+  // reale del bug "non riesco a cancellare il testo".
+  document.getElementById('login-step-pin').style.display = 'none';
   applyHeader();
   renderHome();
   syncHomeLayout(currentOperatore);
@@ -1412,6 +1426,11 @@ function initiali(nome) {
 // scheda riassuntiva locale (v. apriSchedaOspite) senza lasciare la home.
 function ospiteFamigliaCorrispondenteHome(p, q) {
   return (p.ospiti || []).find(o => `${o.nome||''} ${o.cognome||''}`.trim().toLowerCase().includes(q));
+}
+// L'operatore ha lasciato il campo di ricerca: se nel frattempo renderHome()
+// aveva rimandato un ridisegno completo (v. _homeRenderPending), lo recupera ora.
+function onGrSearchBlur() {
+  if (_homeRenderPending) renderHome();
 }
 function cercaOspitiHome() {
   const input = document.getElementById('gr-search-input');
@@ -1552,7 +1571,7 @@ function renderReportPresenti() {
     <div class="gr-search-side">
       <div class="gr-search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="text" id="gr-search-input" placeholder="Nome, ospite o targa…" oninput="cercaOspitiHome()" onclick="event.stopPropagation()">
+        <input type="text" id="gr-search-input" placeholder="Nome, ospite o targa…" oninput="cercaOspitiHome()" onclick="event.stopPropagation()" onblur="onGrSearchBlur()">
       </div>
       <div class="gr-search-results" id="gr-search-results">
         <div class="gr-search-hint">Cerca per nome/cognome prenotazione, ospiti o targa…</div>
@@ -1864,7 +1883,24 @@ function renderModuleChunk(mods) {
   return `<div class="module-grid">${tiles}</div>`;
 }
 
+let _homeRenderPending = false;
 function renderHome() {
+  // Se l'operatore sta scrivendo nella ricerca ospiti, ci fermiamo qui:
+  // aggiorniamo solo i numeri della card (updateReportPresentiStats) e
+  // rimandiamo il resto (striscia KPI, barra "oggi", elenco moduli) a quando
+  // lascerà il campo (v. onGrSearchBlur). Su iOS in modalità "app salvata in
+  // Home", anche un ridisegno che NON tocca l'<input> ma muove/ridisegna il
+  // resto della pagina può far perdere alla tastiera di sistema il sincronismo
+  // col campo (il Backspace smette di rispondere) — cosa che non si vede né in
+  // Safari normale né in Calendario, dove i dati cambiano molto meno spesso.
+  const grInput = document.getElementById('gr-search-input');
+  if (grInput && document.activeElement === grInput) {
+    updateReportPresentiStats();
+    _homeRenderPending = true;
+    return;
+  }
+  _homeRenderPending = false;
+
   // "Presenti + ricerca" ha posizione fissa, subito sotto il titolo — non
   // passa dal pannello di riordino.
   const presentiSlot = document.getElementById('report-presenti-slot');
