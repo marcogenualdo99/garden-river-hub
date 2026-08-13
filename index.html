@@ -305,6 +305,62 @@
     }
   };
 
+  // ── Rinnovo automatico silenzioso (login, ritorno in foreground, ecc.) ──
+  // A differenza di _abilitaNotifichePush (chiamata esplicita dall'utente, con
+  // toast di esito), questa gira in background e non deve MAI dare l'illusione
+  // che le notifiche siano attive quando in realtà il rinnovo fallisce da
+  // giorni: dopo qualche fallimento consecutivo azzera lo stato locale così
+  // l'interfaccia torna a mostrare onestamente "non attive" e l'operatore
+  // viene guidato a riattivarle, invece di scoprirlo solo perdendo un ordine.
+  let _refreshInCorso = false;
+  window._verificaTokenPush = async function() {
+    if (_refreshInCorso) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // gcm_operatore viene sempre scritto insieme a gcm_token (v. _abilitaNotifichePush
+    // e la pulizia sotto), quindi basta leggerlo da qui senza altri fallback.
+    const operatore = localStorage.getItem('gcm_operatore');
+    if (!localStorage.getItem('gcm_token') || !operatore) return;
+
+    _refreshInCorso = true;
+    try {
+      const res = await window._abilitaNotifichePush(operatore);
+      if (res.ok) {
+        localStorage.setItem('gcm_fail_streak', '0');
+        localStorage.setItem('gcm_last_ok', String(Date.now()));
+      } else {
+        const falliti = (parseInt(localStorage.getItem('gcm_fail_streak'), 10) || 0) + 1;
+        localStorage.setItem('gcm_fail_streak', String(falliti));
+        console.warn(`Rinnovo token push fallito (${falliti}° tentativo consecutivo):`, res.motivo, res.dettaglio || '');
+        if (falliti >= 3) {
+          const tokenMorto = localStorage.getItem('gcm_token');
+          console.error('Token push considerato morto dopo 3 rinnovi falliti, ripristino stato "non attive".');
+          if (tokenMorto && operatore) {
+            try {
+              const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+              await updateDoc(doc(dataDb, 'staffTokens', operatore), { tokens: arrayRemove(tokenMorto) });
+            } catch(e) {}
+          }
+          localStorage.removeItem('gcm_token');
+          localStorage.removeItem('gcm_operatore');
+          localStorage.removeItem('gcm_fail_streak');
+          if (typeof aggiornaStatoNotifiche === 'function') aggiornaStatoNotifiche();
+        }
+      }
+    } finally {
+      _refreshInCorso = false;
+    }
+  };
+
+  // L'apertura completa (login) è già coperta da applyHeader(); questo copre
+  // il caso, molto più frequente su mobile, in cui l'app torna in foreground
+  // da background/lucchetto SENZA un vero reload della pagina — l'unico
+  // momento in cui possiamo davvero accorgerci che il token è morto prima che
+  // sia troppo tardi.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') window._verificaTokenPush();
+  });
+  window.addEventListener('pageshow', () => window._verificaTokenPush());
+
   // Quando la Hub è aperta e in primo piano, FCM non mostra la notifica in automatico
   // (si aspetta che sia la pagina a gestirla) — la mostriamo qui a mano.
   onMessage(messaging, (payload) => {
@@ -1390,10 +1446,7 @@ function applyHeader() {
   // chiamata è leggera e ci assicura che il token su Firestore sia sempre
   // quello corrente, invece di scoprire che è morto solo quando un ordine
   // non genera notifica.
-  if (window._abilitaNotifichePush && 'Notification' in window && Notification.permission === 'granted'
-      && localStorage.getItem('gcm_token')) {
-    window._abilitaNotifichePush(currentOperatore || 'Staff').catch(() => {});
-  }
+  if (window._verificaTokenPush) window._verificaTokenPush();
 }
 
 function maybeOpenDeepLink() {
@@ -2136,7 +2189,14 @@ function aggiornaStatoNotifiche() {
     return;
   }
   const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
-  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  if (attive) {
+    const ultimoOk = parseInt(localStorage.getItem('gcm_last_ok'), 10);
+    el.textContent = ultimoOk
+      ? `✓ Attive · verificate ${new Date(ultimoOk).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+      : '✓ Attive su questo dispositivo';
+  } else {
+    el.textContent = 'Non ancora attive su questo dispositivo.';
+  }
   el.style.color = attive ? 'var(--green-ok, #16A34A)' : 'var(--gray-500)';
   if (btn) btn.style.display = attive ? 'none' : '';
   if (btnDis) btnDis.style.display = attive ? '' : 'none';
@@ -2148,6 +2208,8 @@ async function attivaNotificheHub() {
   if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
   const res = await window._abilitaNotifichePush(currentOperatore || 'Staff');
   if (res.ok) {
+    localStorage.setItem('gcm_fail_streak', '0');
+    localStorage.setItem('gcm_last_ok', String(Date.now()));
     showToast('Notifiche attivate!');
   } else {
     const msg = {
@@ -2173,6 +2235,8 @@ async function disattivaNotificheHub() {
   }
   localStorage.removeItem('gcm_token');
   localStorage.removeItem('gcm_operatore');
+  localStorage.removeItem('gcm_fail_streak');
+  localStorage.removeItem('gcm_last_ok');
   showToast('Notifiche disattivate');
   aggiornaStatoNotifiche();
 }
