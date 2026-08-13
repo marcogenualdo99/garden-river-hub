@@ -225,7 +225,7 @@
      di notifica degli operatori (staffTokens). -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -249,7 +249,7 @@
   // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in tutta la suite)
   const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
-  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
   window._fbDataReady = false;
 
   function segnalaDatiPronti() {
@@ -1039,7 +1039,7 @@ async function startHomeStatsSync() {
 
   // Conti, Alloggi e Bici condividono invece il progetto garden-river-conti-febed.
   await waitForFirebaseData();
-  const { db, collection, onSnapshot, query, limit } = window._fbData;
+  const { db, collection, onSnapshot, query, limit, where } = window._fbData;
   try {
     onSnapshot(collection(db, 'ospiti'), (snap) => {
       const ospiti = snap.docs.map(d => d.data());
@@ -1087,9 +1087,8 @@ async function startHomeStatsSync() {
     }, (err) => console.error('Errore statistiche bici:', err));
 
     const oggi = new Date().toISOString().split('T')[0];
-    onSnapshot(query(collection(db, 'ordini_ristorazione'), limit(200)), (snap) => {
-      const ordiniOggi = snap.docs.filter(d => d.data().data === oggi).length;
-      homeStats.ristorazione = { ordiniOggi };
+    onSnapshot(query(collection(db, 'ordini_ristorazione'), where('data', '==', oggi)), (snap) => {
+      homeStats.ristorazione = { ordiniOggi: snap.size };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche ristorazione:', err));
     onSnapshot(collection(db, 'staffTokens'), (snap) => {
@@ -1505,6 +1504,30 @@ function closeGuestCard() {
   document.getElementById('guest-overlay').classList.add('hidden');
 }
 
+// Aggiorna solo i numeri della card "Presenti" (conteggio, anello %, label)
+// senza toccare il box di ricerca — usata mentre l'operatore ci sta scrivendo
+// dentro, perché ricreare l'<input> (via innerHTML) a ogni snapshot Firestore
+// rompe la cancellazione dei caratteri sui browser mobile (l'IME perde il
+// collegamento con il nodo DOM sostituito e i tasti Backspace non arrivano più).
+function updateReportPresentiStats() {
+  const hero = document.querySelector('#report-presenti-slot .gr-hero');
+  if (!hero) return;
+  const pr = homeStats.presenti;
+  const al = homeStats.alloggi;
+  const loading = !pr || !al;
+  const pct = (al && al.totale) ? Math.round(al.occupati / al.totale * 100) : 0;
+  const circ = 2 * Math.PI * 27;
+  const offset = circ * (1 - pct / 100);
+  const ringFg = hero.querySelector('.gr-ring circle:nth-child(2)');
+  const ringText = hero.querySelector('.gr-ring text');
+  const numEl = hero.querySelector('.gr-count-num');
+  const lblEl = hero.querySelector('.gr-count-lbl');
+  if (ringFg) ringFg.setAttribute('stroke-dashoffset', offset);
+  if (ringText) ringText.textContent = pct + '%';
+  if (numEl) numEl.textContent = loading ? '…' : (pr.headcount||0) + ' ospiti';
+  if (lblEl) lblEl.textContent = loading ? 'Caricamento…' : `in ${al.occupati} alloggi occupati su ${al.totale}`;
+}
+
 function renderReportPresenti() {
   const pr = homeStats.presenti;
   const al = homeStats.alloggi;
@@ -1762,13 +1785,6 @@ function renderKpiStrip() {
     pct: al.totale ? Math.round(al.occupati / al.totale * 100) : 0,
     url: 'alloggi/',
   });
-  const man = homeStats.manutenzione;
-  if (man) rows.push({
-    icon: ICONS.MANUTENZIONE, tile: 'amber', label: 'Ticket manutenzione',
-    value: man.aperti, small: man.aperti === 1 ? ' aperto' : ' aperti',
-    pct: man.aperti > 0 ? Math.min(100, man.aperti * 20) : 4,
-    url: 'manutenzione/',
-  });
   const ri = homeStats.ristorazione;
   if (ri) rows.push({
     icon: ICONS.RISTORAZIONE, tile: 'sage', label: 'Ordini ristorazione',
@@ -1855,13 +1871,20 @@ function renderHome() {
   // "Presenti + ricerca" ha posizione fissa, subito sotto il titolo — non
   // passa dal pannello di riordino.
   const presentiSlot = document.getElementById('report-presenti-slot');
-  presentiSlot.innerHTML = (currentOperatore && reportVisibile(currentOperatore, 'presenti')) ? renderReportPresenti() : '';
-  if (prevSearchVal) {
-    const newInput = document.getElementById('gr-search-input');
-    if (newInput) {
-      newInput.value = prevSearchVal;
-      cercaOspitiHome();
-      if (prevSearchFocused) { newInput.focus(); newInput.setSelectionRange(prevSelStart, prevSelStart); }
+  const presentiVisibile = currentOperatore && reportVisibile(currentOperatore, 'presenti');
+  if (presentiVisibile && prevSearchFocused && presentiSlot.querySelector('.gr-hero')) {
+    // L'operatore sta scrivendo nella ricerca ospiti: aggiorna solo i numeri
+    // della card, senza ricreare l'<input> (v. updateReportPresentiStats).
+    updateReportPresentiStats();
+  } else {
+    presentiSlot.innerHTML = presentiVisibile ? renderReportPresenti() : '';
+    if (prevSearchVal) {
+      const newInput = document.getElementById('gr-search-input');
+      if (newInput) {
+        newInput.value = prevSearchVal;
+        cercaOspitiHome();
+        if (prevSearchFocused) { newInput.focus(); newInput.setSelectionRange(prevSelStart, prevSelStart); }
+      }
     }
   }
 
