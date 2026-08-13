@@ -1865,40 +1865,26 @@ function renderModuleChunk(mods) {
 }
 
 function renderHome() {
-  // Preserva testo/focus della ricerca ospiti: renderHome() viene richiamata
-  // spesso (ogni aggiornamento di homeStats), e riscrivendo l'innerHTML
-  // perderemmo quello che l'operatore sta digitando nel box di ricerca.
-  const prevSearchInput = document.getElementById('gr-search-input');
-  const prevSearchVal = prevSearchInput ? prevSearchInput.value : '';
-  const prevSearchFocused = prevSearchInput && document.activeElement === prevSearchInput;
-  const prevSelStart = prevSearchFocused ? prevSearchInput.selectionStart : null;
-
   // "Presenti + ricerca" ha posizione fissa, subito sotto il titolo — non
   // passa dal pannello di riordino.
   const presentiSlot = document.getElementById('report-presenti-slot');
   const presentiVisibile = currentOperatore && reportVisibile(currentOperatore, 'presenti');
-  // Oltre al focus vero e proprio, controlliamo anche "ha del testo dentro":
-  // su iOS in modalità "app salvata in Home" (standalone), aprire/chiudere la
-  // tastiera può generare un focus/blur transitorio proprio nell'istante in
-  // cui arriva uno snapshot Firestore — durante quel breve blur, prevSearchFocused
-  // risulterebbe falso pur essendo l'operatore ancora dentro alla ricerca, e la
-  // ricreazione dell'<input> in quel momento è quello che rompe il Backspace
-  // sulla tastiera di sistema (bug che in Safari normale non si vede, perché lì
-  // quel focus/blur transitorio non capita).
-  if (presentiVisibile && (prevSearchFocused || prevSearchVal) && presentiSlot.querySelector('.gr-hero')) {
-    // L'operatore sta scrivendo (o ha appena scritto) nella ricerca ospiti:
-    // aggiorna solo i numeri della card, senza ricreare l'<input> (v. updateReportPresentiStats).
-    updateReportPresentiStats();
-  } else {
-    presentiSlot.innerHTML = presentiVisibile ? renderReportPresenti() : '';
-    if (prevSearchVal) {
-      const newInput = document.getElementById('gr-search-input');
-      if (newInput) {
-        newInput.value = prevSearchVal;
-        cercaOspitiHome();
-        if (prevSearchFocused) { newInput.focus(); newInput.setSelectionRange(prevSelStart, prevSelStart); }
-      }
+  if (presentiVisibile) {
+    if (presentiSlot.querySelector('.gr-hero')) {
+      // La card (incluso il campo di ricerca) esiste già: da qui in poi si
+      // aggiornano solo i numeri (v. updateReportPresentiStats), il markup
+      // del box di ricerca non viene più toccato — stessa logica già usata
+      // per la ricerca in Calendario (search-prenotazioni-input), dove il
+      // campo è scritto una volta sola nell'HTML statico e mai ricreato.
+      // Ricreare l'<input> mentre l'operatore ci sta scrivendo dentro è quello
+      // che rompe il Backspace della tastiera di sistema in modalità "app
+      // salvata in Home" su iOS (bug che in Safari normale non si vede).
+      updateReportPresentiStats();
+    } else {
+      presentiSlot.innerHTML = renderReportPresenti();
     }
+  } else {
+    presentiSlot.innerHTML = '';
   }
 
   renderKpiStrip();
