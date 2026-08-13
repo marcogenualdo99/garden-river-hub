@@ -1877,9 +1877,17 @@ function renderHome() {
   // passa dal pannello di riordino.
   const presentiSlot = document.getElementById('report-presenti-slot');
   const presentiVisibile = currentOperatore && reportVisibile(currentOperatore, 'presenti');
-  if (presentiVisibile && prevSearchFocused && presentiSlot.querySelector('.gr-hero')) {
-    // L'operatore sta scrivendo nella ricerca ospiti: aggiorna solo i numeri
-    // della card, senza ricreare l'<input> (v. updateReportPresentiStats).
+  // Oltre al focus vero e proprio, controlliamo anche "ha del testo dentro":
+  // su iOS in modalità "app salvata in Home" (standalone), aprire/chiudere la
+  // tastiera può generare un focus/blur transitorio proprio nell'istante in
+  // cui arriva uno snapshot Firestore — durante quel breve blur, prevSearchFocused
+  // risulterebbe falso pur essendo l'operatore ancora dentro alla ricerca, e la
+  // ricreazione dell'<input> in quel momento è quello che rompe il Backspace
+  // sulla tastiera di sistema (bug che in Safari normale non si vede, perché lì
+  // quel focus/blur transitorio non capita).
+  if (presentiVisibile && (prevSearchFocused || prevSearchVal) && presentiSlot.querySelector('.gr-hero')) {
+    // L'operatore sta scrivendo (o ha appena scritto) nella ricerca ospiti:
+    // aggiorna solo i numeri della card, senza ricreare l'<input> (v. updateReportPresentiStats).
     updateReportPresentiStats();
   } else {
     presentiSlot.innerHTML = presentiVisibile ? renderReportPresenti() : '';
