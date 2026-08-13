@@ -1,0 +1,21 @@
+name: Verifica Token Push
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # 06:00 CEST (estate) / 05:00 CET (inverno) — orario morto, non disturba invii veri
+  workflow_dispatch:       # avvio manuale dalla tab Actions per test
+
+jobs:
+  verifica:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Installa dipendenze
+        run: pip install google-auth requests
+      - name: Verifica salute token FCM
+        env:
+          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
+        run: python scripts/verifica_token.py
