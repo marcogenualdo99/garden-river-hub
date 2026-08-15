@@ -77,6 +77,9 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
   --stato-pulire:   #FFCF48;
   --stato-pronta:   #92BA7F;
   --stato-occupata: #FF6E6E;
+  --stato-pulire-bg:   #FFF6E4;
+  --stato-pronta-bg:   #EEF6EA;
+  --stato-occupata-bg: #FDEEEE;
 }
 @keyframes gr-bell-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 
@@ -92,18 +95,29 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .avviso-riga-sub { font-size: 11.5px; color: var(--gray-600); margin-top: 2px; }
 .avviso-riga-dismiss { flex-shrink: 0; height: 34px; padding: 0 14px; border: none; border-radius: 20px; background: var(--red); color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; font-family: var(--font); }
 
-/* ══ STATS — una sola barra sottile invece di 4 card separate: solo un
-   riepilogo rapido su cui toccare per filtrare, non deve pesare sulla
-   pagina. ═════════════════════════════════════════════════════════════════ */
-.stats-row { display: flex; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 16px; overflow: hidden; }
-.stat-chip { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 10px 6px; text-align: left; cursor: pointer; border-right: 1px solid var(--gray-100); transition: background .15s; -webkit-tap-highlight-color: transparent; }
-.stat-chip:last-child { border-right: none; }
-.stat-chip:active { background: var(--gray-50); }
-.stat-chip-icon { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
-.stat-chip-icon svg { width: 12px; height: 12px; }
-.stat-chip-text { min-width: 0; }
-.stat-chip .n { font-size: 15px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.stat-chip .l { font-size: 8.5px; font-weight: 700; color: var(--gray-500); margin-top: 2px; text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ══ RICERCA — stesso .search-wrap già usato in Conti e Magazzino (sempre
+   visibile, non a comparsa): su una lista lunga durante un turno pieno è il
+   modo più veloce per trovare un alloggio o un ospite. ═══════════════════ */
+.search-wrap { position: relative; margin-bottom: 16px; }
+.search-wrap input { width: 100%; height: 48px; padding: 0 14px 0 44px; border: none; border-radius: var(--radius-xl); font-size: 14px; background: var(--white); color: var(--gray-900); font-family: var(--font); outline: none; box-shadow: var(--shadow-sm); }
+.search-wrap input::placeholder { color: var(--gray-400,#9CA3AF); }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--gray-400,#9CA3AF); font-size: 16px; pointer-events: none; }
+
+/* ══ STATS — stesso .alert-grid/.alert-card già usato in Conti (Scadenze):
+   card bianca, numero grande colorato, anello quando è il filtro attivo —
+   qui gli stessi 3 colori semantici (amber/green/red) applicati ai 3 stati
+   di pulizia invece che alle scadenze conto. ═════════════════════════════ */
+.alert-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 18px; }
+.alert-card { background: var(--white); border-radius: var(--radius-lg); padding: 20px 10px 18px; text-align: center; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s, box-shadow .15s; -webkit-tap-highlight-color: transparent; }
+.alert-card:active { transform: scale(.97); box-shadow: var(--shadow); }
+.alert-card .num { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+.alert-card .lbl { font-size: 10px; font-weight: 600; color: var(--gray-500); margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.alert-card.amber .num { color: var(--orange); }
+.alert-card.green .num { color: var(--green-ok); }
+.alert-card.red   .num { color: var(--red); }
+.alert-card.amber.active-filter { box-shadow: 0 0 0 2.5px var(--orange); }
+.alert-card.green.active-filter { box-shadow: 0 0 0 2.5px var(--green-ok); }
+.alert-card.red.active-filter   { box-shadow: 0 0 0 2.5px var(--red); }
 .filter-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .filter-label { font-size: 15px; font-weight: 800; }
 .filter-clear { background: var(--white); border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm); color: var(--gray-700); font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-family: var(--font); }
@@ -118,39 +132,74 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .cat-header .da-gestire { font-size: 13px; font-weight: 800; color: var(--green-900); background: var(--stato-pulire); padding: 6px 14px; border-radius: 20px; }
 .cat-header .chev { font-size: 20px; color: var(--gray-400); transition: transform .2s; display: inline-block; }
 .cat-header .chev.open { transform: rotate(180deg); }
-.cat-units { margin-top: 10px; }
+.cat-units, .unit-grid { margin-top: 10px; }
+/* Da tablet in su "main" non è più limitato a 750px (v. sopra): senza una
+   griglia le card resterebbero a piena larghezza, sproporzionate. Stessa
+   progressione mobile-first già usata nel resto della pagina (768/1024px):
+   2 colonne da tablet, 3 da desktop. */
+@media (min-width: 768px) {
+  .cat-units, .unit-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; align-items: start; }
+  .cat-units .unit-card, .unit-grid .unit-card { margin-bottom: 0; }
+}
+@media (min-width: 1180px) {
+  .cat-units, .unit-grid { grid-template-columns: repeat(3, 1fr); }
+}
 
-/* ══ UNIT CARD — stessa "grammatica" delle rental-card di Bici: header con
-   avatar+badge di stato, blocco informativo, azioni in fondo separate da un
-   divisore. ═════════════════════════════════════════════════════════════ */
-.unit-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; }
-.unit-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px 16px 0; }
-.unit-who { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-.unit-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; margin-top: 1px; }
-.unit-avatar svg { width: 17px; height: 17px; }
+/* ══ UNIT CARD — bordo e sfondo pieni per stato (niente barra laterale):
+   il colore si legge dal contorno stesso della scheda anche scorrendo
+   veloce, non solo dal badge. Kit biancheria in un riquadro a sé — è
+   l'unica cosa da portare fisicamente, deve saltare all'occhio per prima —
+   e lo stato attuale nelle azioni è segnato con una spunta invece che con
+   l'opacità ridotta, più leggibile con fretta o poca dimestichezza col
+   telefono. ═══════════════════════════════════════════════════════════ */
+.unit-card { border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 10px; border: 2px solid; }
+.unit-card.st-pulire   { background: var(--stato-pulire-bg);   border-color: var(--stato-pulire); }
+.unit-card.st-pronta   { background: var(--stato-pronta-bg);   border-color: var(--stato-pronta); }
+.unit-card.st-occupata { background: var(--stato-occupata-bg); border-color: var(--stato-occupata); }
+.unit-card.st-non-disp { background: var(--gray-50); border-color: var(--gray-300); }
+.unit-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 15px 16px 0; }
 .unit-who-text { min-width: 0; }
-.unit-nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.unit-nome { font-size: 16px; font-weight: 800; color: var(--gray-900); }
 .unit-sub  { font-size: 11.5px; color: var(--gray-500); margin-top: 2px; }
 .unit-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.unit-badge { font-size: 11px; font-weight: 800; color: var(--gray-900); padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
-.info-btn { width: 22px; height: 22px; border-radius: 50%; background: var(--gray-100); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray-500); font-size: 12px; font-weight: 800; flex-shrink: 0; font-family: var(--font); font-style: italic; }
+.unit-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; padding: 6px 12px 6px 8px; border-radius: 20px; white-space: nowrap; }
+.unit-badge svg { width: 14px; height: 14px; }
+.info-btn { width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.7); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--gray-500); font-size: 12px; font-weight: 800; flex-shrink: 0; font-family: var(--font); font-style: italic; }
 .unit-bell { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: var(--red); color: #fff; vertical-align: -3px; margin-left: 5px; cursor: pointer; animation: gr-bell-pulse 1.6s ease-in-out infinite; }
 .unit-bell svg { width: 10px; height: 10px; }
 
-.unit-guest { margin: 12px 16px 0; background: var(--gray-50); border-radius: var(--radius-sm); padding: 4px 12px; }
-.unit-guest.urgente { background: var(--terracotta-soft); }
-.unit-guest-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.05); font-size: 12.5px; }
-.unit-guest-row:first-child { border-top: none; }
-.unit-guest-row span { color: var(--gray-500); flex-shrink: 0; }
-.unit-guest-row b { color: var(--gray-900); font-weight: 700; text-align: right; }
-.unit-guest-note { padding: 8px 0 10px; border-top: 1px solid rgba(0,0,0,.05); font-size: 12px; color: var(--gray-700); line-height: 1.5; }
-.unit-guest-note b { color: var(--gray-900); }
+.unit-urgent { display: inline-flex; align-items: center; gap: 6px; background: var(--terracotta); color: #fff; font-size: 11.5px; font-weight: 800; padding: 6px 12px 6px 16px; border-radius: 20px; margin: 10px 16px 0; }
+.unit-urgent svg { width: 13px; height: 13px; }
 
-.unit-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 16px 16px; margin-top: 2px; border-top: 1px solid var(--gray-100); }
-.unit-actions button { height: 50px; border: none; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; transition: opacity .15s, transform .1s; padding: 0 4px; }
-.unit-actions button:active { transform: scale(.97); opacity: .88; }
-.unit-actions button:disabled { opacity: .35; pointer-events: none; }
-.unit-nondisp { margin: 14px 16px 16px; background: var(--gray-100); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
+.unit-info-rows { margin: 10px 16px 0; background: rgba(255,255,255,.55); border-radius: var(--radius-sm); padding: 2px 12px; }
+.unit-info-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(0,0,0,.06); font-size: 12.5px; }
+.unit-info-row:first-child { border-top: none; }
+.unit-info-row span { color: var(--gray-500); flex-shrink: 0; }
+.unit-info-row b { color: var(--gray-900); font-weight: 700; text-align: right; }
+
+.unit-kit { display: flex; align-items: center; gap: 11px; background: var(--terracotta-soft); border: 1.5px solid #ecc9a8; border-radius: var(--radius-sm); padding: 10px 13px; margin: 10px 16px 0; }
+.unit-kit-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--terracotta); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+.unit-kit-icon svg { width: 16px; height: 16px; }
+.unit-kit-text { flex: 1; min-width: 0; }
+.unit-kit-text .l { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--terracotta); }
+.unit-kit-text .v { font-size: 14px; font-weight: 800; color: #5C3414; margin-top: 1px; }
+
+.unit-note { margin: 10px 16px 0; font-size: 12px; line-height: 1.5; color: var(--gray-700); }
+.unit-note b { color: var(--gray-900); }
+
+.unit-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 16px 16px; }
+.unit-actions button { position: relative; height: 54px; border: none; border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 800; cursor: pointer; font-family: var(--font); -webkit-tap-highlight-color: transparent; transition: transform .1s; padding: 0 4px; }
+.unit-actions button:active { transform: scale(.97); }
+.unit-actions button:disabled {
+  background: rgba(255,255,255,.75); color: var(--gray-700);
+  box-shadow: inset 0 0 0 1.5px rgba(17,24,39,.12); pointer-events: none;
+}
+.unit-actions button:disabled::after {
+  content: '\2713'; position: absolute; top: -8px; right: -6px; width: 19px; height: 19px;
+  border-radius: 50%; background: var(--green-700); color: #fff; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; line-height: 1; box-shadow: 0 0 0 2.5px #fff;
+}
+.unit-nondisp { margin: 14px 16px 16px; background: rgba(255,255,255,.7); border-radius: var(--radius-sm); padding: 12px; font-size: 12px; color: var(--gray-500); text-align: center; }
 .unit-log { margin: 0 16px 14px; background: var(--gray-50); border-radius: var(--radius-sm); padding: 8px 10px; }
 .log-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 5px 0; border-top: 1px solid var(--gray-100); }
 .log-row:first-child { border-top: none; }
@@ -348,8 +397,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     <div class="page-eyebrow"><span data-icon="ALLOGGI"></span><span>Pulizie</span></div>
     <div class="page-title">Pulizie alloggi</div>
   </div>
+  <div class="search-wrap">
+    <span class="search-icon">&#9906;</span>
+    <input type="text" id="search-input" placeholder="Cerca alloggio o nome ospite" oninput="render()">
+  </div>
   <div id="avvisi-container"></div>
-  <div class="stats-row" id="stats-row"></div>
+  <div class="alert-grid" id="stats-row"></div>
   <div id="cats-container"></div>
 </main>
 
@@ -407,12 +460,16 @@ const CATS = [
 // nel modulo Calendario (calendario/index.html) — condivisi tra i due
 // moduli sulla stessa collezione Firestore "alloggi", devono restare
 // identici in entrambi i posti.
+// btnFg è anche il colore testo del badge di stato (stesso sfondo, stesso
+// testo): i 3 colori di stato sono pastello, il bianco ci va sopra con un
+// contrasto troppo basso per una lista da leggere al volo — testo scuro
+// della stessa tinta invece del bianco piatto.
 const STATUS_META = {
-  checkout_ok:    { label:'Check-out ok',    color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#fff', icon:'BROOM' },
-  da_pulire:      { label:'Da pulire',       color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#fff', icon:'BROOM' },
-  pronta:         { label:'Pronta',          color:'var(--stato-pronta)',   btnBg:'var(--stato-pronta)',   btnFg:'#fff', icon:'CHECK' },
-  occupata:       { label:'Occupata',        color:'var(--stato-occupata)', btnBg:'var(--stato-occupata)', btnFg:'#fff', icon:'BED' },
-  non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)',       btnBg:'var(--gray-500)',       btnFg:'#fff', icon:'BLOCK' },
+  checkout_ok:    { label:'Check-out ok',    color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#6B4A12', icon:'BROOM' },
+  da_pulire:      { label:'Da pulire',       color:'var(--stato-pulire)',   btnBg:'var(--stato-pulire)',   btnFg:'#6B4A12', icon:'BROOM' },
+  pronta:         { label:'Pronta',          color:'var(--stato-pronta)',   btnBg:'var(--stato-pronta)',   btnFg:'#2F5A29', icon:'CHECK' },
+  occupata:       { label:'Occupata',        color:'var(--stato-occupata)', btnBg:'var(--stato-occupata)', btnFg:'#8A2323', icon:'BED' },
+  non_disponibile:{ label:'Non disponibile', color:'var(--gray-500)',       btnBg:'var(--gray-500)',       btnFg:'#fff',    icon:'BLOCK' },
 };
 // Le 3 chiavi operative sono quelle mostrate come pulsanti su ogni alloggio
 // nella vista principale — stessi 3 stati del menu rapido di Calendario.
@@ -427,10 +484,13 @@ const STATUS_KEYS = Object.keys(STATUS_META);
 // (v. STATO_FILTRO_GRUPPI/apriMenuStatoAlloggio in calendario/index.html):
 // check-out fatto e da pulire sono la stessa cosa da fare. "Non disponibile"
 // resta fuori da qui esattamente come lì — si gestisce solo da Impostazioni.
+// "alert" mappa ognuno dei 3 stati a uno dei colori semantici già usati per
+// le card cliccabili di riepilogo in Conti (v. .alert-card in conti/index.html)
+// — stessa card, stesso linguaggio, invece di inventarne uno nuovo qui.
 const STATO_GRUPPI = [
-  { key:'da_pulire', label:'Check-out fatto / Da pulire', short:'Da pulire', color:'var(--stato-pulire)',   icon:'BROOM', match: s => s === 'checkout_ok' || s === 'da_pulire' },
-  { key:'pronta',    label:'Pronta',                      short:'Pronta',    color:'var(--stato-pronta)',   icon:'CHECK', match: s => s === 'pronta' },
-  { key:'occupata',  label:'Occupata',                    short:'Occupata',  color:'var(--stato-occupata)', icon:'BED',   match: s => s === 'occupata' },
+  { key:'da_pulire', label:'Check-out fatto / Da pulire', short:'Da pulire', color:'var(--stato-pulire)',   icon:'BROOM', alert:'amber', match: s => s === 'checkout_ok' || s === 'da_pulire' },
+  { key:'pronta',    label:'Pronta',                      short:'Pronta',    color:'var(--stato-pronta)',   icon:'CHECK', alert:'green', match: s => s === 'pronta' },
+  { key:'occupata',  label:'Occupata',                    short:'Occupata',  color:'var(--stato-occupata)', icon:'BED',   alert:'red',   match: s => s === 'occupata' },
 ];
 
 let hubSession       = null;
@@ -512,13 +572,10 @@ function arrivoRank(u) {
   if (arrivo.checkin === addDaysIso(oggi, 1)) return 1;
   return 2;
 }
-// Ordinamento pensato per le pulizie: gli alloggi da pulire vengono prima di
-// tutto il resto, e tra quelli chi ha un arrivo più imminente sale in cima.
-function prioritaPulizia(u) {
-  return (needsCleaning(u) ? 0 : 10) + arrivoRank(u);
-}
-// Blocco informativo sulla card: ospite, arrivo → partenza, kit biancheria e
-// nota pulizie — tutto letto in sola lettura dalla prenotazione collegata.
+// Blocco informativo sulla card: eventuale avviso di priorità, ospite,
+// arrivo → partenza, kit biancheria in un riquadro a sé (è l'unica cosa da
+// portare fisicamente, deve saltare all'occhio per prima) e nota pulizie —
+// tutto letto in sola lettura dalla prenotazione collegata.
 function renderGuestBlock(u) {
   if (u.stato === 'non_disponibile') return '';
   const p = prenotazioneRilevante(u);
@@ -529,12 +586,22 @@ function renderGuestBlock(u) {
   const kit = kitLabel(p);
   const nota = notaPulizie(p);
   const urgente = needsCleaning(u) && (p.checkin === oggi || p.checkin === domani);
-  let html = '<div class="unit-guest'+(urgente ? ' urgente' : '')+'">'+
-    '<div class="unit-guest-row"><span>Ospite</span><b>'+esc(p.nome || '—')+'</b></div>'+
-    '<div class="unit-guest-row"><span>Arrivo → Partenza</span><b>'+fmt(p.checkin)+' → '+fmt(p.checkout)+'</b></div>'+
-    (kit ? '<div class="unit-guest-row"><span>Kit biancheria</span><b>'+esc(kit)+'</b></div>' : '');
-  if (nota) html += '<div class="unit-guest-note"><b>Nota pulizie:</b> '+esc(nota)+'</div>';
-  html += '</div>';
+  let html = '';
+  if (urgente) {
+    html += '<span class="unit-urgent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>'+
+      (p.checkin === oggi ? 'Arriva oggi' : 'Arriva domani')+' — priorità</span>';
+  }
+  html += '<div class="unit-info-rows">'+
+    '<div class="unit-info-row"><span>Ospite</span><b>'+esc(p.nome || '—')+'</b></div>'+
+    '<div class="unit-info-row"><span>Arrivo → Partenza</span><b>'+fmt(p.checkin)+' → '+fmt(p.checkout)+'</b></div>'+
+  '</div>';
+  if (kit) {
+    html += '<div class="unit-kit">'+
+      '<div class="unit-kit-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><path d="M3 8h18l-1.4 11a2 2 0 0 1-2 1.8H6.4a2 2 0 0 1-2-1.8L3 8Z"/><path d="M9 12v3M15 12v3"/></svg></div>'+
+      '<div class="unit-kit-text"><div class="l">Kit biancheria</div><div class="v">'+esc(kit)+'</div></div>'+
+    '</div>';
+  }
+  if (nota) html += '<div class="unit-note"><b>Nota pulizie:</b> '+esc(nota)+'</div>';
   return html;
 }
 
@@ -838,9 +905,8 @@ function renderStats() {
   });
   document.getElementById('stats-row').innerHTML = STATO_GRUPPI.map(g => {
     const active = activeFilter === g.key;
-    return '<div class="stat-chip" onclick="toggleStatFilter(\''+g.key+'\')" style="'+(active?'background:var(--gray-50);box-shadow:inset 0 0 0 2px '+g.color+';':'')+'">'+
-      '<div class="stat-chip-icon" style="background:'+g.color+'"><span data-icon="'+g.icon+'"></span></div>'+
-      '<div class="stat-chip-text"><div class="n">'+counts[g.key]+'</div><div class="l">'+g.short+'</div></div></div>';
+    return '<div class="alert-card '+g.alert+(active?' active-filter':'')+'" onclick="toggleStatFilter(\''+g.key+'\')">'+
+      '<div class="num">'+counts[g.key]+'</div><div class="lbl">'+g.short+'</div></div>';
   }).join('');
 }
 function toggleStatFilter(key) {
@@ -849,12 +915,6 @@ function toggleStatFilter(key) {
 }
 function unitsForCat(catKey) {
   return Object.values(alloggiMap).filter(u => u.categoria === catKey).sort((a,b) => a.numero - b.numero);
-}
-// Stessa lista, ma ordinata mettendo prima chi va pulito e, tra quelli, chi
-// ha l'arrivo più vicino — usata solo nella vista principale (le Impostazioni
-// restano in ordine numerico, più comodo per gestire l'elenco).
-function unitsForCatOrdinatePulizia(catKey) {
-  return unitsForCat(catKey).slice().sort((a,b) => prioritaPulizia(a) - prioritaPulizia(b) || a.numero - b.numero);
 }
 function unitsDaGestire(catKey) {
   const gruppo = STATO_GRUPPI.find(g => g.key === 'da_pulire');
@@ -874,9 +934,12 @@ function renderUnitCard(u) {
     const btns = OPERATIONAL_KEYS.map(k => {
       const sm = STATUS_META[k];
       // "Da pulire" conta come già selezionato anche se lo stato reale è
-      // 'checkout_ok' (stesso gruppo, stesso badge — v. needsCleaning).
+      // 'checkout_ok' (stesso gruppo, stesso badge — v. needsCleaning). Lo
+      // stile inline si applica solo quando NON è quello corrente: da
+      // disabled ci pensa il CSS (:disabled), che deve poter vincere.
       const dis = k === 'da_pulire' ? needsCleaning(u) : k === u.stato;
-      return '<button '+(dis?'disabled':'')+' onclick="setStato(\''+u.id+'\',\''+k+'\')" style="background:'+sm.btnBg+';color:'+sm.btnFg+'">'+sm.label+'</button>';
+      const style = dis ? '' : ' style="background:'+sm.btnBg+';color:'+sm.btnFg+'"';
+      return '<button '+(dis?'disabled':'')+style+' onclick="setStato(\''+u.id+'\',\''+k+'\')">'+sm.label+'</button>';
     }).join('');
     actionsHtml = '<div class="unit-actions">'+btns+'</div>';
   }
@@ -887,17 +950,15 @@ function renderUnitCard(u) {
       return '<div class="log-row"><span class="op">'+esc(le.op)+'</span><span class="ts">'+fmtTs(le.ts)+'</span><span style="color:'+lm.color+';font-weight:700">'+lm.label+'</span></div>';
     }).join('') + '</div>';
   }
-  return '<div class="unit-card">'+
+  const stCls = u.stato === 'non_disponibile' ? 'st-non-disp' : needsCleaning(u) ? 'st-pulire' : 'st-'+u.stato;
+  return '<div class="unit-card '+stCls+'">'+
     '<div class="unit-card-header">'+
-      '<div class="unit-who">'+
-        '<div class="unit-avatar" style="background:'+m.color+'"><span data-icon="'+m.icon+'"></span></div>'+
-        '<div class="unit-who-text">'+
-          '<div class="unit-nome">'+u.nome+(avvisoAttivo ? ' <span class="unit-bell" data-icon="BELL" title="Cliente arrivato in struttura — tocca per chiudere l\'avviso" onclick="event.stopPropagation();dismissAvviso(\''+u.id+'\')"></span>' : '')+'</div>'+
-          '<div class="unit-sub">Da \''+esc(last.op)+'\''+(last.ts ? ' · '+fmtTs(last.ts) : '')+'</div>'+
-        '</div>'+
+      '<div class="unit-who-text">'+
+        '<div class="unit-nome">'+u.nome+(avvisoAttivo ? ' <span class="unit-bell" data-icon="BELL" title="Cliente arrivato in struttura — tocca per chiudere l\'avviso" onclick="event.stopPropagation();dismissAvviso(\''+u.id+'\')"></span>' : '')+'</div>'+
+        '<div class="unit-sub">Da \''+esc(last.op)+'\''+(last.ts ? ' · '+fmtTs(last.ts) : '')+'</div>'+
       '</div>'+
       '<div class="unit-status">'+
-        '<span class="unit-badge" style="background:'+m.color+'">'+m.label+'</span>'+
+        '<span class="unit-badge" style="background:'+m.color+';color:'+m.btnFg+'"><span data-icon="'+m.icon+'"></span>'+m.label+'</span>'+
         '<button class="info-btn" onclick="toggleLog(\''+u.id+'\')" aria-label="Storico modifiche">i</button>'+
       '</div>'+
     '</div>'+
@@ -906,20 +967,40 @@ function renderUnitCard(u) {
     logHtml+
   '</div>';
 }
+// Ricerca per alloggio o per nome ospite — stessa idea di renderOspiti() in
+// Conti (input letto direttamente dal DOM, match case-insensitive su più
+// campi concatenati), qui su nome alloggio + nome dell'ospite collegato.
+function unitMatchesQuery(u, q) {
+  if (u.nome && u.nome.toLowerCase().includes(q)) return true;
+  const p = prenotazioneRilevante(u);
+  return !!(p && p.nome && p.nome.toLowerCase().includes(q));
+}
+function clearListFilters() {
+  activeFilter = null;
+  const el = document.getElementById('search-input');
+  if (el) el.value = '';
+  render();
+}
 function renderCats() {
-  if (activeFilter) {
-    const g = STATO_GRUPPI.find(x => x.key === activeFilter);
+  const q = (document.getElementById('search-input') || {}).value || '';
+  const query = q.trim().toLowerCase();
+  if (activeFilter || query) {
+    const g = activeFilter ? STATO_GRUPPI.find(x => x.key === activeFilter) : null;
     const cleaningFilter = activeFilter === 'da_pulire';
-    const lista = Object.values(alloggiMap)
-      .filter(u => g.match(u.stato))
-      .sort((a,b) => cleaningFilter
-        ? (arrivoRank(a) - arrivoRank(b)) || (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero
-        : (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero);
+    let lista = Object.values(alloggiMap);
+    if (g) lista = lista.filter(u => g.match(u.stato));
+    if (query) lista = lista.filter(u => unitMatchesQuery(u, query));
+    lista = lista.sort((a,b) => cleaningFilter
+      ? (arrivoRank(a) - arrivoRank(b)) || (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero
+      : (a.categoriaLabel||'').localeCompare(b.categoriaLabel||'') || a.numero - b.numero);
+    const labelParts = [];
+    if (g) labelParts.push(g.label);
+    if (query) labelParts.push('“'+q.trim()+'”');
     let html = '<div class="filter-bar">'+
-      '<span class="filter-label" style="color:'+g.color+'">'+g.label+' · '+lista.length+'</span>'+
-      '<button class="filter-clear" onclick="toggleStatFilter(\''+activeFilter+'\')">&#10005; Mostra tutto</button>'+
+      '<span class="filter-label" style="color:'+(g ? g.color : 'var(--gray-900)')+'">'+labelParts.join(' · ')+' · '+lista.length+'</span>'+
+      '<button class="filter-clear" onclick="clearListFilters()">&#10005; Mostra tutto</button>'+
     '</div>';
-    html += lista.length ? lista.map(u => renderUnitCard(u)).join('') : '<div class="empty-filter">Nessun alloggio in questo stato</div>';
+    html += lista.length ? '<div class="unit-grid">'+lista.map(u => renderUnitCard(u)).join('')+'</div>' : '<div class="empty-filter">Nessun alloggio trovato</div>';
     document.getElementById('cats-container').innerHTML = html;
     return;
   }
@@ -928,7 +1009,7 @@ function renderCats() {
     const daGestire = unitsDaGestire(cat.key);
     let unitsHtml = '';
     if (open) {
-      unitsForCatOrdinatePulizia(cat.key).forEach(u => { unitsHtml += renderUnitCard(u); });
+      unitsForCat(cat.key).forEach(u => { unitsHtml += renderUnitCard(u); });
     }
     return '<div class="cat-block">'+
       '<button class="cat-header" onclick="toggleCat(\''+cat.key+'\')">'+
