@@ -134,15 +134,11 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .cat-header .chev.open { transform: rotate(180deg); }
 .cat-units, .unit-grid { margin-top: 10px; }
 /* Da tablet in su "main" non è più limitato a 750px (v. sopra): senza una
-   griglia le card resterebbero a piena larghezza, sproporzionate. Stessa
-   progressione mobile-first già usata nel resto della pagina (768/1024px):
-   2 colonne da tablet, 3 da desktop. */
+   griglia le card resterebbero a piena larghezza, sproporzionate. Ferma a
+   2 colonne anche da desktop — a 3 la pagina risultava troppo affollata. */
 @media (min-width: 768px) {
   .cat-units, .unit-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; align-items: start; }
   .cat-units .unit-card, .unit-grid .unit-card { margin-bottom: 0; }
-}
-@media (min-width: 1180px) {
-  .cat-units, .unit-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ══ UNIT CARD — bordo e sfondo pieni per stato (niente barra laterale):
