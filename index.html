@@ -225,7 +225,7 @@
      di notifica degli operatori (staffTokens). -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -249,7 +249,7 @@
   // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in tutta la suite)
   const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
-  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
   window._fbDataReady = false;
 
   function segnalaDatiPronti() {
@@ -304,6 +304,62 @@
       return { ok: false, motivo: 'errore', dettaglio: e.message };
     }
   };
+
+  // ── Rinnovo automatico silenzioso (login, ritorno in foreground, ecc.) ──
+  // A differenza di _abilitaNotifichePush (chiamata esplicita dall'utente, con
+  // toast di esito), questa gira in background e non deve MAI dare l'illusione
+  // che le notifiche siano attive quando in realtà il rinnovo fallisce da
+  // giorni: dopo qualche fallimento consecutivo azzera lo stato locale così
+  // l'interfaccia torna a mostrare onestamente "non attive" e l'operatore
+  // viene guidato a riattivarle, invece di scoprirlo solo perdendo un ordine.
+  let _refreshInCorso = false;
+  window._verificaTokenPush = async function() {
+    if (_refreshInCorso) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    // gcm_operatore viene sempre scritto insieme a gcm_token (v. _abilitaNotifichePush
+    // e la pulizia sotto), quindi basta leggerlo da qui senza altri fallback.
+    const operatore = localStorage.getItem('gcm_operatore');
+    if (!localStorage.getItem('gcm_token') || !operatore) return;
+
+    _refreshInCorso = true;
+    try {
+      const res = await window._abilitaNotifichePush(operatore);
+      if (res.ok) {
+        localStorage.setItem('gcm_fail_streak', '0');
+        localStorage.setItem('gcm_last_ok', String(Date.now()));
+      } else {
+        const falliti = (parseInt(localStorage.getItem('gcm_fail_streak'), 10) || 0) + 1;
+        localStorage.setItem('gcm_fail_streak', String(falliti));
+        console.warn(`Rinnovo token push fallito (${falliti}° tentativo consecutivo):`, res.motivo, res.dettaglio || '');
+        if (falliti >= 3) {
+          const tokenMorto = localStorage.getItem('gcm_token');
+          console.error('Token push considerato morto dopo 3 rinnovi falliti, ripristino stato "non attive".');
+          if (tokenMorto && operatore) {
+            try {
+              const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+              await updateDoc(doc(dataDb, 'staffTokens', operatore), { tokens: arrayRemove(tokenMorto) });
+            } catch(e) {}
+          }
+          localStorage.removeItem('gcm_token');
+          localStorage.removeItem('gcm_operatore');
+          localStorage.removeItem('gcm_fail_streak');
+          if (typeof aggiornaStatoNotifiche === 'function') aggiornaStatoNotifiche();
+        }
+      }
+    } finally {
+      _refreshInCorso = false;
+    }
+  };
+
+  // L'apertura completa (login) è già coperta da applyHeader(); questo copre
+  // il caso, molto più frequente su mobile, in cui l'app torna in foreground
+  // da background/lucchetto SENZA un vero reload della pagina — l'unico
+  // momento in cui possiamo davvero accorgerci che il token è morto prima che
+  // sia troppo tardi.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') window._verificaTokenPush();
+  });
+  window.addEventListener('pageshow', () => window._verificaTokenPush());
 
   // Quando la Hub è aperta e in primo piano, FCM non mostra la notifica in automatico
   // (si aspetta che sia la pagina a gestirla) — la mostriamo qui a mano.
@@ -1039,7 +1095,7 @@ async function startHomeStatsSync() {
 
   // Conti, Alloggi e Bici condividono invece il progetto garden-river-conti-febed.
   await waitForFirebaseData();
-  const { db, collection, onSnapshot, query, limit } = window._fbData;
+  const { db, collection, onSnapshot, query, limit, where } = window._fbData;
   try {
     onSnapshot(collection(db, 'ospiti'), (snap) => {
       const ospiti = snap.docs.map(d => d.data());
@@ -1087,9 +1143,8 @@ async function startHomeStatsSync() {
     }, (err) => console.error('Errore statistiche bici:', err));
 
     const oggi = new Date().toISOString().split('T')[0];
-    onSnapshot(query(collection(db, 'ordini_ristorazione'), limit(200)), (snap) => {
-      const ordiniOggi = snap.docs.filter(d => d.data().data === oggi).length;
-      homeStats.ristorazione = { ordiniOggi };
+    onSnapshot(query(collection(db, 'ordini_ristorazione'), where('data', '==', oggi)), (snap) => {
+      homeStats.ristorazione = { ordiniOggi: snap.size };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche ristorazione:', err));
     onSnapshot(collection(db, 'staffTokens'), (snap) => {
@@ -1283,7 +1338,13 @@ function updatePinDots() {
 
 document.addEventListener('keydown', (e) => {
   const pinStep = document.getElementById('login-step-pin');
+  const loginScreen = document.getElementById('login-screen');
+  // Doppio controllo (stile inline della schermata PIN + overlay di login non
+  // nascosto): un solo controllo, in passato, è bastato a lasciare questo
+  // listener "armato" per l'intera sessione dopo un login riuscito, rompendo
+  // Backspace/Delete ovunque nell'app (v. il reset in loginSuccess più sopra).
   if (!pinStep || pinStep.style.display !== 'block') return;
+  if (!loginScreen || loginScreen.classList.contains('hidden')) return;
   if (e.key >= '0' && e.key <= '9') {
     e.preventDefault();
     pinPress(e.key);
@@ -1319,6 +1380,14 @@ function loginSuccess(op) {
   sessionStorage.setItem('gr_session', JSON.stringify({ nome: op, ruolo: currentRuolo }));
   sessionStorage.setItem('gr_permessi', JSON.stringify(permessi[op] || {}));
   document.getElementById('login-screen').classList.add('hidden');
+  // Il listener keydown qui sotto intercetta Backspace/Delete SOLO quando
+  // login-step-pin ha display:block. Senza questo reset, dopo un login
+  // riuscito restava bloccato su 'block' per sempre (l'overlay veniva
+  // nascosto solo dalla classe .hidden, non da questo stile inline): da quel
+  // momento ogni Backspace/Delete premuto in qualsiasi campo di tutta l'app
+  // veniva intercettato e mandato al PIN invece che al campo di testo — causa
+  // reale del bug "non riesco a cancellare il testo".
+  document.getElementById('login-step-pin').style.display = 'none';
   applyHeader();
   renderHome();
   syncHomeLayout(currentOperatore);
@@ -1377,10 +1446,7 @@ function applyHeader() {
   // chiamata è leggera e ci assicura che il token su Firestore sia sempre
   // quello corrente, invece di scoprire che è morto solo quando un ordine
   // non genera notifica.
-  if (window._abilitaNotifichePush && 'Notification' in window && Notification.permission === 'granted'
-      && localStorage.getItem('gcm_token')) {
-    window._abilitaNotifichePush(currentOperatore || 'Staff').catch(() => {});
-  }
+  if (window._verificaTokenPush) window._verificaTokenPush();
 }
 
 function maybeOpenDeepLink() {
@@ -1413,6 +1479,11 @@ function initiali(nome) {
 // scheda riassuntiva locale (v. apriSchedaOspite) senza lasciare la home.
 function ospiteFamigliaCorrispondenteHome(p, q) {
   return (p.ospiti || []).find(o => `${o.nome||''} ${o.cognome||''}`.trim().toLowerCase().includes(q));
+}
+// L'operatore ha lasciato il campo di ricerca: se nel frattempo renderHome()
+// aveva rimandato un ridisegno completo (v. _homeRenderPending), lo recupera ora.
+function onGrSearchBlur() {
+  if (_homeRenderPending) renderHome();
 }
 function cercaOspitiHome() {
   const input = document.getElementById('gr-search-input');
@@ -1505,6 +1576,30 @@ function closeGuestCard() {
   document.getElementById('guest-overlay').classList.add('hidden');
 }
 
+// Aggiorna solo i numeri della card "Presenti" (conteggio, anello %, label)
+// senza toccare il box di ricerca — usata mentre l'operatore ci sta scrivendo
+// dentro, perché ricreare l'<input> (via innerHTML) a ogni snapshot Firestore
+// rompe la cancellazione dei caratteri sui browser mobile (l'IME perde il
+// collegamento con il nodo DOM sostituito e i tasti Backspace non arrivano più).
+function updateReportPresentiStats() {
+  const hero = document.querySelector('#report-presenti-slot .gr-hero');
+  if (!hero) return;
+  const pr = homeStats.presenti;
+  const al = homeStats.alloggi;
+  const loading = !pr || !al;
+  const pct = (al && al.totale) ? Math.round(al.occupati / al.totale * 100) : 0;
+  const circ = 2 * Math.PI * 27;
+  const offset = circ * (1 - pct / 100);
+  const ringFg = hero.querySelector('.gr-ring circle:nth-child(2)');
+  const ringText = hero.querySelector('.gr-ring text');
+  const numEl = hero.querySelector('.gr-count-num');
+  const lblEl = hero.querySelector('.gr-count-lbl');
+  if (ringFg) ringFg.setAttribute('stroke-dashoffset', offset);
+  if (ringText) ringText.textContent = pct + '%';
+  if (numEl) numEl.textContent = loading ? '…' : (pr.headcount||0) + ' ospiti';
+  if (lblEl) lblEl.textContent = loading ? 'Caricamento…' : `in ${al.occupati} alloggi occupati su ${al.totale}`;
+}
+
 function renderReportPresenti() {
   const pr = homeStats.presenti;
   const al = homeStats.alloggi;
@@ -1529,7 +1624,7 @@ function renderReportPresenti() {
     <div class="gr-search-side">
       <div class="gr-search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="text" id="gr-search-input" placeholder="Nome, ospite o targa…" oninput="cercaOspitiHome()" onclick="event.stopPropagation()">
+        <input type="text" id="gr-search-input" placeholder="Nome, ospite o targa…" oninput="cercaOspitiHome()" onclick="event.stopPropagation()" onblur="onGrSearchBlur()">
       </div>
       <div class="gr-search-results" id="gr-search-results">
         <div class="gr-search-hint">Cerca per nome/cognome prenotazione, ospiti o targa…</div>
@@ -1541,15 +1636,13 @@ function renderReportPresenti() {
 function renderReportOggi() {
   const os = homeStats.oggiStruttura;
   const al = homeStats.alloggi;
-  const man = homeStats.manutenzione;
-  const loading = !os || !al || !man;
+  const loading = !os || !al;
   const seg = (val, lbl, dot, url) => `<div class="gr-seg" onclick="openModule('${url}')"><span class="gr-seg-dot gr-dot-${dot}"></span><div class="gr-seg-num">${loading ? '—' : val}</div><div class="gr-seg-lbl">${lbl}</div></div>`;
   return `
   <div class="gr-seg-bar" data-item-id="report-oggiStruttura">
     ${seg(loading?0:os.arrivi, 'Arrivi', 'green', 'calendario/')}
     ${seg(loading?0:os.partenze, 'Partenze', 'gray', 'calendario/')}
     ${seg(loading?0:al.daPulire, 'Da pulire', 'orange', 'alloggi/')}
-    ${seg(loading?0:man.aperti, 'Ticket', 'orange', 'manutenzione/')}
     ${seg(loading?0:os.compleanni, 'Compleanni', 'gray', 'calendario/')}
   </div>`;
 }
@@ -1843,26 +1936,44 @@ function renderModuleChunk(mods) {
   return `<div class="module-grid">${tiles}</div>`;
 }
 
+let _homeRenderPending = false;
 function renderHome() {
-  // Preserva testo/focus della ricerca ospiti: renderHome() viene richiamata
-  // spesso (ogni aggiornamento di homeStats), e riscrivendo l'innerHTML
-  // perderemmo quello che l'operatore sta digitando nel box di ricerca.
-  const prevSearchInput = document.getElementById('gr-search-input');
-  const prevSearchVal = prevSearchInput ? prevSearchInput.value : '';
-  const prevSearchFocused = prevSearchInput && document.activeElement === prevSearchInput;
-  const prevSelStart = prevSearchFocused ? prevSearchInput.selectionStart : null;
+  // Se l'operatore sta scrivendo nella ricerca ospiti, ci fermiamo qui:
+  // aggiorniamo solo i numeri della card (updateReportPresentiStats) e
+  // rimandiamo il resto (striscia KPI, barra "oggi", elenco moduli) a quando
+  // lascerà il campo (v. onGrSearchBlur). Su iOS in modalità "app salvata in
+  // Home", anche un ridisegno che NON tocca l'<input> ma muove/ridisegna il
+  // resto della pagina può far perdere alla tastiera di sistema il sincronismo
+  // col campo (il Backspace smette di rispondere) — cosa che non si vede né in
+  // Safari normale né in Calendario, dove i dati cambiano molto meno spesso.
+  const grInput = document.getElementById('gr-search-input');
+  if (grInput && document.activeElement === grInput) {
+    updateReportPresentiStats();
+    _homeRenderPending = true;
+    return;
+  }
+  _homeRenderPending = false;
 
   // "Presenti + ricerca" ha posizione fissa, subito sotto il titolo — non
   // passa dal pannello di riordino.
   const presentiSlot = document.getElementById('report-presenti-slot');
-  presentiSlot.innerHTML = (currentOperatore && reportVisibile(currentOperatore, 'presenti')) ? renderReportPresenti() : '';
-  if (prevSearchVal) {
-    const newInput = document.getElementById('gr-search-input');
-    if (newInput) {
-      newInput.value = prevSearchVal;
-      cercaOspitiHome();
-      if (prevSearchFocused) { newInput.focus(); newInput.setSelectionRange(prevSelStart, prevSelStart); }
+  const presentiVisibile = currentOperatore && reportVisibile(currentOperatore, 'presenti');
+  if (presentiVisibile) {
+    if (presentiSlot.querySelector('.gr-hero')) {
+      // La card (incluso il campo di ricerca) esiste già: da qui in poi si
+      // aggiornano solo i numeri (v. updateReportPresentiStats), il markup
+      // del box di ricerca non viene più toccato — stessa logica già usata
+      // per la ricerca in Calendario (search-prenotazioni-input), dove il
+      // campo è scritto una volta sola nell'HTML statico e mai ricreato.
+      // Ricreare l'<input> mentre l'operatore ci sta scrivendo dentro è quello
+      // che rompe il Backspace della tastiera di sistema in modalità "app
+      // salvata in Home" su iOS (bug che in Safari normale non si vede).
+      updateReportPresentiStats();
+    } else {
+      presentiSlot.innerHTML = renderReportPresenti();
     }
+  } else {
+    presentiSlot.innerHTML = '';
   }
 
   renderKpiStrip();
@@ -2078,7 +2189,14 @@ function aggiornaStatoNotifiche() {
     return;
   }
   const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
-  el.textContent = attive ? '✓ Attive su questo dispositivo' : 'Non ancora attive su questo dispositivo.';
+  if (attive) {
+    const ultimoOk = parseInt(localStorage.getItem('gcm_last_ok'), 10);
+    el.textContent = ultimoOk
+      ? `✓ Attive · verificate ${new Date(ultimoOk).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+      : '✓ Attive su questo dispositivo';
+  } else {
+    el.textContent = 'Non ancora attive su questo dispositivo.';
+  }
   el.style.color = attive ? 'var(--green-ok, #16A34A)' : 'var(--gray-500)';
   if (btn) btn.style.display = attive ? 'none' : '';
   if (btnDis) btnDis.style.display = attive ? '' : 'none';
@@ -2090,6 +2208,8 @@ async function attivaNotificheHub() {
   if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
   const res = await window._abilitaNotifichePush(currentOperatore || 'Staff');
   if (res.ok) {
+    localStorage.setItem('gcm_fail_streak', '0');
+    localStorage.setItem('gcm_last_ok', String(Date.now()));
     showToast('Notifiche attivate!');
   } else {
     const msg = {
@@ -2115,6 +2235,8 @@ async function disattivaNotificheHub() {
   }
   localStorage.removeItem('gcm_token');
   localStorage.removeItem('gcm_operatore');
+  localStorage.removeItem('gcm_fail_streak');
+  localStorage.removeItem('gcm_last_ok');
   showToast('Notifiche disattivate');
   aggiornaStatoNotifiche();
 }
