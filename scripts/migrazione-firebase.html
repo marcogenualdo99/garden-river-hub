@@ -125,21 +125,32 @@ const rows = MIGRAZIONI.map(m => {
   return { ...m, tr };
 });
 
+// Ritorna un numero, oppure 'REGOLE' se la lettura è negata dai permessi
+// (collezione non ancora prevista dalle regole di destinazione).
 async function countColl(db, coll) {
-  const snap = await getDocs(collection(db, coll));
-  return snap.size;
+  try {
+    const snap = await getDocs(collection(db, coll));
+    return snap.size;
+  } catch (e) {
+    if (String(e.code || e.message).includes('permission')) return 'REGOLE';
+    throw e;
+  }
 }
 
 async function simula() {
   resetLog('Simulazione in corso…');
-  let bloccante = false;
+  let bloccante = false, regoleMancanti = false;
   for (const r of rows) {
     const src = await countColl(dbs[r.da], r.coll);
     const dst = await countColl(dbs.dest, r.coll);
     r.tr.querySelector('.src').textContent = src;
     r.tr.querySelector('.dst').textContent = dst;
     const st = r.tr.querySelector('.st');
-    if (dst > 0) {
+    if (dst === 'REGOLE') {
+      st.innerHTML = '<span class="status-warn">regole non ancora deployate</span>';
+      regoleMancanti = true;
+      logLine(`• ${r.coll}: la destinazione non consente ancora questa collezione (deploya le regole CONSOLIDATO)`);
+    } else if (dst > 0) {
       st.innerHTML = '<span class="status-crit">destinazione NON vuota</span>';
       bloccante = true;
       logLine(`✗ ${r.coll}: la destinazione ha già ${dst} documenti — possibile collisione di nomi, verifica in console`);
@@ -151,10 +162,13 @@ async function simula() {
       logLine(`✓ ${r.coll}: ${src} documenti pronti da copiare`);
     }
   }
-  logLine(bloccante
-    ? '\n⚠ Almeno una collezione di destinazione è già popolata. NON eseguire finché non è chiarito.'
-    : '\n✓ Simulazione ok. Puoi premere «Esegui migrazione».');
-  document.getElementById('btn-run').disabled = bloccante && !document.getElementById('overwrite').checked;
+  if (regoleMancanti)
+    logLine('\n→ Deploya prima garden-river-conti-febed-CONSOLIDATO.rules, poi rifai «Simula».');
+  else if (bloccante)
+    logLine('\n⚠ Almeno una collezione di destinazione è già popolata. NON eseguire finché non è chiarito.');
+  else
+    logLine('\n✓ Simulazione ok. Puoi premere «Esegui migrazione».');
+  document.getElementById('btn-run').disabled = bloccante || regoleMancanti;
 }
 
 async function esegui() {
@@ -185,8 +199,16 @@ async function esegui() {
   logLine('Ora: deploy delle regole unificate + modifica config nel codice + push.');
 }
 
-document.getElementById('btn-sim').addEventListener('click', () => simula().catch(e => logLine('ERRORE: ' + e.message)));
-document.getElementById('btn-run').addEventListener('click', () => esegui().catch(e => logLine('ERRORE: ' + e.message)));
+function mostraErrore(e) {
+  logLine('ERRORE: ' + e.message);
+  if (String(e.code || e.message).includes('permission')) {
+    logLine('→ Sembra che le regole del progetto di destinazione non permettano ancora');
+    logLine('  di scrivere queste collezioni. Deploya prima');
+    logLine('  firestore-rules/garden-river-conti-febed-CONSOLIDATO.rules, poi riprova.');
+  }
+}
+document.getElementById('btn-sim').addEventListener('click', () => simula().catch(mostraErrore));
+document.getElementById('btn-run').addEventListener('click', () => esegui().catch(mostraErrore));
 document.getElementById('overwrite').addEventListener('change', e => {
   if (e.target.checked) document.getElementById('btn-run').disabled = false;
 });

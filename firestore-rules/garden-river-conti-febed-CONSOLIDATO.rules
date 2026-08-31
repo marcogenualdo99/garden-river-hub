@@ -1,78 +1,126 @@
 rules_version = '2';
 
 // ════════════════════════════════════════════════════════════════════════════
-// PROGETTO FIREBASE: garden-river-conti-febed  —  REGOLE DOPO IL CONSOLIDAMENTO
+// garden-river-conti-febed  —  REGOLE DOPO IL CONSOLIDAMENTO
 //
-// Da usare DOPO aver migrato dentro questo progetto le collezioni che prima
-// stavano su garden-river-hub (operatori, permessi, home_layout, meta) e su
-// garden-river-magazzino (prodotti, categorie).
-// Fino ad allora vale il file garden-river-conti-febed.rules (senza quelle 6).
+// Punto di partenza: le regole ATTUALI di questo progetto (fornite dalla
+// console). Rispetto a quelle, qui cambia SOLO:
 //
-// MODELLO DI SICUREZZA (invariato):
-//   • autenticazione client anonima → i ruoli restano lato app;
-//   • senza login non si legge/scrive NULLA;
-//   • si accede solo alle collezioni elencate; il resto è negato;
-//   • GitHub Actions e Cloud Function usano un service account che bypassa
-//     queste regole.
+//   + aggiunte le collezioni migrate da garden-river-hub:
+//       operatori (già c'era), permessi, home_layout, meta
+//   + aggiunte le collezioni migrate da garden-river-magazzino:
+//       prodotti, categorie
+//   ~ 'bici' passa da  `if true`  (aperta a CHIUNQUE, anche senza login!)
+//       a  `if request.auth != null`  — allineata a tutte le altre
+//   - rimosse le righe duplicate (ordini_ristorazione era ripetuta 3 volte)
 //
-// ⚠️ LIMITI NOTI (invariati): PIN operatore in chiaro leggibili da chi è
-// autenticato; dati Alloggiati Web (ospiti/prenotazioni) idem. Chiusura
-// completa = step "hashing PIN" + eventuale login non anonimo.
+// Tutto il resto è identico a prima. La sottocollezione prenotazioni/{id}/log
+// è mantenuta (change-log per prenotazione, usata da Calendario).
+//
+// MODELLO: autenticazione client anonima → i ruoli restano lato app; chi non
+// ha fatto login non accede a nulla; le Cloud Function e GitHub Actions usano
+// un service account che bypassa queste regole.
+//
+// ⚠️ LIMITI NOTI: i PIN in 'operatori' e i dati Alloggiati Web in
+// 'ospiti'/'prenotazioni' restano leggibili da chi è autenticato (anche solo
+// in anonimo). Chiusura completa = step "hashing PIN" + eventuale login non
+// anonimo. Restano comunque meglio della situazione attuale su hub/magazzino.
 // ════════════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() {
-      return request.auth != null;
+    // ── ex garden-river-hub ────────────────────────────────────────────────
+    match /operatori/{id} {
+      allow read, write: if request.auth != null;   // { nome, ruolo, pin } — vedi limite PIN
+    }
+    match /permessi/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /home_layout/{id} {
+      allow read, write: if request.auth != null;   // id = nome operatore
+    }
+    match /meta/{id} {
+      allow read, write: if request.auth != null;
     }
 
-    // ── ex garden-river-hub ────────────────────────────────────────────────
-    match /operatori/{nome}      { allow read, write: if signedIn(); } // { nome, ruolo, pin } — vedi limite PIN
-    match /permessi/{nome}       { allow read, write: if signedIn(); }
-    match /home_layout/{nome}    { allow read, write: if signedIn(); }
-    match /meta/{id}             { allow read, write: if signedIn(); }
-
-    // ── ex garden-river-magazzino ─────────────────────────────────────────
-    match /prodotti/{id}         { allow read, write: if signedIn(); }
-    match /categorie/{id}        { allow read, write: if signedIn(); }
+    // ── ex garden-river-magazzino ──────────────────────────────────────────
+    match /prodotti/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /categorie/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Conti / pensioni ──────────────────────────────────────────────────
-    match /ospiti/{id}           { allow read, write: if signedIn(); } // ospiti pensione + dati Alloggiati Web
-    match /ordini/{id}           { allow read, write: if signedIn(); } // consumazioni a carico del conto
+    match /ospiti/{id} {
+      allow read, write: if request.auth != null;   // ospiti pensione + dati Alloggiati Web
+    }
+    match /ordini/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Calendario / prenotazioni ────────────────────────────────────────
-    match /prenotazioni/{id}     { allow read, write: if signedIn(); }
-    match /listini/{id}          { allow read, write: if signedIn(); } // listini/campeggio, listini/villini
-    match /impostazioni/{id}     { allow read, write: if signedIn(); } // impostazioni/calendario, impostazioni/ristorazione
+    match /prenotazioni/{prenId} {
+      allow read, write: if request.auth != null;
+      match /log/{logId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    match /listini/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /impostazioni/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Pulizie / alloggi ────────────────────────────────────────────────
-    match /alloggi/{id}          { allow read, write: if signedIn(); }
+    match /alloggi/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Noleggio bici ────────────────────────────────────────────────────
-    match /bici/{id}             { allow read, write: if signedIn(); }
+    match /bici/{id} {
+      allow read, write: if request.auth != null;   // era `if true` — ORA richiede login
+    }
 
     // ── Ristorazione ─────────────────────────────────────────────────────
-    match /famiglie_ristorazione/{id} { allow read, write: if signedIn(); }
-    match /ordini_ristorazione/{id}   { allow read, write: if signedIn(); }
-    match /menu_ristorazione/{id}     { allow read, write: if signedIn(); }
+    match /famiglie_ristorazione/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /ordini_ristorazione/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /menu_ristorazione/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Manutenzione ─────────────────────────────────────────────────────
-    match /maintenance_tickets/{id}   { allow read, write: if signedIn(); }
+    match /maintenance_tickets/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Spiaggia ─────────────────────────────────────────────────────────
-    match /beach_prenotazioni/{id}    { allow read, write: if signedIn(); }
-    match /beach_spiagge/{id}         { allow read, write: if signedIn(); }
+    match /beach_spiagge/{id} {
+      allow read, write: if request.auth != null;
+    }
+    match /beach_prenotazioni/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Notifiche push ───────────────────────────────────────────────────
-    match /staffTokens/{nome}         { allow read, write: if signedIn(); }
+    match /staffTokens/{id} {
+      allow read, write: if request.auth != null;
+    }
 
-    // ── Ping di verifica connessione ─────────────────────────────────────
-    match /_test/{id}                 { allow read, write: if signedIn(); }
+    // ── Verifica connessione ─────────────────────────────────────────────
+    match /_test/{id} {
+      allow read, write: if request.auth != null;
+    }
 
-    // Tutto il resto: negato.
-    match /{document=**} {
-      allow read, write: if false;
+    // ── Legacy: nessun riferimento nel codice, candidato alla rimozione ──
+    match /test_notifiche/{id} {
+      allow read, write: if request.auth != null;
     }
   }
 }
