@@ -37,10 +37,12 @@
     Strumento monouso: da eliminare dopo il consolidamento.</p>
 
   <div class="warn-box">
-    <strong>Prima di eseguire:</strong> i database devono essere ancora in modalità test
-    (regole aperte). Esegui la migrazione <em>prima</em> di deployare le nuove regole.
-    Fai partire prima <strong>Simula</strong>: se una collezione di destinazione risulta
-    già popolata, fermati e avvisa (probabile collisione di nomi).
+    <strong>Ordine corretto:</strong> <em>prima</em> deploya
+    <code>garden-river-conti-febed-CONSOLIDATO.rules</code> sul progetto di
+    destinazione, <em>poi</em> esegui questa migrazione (altrimenti la scrittura
+    delle collezioni nuove viene bloccata dai permessi).
+    Fai sempre partire prima <strong>Simula</strong>: se una collezione di
+    destinazione risulta già popolata, fermati e avvisa (probabile collisione di nomi).
   </div>
 
   <div class="card">
