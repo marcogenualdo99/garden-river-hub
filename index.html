@@ -958,7 +958,7 @@ async function startRealtimeSync() {
     onSnapshot(collection(db, 'permessi'), (snap) => {
       permessi = {};
       snap.docs.forEach(d => { permessi[d.id] = d.data(); });
-      if (currentOperatore) renderHome();
+      if (currentOperatore) { applyHeader(); renderHome(); }
     }, (err) => console.error('Errore listener permessi:', err));
   } catch(e) { console.error('Errore avvio sync:', e); }
 }
@@ -1038,10 +1038,10 @@ async function fsDeleteOperatore(nome) {
   const { db, doc, deleteDoc } = window._fb;
   await deleteDoc(doc(db, 'operatori', nome));
 }
-async function fsSetPermessi(nome, moduli, report) {
+async function fsSetPermessi(nome, moduli, report, azioni) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
-  await setDoc(doc(db, 'permessi', nome), { moduli, report });
+  await setDoc(doc(db, 'permessi', nome), { moduli, report, azioni: azioni || {} });
 }
 
 // I report della home sono visibili di default finché l'admin non li
@@ -1434,6 +1434,8 @@ function applyHeader() {
   document.getElementById('header-name').textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings').style.display = admin ? '' : 'none';
+  const bsl = document.getElementById('btn-scontrino-libero');
+  if (bsl) bsl.style.display = puoFiscalizzare() ? '' : 'none';
   const homeEyebrow = document.getElementById('home-eyebrow');
   const homeTitle   = document.getElementById('home-title');
   if (homeEyebrow) homeEyebrow.textContent = dataOggi();
@@ -2065,15 +2067,48 @@ function closeNotifiche() {
 }
 
 // ── SCONTRINO LIBERO — scontrino fiscale reale svincolato da prenotazioni o
-//    conti, per vendite estemporanee (es. al banco). Passa dallo stesso proxy
-//    locale ItalRetail (v. calendario/index.html per la stessa logica) —
-//    IP/porta/timeout della cassa sono già configurati lì, il proxy è unico
-//    per tutta la postazione. ─────────────────────────────────────────────
+//    conti, per vendite estemporanee (es. al banco). Passa dal proxy ItalRetail
+//    (stessa logica di calendario/index.html): locale su ogni postazione,
+//    oppure condiviso in ufficio con URL+token da config/fiscalizzazione. ───
 let scontrinoLibero = [];
+
+let _fiscConfigCache = null;
+async function fiscConfig() {
+  if (_fiscConfigCache) return _fiscConfigCache;
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'config', 'fiscalizzazione'));
+    _fiscConfigCache = snap.exists() ? (snap.data() || {}) : {};
+  } catch (e) { _fiscConfigCache = {}; }
+  return _fiscConfigCache;
+}
+async function fiscFetch(endpoint, opts = {}) {
+  const cfg = await fiscConfig();
+  const base = String(cfg.proxy_url || 'https://localhost:8766').replace(/\/+$/, '');
+  const headers = Object.assign({}, opts.headers || {});
+  if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token;
+  return fetch(base + endpoint, Object.assign({}, opts, { headers }));
+}
+function nomeDispositivo() {
+  try {
+    const n = localStorage.getItem('gr_device_nome');
+    if (n) return n;
+    let id = localStorage.getItem('gr_device_id');
+    if (!id) { id = 'dev-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('gr_device_id', id); }
+    return id;
+  } catch (e) { return 'sconosciuto'; }
+}
+// Permesso "Può fiscalizzare": assente = consentito (l'admin lo toglie a chi non deve).
+function puoFiscalizzare() {
+  if (isAdmin()) return true;
+  const p = permessi[currentOperatore];
+  return !(p && p.azioni && p.azioni.fiscalizza === false);
+}
 
 function nuovaVoceScontrinoLibero() { return { label: '', importo: null }; }
 
 function openScontrinoLibero() {
+  if (!puoFiscalizzare()) { showToast('Non hai il permesso per fiscalizzare'); return; }
   scontrinoLibero = [nuovaVoceScontrinoLibero()];
   const radio = document.querySelector('input[name="sl-pagamento"][value="contanti"]');
   if (radio) radio.checked = true;
@@ -2146,16 +2181,21 @@ async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
 
   // Interruttore di test, v. nota gemella in calendario/index.html.
   const dryRun = localStorage.getItem('italretail_dry_run') === '1';
+  const totaleScontrino = righePayload.reduce((s, r) => s + r.prezzo_eur * r.quantita, 0);
 
   showToast(dryRun ? '[TEST] Simulazione in corso…' : 'Emissione documento fiscale in corso…');
   let data;
   try {
-    const res = await fetch('https://localhost:8766/scontrino', {
+    const res = await fiscFetch('/scontrino', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun }),
+      body: JSON.stringify({
+        righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun,
+        operatore: currentOperatore || '', dispositivo: nomeDispositivo(),
+      }),
     });
     data = await res.json();
+    if (res.status === 401) { showToast('Fiscalizzazione non autorizzata su questo dispositivo'); return; }
   } catch (e) {
     showToast('Errore di connessione al proxy ItalRetail: ' + e.message);
     return;
@@ -2167,6 +2207,20 @@ async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
     showToast('[TEST] Simulazione OK — nessun dato inviato alla cassa');
     return;
   }
+
+  try {
+    const { db, collection, doc, setDoc } = window._fb;
+    await setDoc(doc(collection(db, 'scontrini_fiscali')), {
+      ts: Date.now(),
+      operatore: currentOperatore || '',
+      dispositivo: nomeDispositivo(),
+      origine: 'scontrino_libero',
+      totale_eur: Math.round(totaleScontrino * 100) / 100,
+      metodo_pagamento: metodoPagamento,
+      righe: righePayload,
+      dettagli: data.dettagli || null,
+    });
+  } catch (e) { console.error('Errore scrittura registro scontrini:', e); }
 
   showToast('Documento fiscale emesso');
   closeScontrinoLibero();
@@ -2351,6 +2405,7 @@ function renderPermessiForm(nome) {
   }
   const userModuli = (permessi[nome] && permessi[nome].moduli) || {};
   const userReport = (permessi[nome] && permessi[nome].report) || {};
+  const userAzioni = (permessi[nome] && permessi[nome].azioni) || {};
   wrap.innerHTML = MODULES.map(mod => {
     const sez = (userModuli[mod.id] && userModuli[mod.id].sezioni) || {};
     return `<div class="perm-module">
@@ -2365,6 +2420,10 @@ function renderPermessiForm(nome) {
       <div class="perm-module-title">Report home</div>
       <label class="perm-row"><input type="checkbox" id="perm-report-presenti" ${userReport.presenti!==false?'checked':''}> Presenti in struttura + ricerca</label>
       <label class="perm-row"><input type="checkbox" id="perm-report-oggiStruttura" ${userReport.oggiStruttura!==false?'checked':''}> Oggi in struttura</label>
+    </div>
+    <div class="perm-module">
+      <div class="perm-module-title">Azioni</div>
+      <label class="perm-row"><input type="checkbox" id="perm-azione-fiscalizza" ${userAzioni.fiscalizza!==false?'checked':''}> Può fiscalizzare (emettere scontrini reali)</label>
     </div>`
     + `<button class="btn-primary" onclick="savePermessi('${nome}')">Salva permessi di ${nome}</button>`;
 }
@@ -2380,7 +2439,10 @@ async function savePermessi(nome) {
     presenti:      document.getElementById('perm-report-presenti').checked,
     oggiStruttura: document.getElementById('perm-report-oggiStruttura').checked,
   };
-  try { await fsSetPermessi(nome, moduli, report); showToast('Permessi salvati per ' + nome); }
+  const azioni = {
+    fiscalizza: document.getElementById('perm-azione-fiscalizza').checked,
+  };
+  try { await fsSetPermessi(nome, moduli, report, azioni); showToast('Permessi salvati per ' + nome); }
   catch(e) { showToast('Errore salvataggio permessi'); }
 }
 

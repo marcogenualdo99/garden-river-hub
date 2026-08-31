@@ -917,7 +917,7 @@
           </div>
           <div class="prev-head">
             <span>Conto</span>
-            <button type="button" class="conto-fiscalizza-btn" onclick="apriFiscalizzazione()" title="Emette un documento fiscale reale sul registratore telematico per le voci selezionate e le segna come pagate">Fiscalizza</button>
+            <button type="button" id="btn-fiscalizza" class="conto-fiscalizza-btn" onclick="apriFiscalizzazione()" title="Emette un documento fiscale reale sul registratore telematico per le voci selezionate e le segna come pagate">Fiscalizza</button>
             <span class="prev-total" id="conto-totale-inline">€ 0,00</span>
           </div>
           <div class="conto-saldo hidden" id="conto-saldo-inline"></div>
@@ -1693,6 +1693,8 @@ function applyRole() {
   document.getElementById('header-name').textContent   = currentOperatore || '';
   document.getElementById('header-role').textContent   = isAdmin() ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings-listini').style.display = isAdmin() ? '' : 'none';
+  const bf = document.getElementById('btn-fiscalizza');
+  if (bf) bf.style.display = puoFiscalizzare() ? '' : 'none';
 }
 function initLogin() {
   if (!loadHubSession()) {
@@ -4461,8 +4463,50 @@ function raccogliConto() {
 // ── FISCALIZZAZIONE CONTO (Registratore Telematico ItalRetail, protocollo
 //    Custom S.p.A. — v. italretail_rt.py). Emette un documento commerciale
 //    REALE sulla memoria fiscale della cassa: non è una stampa di prova.
-//    Passa dal proxy locale (Avvia Proxy ItalRetail.command) perché il
-//    browser non può aprire una socket TCP raw verso il registratore. ─────
+//    Passa dal proxy ItalRetail perché il browser non può aprire una socket
+//    TCP raw verso il registratore. ─────────────────────────────────────────
+
+// ── PROXY FISCALE: locale (un PC = una postazione) o condiviso in ufficio ──
+// In modalità condivisa il proxy gira su un PC dell'ufficio e serve tutti i
+// dispositivi: URL e token arrivano da Firestore (config/fiscalizzazione),
+// impostati una volta dall'admin in console. Se il documento non c'è si
+// ricade sul comportamento classico: https://localhost:8766, senza token.
+let _fiscConfigCache = null;
+async function fiscConfig() {
+  if (_fiscConfigCache) return _fiscConfigCache;
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'config', 'fiscalizzazione'));
+    _fiscConfigCache = snap.exists() ? (snap.data() || {}) : {};
+  } catch (e) { _fiscConfigCache = {}; }
+  return _fiscConfigCache;
+}
+async function fiscFetch(endpoint, opts = {}) {
+  const cfg = await fiscConfig();
+  const base = String(cfg.proxy_url || 'https://localhost:8766').replace(/\/+$/, '');
+  const headers = Object.assign({}, opts.headers || {});
+  if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token;
+  return fetch(base + endpoint, Object.assign({}, opts, { headers }));
+}
+function nomeDispositivo() {
+  try {
+    const n = localStorage.getItem('gr_device_nome');
+    if (n) return n;
+    let id = localStorage.getItem('gr_device_id');
+    if (!id) { id = 'dev-' + Math.random().toString(36).slice(2, 8); localStorage.setItem('gr_device_id', id); }
+    return id;
+  } catch (e) { return 'sconosciuto'; }
+}
+// Permesso "Può fiscalizzare" (Hub → Impostazioni → Permessi). Come gli altri
+// permessi: assente = consentito; l'admin lo toglie a chi non deve.
+function puoFiscalizzare() {
+  if (isAdmin()) return true;
+  try {
+    const perm = JSON.parse(sessionStorage.getItem('gr_permessi') || '{}');
+    return !(perm.azioni && perm.azioni.fiscalizza === false);
+  } catch (e) { return true; }
+}
+
 function classificaCategoriaRiga(label) {
   const l = (label || '').toLowerCase();
   if (l.includes('tassa') && l.includes('soggiorno')) return 'tassa_soggiorno';
@@ -4471,6 +4515,7 @@ function classificaCategoriaRiga(label) {
 }
 
 function apriFiscalizzazione() {
+  if (!puoFiscalizzare()) { showToast('Non hai il permesso per fiscalizzare'); return; }
   const checkbox = Array.from(document.querySelectorAll('#conto-list-inline .conto-select-riga:checked'));
   if (!checkbox.length) { showToast('Seleziona almeno una voce da fiscalizzare'); return; }
   const indici = checkbox.map(c => parseInt(c.dataset.idx, 10));
@@ -4534,15 +4579,20 @@ async function eseguiFiscalizzazione(indici, righe, metodoPagamento) {
   // rimuoverlo (localStorage.removeItem('italretail_dry_run')) prima dell'uso normale.
   const dryRun = localStorage.getItem('italretail_dry_run') === '1';
 
+  const totaleScontrino = righePayload.reduce((s, r) => s + r.prezzo_eur * r.quantita, 0);
   showToast(dryRun ? '[TEST] Simulazione in corso…' : 'Emissione documento fiscale in corso…');
   let data;
   try {
-    const res = await fetch('https://localhost:8766/scontrino', {
+    const res = await fiscFetch('/scontrino', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun }),
+      body: JSON.stringify({
+        righe: righePayload, metodo_pagamento: metodoPagamento, dry_run: dryRun,
+        operatore: currentOperatore || '', dispositivo: nomeDispositivo(),
+      }),
     });
     data = await res.json();
+    if (res.status === 401) { showToast('Fiscalizzazione non autorizzata su questo dispositivo'); return; }
   } catch (e) {
     showToast('Errore di connessione al proxy ItalRetail: ' + e.message);
     return;
@@ -4554,6 +4604,23 @@ async function eseguiFiscalizzazione(indici, righe, metodoPagamento) {
     showToast('[TEST] Simulazione OK — nessun dato inviato alla cassa, nessuna voce segnata come pagata');
     return;
   }
+
+  // Registro ufficiale delle emissioni (append-only). Best-effort: se fallisce
+  // resta comunque il giornale locale del proxy (scontrini_emessi.jsonl).
+  try {
+    const { db, collection, addDoc } = window._fb;
+    await addDoc(collection(db, 'scontrini_fiscali'), {
+      ts: Date.now(),
+      operatore: currentOperatore || '',
+      dispositivo: nomeDispositivo(),
+      origine: 'calendario',
+      prenotazione_id: editingId || null,
+      totale_eur: Math.round(totaleScontrino * 100) / 100,
+      metodo_pagamento: metodoPagamento,
+      righe: righePayload,
+      dettagli: data.dettagli || null,
+    });
+  } catch (e) { console.error('Errore scrittura registro scontrini:', e); }
 
   indici.forEach(i => { if (contoCorrente[i]) { contoCorrente[i].pagato = true; contoCorrente[i].fiscalizzato = true; } });
   renderContoInline();
@@ -5690,9 +5757,10 @@ async function renderFiscalizzazionePanel() {
   let config = { ip: '', porta: 9100, timeout: 5 };
   let erroreProxy = '';
   try {
-    const res = await fetch('https://localhost:8766/configurazione');
+    const res = await fiscFetch('/configurazione');
     const data = await res.json();
     if (data.ok) config = data;
+    else if (res.status === 401) erroreProxy = 'proxy raggiunto ma token non valido';
   } catch (e) {
     erroreProxy = e.message;
   }
@@ -5724,7 +5792,7 @@ async function salvaFiscalizzazione() {
   const { ip, porta, timeout } = leggiCampiFiscalizzazione();
   if (!ip) { showToast('Inserisci un indirizzo IP'); return; }
   try {
-    const res = await fetch('https://localhost:8766/configurazione', {
+    const res = await fiscFetch('/configurazione', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ip, porta: porta || undefined, timeout: timeout || undefined }),
@@ -5743,7 +5811,7 @@ async function testaConnessioneFiscalizzazione() {
   esitoEl.textContent = 'Test in corso…';
   esitoEl.style.color = 'var(--gray-600)';
   try {
-    const res = await fetch('https://localhost:8766/test-connessione', {
+    const res = await fiscFetch('/test-connessione', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ip, porta: porta || undefined, timeout: timeout || undefined }),
