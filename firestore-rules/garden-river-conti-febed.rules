@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// PROGETTO FIREBASE: garden-river-conti-febed
+// È il database operativo condiviso: ci vivono i dati di Conti, Calendario,
+// Pulizie, Bici, Ristorazione, Manutenzione, Spiaggia, più i token push.
+//
+// MODELLO DI SICUREZZA — vedi note complete in garden-river-hub.rules.
+// In breve:
+//   • autenticazione client = anonima → le regole non distinguono i ruoli
+//     (admin vs operatore resta lato app);
+//   • chi non ha fatto login non legge/scrive NULLA;
+//   • si accede solo alle collezioni elencate qui; ogni altro percorso è negato;
+//   • GitHub Actions e Cloud Function usano un service account che bypassa
+//     queste regole.
+//
+// ⚠️ DATO SENSIBILE — 'ospiti' e 'prenotazioni' contengono dati personali
+// degli ospiti censiti per Alloggiati Web (nome, data di nascita, estremi
+// del documento). Con l'autenticazione anonima, chiunque ricavi la config
+// Firebase dal codice pubblico e faccia signInAnonymously può leggerli.
+// Mitigazioni possibili in futuro: login non anonimo (email/password per
+// operatore) oppure spostare i dati documento in una collezione a parte
+// accessibile solo via Cloud Function. Per ora queste regole eliminano
+// almeno l'accesso senza alcun login.
+// ════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ── Conti / pensioni ────────────────────────────────────────────────────
+    match /ospiti/{id}           { allow read, write: if signedIn(); } // ospiti pensione + dati Alloggiati Web
+    match /ordini/{id}           { allow read, write: if signedIn(); } // consumazioni a carico del conto
+
+    // ── Calendario / prenotazioni ──────────────────────────────────────────
+    match /prenotazioni/{id}     { allow read, write: if signedIn(); }
+    match /listini/{id}          { allow read, write: if signedIn(); } // listini/campeggio, listini/villini
+    match /impostazioni/{id}     { allow read, write: if signedIn(); } // impostazioni/calendario, impostazioni/ristorazione
+
+    // ── Pulizie / alloggi ──────────────────────────────────────────────────
+    match /alloggi/{id}          { allow read, write: if signedIn(); }
+
+    // ── Noleggio bici ──────────────────────────────────────────────────────
+    match /bici/{id}             { allow read, write: if signedIn(); }
+
+    // ── Ristorazione ───────────────────────────────────────────────────────
+    match /famiglie_ristorazione/{id} { allow read, write: if signedIn(); }
+    match /ordini_ristorazione/{id}   { allow read, write: if signedIn(); }
+    match /menu_ristorazione/{id}     { allow read, write: if signedIn(); }
+
+    // ── Manutenzione ───────────────────────────────────────────────────────
+    match /maintenance_tickets/{id}   { allow read, write: if signedIn(); }
+
+    // ── Spiaggia ───────────────────────────────────────────────────────────
+    match /beach_prenotazioni/{id}    { allow read, write: if signedIn(); }
+    match /beach_spiagge/{id}         { allow read, write: if signedIn(); }
+
+    // ── Notifiche push ─────────────────────────────────────────────────────
+    // { tokens: [...], notifiche: bool, aggiornato: ts } — id = nome operatore
+    match /staffTokens/{nome}         { allow read, write: if signedIn(); }
+
+    // ── Ping di verifica connessione ───────────────────────────────────────
+    match /_test/{id}                 { allow read, write: if signedIn(); }
+
+    // Tutto il resto: negato.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

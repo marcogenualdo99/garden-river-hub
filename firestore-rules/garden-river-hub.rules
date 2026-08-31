@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// PROGETTO FIREBASE: garden-river-hub
+// Contiene: operatori, permessi, layout home personalizzati, flag di init.
+// Condiviso da tutta la suite per login e permessi.
+//
+// MODELLO DI SICUREZZA
+// -------------------
+// Tutta l'autenticazione dei client è ANONIMA (signInAnonymously). Il token
+// non porta con sé né il nome operatore né il ruolo, quindi le regole NON
+// possono distinguere "admin" da "operatore": quella logica resta lato app.
+// Quello che queste regole garantiscono è:
+//   • chi non ha fatto login (nemmeno anonimo) non legge e non scrive NULLA;
+//   • si può leggere/scrivere solo nelle collezioni elencate qui sotto —
+//     qualsiasi altro percorso è negato per default (fondo file).
+// Gli script GitHub Actions e le Cloud Function usano un service account
+// (Admin SDK) che BYPASSA queste regole: non serve aprire nulla per loro.
+//
+// ⚠️ LIMITE NOTO — PIN IN CHIARO
+// La collezione 'operatori' contiene il campo `pin` in chiaro e la schermata
+// di login deve poterla leggere per elencare gli operatori e verificare il
+// PIN. Le regole Firestore non permettono di nascondere un singolo campo:
+// chi è autenticato (anche solo in anonimo, leggendo la config dal codice
+// pubblico) può leggere i PIN. La soluzione completa è spostare la verifica
+// del PIN in una Cloud Function con i PIN salvati come hash in una collezione
+// separata negata a tutti i client — è lo step "hashing PIN" già pianificato.
+// Fino ad allora, queste regole restano comunque un miglioramento netto
+// rispetto alla "modalità test" (lettura/scrittura aperta a chiunque).
+// ════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Operatori della suite — { nome, ruolo, pin }
+    // read: la schermata di login elenca gli operatori e verifica il PIN.
+    // write: primo accesso (imposta il PIN), gestione da Impostazioni (admin).
+    match /operatori/{nome} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Permessi per modulo/sezione, per operatore — { moduli, report }
+    match /permessi/{nome} {
+      allow read, write: if signedIn();
+    }
+
+    // Layout personalizzato della home, per operatore — { order, sizes }
+    // L'id del documento è il nome dell'operatore.
+    match /home_layout/{nome} {
+      allow read, write: if signedIn();
+    }
+
+    // Flag "dati di default già seminati" — meta/init
+    match /meta/{id} {
+      allow read, write: if signedIn();
+    }
+
+    // Tutto il resto: negato.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
