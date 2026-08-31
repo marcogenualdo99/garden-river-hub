@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// PROGETTO FIREBASE: garden-river-conti-febed  —  REGOLE DOPO IL CONSOLIDAMENTO
+//
+// Da usare DOPO aver migrato dentro questo progetto le collezioni che prima
+// stavano su garden-river-hub (operatori, permessi, home_layout, meta) e su
+// garden-river-magazzino (prodotti, categorie).
+// Fino ad allora vale il file garden-river-conti-febed.rules (senza quelle 6).
+//
+// MODELLO DI SICUREZZA (invariato):
+//   • autenticazione client anonima → i ruoli restano lato app;
+//   • senza login non si legge/scrive NULLA;
+//   • si accede solo alle collezioni elencate; il resto è negato;
+//   • GitHub Actions e Cloud Function usano un service account che bypassa
+//     queste regole.
+//
+// ⚠️ LIMITI NOTI (invariati): PIN operatore in chiaro leggibili da chi è
+// autenticato; dati Alloggiati Web (ospiti/prenotazioni) idem. Chiusura
+// completa = step "hashing PIN" + eventuale login non anonimo.
+// ════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ── ex garden-river-hub ────────────────────────────────────────────────
+    match /operatori/{nome}      { allow read, write: if signedIn(); } // { nome, ruolo, pin } — vedi limite PIN
+    match /permessi/{nome}       { allow read, write: if signedIn(); }
+    match /home_layout/{nome}    { allow read, write: if signedIn(); }
+    match /meta/{id}             { allow read, write: if signedIn(); }
+
+    // ── ex garden-river-magazzino ─────────────────────────────────────────
+    match /prodotti/{id}         { allow read, write: if signedIn(); }
+    match /categorie/{id}        { allow read, write: if signedIn(); }
+
+    // ── Conti / pensioni ──────────────────────────────────────────────────
+    match /ospiti/{id}           { allow read, write: if signedIn(); } // ospiti pensione + dati Alloggiati Web
+    match /ordini/{id}           { allow read, write: if signedIn(); } // consumazioni a carico del conto
+
+    // ── Calendario / prenotazioni ────────────────────────────────────────
+    match /prenotazioni/{id}     { allow read, write: if signedIn(); }
+    match /listini/{id}          { allow read, write: if signedIn(); } // listini/campeggio, listini/villini
+    match /impostazioni/{id}     { allow read, write: if signedIn(); } // impostazioni/calendario, impostazioni/ristorazione
+
+    // ── Pulizie / alloggi ────────────────────────────────────────────────
+    match /alloggi/{id}          { allow read, write: if signedIn(); }
+
+    // ── Noleggio bici ────────────────────────────────────────────────────
+    match /bici/{id}             { allow read, write: if signedIn(); }
+
+    // ── Ristorazione ─────────────────────────────────────────────────────
+    match /famiglie_ristorazione/{id} { allow read, write: if signedIn(); }
+    match /ordini_ristorazione/{id}   { allow read, write: if signedIn(); }
+    match /menu_ristorazione/{id}     { allow read, write: if signedIn(); }
+
+    // ── Manutenzione ─────────────────────────────────────────────────────
+    match /maintenance_tickets/{id}   { allow read, write: if signedIn(); }
+
+    // ── Spiaggia ─────────────────────────────────────────────────────────
+    match /beach_prenotazioni/{id}    { allow read, write: if signedIn(); }
+    match /beach_spiagge/{id}         { allow read, write: if signedIn(); }
+
+    // ── Notifiche push ───────────────────────────────────────────────────
+    match /staffTokens/{nome}         { allow read, write: if signedIn(); }
+
+    // ── Ping di verifica connessione ─────────────────────────────────────
+    match /_test/{id}                 { allow read, write: if signedIn(); }
+
+    // Tutto il resto: negato.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

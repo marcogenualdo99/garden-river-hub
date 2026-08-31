@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migrazione Firebase → progetto unico</title>
+<style>
+  :root { --green:#1B4332; --green-lt:#2D6A4F; --bg:#F4F6F2; --line:#DCE1D6; --ink:#16241C; --crit:#A3352A; --ok:#2D6A4F; --warn:#9A6516; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:var(--ink); line-height:1.55; padding:32px 20px 80px; }
+  .wrap { max-width:760px; margin:0 auto; }
+  h1 { font-size:1.5rem; margin-bottom:6px; }
+  p.sub { color:#667066; margin-bottom:24px; font-size:.95rem; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px; }
+  .card h2 { font-size:1rem; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:8px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#667066; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .status-ok { color:var(--ok); font-weight:600; }
+  .status-warn { color:var(--warn); font-weight:600; }
+  .status-crit { color:var(--crit); font-weight:600; }
+  button { font:inherit; font-weight:600; border:none; border-radius:10px; padding:11px 20px; cursor:pointer; margin-right:10px; }
+  button.primary { background:var(--green); color:#fff; }
+  button.ghost { background:#EDF0EA; color:var(--ink); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  label.chk { display:flex; align-items:center; gap:8px; font-size:13.5px; margin:14px 0; color:var(--crit); }
+  #log { background:#0E1611; color:#C8D3C8; font-family:ui-monospace,Menlo,monospace; font-size:12px; border-radius:10px; padding:14px; margin-top:16px; max-height:340px; overflow:auto; white-space:pre-wrap; }
+  .warn-box { background:#F6ECD9; border:1px solid #E4CfA0; border-radius:10px; padding:12px 14px; font-size:13.5px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Migrazione Firebase → progetto unico</h1>
+  <p class="sub">Copia le collezioni di <code>garden-river-hub</code> e <code>garden-river-magazzino</code>
+    dentro <code>garden-river-conti-febed</code>, mantenendo gli stessi ID documento.
+    Strumento monouso: da eliminare dopo il consolidamento.</p>
+
+  <div class="warn-box">
+    <strong>Prima di eseguire:</strong> i database devono essere ancora in modalità test
+    (regole aperte). Esegui la migrazione <em>prima</em> di deployare le nuove regole.
+    Fai partire prima <strong>Simula</strong>: se una collezione di destinazione risulta
+    già popolata, fermati e avvisa (probabile collisione di nomi).
+  </div>
+
+  <div class="card">
+    <h2>Collezioni da migrare</h2>
+    <table id="tbl">
+      <thead><tr><th>Da</th><th>Collezione</th><th class="num">Origine</th><th class="num">Destinazione (ora)</th><th>Stato</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <label class="chk">
+      <input type="checkbox" id="overwrite">
+      Sovrascrivi anche se la collezione di destinazione non è vuota
+      (serve solo per ri-eseguire la copia di <code>operatori</code>/<code>home_layout</code> subito prima del cutover)
+    </label>
+    <div>
+      <button class="ghost" id="btn-sim">Simula</button>
+      <button class="primary" id="btn-run" disabled>Esegui migrazione</button>
+    </div>
+  </div>
+
+  <div id="log">Pronto. Premi «Simula».</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, query, limit }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const CONFIGS = {
+  hub: {
+    apiKey: "AIzaSyD6Z6zkkOi_3PWPx4vjPuuW5kMahuIruY8",
+    authDomain: "garden-river-hub.firebaseapp.com",
+    projectId: "garden-river-hub",
+    storageBucket: "garden-river-hub.firebasestorage.app",
+    messagingSenderId: "789681135760",
+    appId: "1:789681135760:web:d535e5bd22f52f884bf815"
+  },
+  magazzino: {
+    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
+    authDomain: "garden-river-magazzino.firebaseapp.com",
+    projectId: "garden-river-magazzino",
+    storageBucket: "garden-river-magazzino.firebasestorage.app",
+    messagingSenderId: "595247360399",
+    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
+  },
+  dest: {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  },
+};
+
+// destinazione: sempre garden-river-conti-febed
+const MIGRAZIONI = [
+  { da: 'hub',       coll: 'operatori'    },
+  { da: 'hub',       coll: 'permessi'     },
+  { da: 'hub',       coll: 'home_layout'  },
+  { da: 'hub',       coll: 'meta'         },
+  { da: 'magazzino', coll: 'prodotti'     },
+  { da: 'magazzino', coll: 'categorie'    },
+];
+
+const dbs = {};
+for (const [name, cfg] of Object.entries(CONFIGS)) {
+  const app = initializeApp(cfg, name);
+  await signInAnonymously(getAuth(app)).catch(e => logLine(`⚠ login anonimo ${name} fallito: ${e.message}`));
+  dbs[name] = getFirestore(app);
+}
+
+const logEl = document.getElementById('log');
+function logLine(s) { logEl.textContent += '\n' + s; logEl.scrollTop = logEl.scrollHeight; }
+function resetLog(s) { logEl.textContent = s; }
+
+const tbody = document.querySelector('#tbl tbody');
+const rows = MIGRAZIONI.map(m => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${m.da}</td><td><code>${m.coll}</code></td><td class="num src">–</td><td class="num dst">–</td><td class="st">–</td>`;
+  tbody.appendChild(tr);
+  return { ...m, tr };
+});
+
+async function countColl(db, coll) {
+  const snap = await getDocs(collection(db, coll));
+  return snap.size;
+}
+
+async function simula() {
+  resetLog('Simulazione in corso…');
+  let bloccante = false;
+  for (const r of rows) {
+    const src = await countColl(dbs[r.da], r.coll);
+    const dst = await countColl(dbs.dest, r.coll);
+    r.tr.querySelector('.src').textContent = src;
+    r.tr.querySelector('.dst').textContent = dst;
+    const st = r.tr.querySelector('.st');
+    if (dst > 0) {
+      st.innerHTML = '<span class="status-crit">destinazione NON vuota</span>';
+      bloccante = true;
+      logLine(`✗ ${r.coll}: la destinazione ha già ${dst} documenti — possibile collisione di nomi, verifica in console`);
+    } else if (src === 0) {
+      st.innerHTML = '<span class="status-warn">origine vuota</span>';
+      logLine(`• ${r.coll}: origine vuota, niente da copiare`);
+    } else {
+      st.innerHTML = `<span class="status-ok">pronta (${src} doc)</span>`;
+      logLine(`✓ ${r.coll}: ${src} documenti pronti da copiare`);
+    }
+  }
+  logLine(bloccante
+    ? '\n⚠ Almeno una collezione di destinazione è già popolata. NON eseguire finché non è chiarito.'
+    : '\n✓ Simulazione ok. Puoi premere «Esegui migrazione».');
+  document.getElementById('btn-run').disabled = bloccante && !document.getElementById('overwrite').checked;
+}
+
+async function esegui() {
+  if (!confirm('Copiare i documenti dentro garden-river-conti-febed? I vecchi progetti restano intatti.')) return;
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-sim').disabled = true;
+  resetLog('Migrazione in corso…');
+  const overwrite = document.getElementById('overwrite').checked;
+  let totale = 0;
+  for (const r of rows) {
+    const dstCount = await countColl(dbs.dest, r.coll);
+    if (dstCount > 0 && !overwrite) {
+      logLine(`↷ ${r.coll}: saltata (destinazione non vuota, sovrascrittura non abilitata)`);
+      continue;
+    }
+    const snap = await getDocs(collection(dbs[r.da], r.coll));
+    let n = 0;
+    for (const d of snap.docs) {
+      await setDoc(doc(dbs.dest, r.coll, d.id), d.data());
+      n++;
+    }
+    totale += n;
+    logLine(`✓ ${r.coll}: copiati ${n} documenti`);
+    r.tr.querySelector('.dst').textContent = await countColl(dbs.dest, r.coll);
+    r.tr.querySelector('.st').innerHTML = '<span class="status-ok">migrata</span>';
+  }
+  logLine(`\n✓ Fatto. ${totale} documenti copiati in garden-river-conti-febed.`);
+  logLine('Ora: deploy delle regole unificate + modifica config nel codice + push.');
+}
+
+document.getElementById('btn-sim').addEventListener('click', () => simula().catch(e => logLine('ERRORE: ' + e.message)));
+document.getElementById('btn-run').addEventListener('click', () => esegui().catch(e => logLine('ERRORE: ' + e.message)));
+document.getElementById('overwrite').addEventListener('change', e => {
+  if (e.target.checked) document.getElementById('btn-run').disabled = false;
+});
+</script>
+</body>
+</html>

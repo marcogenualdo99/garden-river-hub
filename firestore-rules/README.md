@@ -1,64 +1,75 @@
 # Regole Firestore — Garden Hub
 
-Le regole di sicurezza dei 3 progetti Firebase della suite. **Non vengono
-deployate da questo repository**: vanno incollate a mano nella console Firebase
-di ogni progetto. Questi file servono a tenerne traccia e a versionarle.
+Regole di sicurezza dei progetti Firebase. **Non vengono deployate da questo
+repository**: si incollano a mano nella console Firebase. Questi file servono a
+versionarle e a documentare lo stato.
 
-| File | Progetto Firebase | Console |
-|---|---|---|
-| `garden-river-hub.rules` | `garden-river-hub` | operatori, permessi, layout home |
-| `garden-river-conti-febed.rules` | `garden-river-conti-febed` | dati operativi condivisi + token push |
-| `garden-river-magazzino.rules` | `garden-river-magazzino` | magazzino bar |
+## Contesto: consolidamento in un progetto unico
 
-## Cosa fanno
+La suite sta passando **da 3 progetti Firebase a 1**. Target: tutto dentro
+`garden-river-conti-febed` (mantiene push, Cloud Function, Storage, service
+account). Le collezioni di `garden-river-hub` (`operatori`, `permessi`,
+`home_layout`, `meta`) e di `garden-river-magazzino` (`prodotti`, `categorie`)
+vengono migrate dentro conti-febed.
 
-Portano i database dalla **"modalità test"** (lettura e scrittura aperte a
-*chiunque* su internet, spesso con scadenza a 30 giorni) a: **serve almeno un
-login**, e si può toccare **solo le collezioni che l'app usa davvero**.
+Verifica fatta in locale: **`garden-river-conti-febed` NON è in "modalità test"**
+— ha già regole che negano le collezioni non previste. `garden-river-hub` e
+`garden-river-magazzino` sono da verificare (probabile test mode).
 
-Cosa **non** cambia:
-- L'app continua a funzionare identica: usa già `signInAnonymously`, quindi i
-  client sono "autenticati" agli occhi delle regole.
-- Gli script GitHub Actions e le Cloud Function usano un *service account*
-  (Admin SDK) che **bypassa le regole**: non serve fare nulla per loro.
+## File
 
-Cosa **non** risolvono (limiti dell'autenticazione anonima, vedi commenti nei
-file):
-- I PIN operatore in chiaro restano leggibili da chi è autenticato → resta da
-  fare lo step "hashing PIN + verifica su Cloud Function".
-- I dati Alloggiati Web (`ospiti`, `prenotazioni`) restano leggibili da chi è
-  autenticato → mitigabile in futuro con login non anonimo.
+| File | Quando si usa |
+|---|---|
+| `garden-river-conti-febed-CONSOLIDATO.rules` | **Da deployare su conti-febed durante il cutover** — include le 21 collezioni della suite (le 15 attuali + le 6 migrate). ⚠️ Prima confrontalo con le regole attuali di conti-febed (vedi sotto). |
+| `garden-river-conti-febed.rules` | Solo le 15 collezioni attuali. Riferimento / rollback se il consolidamento salta. |
+| `garden-river-hub.rules` | Se NON consolidi: blinda il progetto hub. Se consolidi: dopo il cutover, per blindare il vecchio progetto svuotato (o eliminalo). |
+| `garden-river-magazzino.rules` | Come sopra per magazzino. |
 
-Restano comunque un **miglioramento netto**: oggi, in modalità test, quei dati
-sono accessibili anche **senza alcun login**.
+## Sequenza di cutover (consolidamento)
 
-## Come deployare (per ogni progetto, uno alla volta)
+1. **Copiami le regole attuali di `garden-river-conti-febed`** (console → Firestore
+   → Regole). Le fondo io con le 6 collezioni nuove, per non perdere eventuali
+   validazioni già presenti. Il file `-CONSOLIDATO.rules` è una bozza da rivedere
+   con quelle alla mano.
+2. **Deploy** del file consolidato su conti-febed. (Serve *prima* della
+   migrazione: lo strumento di migrazione scrive `operatori` ecc. dentro
+   conti-febed e senza queste regole verrebbe bloccato.)
+3. **Migrazione dati**: apri `scripts/migrazione-firebase.html` servito in locale
+   (`http://localhost:8745/scripts/migrazione-firebase.html`), premi **Simula**
+   (verifica che nessuna collezione di destinazione risulti già popolata → se sì,
+   collisione di nomi, fermati e avvisa), poi **Esegui migrazione**.
+4. **Push del codice** (i 3 blocchi Firebase di `index.html` + `magazzino/index.html`
+   ora puntano tutti a conti-febed). Da fare **solo dopo** i passi 2 e 3, altrimenti
+   la Hub non trova più gli operatori e nessuno riesce a fare login.
+5. **Verifica** sul sito live: login, home, Impostazioni, Magazzino, e un giro
+   sugli altri moduli.
+6. **Blinda i vecchi progetti**: su `garden-river-hub` e `garden-river-magazzino`
+   incolla regole che negano tutto (`allow read, write: if false;`), così i dati
+   rimasti lì non sono più esposti. Tienili ~1 settimana come rollback, poi
+   eliminali dalla console.
 
-1. [console.firebase.google.com](https://console.firebase.google.com) → seleziona il progetto
-2. Menu a sinistra: **Firestore Database** → scheda **Regole** (Rules)
-3. **Prima copia da qualche parte le regole attuali** (incollale in un file di
-   testo), così puoi tornare indietro se qualcosa si rompe
-4. Cancella tutto e incolla il contenuto del file `.rules` corrispondente
-5. **Pubblica** (Publish)
-6. Subito dopo, apri l'app e verifica il modulo che usa quel progetto (vedi
-   sotto). Se qualcosa non carica → torna alle regole vecchie e segnalamelo.
+## Modello di sicurezza (tutte le versioni)
 
-### Ordine consigliato e verifica
+- Autenticazione client **anonima** → le regole non distinguono admin/operatore
+  (resta lato app). Chi non ha fatto login non legge/scrive nulla.
+- Si accede **solo** alle collezioni elencate; ogni altro percorso è negato.
+- GitHub Actions e Cloud Function usano un **service account** che **bypassa** le
+  regole: non serve aprire nulla per loro.
 
-| # | Progetto | Dopo il publish, verifica che… |
-|---|---|---|
-| 1 | `garden-river-magazzino` | Magazzino: le giacenze si caricano, aggiungi/modifica un prodotto |
-| 2 | `garden-river-hub` | Login operatore funziona, la home carica, (da admin) Impostazioni → operatori e permessi |
-| 3 | `garden-river-conti-febed` | Calendario carica le prenotazioni; Conti carica gli ospiti; Pulizie cambia stato a un alloggio; Ristorazione carica ordini; Manutenzione carica ticket; Spiaggia carica le prenotazioni |
+### Limiti noti (autenticazione anonima)
 
-Fai un progetto alla volta e verifica prima di passare al successivo: se si
-rompe qualcosa sai subito quale set di regole è il colpevole.
+- PIN operatore in chiaro in `operatori` → leggibili da chi è autenticato.
+  Chiusura completa = step "hashing PIN" + verifica su Cloud Function.
+- Dati Alloggiati Web (`ospiti`, `prenotazioni`) → idem. Mitigazione futura:
+  login non anonimo.
 
-## Se qualcosa si rompe
+Restano comunque un miglioramento netto: senza queste regole (modalità test) i
+dati sono accessibili **senza alcun login**.
 
-Sintomo tipico: una sezione dell'app resta su "Caricamento…" o mostra errore di
-connessione. In console del browser vedrai `Missing or insufficient permissions`.
+## Se qualcosa si rompe dopo un deploy
 
-- Rimedio immediato: reincolla le regole vecchie e pubblica.
-- Poi segnalami **quale collezione** dà errore (è nel messaggio della console):
-  vuol dire che l'app usa una collezione che non ho elencato e va aggiunta.
+Sintomo: una sezione resta su "Caricamento…". Console browser:
+`Missing or insufficient permissions`.
+
+- Rimedio: reincolla le regole precedenti e pubblica.
+- Poi segnala **quale collezione** dà errore (è nel messaggio) — va aggiunta.
