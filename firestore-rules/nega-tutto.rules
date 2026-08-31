@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// "NEGA TUTTO" — da incollare su garden-river-hub e garden-river-magazzino
+// DOPO il consolidamento, così i dati rimasti in quei progetti (ormai non più
+// usati) non sono più raggiungibili da nessuno mentre aspetti di eliminarli.
+//
+// Nota: un service account (Admin SDK) continua comunque a poter leggere —
+// utile se ti servisse un ultimo export prima di cancellare il progetto.
+// ════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
