@@ -20,13 +20,15 @@
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+  // Progetto Firebase unico della suite (ex "garden-river-magazzino": le
+  // collezioni 'prodotti' e 'categorie' sono state migrate qui dentro).
   const firebaseConfig = {
-    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
-    authDomain: "garden-river-magazzino.firebaseapp.com",
-    projectId: "garden-river-magazzino",
-    storageBucket: "garden-river-magazzino.firebasestorage.app",
-    messagingSenderId: "595247360399",
-    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
 
   const fbApp = initializeApp(firebaseConfig);

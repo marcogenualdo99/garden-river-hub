@@ -183,19 +183,16 @@
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  // ⚠️ SOSTITUISCI questi valori con quelli del TUO progetto Firebase dedicato
-  // alla Hub (consigliato chiamarlo "garden-river-hub" su console.firebase.google.com).
-  // È un progetto NUOVO e diverso da quelli di Magazzino Bar e Conti Aperti: la Hub
-  // ha un proprio database con operatori e permessi, condiviso da tutta la suite.
-  // Ricorda di abilitare Firestore (in modalità test o con regole adeguate) e
-  // Authentication → Sign-in method → Anonymous, esattamente come per le altre due app.
+  // Progetto Firebase unico della suite. 'operatori', 'permessi', 'home_layout'
+  // e 'meta' (prima sul progetto separato "garden-river-hub") sono stati
+  // migrati dentro garden-river-conti-febed: questa connessione ora punta lì.
   const firebaseConfig = {
-    apiKey: "AIzaSyD6Z6zkkOi_3PWPx4vjPuuW5kMahuIruY8",
-    authDomain: "garden-river-hub.firebaseapp.com",
-    projectId: "garden-river-hub",
-    storageBucket: "garden-river-hub.firebasestorage.app",
-    messagingSenderId: "789681135760",
-    appId: "1:789681135760:web:d535e5bd22f52f884bf815"
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
 
   const fbApp = initializeApp(firebaseConfig);
@@ -372,10 +369,12 @@
     });
   });
 </script>
-<!-- Terzo collegamento Firebase: Magazzino Bar vive nel SUO progetto separato
-     "garden-river-magazzino" (diverso da quello di Conti/Alloggi/Bici), quindi
-     per leggere "prodotti" e calcolare le scorte sotto soglia serve una terza
-     istanza Firebase dedicata. -->
+<!-- Terzo collegamento Firebase: legge "prodotti" (scorte sotto soglia) e
+     "categorie" del Magazzino Bar. Queste collezioni, prima sul progetto
+     separato "garden-river-magazzino", sono state migrate dentro
+     garden-river-conti-febed: la config qui sotto è la stessa degli altri
+     due blocchi. Resta un blocco a sé (con _fbMagazzino / firebase-magazzino-ready)
+     solo per non toccare il resto del codice della home. -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
@@ -384,12 +383,12 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const magazzinoFirebaseConfig = {
-    apiKey: "AIzaSyCPs4Q2AGwuCrNpkmotVnxBsvlcIFoj9Xo",
-    authDomain: "garden-river-magazzino.firebaseapp.com",
-    projectId: "garden-river-magazzino",
-    storageBucket: "garden-river-magazzino.firebasestorage.app",
-    messagingSenderId: "595247360399",
-    appId: "1:595247360399:web:66e113dfa96398cf9743fa"
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
   };
 
   const magApp  = initializeApp(magazzinoFirebaseConfig, "magazzinoSuite");
@@ -1080,8 +1079,9 @@ function waitForFirebaseMagazzino() {
 function giorniA(d) { return Math.ceil((new Date(d) - new Date(new Date().toDateString())) / 86400000); }
 
 async function startHomeStatsSync() {
-  // Magazzino vive in un progetto Firebase tutto suo (garden-river-magazzino),
-  // quindi usa la sua connessione dedicata _fbMagazzino, non _fbData.
+  // 'prodotti' è nello stesso progetto Firebase di tutto il resto, ma la home
+  // usa comunque la connessione dedicata _fbMagazzino (blocco <script> a parte
+  // in cima al file) per non riscrivere la logica di sync qui sotto.
   await waitForFirebaseMagazzino();
   const magazzino = window._fbMagazzino;
   try {
