@@ -56,12 +56,24 @@ Verifica fatta in locale: **`garden-river-conti-febed` NON è in "modalità test
 - GitHub Actions e Cloud Function usano un **service account** che **bypassa** le
   regole: non serve aprire nulla per loro.
 
+### PIN operatore (dal 09/2026)
+
+I PIN **non sono più in `operatori`**. La verifica avviene sulla Cloud Function
+`auth-operatori` (`cloud-functions/auth-operatori/`), che è l'unica a
+leggere/scrivere `operatori_pin/{nome}` — hash PBKDF2 salato. Le regole negano
+`operatori_pin` a **tutti** i client (`allow read, write: if false`). Il
+documento `operatori/{nome}` conserva solo `{ nome, ruolo, haPin }`.
+
+Migrazione una tantum: azione `migra` della funzione (protetta da
+`MIGRA_TOKEN`), che trasforma i PIN in chiaro esistenti in hash e poi — con
+`pulisci:true` — cancella il campo `pin`.
+
 ### Limiti noti (autenticazione anonima)
 
-- PIN operatore in chiaro in `operatori` → leggibili da chi è autenticato.
-  Chiusura completa = step "hashing PIN" + verifica su Cloud Function.
-- Dati Alloggiati Web (`ospiti`, `prenotazioni`) → idem. Mitigazione futura:
-  login non anonimo.
+- Dati Alloggiati Web (`ospiti`, `prenotazioni`) → leggibili da chi è
+  autenticato. Mitigazione futura: login non anonimo.
+- Scrittura libera su `operatori` (ruoli, cancellazioni) da qualsiasi client
+  autenticato. Stessa mitigazione.
 
 Restano comunque un miglioramento netto: senza queste regole (modalità test) i
 dati sono accessibili **senza alcun login**.

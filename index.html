@@ -934,7 +934,7 @@ async function ensureDefaultData() {
         { nome: 'Sara',   ruolo: 'operatore' },
       ];
       for (const d of defaults) {
-        await setDoc(doc(db, 'operatori', d.nome), { nome: d.nome, ruolo: d.ruolo, pin: '' });
+        await setDoc(doc(db, 'operatori', d.nome), { nome: d.nome, ruolo: d.ruolo, haPin: false });
       }
     }
     await setDoc(initRef, { seeded: true, at: Date.now() });
@@ -946,7 +946,7 @@ async function startRealtimeSync() {
   const { db, collection, onSnapshot } = window._fb;
   try {
     onSnapshot(collection(db, 'operatori'), (snap) => {
-      operatori = snap.docs.map(d => ({ nome: d.id, ruolo: 'operatore', pin: '', ...d.data() }));
+      operatori = snap.docs.map(d => ({ nome: d.id, ruolo: 'operatore', haPin: false, ...d.data() }));
       _dataReady = true;
       initLogin();
       if (document.getElementById('sec-settings').classList.contains('active')) {
@@ -966,7 +966,7 @@ async function startRealtimeSync() {
 async function fsSetOperatore(nome, ruolo) {
   await waitForFirebase();
   const { db, doc, setDoc } = window._fb;
-  await setDoc(doc(db, 'operatori', nome), { nome, ruolo, pin: '' });
+  await setDoc(doc(db, 'operatori', nome), { nome, ruolo, haPin: false });
 }
 
 // Rilegge operatori e permessi con una query diretta — serve come rete di
@@ -980,7 +980,7 @@ async function forceRefresh() {
       getDocs(collection(db, 'operatori')),
       getDocs(collection(db, 'permessi')),
     ]);
-    operatori = snapOp.docs.map(d => ({ nome: d.id, ruolo: 'operatore', pin: '', ...d.data() }));
+    operatori = snapOp.docs.map(d => ({ nome: d.id, ruolo: 'operatore', haPin: false, ...d.data() }));
     permessi = {};
     snapPerm.docs.forEach(d => { permessi[d.id] = d.data(); });
     initLogin();
@@ -1245,6 +1245,20 @@ async function checkConnessioneMagazzino() {
 setInterval(checkConnessioneMagazzino, 30000);
 
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────
+// La verifica del PIN avviene sulla Cloud Function 'auth-operatori': nel
+// database c'è solo un hash salato in 'operatori_pin/{nome}', collezione negata
+// a TUTTI i client dalle regole Firestore. Qui non si vede mai un PIN altrui.
+const AUTH_FN_URL = 'https://auth-operatori-113994721180.europe-west1.run.app';
+
+async function callAuth(azione, dati) {
+  const res = await fetch(AUTH_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ azione, ...dati }),
+  });
+  return res.json().catch(() => ({ ok: false, errore: 'risposta_non_valida' }));
+}
+
 function initLogin() {
   const sel = document.getElementById('login-sel');
   if (!sel) return;
@@ -1302,7 +1316,7 @@ function loginStepPin() {
   if (!op) { showToast('Seleziona un operatore'); return; }
   loginTargetOp = op; pinBuffer = '';
   const opObj = operatori.find(o => o.nome === op);
-  const hasPIN = !!(opObj && opObj.pin);
+  const hasPIN = !!(opObj && opObj.haPin);
   document.getElementById('pin-label').textContent = hasPIN ? `PIN di ${op}` : `Imposta PIN per ${op}`;
   document.getElementById('login-step-op').style.display  = 'none';
   document.getElementById('login-step-pin').style.display = 'block';
@@ -1354,29 +1368,53 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+function pinErrore(msg) {
+  for (let i = 0; i < PIN_LENGTH; i++) document.getElementById('pd'+i).classList.add('error');
+  document.getElementById('pin-error').textContent = msg;
+  setTimeout(() => {
+    pinBuffer = ''; updatePinDots();
+    document.getElementById('pin-error').textContent = '';
+  }, 1400);
+}
+
+let _checkPinInFlight = false;
 async function checkPin() {
+  if (_checkPinInFlight) return;
   const opObj = operatori.find(o => o.nome === loginTargetOp);
   if (!opObj) { showToast('Operatore non trovato'); return; }
-  if (!opObj.pin) {
-    try {
-      await fsUpdateOperatore(loginTargetOp, { pin: pinBuffer });
-      loginSuccess(loginTargetOp);
-    } catch(e) { showToast('Errore impostazione PIN'); }
-    return;
-  }
-  if (pinBuffer === opObj.pin) {
-    loginSuccess(loginTargetOp);
-  } else {
-    for (let i = 0; i < PIN_LENGTH; i++) document.getElementById('pd'+i).classList.add('error');
-    document.getElementById('pin-error').textContent = 'PIN non corretto';
-    setTimeout(() => { pinBuffer = ''; updatePinDots(); document.getElementById('pin-error').textContent = ''; }, 1000);
+  const nome = loginTargetOp;
+  const pin  = pinBuffer;
+
+  _checkPinInFlight = true;
+  document.getElementById('pin-error').textContent = 'Verifica…';
+  try {
+    let r;
+    if (!opObj.haPin) {
+      // primo PIN: lo impostiamo. Se il flag era disallineato e un PIN esiste
+      // già, la funzione risponde 'pin_gia_impostato' e ripieghiamo su verifica.
+      r = await callAuth('imposta', { nome, pin });
+      if (!r.ok && r.errore === 'pin_gia_impostato') r = await callAuth('verifica', { nome, pin });
+    } else {
+      r = await callAuth('verifica', { nome, pin });
+    }
+
+    if (r.ok) { loginSuccess(nome, r.ruolo); return; }
+    if (r.errore === 'bloccato')       { pinErrore(`Troppi tentativi — riprova tra ${r.minuti} min`); return; }
+    if (r.errore === 'pin_non_valido') { pinErrore('PIN non valido'); return; }
+    if (r.errore === 'nessun_pin')     { opObj.haPin = false; pinErrore('Nessun PIN — reinseriscilo per impostarlo'); return; }
+    pinErrore('PIN non corretto');
+  } catch(e) {
+    console.error('Verifica PIN fallita:', e);
+    pinErrore('Verifica non riuscita — riprova');
+  } finally {
+    _checkPinInFlight = false;
   }
 }
 
-function loginSuccess(op) {
+function loginSuccess(op, ruoloServer) {
   const opObj = operatori.find(o => o.nome === op);
   currentOperatore = op;
-  currentRuolo = (opObj && opObj.ruolo) || 'operatore';
+  currentRuolo = ruoloServer || (opObj && opObj.ruolo) || 'operatore';
   sessionStorage.setItem('gr_session', JSON.stringify({ nome: op, ruolo: currentRuolo }));
   sessionStorage.setItem('gr_permessi', JSON.stringify(permessi[op] || {}));
   document.getElementById('login-screen').classList.add('hidden');
@@ -2319,7 +2357,7 @@ async function inviaNotificaTestHub() {
 function renderOperatoriList() {
   document.getElementById('operatori-list').innerHTML = operatori.map(o => {
     const isSuper = o.nome === SUPER_ADMIN_NAME;
-    const hasPIN = !!o.pin;
+    const hasPIN = !!o.haPin;
     const admin = o.ruolo === 'admin';
     return `<div class="op-row">
       <div class="op-avatar" style="background:${admin?'var(--green-700)':'var(--gray-100)'};color:${admin?'var(--white)':'var(--gray-500)'}">${o.nome.slice(0,2).toUpperCase()}</div>
@@ -2378,8 +2416,21 @@ function deleteOperatore(nome) {
 }
 
 async function resetPin(nome) {
-  try { await fsUpdateOperatore(nome, { pin: '' }); showToast('PIN di ' + nome + ' resettato'); }
-  catch(e) { showToast('Errore reset PIN'); }
+  // Il reset passa dalla Cloud Function e va autorizzato: l'admin conferma con
+  // il PROPRIO PIN. Senza questo, chiunque abbia accesso alle Impostazioni
+  // (controllo solo lato client) potrebbe azzerare il PIN di un altro e
+  // impostarne uno nuovo per entrare al suo posto.
+  if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può resettare i PIN'); return; }
+  const adminPin = prompt(`Per resettare il PIN di ${nome}, inserisci il tuo PIN (${currentOperatore}):`);
+  if (!adminPin) return;
+  try {
+    const r = await callAuth('reset', { nome, adminNome: currentOperatore, adminPin });
+    if (r.ok) { showToast('PIN di ' + nome + ' resettato'); return; }
+    if (r.errore === 'bloccato')          { showToast(`Troppi tentativi — riprova tra ${r.minuti} min`); return; }
+    if (r.errore === 'pin_admin_errato')  { showToast('Il tuo PIN non è corretto'); return; }
+    if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
+    showToast('Errore reset PIN');
+  } catch(e) { console.error(e); showToast('Errore reset PIN'); }
 }
 
 async function changeRuolo(nome, ruolo) {

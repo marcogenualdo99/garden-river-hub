@@ -21,10 +21,14 @@ rules_version = '2';
 // ha fatto login non accede a nulla; le Cloud Function e GitHub Actions usano
 // un service account che bypassa queste regole.
 //
-// ⚠️ LIMITI NOTI: i PIN in 'operatori' e i dati Alloggiati Web in
-// 'ospiti'/'prenotazioni' restano leggibili da chi è autenticato (anche solo
-// in anonimo). Chiusura completa = step "hashing PIN" + eventuale login non
-// anonimo. Restano comunque meglio della situazione attuale su hub/magazzino.
+// ⚠️ LIMITI NOTI: i dati Alloggiati Web in 'ospiti'/'prenotazioni' restano
+// leggibili da chi è autenticato (anche solo in anonimo). Chiusura completa =
+// login non anonimo / token di sessione firmato.
+//
+// ✅ PIN operatore: NON sono più in 'operatori'. La verifica avviene sulla
+// Cloud Function 'auth-operatori', che è l'unica a leggere/scrivere
+// 'operatori_pin/{nome}' (hash salato). Quella collezione è negata a tutti i
+// client qui sotto.
 // ════════════════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
@@ -32,7 +36,12 @@ service cloud.firestore {
 
     // ── ex garden-river-hub ────────────────────────────────────────────────
     match /operatori/{id} {
-      allow read, write: if request.auth != null;   // { nome, ruolo, pin } — vedi limite PIN
+      allow read, write: if request.auth != null;   // { nome, ruolo, haPin } — niente PIN qui
+    }
+    // Hash salati dei PIN. Li gestisce SOLO la Cloud Function 'auth-operatori'
+    // (Admin SDK, che ignora queste regole). Nessun client deve leggerli.
+    match /operatori_pin/{id} {
+      allow read, write: if false;
     }
     match /permessi/{id} {
       allow read, write: if request.auth != null;
