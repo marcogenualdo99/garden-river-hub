@@ -45,6 +45,13 @@ echo   e' il certificato locale dei proxy):
 echo     https://localhost:8765
 echo     https://localhost:8766
 echo.
+echo Per far fiscalizzare TUTTI i dispositivi dell'ufficio tramite questo PC:
+echo   1) apri  %DEST%\italretail_config.json  e aggiungi i campi
+echo        "host": "0.0.0.0",  "token": "un-segreto-a-tua-scelta"
+echo   2) riavvia l'attivita' GardenRiverProxyItalRetail
+echo   3) apri la porta 8766 nel Windows Firewall (connessioni in entrata)
+echo   4) segui  FISCALIZZAZIONE-CONDIVISA.md  per Firestore e i certificati
+echo.
 pause
 exit /b 0
 

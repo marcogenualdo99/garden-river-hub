@@ -35,6 +35,13 @@ l'indirizzo IP della stampante Epson e/o del registratore ItalRetail sulla
 rete locale di quella postazione — va inserito una volta sola, resta
 salvato nel browser.
 
+FISCALIZZARE DA TUTTI I DISPOSITIVI DELL'UFFICIO
+--------------------------------------------------
+Di default solo il computer con il proxy installato può emettere scontrini.
+Per farlo fare a qualsiasi PC/tablet/telefono dell'ufficio (con permesso
+operatore), c'è la modalità "proxy condiviso": v. FISCALIZZAZIONE-CONDIVISA.md
+in questa cartella.
+
 SE QUALCOSA NON FUNZIONA
 ---------------------------
 - Mac: i log dei due proxy sono in

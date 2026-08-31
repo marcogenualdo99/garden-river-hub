@@ -51,15 +51,15 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from italretail_rt import RegistratoreItalRetail, RigaVendita, ItalRetailError, IP_DEFAULT, PORTA_DEFAULT, TIMEOUT_SOCKET
 
 PORT = 8766
-# Interfaccia di ascolto:
+# Interfaccia di ascolto (risolta piu' sotto, dopo aver letto la config):
 #   • "127.0.0.1" (default): solo la stessa macchina del proxy — installazione
 #     classica "un PC = una postazione".
 #   • "0.0.0.0": raggiungibile da tutti i dispositivi della rete d'ufficio —
 #     modalita' "proxy condiviso". In questo caso il TOKEN e' OBBLIGATORIO
 #     (v. controllo all'avvio) e ogni richiesta deve portarlo nell'header
 #     Authorization: Bearer <token>.
-# Si imposta con la variabile d'ambiente PROXY_HOST.
-HOST = os.environ.get("PROXY_HOST", "127.0.0.1")
+# Si imposta con la variabile d'ambiente PROXY_HOST oppure col campo "host"
+# in italretail_config.json.
 # Solo queste origini web possono usare il proxy: la Hub in produzione e la
 # copia in locale ("Apri Hub in locale.command", porta 8745). Una pagina
 # qualsiasi aperta nello stesso browser NON puo' piu' emettere scontrini.
@@ -89,10 +89,11 @@ def carica_config() -> dict:
                 "porta": int(dati.get("porta") or PORTA_DEFAULT),
                 "timeout": float(dati.get("timeout") or TIMEOUT_SOCKET),
                 "token": (dati.get("token") or "").strip(),
+                "host": (dati.get("host") or "").strip(),
             }
         except (OSError, ValueError, json.JSONDecodeError):
             pass
-    return {"ip": IP_DEFAULT, "porta": PORTA_DEFAULT, "timeout": TIMEOUT_SOCKET, "token": ""}
+    return {"ip": IP_DEFAULT, "porta": PORTA_DEFAULT, "timeout": TIMEOUT_SOCKET, "token": "", "host": ""}
 
 
 def salva_config(config: dict) -> None:
@@ -101,10 +102,11 @@ def salva_config(config: dict) -> None:
 
 
 _config = carica_config()
-# Il token puo' arrivare anche da variabile d'ambiente (ITALRETAIL_TOKEN):
-# comodo per l'installer in modalita' "server", che non deve scrivere il
-# segreto in chiaro nello script.
+# Il token puo' arrivare da variabile d'ambiente (ITALRETAIL_TOKEN) o dal campo
+# "token" di italretail_config.json.
 TOKEN = os.environ.get("ITALRETAIL_TOKEN", "").strip() or _config.get("token", "")
+# Interfaccia di ascolto: env PROXY_HOST → campo "host" nel config → loopback.
+HOST = os.environ.get("PROXY_HOST", "").strip() or _config.get("host", "").strip() or "127.0.0.1"
 
 
 def _is_loopback(host: str) -> bool:
@@ -239,7 +241,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 "ip": ip,
                 "porta": int(payload.get('porta') or PORTA_DEFAULT),
                 "timeout": float(payload.get('timeout') or TIMEOUT_SOCKET),
-                "token": _config.get("token", ""),  # il token non si tocca da qui
+                "token": _config.get("token", ""),  # token e host non si toccano da qui
+                "host": _config.get("host", ""),
             }
         except (TypeError, ValueError) as e:
             self._json_response(400, {"ok": False, "errore": f"Parametri non validi: {e}"})

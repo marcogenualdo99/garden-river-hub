@@ -44,6 +44,8 @@ write_plist () {
     return 0
   fi
 
+  local env_block="$5"   # opzionale: blocco <key>EnvironmentVariables</key>...
+
   cat > "$plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -56,6 +58,7 @@ write_plist () {
     <string>$DEST/$script</string>
   </array>
   <key>WorkingDirectory</key><string>$DEST</string>
+$env_block
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$DEST/$label.log</string>
@@ -70,16 +73,51 @@ PLIST
 }
 
 write_plist "it.gardenriver.proxystampante" "proxy_stampante.py" "8765" "Proxy stampante attivo"
-write_plist "it.gardenriver.proxyitalretail" "proxy_italretail.py" "8766" "Proxy ItalRetail attivo"
+
+# ── Modalita' del proxy ItalRetail: solo locale, oppure condiviso in ufficio ──
+echo ""
+echo "PROXY REGISTRATORE TELEMATICO (scontrini fiscali)"
+echo "  1) Solo locale  — solo QUESTO computer puo' fiscalizzare (default)"
+echo "  2) Condiviso     — tutti i dispositivi dell'ufficio possono fiscalizzare,"
+echo "                     tramite questo computer (che deve restare acceso)"
+read -p "Scegli [1/2] (INVIO = 1): " MODO_ITALRETAIL
+
+ENV_ITALRETAIL=""
+if [ "$MODO_ITALRETAIL" = "2" ]; then
+  read -p "  Token condiviso (INVIO = generane uno nuovo): " TOKEN_ITALRETAIL
+  if [ -z "$TOKEN_ITALRETAIL" ]; then
+    TOKEN_ITALRETAIL=$(/usr/bin/python3 -c "import secrets; print(secrets.token_urlsafe(24))")
+    echo "  Token generato: $TOKEN_ITALRETAIL"
+  fi
+  ENV_ITALRETAIL="  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PROXY_HOST</key><string>0.0.0.0</string>
+    <key>ITALRETAIL_TOKEN</key><string>$TOKEN_ITALRETAIL</string>
+  </dict>"
+  IP_LAN=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "<ip-di-questo-mac>")
+  echo ""
+  echo "  ► Da fare UNA VOLTA nella console Firebase (progetto garden-river-conti-febed):"
+  echo "    crea il documento  config/fiscalizzazione  con i campi:"
+  echo "        proxy_url  (string) =  https://$IP_LAN:8766"
+  echo "        token      (string) =  $TOKEN_ITALRETAIL"
+  echo ""
+  echo "  ► Assicurati che questo Mac abbia un IP fisso sulla rete e che il"
+  echo "    firewall consenta le connessioni in entrata sulla porta 8766."
+fi
+
+write_plist "it.gardenriver.proxyitalretail" "proxy_italretail.py" "8766" "Proxy ItalRetail attivo" "$ENV_ITALRETAIL"
 
 echo ""
-echo "Fatto. I due proxy partiranno da soli ad ogni login."
+echo "Fatto. I proxy partiranno da soli ad ogni login."
 echo ""
-echo "IMPORTANTE - passo manuale una tantum su questo Mac:"
-echo "  apri Safari/Chrome e visita una volta ciascuno di questi indirizzi,"
-echo "  accettando l'avviso di certificato non attendibile (e' normale,"
-echo "  e' il certificato locale dei proxy):"
-echo "    https://localhost:8765"
-echo "    https://localhost:8766"
+echo "IMPORTANTE - passo manuale una tantum su OGNI dispositivo che stampa/fiscalizza:"
+echo "  apri il browser e visita una volta ciascuno di questi indirizzi,"
+echo "  accettando l'avviso di certificato non attendibile (e' normale):"
+echo "    https://localhost:8765            (proxy stampante, solo su questo Mac)"
+if [ "$MODO_ITALRETAIL" = "2" ]; then
+  echo "    https://$IP_LAN:8766             (proxy fiscale condiviso, da OGNI dispositivo)"
+else
+  echo "    https://localhost:8766           (proxy fiscale, solo su questo Mac)"
+fi
 echo ""
 read -p "Premi INVIO per chiudere..."
