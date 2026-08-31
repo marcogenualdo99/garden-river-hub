@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Proxy HTTPS per Registratore Telematico ItalRetail (Start RT) — Garden River
-Ascolta su 0.0.0.0:8766 (HTTPS) e inoltra alla cassa via Raw Socket TCP.
+Ascolta su 127.0.0.1:8766 (HTTPS) e inoltra alla cassa via Raw Socket TCP.
 
 IP/porta/timeout sono configurabili dalla pagina Impostazioni > Fiscalizzazione
 e vengono salvati QUI, su disco (italretail_config.json accanto a questo file),
@@ -37,6 +37,20 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from italretail_rt import RegistratoreItalRetail, RigaVendita, ItalRetailError, IP_DEFAULT, PORTA_DEFAULT, TIMEOUT_SOCKET
 
 PORT = 8766
+# Il browser chiama sempre https://localhost:8766 (stessa macchina del proxy),
+# quindi ascoltiamo solo sull'interfaccia di loopback: nessun altro dispositivo
+# in LAN puo' raggiungere il registratore telematico attraverso questo proxy.
+# Override con la variabile d'ambiente PROXY_HOST solo se davvero necessario.
+HOST = os.environ.get("PROXY_HOST", "127.0.0.1")
+# Solo queste origini web possono usare il proxy: la Hub in produzione e la
+# copia in locale ("Apri Hub in locale.command", porta 8745). Una pagina
+# qualsiasi aperta nello stesso browser NON puo' piu' emettere scontrini.
+ALLOWED_ORIGINS = {
+    "https://gardenhub.it",
+    "https://www.gardenhub.it",
+    "http://localhost:8745",
+    "http://127.0.0.1:8745",
+}
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CERT = os.path.join(BASE_DIR, "proxy_cert.pem")
 KEY = os.path.join(BASE_DIR, "proxy_key.pem")
@@ -172,7 +186,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _cors(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
+        origin = self.headers.get('Origin')
+        if origin in ALLOWED_ORIGINS:
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Vary', 'Origin')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS, GET')
 
@@ -183,6 +200,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(CERT, KEY)
-    server = HTTPServer(('0.0.0.0', PORT), ProxyHandler)
+    server = HTTPServer((HOST, PORT), ProxyHandler)
     server.socket = ctx.wrap_socket(server.socket, server_side=True)
     server.serve_forever()

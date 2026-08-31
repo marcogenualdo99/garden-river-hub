@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 """
 Proxy HTTPS per stampante Epson ePOS-Print — Garden River
-Ascolta su 0.0.0.0:8765 (HTTPS) e inoltra alla stampante su HTTP.
+Ascolta su 127.0.0.1:8765 (HTTPS) e inoltra alla stampante su HTTP.
 """
 import ssl, os, urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PRINTER_IP = "192.168.5.85"
 PORT = 8765
+# Solo loopback: il browser che usa il proxy gira sulla stessa macchina.
+HOST = os.environ.get("PROXY_HOST", "127.0.0.1")
+# Origini web autorizzate a stampare tramite questo proxy.
+ALLOWED_ORIGINS = {
+    "https://gardenhub.it",
+    "https://www.gardenhub.it",
+    "http://localhost:8745",
+    "http://127.0.0.1:8745",
+}
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CERT = os.path.join(BASE_DIR, "proxy_cert.pem")
 KEY  = os.path.join(BASE_DIR, "proxy_key.pem")
@@ -50,7 +59,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.wfile.write(str(e).encode())
 
     def _cors(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
+        origin = self.headers.get('Origin')
+        if origin in ALLOWED_ORIGINS:
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Vary', 'Origin')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type, SOAPAction')
         self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS, GET')
 
@@ -60,6 +72,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(CERT, KEY)
-    server = HTTPServer(('0.0.0.0', PORT), ProxyHandler)
+    server = HTTPServer((HOST, PORT), ProxyHandler)
     server.socket = ctx.wrap_socket(server.socket, server_side=True)
     server.serve_forever()
