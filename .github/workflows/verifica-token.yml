@@ -18,4 +18,4 @@ jobs:
       - name: Verifica salute token FCM
         env:
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
-        run: python scripts/verifica_token.py
+        run: python .github/scripts/verifica_token.py
