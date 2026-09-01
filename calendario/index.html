@@ -5439,7 +5439,12 @@ function confermaAsync(title, bodyHtml) {
 }
 
 // ── IMPOSTAZIONI LISTINI (solo admin) ─────────────────────────────────────
-const CATEGORIE_LISTINO = [
+// Le righe della tabella prezzi seguono le categorie alloggio, che sono una
+// sorgente unica condivisa: doc "impostazioni/categorie-alloggi" (seminato dal
+// modulo Alloggi). Qui si legge soltanto; CATEGORIE_LISTINO_DEFAULT è il
+// fallback finché il doc non è arrivato. Include anche le categorie
+// "soloListino" (es. Villini a Schiera), che non sono alloggi prenotabili.
+const CATEGORIE_LISTINO_DEFAULT = [
   { key:'bluehouse',      label:'Blue House' },
   { key:'villinicomfort', label:'Villini Comfort' },
   { key:'villinideluxe',  label:'Villini Deluxe' },
@@ -5448,7 +5453,24 @@ const CATEGORIE_LISTINO = [
   { key:'joy',            label:'Joy' },
   { key:'villinischiera', label:'Villini a Schiera' },
 ];
+let CATEGORIE_LISTINO = CATEGORIE_LISTINO_DEFAULT.slice();
 let listinoTabAttiva = 'villini';
+
+let _unsubCategorieListino = null;
+function startRealtimeSyncCategorie() {
+  waitForFirebase().then(() => {
+    const { db, doc, onSnapshot } = window._fb;
+    _unsubCategorieListino = onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
+      const lista = snap.exists() && Array.isArray(snap.data().lista) && snap.data().lista.length
+        ? snap.data().lista : null;
+      CATEGORIE_LISTINO = lista
+        ? lista.filter(c => c && c.key && c.label).map(c => ({ key: c.key, label: c.label }))
+        : CATEGORIE_LISTINO_DEFAULT.slice();
+      const sv = document.getElementById('settings-view');
+      if (sv && !sv.classList.contains('hidden')) renderListiniSettings();
+    }, (err) => console.error('Errore listener categorie alloggio:', err));
+  });
+}
 
 function openSettingsListini() {
   if (!isAdmin()) return;
@@ -5874,6 +5896,7 @@ async function start() {
   ensureDefaultListini();
   startImpostazioniCalendarioSync();
   ensureDefaultImpostazioniCalendario();
+  startRealtimeSyncCategorie();
   startOspitiPensioneSync();
   startManutenzioneAlertSync();
   startFamiglieRistorazioneAlertSync();

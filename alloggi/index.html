@@ -441,16 +441,24 @@ function toggleDrawer(open) {
   document.body.classList.toggle('drawer-open', open);
 }
 
-// 👉 Per aggiungere/modificare una categoria o il range di numeri al suo
-//    interno, basta modificare questo array — il resto dell'app si adatta.
-const CATS = [
-  { key:'bluehouse',      label:'Blue House',     from:9,  to:14 },
-  { key:'villinicomfort', label:'Villini Comfort', from:7,  to:25 },
-  { key:'villinideluxe',  label:'Villini Deluxe',  from:1,  to:6  },
-  { key:'riviera',        label:'Riviera',         from:1,  to:20 },
-  { key:'supertitania',   label:'Super Titania',   from:1,  to:10 },
-  { key:'joy',            label:'Joy',             from:1,  to:6  },
+// 👉 CATEGORIE ALLOGGIO — sorgente unica condivisa con Calendario, Conti e
+//    Manutenzione. La versione operativa vive su Firestore
+//    (doc "impostazioni/categorie-alloggi", campo "lista"): questo modulo la
+//    semina al primo avvio da CATEGORIE_ALLOGGI_DEFAULT e poi la tiene
+//    aggiornata via listener. I campi "from"/"to" servono solo al primissimo
+//    popolamento della collezione "alloggi"; "soloListino" marca le categorie
+//    che esistono a listino ma non come alloggi prenotabili (non compaiono qui).
+const CATEGORIE_ALLOGGI_DEFAULT = [
+  { key:'bluehouse',      label:'Blue House',        from:9, to:14 },
+  { key:'villinicomfort', label:'Villini Comfort',   from:7, to:25 },
+  { key:'villinideluxe',  label:'Villini Deluxe',    from:1, to:6  },
+  { key:'riviera',        label:'Riviera',           from:1, to:20 },
+  { key:'supertitania',   label:'Super Titania',     from:1, to:10 },
+  { key:'joy',            label:'Joy',               from:1, to:6  },
+  { key:'villinischiera', label:'Villini a Schiera', soloListino:true },
 ];
+// Categorie effettivamente gestite in questo modulo (no "soloListino").
+let CATS = CATEGORIE_ALLOGGI_DEFAULT.filter(c => !c.soloListino);
 
 // Stessi 5 stati reali, stessi colori e stesse icone di STATO_ALLOGGIO_META
 // nel modulo Calendario (calendario/index.html) — condivisi tra i due
@@ -700,6 +708,29 @@ async function startRealtimeSync() {
       maybeHideLoading();
     }, (err) => { console.error('Errore listener alloggi:', err); setSyncStatus('error'); });
   } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
+}
+
+// Categorie alloggio: doc "impostazioni/categorie-alloggi", condiviso con gli
+// altri moduli. Questo modulo è l'unico che lo semina; se manca lo crea da
+// CATEGORIE_ALLOGGI_DEFAULT, altrimenti si limita a seguirne le modifiche.
+let _unsubCategorie = null;
+async function startRealtimeSyncCategorie() {
+  await waitForFirebase();
+  const { db, doc, setDoc, onSnapshot } = window._fb;
+  try {
+    _unsubCategorie = onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
+      if (!snap.exists()) {
+        setDoc(doc(db, 'impostazioni', 'categorie-alloggi'), { lista: CATEGORIE_ALLOGGI_DEFAULT })
+          .catch(e => console.error('Errore seed categorie alloggio:', e));
+        return; // la scrittura ri-scatena questo stesso listener
+      }
+      const lista = Array.isArray(snap.data().lista) && snap.data().lista.length
+        ? snap.data().lista : CATEGORIE_ALLOGGI_DEFAULT;
+      CATS = lista.filter(c => c && c.key && !c.soloListino);
+      render();
+      if (settingsOpen) renderSettings();
+    }, (err) => { console.error('Errore listener categorie alloggio:', err); });
+  } catch(e) { console.error('Errore avvio sync categorie alloggio:', e); }
 }
 
 // Ascolto in sola lettura della collezione "prenotazioni" (la stessa usata da
@@ -1155,6 +1186,7 @@ async function start() {
   // (serve solo al primissimo avvio in assoluto, non deve far aspettare).
   startRealtimeSync();
   startRealtimeSyncPrenotazioni();
+  startRealtimeSyncCategorie();
   ensureDefaultData();
 }
 start();

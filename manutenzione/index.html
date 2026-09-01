@@ -548,7 +548,11 @@ function setSyncStatus(state) {
   if (dot) dot.style.background = map[state] || map.offline;
 }
 
-const ALLOGGIO_CAT_ORDER = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy'];
+// Ordine delle categorie alloggio: sorgente unica condivisa, doc Firestore
+// "impostazioni/categorie-alloggi" (seminato dal modulo Alloggi). Qui solo
+// lettura; la lista sotto è il fallback finché il doc non è arrivato.
+const ALLOGGIO_CAT_ORDER_DEFAULT = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy','Villini a Schiera'];
+let ALLOGGIO_CAT_ORDER = [...ALLOGGIO_CAT_ORDER_DEFAULT];
 
 function populateAlloggioSelect() {
   const sel = document.getElementById('sel-unit');
@@ -576,11 +580,20 @@ function populateAlloggioSelect() {
 }
 
 function loadAlloggi() {
-  const { db, collection, onSnapshot } = window._fb;
+  const { db, collection, doc, onSnapshot } = window._fb;
   onSnapshot(collection(db, 'alloggi'), (snap) => {
     alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     populateAlloggioSelect();
   }, (err) => { console.error('Errore alloggi:', err); });
+  // Categorie alloggio: sorgente unica condivisa, solo lettura.
+  onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
+    const lista = snap.exists() && Array.isArray(snap.data().lista) && snap.data().lista.length
+      ? snap.data().lista : null;
+    ALLOGGIO_CAT_ORDER = lista
+      ? lista.filter(c => c && c.label).map(c => c.label)
+      : [...ALLOGGIO_CAT_ORDER_DEFAULT];
+    populateAlloggioSelect();
+  }, (err) => { console.error('Errore categorie alloggio:', err); });
 }
 
 async function startTicketsSync() {

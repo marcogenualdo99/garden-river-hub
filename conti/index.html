@@ -701,9 +701,11 @@ function fmtTs(ts) {
 function oggi()       { return new Date().toISOString().split('T')[0]; }
 function giorniA(d)   { return Math.ceil((new Date(d) - new Date(oggi())) / 86400000); }
 function initials(o)  { return (o.cognome[0]||'') + (o.nome[0]||''); }
-// Stesso ordine di categorie usato nell'app Gestione Alloggi, così il menu
-// a tendina segue la stessa logica (non l'ordine alfabetico).
-const ALLOGGIO_CAT_ORDER = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy'];
+// Ordine delle categorie alloggio: sorgente unica condivisa, doc Firestore
+// "impostazioni/categorie-alloggi" (seminato dal modulo Alloggi). Qui si legge
+// soltanto; la lista sotto è il fallback finché il doc non è arrivato.
+const ALLOGGIO_CAT_ORDER_DEFAULT = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy','Villini a Schiera'];
+let ALLOGGIO_CAT_ORDER = [...ALLOGGIO_CAT_ORDER_DEFAULT];
 function escHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -813,7 +815,7 @@ function setSyncStatus(state) {
 // Avvia i listener realtime su Firestore — ogni modifica remota aggiorna subito la UI
 async function startRealtimeSync() {
   await waitForFirebase();
-  const { db, collection, onSnapshot } = window._fb;
+  const { db, collection, doc, onSnapshot } = window._fb;
   setSyncStatus('connecting');
 
   try {
@@ -848,6 +850,18 @@ async function startRealtimeSync() {
       refreshAlloggioSelects();
     }, (err) => {
       console.error('Errore listener alloggi:', err);
+    });
+
+    // Listener categorie alloggio (sorgente unica: solo lettura, ordina i menu)
+    onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
+      const lista = snap.exists() && Array.isArray(snap.data().lista) && snap.data().lista.length
+        ? snap.data().lista : null;
+      ALLOGGIO_CAT_ORDER = lista
+        ? lista.filter(c => c && c.label).map(c => c.label)
+        : [...ALLOGGIO_CAT_ORDER_DEFAULT];
+      refreshAlloggioSelects();
+    }, (err) => {
+      console.error('Errore listener categorie alloggio:', err);
     });
 
   } catch(e) {
