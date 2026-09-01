@@ -342,6 +342,17 @@
 .search-result-nome { font-size: 13px; font-weight: 800; color: var(--gray-900); }
 .search-result-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
 .search-result-empty { padding: 14px; text-align: center; color: var(--gray-500); font-size: 12px; }
+.search-result-count { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; color: var(--green-700); background: var(--green-bg); border-radius: 10px; padding: 1px 7px; vertical-align: middle; }
+.storico-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--gray-100); cursor: pointer; }
+.storico-row:hover { background: var(--gray-50); }
+.storico-row:last-child { border-bottom: none; }
+.storico-row-main { min-width: 0; }
+.storico-row-nome { font-size: 13px; font-weight: 800; color: var(--gray-900); }
+.storico-row-meta { font-size: 11.5px; color: var(--gray-500); margin-top: 3px; line-height: 1.5; }
+.storico-row-side { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.storico-row-tot { font-size: 12px; font-weight: 800; color: var(--gray-800); white-space: nowrap; }
+.storico-row-tot .st-nonsaldato { color: var(--red); font-weight: 700; }
+.storico-row .stato-badge { height: 20px; font-size: 10.5px; padding: 0 9px; }
 .ac-list { position: absolute; z-index: 2000; background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 10px; box-shadow: var(--shadow-lg); max-height: 220px; overflow-y: auto; }
 .ac-item { padding: 8px 12px; font-size: 13px; color: var(--gray-900); cursor: pointer; }
 .ac-item:hover, .ac-item.active { background: var(--green-bg); color: var(--green-700); }
@@ -1045,6 +1056,20 @@
   </div>
 </div>
 
+<!-- ══ MODALE STORICO OSPITE (tutti i soggiorni di una stessa anagrafica) ════ -->
+<div class="modal-overlay hidden" id="storico-modal-overlay">
+  <div class="form-modal-box" style="max-width:620px">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title" id="storico-titolo">Storico ospite</div>
+    <p class="section-hint" id="storico-sottotitolo"></p>
+    <div id="storico-lista"></div>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiStoricoOspite()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODALE IMPORTA ARRIVI (file .xls/.xlsx dell'agenzia) ══════════════════ -->
 <div class="modal-overlay hidden" id="import-modal-overlay">
   <div class="form-modal-box">
@@ -1613,10 +1638,22 @@ function toggleDrawer(open) {
 
 // ── RICERCA PRENOTAZIONI (nome, telefono, targa) — sempre visibile, niente
 //    pulsante da premere prima ──────────────────────────────────────────────
+// I risultati sono raggruppati per ospite (anagrafica), non per singola
+// prenotazione: una riga per persona, il click apre lo Storico ospite con
+// tutti i suoi soggiorni. Chiave anagrafica = nominativo capofamiglia
+// normalizzato + telefono (v. chiaveAnagrafica): non esiste un id anagrafico
+// stabile del capofamiglia sulla prenotazione.
+let _gruppiRicerca = {};   // { g0: {chiave, nome, tel, soggiorni:[...]}, ... }
+
+function normNomeAnag(s) { return (s || '').trim().toUpperCase().replace(/\s+/g, ' '); }
+function normTelAnag(s)  { return (s || '').replace(/\D/g, ''); }
+function chiaveAnagrafica(p) { return normNomeAnag(p.nome) + '::' + normTelAnag(p.tel); }
+
 function pulisciRicercaPrenotazioni() {
   document.getElementById('search-prenotazioni-input').value = '';
   document.getElementById('search-prenotazioni-clear').classList.add('hidden');
   document.getElementById('search-prenotazioni-results').classList.add('hidden');
+  _gruppiRicerca = {};
 }
 // Cerca su tutte le persone della famiglia (capofamiglia + familiari
 // censiti in Alloggiati Web), non solo sul nome principale della
@@ -1624,28 +1661,112 @@ function pulisciRicercaPrenotazioni() {
 function ospiteFamigliaCorrispondente(p, q) {
   return (p.ospiti || []).find(o => `${o.nome||''} ${o.cognome||''}`.trim().toLowerCase().includes(q));
 }
+function prenotazioneCorrispondeRicerca(p, q, out) {
+  if ((p.nome||'').toLowerCase().includes(q))   return true;
+  if ((p.tel||'').toLowerCase().includes(q))    return true;
+  if ((p.targa||'').toLowerCase().includes(q))  return true;
+  if ((p.codice||'').toLowerCase().includes(q)) return true;
+  const fam = ospiteFamigliaCorrispondente(p, q);
+  if (fam) { if (out) out.familiare = fam; return true; }
+  return false;
+}
 function cercaPrenotazioni() {
   const q = document.getElementById('search-prenotazioni-input').value.trim().toLowerCase();
   const clearBtn = document.getElementById('search-prenotazioni-clear');
   const resultsEl = document.getElementById('search-prenotazioni-results');
   clearBtn.classList.toggle('hidden', !q);
+  _gruppiRicerca = {};
   if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
-  const match = prenotazioni.filter(p =>
-    (p.nome||'').toLowerCase().includes(q) ||
-    (p.tel||'').toLowerCase().includes(q) ||
-    (p.targa||'').toLowerCase().includes(q) ||
-    ospiteFamigliaCorrispondente(p, q)
-  ).slice(0, 20);
-  resultsEl.innerHTML = match.length ? match.map(p => {
-    const capofamigliaCorrisponde = (p.nome||'').toLowerCase().includes(q);
-    const ospiteTrovato = !capofamigliaCorrisponde ? ospiteFamigliaCorrispondente(p, q) : null;
+
+  // Tutti i soggiorni raggruppati per anagrafica: serve sia per contare i
+  // soggiorni della persona sia per riempire lo Storico ospite.
+  const perChiave = new Map();
+  prenotazioni.forEach(p => {
+    const k = chiaveAnagrafica(p);
+    if (!perChiave.has(k)) perChiave.set(k, []);
+    perChiave.get(k).push(p);
+  });
+
+  const gruppi = [];
+  perChiave.forEach((soggiorni, k) => {
+    let familiare = null;
+    const matcha = soggiorni.some(s => {
+      const out = {};
+      const ok = prenotazioneCorrispondeRicerca(s, q, out);
+      if (ok && out.familiare && !familiare) familiare = out.familiare;
+      return ok;
+    });
+    if (!matcha) return;
+    const ordinati = soggiorni.slice().sort((a, b) => (b.checkin||'').localeCompare(a.checkin||''));
+    const capoMatch = ordinati.some(s => (s.nome||'').toLowerCase().includes(q));
+    const recente = ordinati[0];
+    const nome = (recente.nome || '—').replace(/\s+/g, ' ').trim();
+    gruppi.push({ chiave: k, nome, tel: recente.tel || '', soggiorni: ordinati,
+                  recente, familiare: capoMatch ? null : familiare });
+  });
+  gruppi.sort((a, b) => (b.recente.checkin||'').localeCompare(a.recente.checkin||''));
+
+  const top = gruppi.slice(0, 20);
+  top.forEach((g, i) => { _gruppiRicerca['g' + i] = { chiave: g.chiave, nome: g.nome, tel: g.tel, soggiorni: g.soggiorni }; });
+
+  resultsEl.innerHTML = top.length ? top.map((g, i) => {
+    const p = g.recente, n = g.soggiorni.length;
+    const famTxt = g.familiare ? ' · Familiare: ' + esc(`${g.familiare.nome||''} ${g.familiare.cognome||''}`.trim()) : '';
     return `
-    <div class="search-result-row" onclick="vaiAPrenotazione('${esc(p.id)}')">
-      <div class="search-result-nome">${esc(p.nome||'—')}</div>
-      <div class="search-result-meta">${esc(p.alloggio_nome||'')} · ${esc(p.checkin)} → ${esc(p.checkout)}${p.tel?' · '+esc(p.tel):''}${p.targa?' · '+esc(p.targa):''}${ospiteTrovato?' · Familiare: '+esc(`${ospiteTrovato.nome||''} ${ospiteTrovato.cognome||''}`.trim()):''}</div>
+    <div class="search-result-row" onclick="apriStoricoOspite('g${i}')">
+      <div class="search-result-nome">${esc(g.nome)}<span class="search-result-count">${n} soggiorn${n===1?'o':'i'}</span></div>
+      <div class="search-result-meta">${p.tel?esc(p.tel)+' · ':''}ultimo: ${esc(p.alloggio_nome||'')} ${esc(fmtDataIt(p.checkin))} → ${esc(fmtDataIt(p.checkout))}${famTxt}</div>
     </div>`;
   }).join('') : '<div class="search-result-empty">Nessun risultato</div>';
   resultsEl.classList.remove('hidden');
+}
+
+// ── STORICO OSPITE (elenco di tutti i soggiorni di una stessa anagrafica) ──
+function nottiTra(ci, co) {
+  if (!ci || !co) return 0;
+  const d1 = new Date(ci + 'T00:00:00'), d2 = new Date(co + 'T00:00:00');
+  return Math.max(0, Math.round((d2 - d1) / 86400000));
+}
+function renderStoricoRow(p) {
+  const notti = nottiTra(p.checkin, p.checkout);
+  const persone = (p.adulti||0) + (p.bambini||0);
+  const stato = statoPrenotazione(p);
+  const righe = (p.conto && p.conto.righe) || [];
+  const saldo = calcolaSaldoConto(righe);
+  const totTxt = righe.length
+    ? `€ ${saldo.totale.toFixed(2)}` + (prenotazioneContoNonSaldato(p) ? ` <span class="st-nonsaldato">(da saldare € ${saldo.daPagare.toFixed(2)})</span>` : '')
+    : (p.preventivo_stimato != null ? `stima € ${Number(p.preventivo_stimato).toFixed(2)}` : '—');
+  return `
+  <div class="storico-row" onclick="apriStoricoPrenotazione('${esc(p.id)}')">
+    <div class="storico-row-main">
+      <div class="storico-row-nome">${esc(p.alloggio_nome || 'Alloggio non assegnato')}</div>
+      <div class="storico-row-meta">${esc(fmtDataIt(p.checkin))} → ${esc(fmtDataIt(p.checkout))} · ${notti} nott${notti===1?'e':'i'} · ${persone} person${persone===1?'a':'e'}${p.provenienza?' · '+esc(p.provenienza):''}${p.codice?' · '+esc(p.codice):''}</div>
+    </div>
+    <div class="storico-row-side">
+      <span class="stato-badge ${stato.cls}">${esc(stato.label.split(' · ')[0])}</span>
+      <span class="storico-row-tot">${totTxt}</span>
+    </div>
+  </div>`;
+}
+function apriStoricoOspite(gid) {
+  const g = _gruppiRicerca[gid];
+  if (!g) return;
+  pulisciRicercaPrenotazioni();
+  const soggiorni = g.soggiorni;
+  if (soggiorni.length === 1) { apriStoricoPrenotazione(soggiorni[0].id); return; }
+  const primo = soggiorni[soggiorni.length - 1], ultimo = soggiorni[0];
+  document.getElementById('storico-titolo').textContent = 'Storico · ' + (g.nome || 'ospite');
+  document.getElementById('storico-sottotitolo').textContent =
+    `${soggiorni.length} soggiorni · dal ${fmtDataIt(primo.checkin)} al ${fmtDataIt(ultimo.checkout)}${g.tel ? ' · ' + g.tel : ''}`;
+  document.getElementById('storico-lista').innerHTML = soggiorni.map(renderStoricoRow).join('');
+  document.getElementById('storico-modal-overlay').classList.remove('hidden');
+}
+function apriStoricoPrenotazione(id) {
+  chiudiStoricoOspite();
+  vaiAPrenotazione(id);
+}
+function chiudiStoricoOspite() {
+  document.getElementById('storico-modal-overlay').classList.add('hidden');
 }
 function vaiAPrenotazione(id) {
   const p = prenotazioni.find(x => x.id === id);
