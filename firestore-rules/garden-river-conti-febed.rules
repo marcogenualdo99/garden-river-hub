@@ -38,5 +38,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null;
       }
     }
+    // Copie delle prenotazioni cancellate — restano leggibili nello Storico
+    // ospite del Calendario. Non si possono cancellare da client.
+    match /prenotazioni_eliminate/{id} {
+      allow read, create, update: if request.auth != null;
+      allow delete: if false;
+    }
   }
 }

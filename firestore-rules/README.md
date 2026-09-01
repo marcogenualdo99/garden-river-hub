@@ -53,6 +53,9 @@ Verifica fatta in locale: **`garden-river-conti-febed` NON è in "modalità test
 - Autenticazione client **anonima** → le regole non distinguono admin/operatore
   (resta lato app). Chi non ha fatto login non legge/scrive nulla.
 - Si accede **solo** alle collezioni elencate; ogni altro percorso è negato.
+- `prenotazioni_eliminate`: copia in sola lettura delle prenotazioni cancellate
+  dal Calendario (per lo Storico ospite). Client: `read`/`create`/`update` se
+  autenticato, `delete` sempre negato.
 - GitHub Actions e Cloud Function usano un **service account** che **bypassa** le
   regole: non serve aprire nulla per loro.
 

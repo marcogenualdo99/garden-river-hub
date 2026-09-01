@@ -353,6 +353,20 @@
 .storico-row-tot { font-size: 12px; font-weight: 800; color: var(--gray-800); white-space: nowrap; }
 .storico-row-tot .st-nonsaldato { color: var(--red); font-weight: 700; }
 .storico-row .stato-badge { height: 20px; font-size: 10.5px; padding: 0 9px; }
+.storico-row.eliminata { opacity: .82; }
+.storico-row.eliminata .storico-row-nome { text-decoration: line-through; text-decoration-color: var(--gray-400); }
+.storico-row-elim { font-size: 10.5px; font-weight: 700; color: var(--red); margin-top: 3px; }
+.stato-badge.st-eliminata { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); }
+.ed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 4px; }
+.ed-kv { display: flex; flex-direction: column; font-size: 12px; }
+.ed-kv span { color: var(--gray-500); font-size: 10.5px; text-transform: uppercase; letter-spacing: .02em; }
+.ed-kv b { color: var(--gray-900); font-weight: 700; }
+.ed-sec { margin-top: 14px; }
+.ed-sec h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--gray-500); }
+.ed-sec p { margin: 2px 0; font-size: 12.5px; color: var(--gray-800); }
+.ed-conto-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; border-bottom: 1px solid var(--gray-100); }
+.ed-conto-row.ed-conto-tot { font-weight: 800; border-bottom: none; }
+.ed-elim { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--gray-200); font-size: 11.5px; font-weight: 700; color: var(--red); }
 .ac-list { position: absolute; z-index: 2000; background: var(--white); border: 1.5px solid var(--gray-200); border-radius: 10px; box-shadow: var(--shadow-lg); max-height: 220px; overflow-y: auto; }
 .ac-item { padding: 8px 12px; font-size: 13px; color: var(--gray-900); cursor: pointer; }
 .ac-item:hover, .ac-item.active { background: var(--green-bg); color: var(--green-700); }
@@ -1070,6 +1084,20 @@
   </div>
 </div>
 
+<!-- ══ MODALE PRENOTAZIONE ELIMINATA (sola lettura, dallo Storico ospite) ════ -->
+<div class="modal-overlay hidden" id="pren-eliminata-modal-overlay">
+  <div class="form-modal-box" style="max-width:560px">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title" id="pren-eliminata-titolo">Prenotazione eliminata</div>
+    <p class="section-hint">Copia in sola lettura: questa prenotazione è stata cancellata dal planning.</p>
+    <div id="pren-eliminata-corpo"></div>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiPrenotazioneEliminata()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODALE IMPORTA ARRIVI (file .xls/.xlsx dell'agenzia) ══════════════════ -->
 <div class="modal-overlay hidden" id="import-modal-overlay">
   <div class="form-modal-box">
@@ -1679,9 +1707,14 @@ function cercaPrenotazioni() {
   if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
 
   // Tutti i soggiorni raggruppati per anagrafica: serve sia per contare i
-  // soggiorni della persona sia per riempire lo Storico ospite.
+  // soggiorni della persona sia per riempire lo Storico ospite. Include anche
+  // le prenotazioni cancellate (prenotazioniEliminate), così restano
+  // consultabili; se un id è tornato "vivo" (es. reimport agenzia) la copia
+  // eliminata viene ignorata.
+  const idsLive = new Set(prenotazioni.map(p => p.id));
+  const tutte = prenotazioni.concat(prenotazioniEliminate.filter(p => !idsLive.has(p.id)));
   const perChiave = new Map();
-  prenotazioni.forEach(p => {
+  tutte.forEach(p => {
     const k = chiaveAnagrafica(p);
     if (!perChiave.has(k)) perChiave.set(k, []);
     perChiave.get(k).push(p);
@@ -1711,11 +1744,13 @@ function cercaPrenotazioni() {
 
   resultsEl.innerHTML = top.length ? top.map((g, i) => {
     const p = g.recente, n = g.soggiorni.length;
+    const nElim = g.soggiorni.filter(s => s._eliminata).length;
     const famTxt = g.familiare ? ' · Familiare: ' + esc(`${g.familiare.nome||''} ${g.familiare.cognome||''}`.trim()) : '';
+    const elimTxt = nElim ? ` · ${nElim} eliminat${nElim===1?'a':'e'}` : '';
     return `
     <div class="search-result-row" onclick="apriStoricoOspite('g${i}')">
-      <div class="search-result-nome">${esc(g.nome)}<span class="search-result-count">${n} soggiorn${n===1?'o':'i'}</span></div>
-      <div class="search-result-meta">${p.tel?esc(p.tel)+' · ':''}ultimo: ${esc(p.alloggio_nome||'')} ${esc(fmtDataIt(p.checkin))} → ${esc(fmtDataIt(p.checkout))}${famTxt}</div>
+      <div class="search-result-nome">${esc(g.nome)}<span class="search-result-count">${n} soggiorn${n===1?'o':'i'}${elimTxt}</span></div>
+      <div class="search-result-meta">${p.tel?esc(p.tel)+' · ':''}ultimo: ${esc(p.alloggio_nome||'')} ${esc(fmtDataIt(p.checkin))} → ${esc(fmtDataIt(p.checkout))}${p._eliminata?' (eliminata)':''}${famTxt}</div>
     </div>`;
   }).join('') : '<div class="search-result-empty">Nessun risultato</div>';
   resultsEl.classList.remove('hidden');
@@ -1730,20 +1765,29 @@ function nottiTra(ci, co) {
 function renderStoricoRow(p) {
   const notti = nottiTra(p.checkin, p.checkout);
   const persone = (p.adulti||0) + (p.bambini||0);
+  const eliminata = !!p._eliminata;
   const stato = statoPrenotazione(p);
   const righe = (p.conto && p.conto.righe) || [];
   const saldo = calcolaSaldoConto(righe);
   const totTxt = righe.length
     ? `€ ${saldo.totale.toFixed(2)}` + (prenotazioneContoNonSaldato(p) ? ` <span class="st-nonsaldato">(da saldare € ${saldo.daPagare.toFixed(2)})</span>` : '')
     : (p.preventivo_stimato != null ? `stima € ${Number(p.preventivo_stimato).toFixed(2)}` : '—');
+  const badge = eliminata
+    ? `<span class="stato-badge st-eliminata">Eliminata</span>`
+    : `<span class="stato-badge ${stato.cls}">${esc(stato.label.split(' · ')[0])}</span>`;
+  const elimMeta = eliminata
+    ? `<div class="storico-row-elim">Eliminata il ${esc(fmtDataOraIt(p.eliminata_il))}${p.eliminata_da ? ' da ' + esc(p.eliminata_da) : ''} · sola lettura</div>`
+    : '';
+  const azione = eliminata ? `apriPrenotazioneEliminata('${esc(p.id)}')` : `apriStoricoPrenotazione('${esc(p.id)}')`;
   return `
-  <div class="storico-row" onclick="apriStoricoPrenotazione('${esc(p.id)}')">
+  <div class="storico-row${eliminata ? ' eliminata' : ''}" onclick="${azione}">
     <div class="storico-row-main">
       <div class="storico-row-nome">${esc(p.alloggio_nome || 'Alloggio non assegnato')}</div>
       <div class="storico-row-meta">${esc(fmtDataIt(p.checkin))} → ${esc(fmtDataIt(p.checkout))} · ${notti} nott${notti===1?'e':'i'} · ${persone} person${persone===1?'a':'e'}${p.provenienza?' · '+esc(p.provenienza):''}${p.codice?' · '+esc(p.codice):''}</div>
+      ${elimMeta}
     </div>
     <div class="storico-row-side">
-      <span class="stato-badge ${stato.cls}">${esc(stato.label.split(' · ')[0])}</span>
+      ${badge}
       <span class="storico-row-tot">${totTxt}</span>
     </div>
   </div>`;
@@ -1753,7 +1797,10 @@ function apriStoricoOspite(gid) {
   if (!g) return;
   pulisciRicercaPrenotazioni();
   const soggiorni = g.soggiorni;
-  if (soggiorni.length === 1) { apriStoricoPrenotazione(soggiorni[0].id); return; }
+  if (soggiorni.length === 1) {
+    soggiorni[0]._eliminata ? apriPrenotazioneEliminata(soggiorni[0].id) : apriStoricoPrenotazione(soggiorni[0].id);
+    return;
+  }
   const primo = soggiorni[soggiorni.length - 1], ultimo = soggiorni[0];
   document.getElementById('storico-titolo').textContent = 'Storico · ' + (g.nome || 'ospite');
   document.getElementById('storico-sottotitolo').textContent =
@@ -1767,6 +1814,59 @@ function apriStoricoPrenotazione(id) {
 }
 function chiudiStoricoOspite() {
   document.getElementById('storico-modal-overlay').classList.add('hidden');
+}
+
+// ── PRENOTAZIONE ELIMINATA (sola lettura) ─────────────────────────────────
+function renderDettaglioEliminata(p) {
+  const notti = nottiTra(p.checkin, p.checkout);
+  const bamb = (p.bambini_0_2||0) + (p.bambini_3_4||0) + (p.bambini_5_9||0) + (p.bambini_10_17||0) || (p.bambini||0);
+  const righe = (p.conto && p.conto.righe) || [];
+  const saldo = calcolaSaldoConto(righe);
+  const kv = (l, v) => `<div class="ed-kv"><span>${esc(l)}</span><b>${esc(v)}</b></div>`;
+  let html = `<div class="ed-grid">
+    ${kv('Alloggio', p.alloggio_nome || '—')}
+    ${kv('Codice', p.codice || '—')}
+    ${kv('Check-in', fmtDataIt(p.checkin) || '—')}
+    ${kv('Check-out', fmtDataIt(p.checkout) || '—')}
+    ${kv('Notti', notti)}
+    ${kv('Persone', (p.adulti||0) + ' adulti · ' + bamb + ' bambini')}
+    ${kv('Provenienza', p.provenienza || '—')}
+    ${kv('Trattamento', p.trattamento_ristorazione || '—')}
+    ${kv('Telefono', p.tel || '—')}
+    ${kv('Targa', p.targa || '—')}
+    ${kv('Spiaggia', p.spiaggia ? 'sì' : 'no')}
+    ${kv('Animali al seguito', p.animali ? 'sì' : 'no')}
+  </div>`;
+  const bio = [];
+  if (p.biancheria_kit_bagno)        bio.push(`${p.biancheria_kit_bagno} kit bagno`);
+  if (p.biancheria_kit_singolo)      bio.push(`${p.biancheria_kit_singolo} kit singolo`);
+  if (p.biancheria_kit_matrimoniale) bio.push(`${p.biancheria_kit_matrimoniale} kit matrimoniale`);
+  if (bio.length) html += `<div class="ed-sec"><h4>Biancheria</h4><p>${esc(bio.join(' · '))}</p></div>`;
+  if (righe.length) {
+    html += `<div class="ed-sec"><h4>Conto</h4>` +
+      righe.map(r => `<div class="ed-conto-row"><span>${esc(r.label || '—')}${r.acconto ? ' (acconto)' : ''}${r.pagato ? ' · pagato' : ''}</span><span>€ ${(Math.abs(Number(r.importo) || 0)).toFixed(2)}</span></div>`).join('') +
+      `<div class="ed-conto-row ed-conto-tot"><span>Totale</span><span>€ ${saldo.totale.toFixed(2)}</span></div>` +
+      (saldo.daPagare > 0.004 ? `<div class="ed-conto-row"><span>Da saldare</span><span>€ ${saldo.daPagare.toFixed(2)}</span></div>` : '') +
+      `</div>`;
+  }
+  const note = (p.note || []).filter(n => n && (n.testo || '').trim());
+  if (note.length) html += `<div class="ed-sec"><h4>Note</h4>` +
+    note.map(n => `<p><b>${esc(n.categoria || 'Nota')}:</b> ${esc(n.testo)}</p>`).join('') + `</div>`;
+  const ospiti = p.ospiti || [];
+  if (ospiti.length) html += `<div class="ed-sec"><h4>Ospiti (${ospiti.length})</h4>` +
+    ospiti.map(o => `<p>${esc(`${o.cognome||''} ${o.nome||''}`.trim() || '—')}${o.data_nascita ? ' · ' + esc(fmtDataIt(o.data_nascita)) : ''}</p>`).join('') + `</div>`;
+  html += `<div class="ed-elim">Eliminata il ${esc(fmtDataOraIt(p.eliminata_il))}${p.eliminata_da ? ' da ' + esc(p.eliminata_da) : ''}</div>`;
+  return html;
+}
+function apriPrenotazioneEliminata(id) {
+  const p = prenotazioniEliminate.find(x => x.id === id);
+  if (!p) { showToast('Copia non trovata'); return; }
+  document.getElementById('pren-eliminata-titolo').textContent = (p.nome || 'Prenotazione') + ' — eliminata';
+  document.getElementById('pren-eliminata-corpo').innerHTML = renderDettaglioEliminata(p);
+  document.getElementById('pren-eliminata-modal-overlay').classList.remove('hidden');
+}
+function chiudiPrenotazioneEliminata() {
+  document.getElementById('pren-eliminata-modal-overlay').classList.add('hidden');
 }
 function vaiAPrenotazione(id) {
   const p = prenotazioni.find(x => x.id === id);
@@ -1798,6 +1898,7 @@ function maybeApriPrenotazioneDaLink() {
 let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSections = new Set();
 let alloggiList  = [];   // [{id, categoria, categoriaLabel, numero, nome, stato}] — SOLA LETTURA
 let prenotazioni = [];   // [{id, alloggio_id, alloggio_nome, nome, checkin, checkout, ...}]
+let prenotazioniEliminate = []; // copie di prenotazioni cancellate (collezione 'prenotazioni_eliminate'), solo per lo Storico ospite — MAI usate nel planning
 let viewStart    = isoToday(0);
 let editingId    = null;
 let datiPrenotazionePrecedenti = null; // istantanea dei dati salvati, per calcolare il diff da scrivere nel log modifiche
@@ -1906,7 +2007,7 @@ function doLogout() {
 // ── SINCRONIZZAZIONE FIRESTORE ───────────────────────────────────────────
 // "alloggi" viene solo letta (mai scritta) per generare le righe del
 // planning; "prenotazioni" è l'unica collezione su cui questo modulo scrive.
-let _unsubAlloggi = null, _unsubPrenotazioni = null;
+let _unsubAlloggi = null, _unsubPrenotazioni = null, _unsubPrenotazioniEliminate = null;
 async function startRealtimeSync() {
   await waitForFirebase();
   const { db, collection, onSnapshot } = window._fb;
@@ -1931,6 +2032,14 @@ async function startRealtimeSync() {
       maybeApriPrenotazioneDaLink();
     }, (err) => { console.error('Errore lettura prenotazioni:', err); setSyncStatus('error'); });
   } catch(e) { console.error('Errore avvio sync prenotazioni:', e); setSyncStatus('error'); }
+  // Archivio delle prenotazioni cancellate: collezione piccola (le
+  // cancellazioni sono rare), serve solo allo Storico ospite. Un errore qui
+  // non deve intaccare lo stato di sync generale.
+  try {
+    _unsubPrenotazioniEliminate = onSnapshot(collection(db, 'prenotazioni_eliminate'), (snap) => {
+      prenotazioniEliminate = snap.docs.map(d => ({ id: d.id, ...d.data(), _eliminata: true }));
+    }, (err) => console.error('Errore lettura prenotazioni_eliminate:', err));
+  } catch(e) { console.error('Errore avvio sync prenotazioni_eliminate:', e); }
 }
 async function forceRefresh(manual) {
   await waitForFirebase();
@@ -1943,6 +2052,12 @@ async function forceRefresh(manual) {
     renderGrid();
     if (manual) showToast('Aggiornato');
   } catch(e) { console.error('Errore refresh:', e); setSyncStatus('error'); }
+  // Archivio prenotazioni cancellate: a parte, un suo errore non deve
+  // compromettere il refresh del planning.
+  try {
+    const snapPE = await getDocs(collection(db, 'prenotazioni_eliminate'));
+    prenotazioniEliminate = snapPE.docs.map(d => ({ id: d.id, ...d.data(), _eliminata: true }));
+  } catch(e) { console.error('Errore refresh prenotazioni_eliminate:', e); }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') forceRefresh(false); });
 window.addEventListener('online', () => forceRefresh(false));
@@ -5502,9 +5617,27 @@ function aggiornaTabAlertPrenotazioneCorrente() {
 function eliminaPrenotazioneCorrente() {
   if (!editingId) return;
   const id = editingId;
-  apriModaleConferma('Eliminare prenotazione', 'Vuoi eliminare definitivamente questa prenotazione? L\'operazione non è reversibile.', async () => {
-    const { db, doc, deleteDoc, collection, getDocs } = window._fb;
+  apriModaleConferma('Eliminare prenotazione', 'La prenotazione sparirà dal planning ma resterà consultabile (in sola lettura, segnata come eliminata) nello Storico ospite, dalla ricerca in alto.', async () => {
+    const { db, doc, setDoc, deleteDoc, collection, getDocs } = window._fb;
     try {
+      // Prima di cancellare, salviamo una copia in "prenotazioni_eliminate":
+      // l'archivio storico deve poterla ancora mostrare. Se questo passo
+      // fallisce NON proseguiamo — meglio non eliminare che perdere lo storico.
+      const p = prenotazioni.find(x => x.id === id);
+      if (p) {
+        const { id: _omit, ...datiPren } = p;
+        try {
+          await setDoc(doc(db, 'prenotazioni_eliminate', id), {
+            ...datiPren,
+            eliminata_il: new Date().toISOString(),
+            eliminata_da: currentOperatore || 'Sconosciuto',
+          });
+        } catch(errArchivio) {
+          console.error('Archivio prenotazione eliminata fallito:', errArchivio);
+          showToast('Impossibile archiviare lo storico — prenotazione NON eliminata. Controlla le regole Firestore (prenotazioni_eliminate).');
+          return;
+        }
+      }
       // Ripulisce anche i dati collegati che altrimenti restano orfani in
       // Spiaggia (posizionamento ombrellone) e Ristorazione (anagrafica
       // famiglia): non basta cancellare solo il documento in "prenotazioni".
@@ -5513,7 +5646,7 @@ function eliminaPrenotazioneCorrente() {
       await Promise.all(posizioniCollegate.map(d => deleteDoc(doc(db, 'beach_prenotazioni', d.id))));
       await deleteDoc(doc(db, 'famiglie_ristorazione', 'cal_' + id));
       await deleteDoc(doc(db, 'prenotazioni', id));
-      showToast('Prenotazione eliminata');
+      showToast('Prenotazione eliminata — resta nello Storico ospite');
       closeFormModal();
     } catch(e) {
       console.error('Errore eliminazione:', e);
