@@ -58,15 +58,17 @@ Console → **Cloud Run functions** → *Crea funzione*
   | `SMTP_HOST` | `smtps.aruba.it` | opzionale, è il default |
   | `SMTP_PORT` | `465` | opzionale, è il default |
   | `STORAGE_BUCKET` | `garden-river-conti-febed.firebasestorage.app` | opzionale, è il default |
+  | `INVITO_GIORNI_PRIMA` | `5` | quanti giorni prima dell'arrivo parte l'email di invito (default 5) |
+  | `CRON_TOKEN` | una stringa lunga a caso | protegge il job giornaliero; se assente, `cron` è aperto |
 
 - *Deploy*
 
 URL risultante:
 `https://checkin-online-113994721180.europe-west1.run.app`
 
-Questo URL è già scritto nella costante `CHECKIN_FN_URL` in `checkin/index.html`.
-Se il deploy producesse un URL diverso, aggiornare quella riga. L'hub
-(`calendario/index.html`) non chiama la funzione: genera il token da sé.
+Questo URL è già scritto nella costante `CHECKIN_FN_URL` in `checkin/index.html`
+e in `calendario/index.html`. Se il deploy producesse un URL diverso, aggiornare
+quelle due righe.
 
 ## 5. Permesso di scrivere su Storage
 
@@ -102,6 +104,39 @@ Se l'email non arriva ma i dati sì: controlla i log della funzione (Console →
 la funzione → **Log**) — l'errore SMTP è stampato lì, il resto del check-in
 va a buon fine comunque.
 
+## 7. Invio automatico dell'invito (Cloud Scheduler)
+
+L'email di invito al cliente parte da sola qualche giorno prima dell'arrivo. Il
+job giornaliero si crea come quello del backup notturno.
+
+**Prima, prova a vuoto** (non manda niente, elenca solo):
+
+```
+curl -X POST https://checkin-online-113994721180.europe-west1.run.app \
+  -H "Content-Type: application/json" \
+  -d '{"azione":"cron","dry_run":true,"_cron_token":"IL_TUO_CRON_TOKEN"}'
+```
+
+Risposta tipo `{"ok":true,"giorni":5,"inviati":0,"saltati":N,"anteprima":[…]}`:
+in `anteprima` vedi le prenotazioni a cui *manderebbe* l'invito. Se il conto
+torna, crea il job.
+
+**Cloud Scheduler** → *Crea job*
+- Nome: `checkin-invito-giornaliero`
+- Regione: `europe-west1`
+- Frequenza: `0 10 * * *`  (ogni giorno alle 10:00)
+- Fuso orario: **Central European Time (Italy)**
+- Tipo destinazione: **HTTP**
+- URL: `https://checkin-online-113994721180.europe-west1.run.app`
+- Metodo: **POST**
+- Corpo del messaggio: `{"azione":"cron"}`
+- *Mostra altro* → **Intestazioni HTTP** → `X-Cron-Token` = lo stesso valore di `CRON_TOKEN`
+- *Crea* → poi *Forza esecuzione* per una prova reale
+
+Cambia `INVITO_GIORNI_PRIMA` (variabile della funzione) per anticipare/posticipare.
+Ogni prenotazione riceve l'invito **una volta sola** (campo `checkin_invito` sul
+documento). Salta quelle senza email, con check-in già fatto o già compilate.
+
 ---
 
 ## Azioni dell'endpoint (POST, corpo JSON)
@@ -109,7 +144,10 @@ va a buon fine comunque.
 | `azione` | corpo | risposta |
 |---|---|---|
 | `carica` | `{ token }` | `{ ok, prenotazione:{…}, testo_privacy, testo_regolamento, esenzioni:[…] }` |
-| `invia` | `{ token, ospiti:[…], consensi:{privacy,regolamento}, foto:[{ospite_idx,tipo,data_url}] }` | `{ ok:true }` o `{ ok:false, errore, dettagli? }` |
+| `invia` | `{ token, ospiti:[…], consensi:{…}, foto:[…] }` | `{ ok:true }` o `{ ok:false, errore, dettagli? }` |
+| `invito` | `{ prenId, forza? }` | manda l'invito a `p.email` — usato dal pulsante nell'hub |
+| `cron` | `{ _cron_token, dry_run? }` | job giornaliero, invito a chi arriva entro N giorni |
+| `test_email` | `{}` | email di prova a `MAIL_RECEPTION` |
 
-Il token è 16–64 hex, generato dall'hub, con scadenza (`checkout` + 3 giorni)
-registrata in `checkin_links/{token}`.
+Il token è 16–64 hex, con scadenza (`checkout` + 3 giorni) in `checkin_links/{token}`.
+Lo genera l'hub quando apri il pannello, o la funzione quando manda l'invito.

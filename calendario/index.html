@@ -1209,7 +1209,7 @@
   <div class="form-modal-box">
   <div class="form-modal-scroll">
     <div class="form-modal-title">Check-in online</div>
-    <p class="section-hint">Manda all'ospite questo link: compilerà anagrafica e foto del documento di tutti gli occupanti prima di arrivare. Quando invia, ricevi un'email e trovi i dati in “Dettaglio ospiti”, da verificare.</p>
+    <p class="section-hint">L'hub invia da solo l'email di invito qualche giorno prima dell'arrivo, a tutte le prenotazioni che hanno un indirizzo email. Qui puoi controllare lo stato, anticipare l'invio o mandare il link a mano.</p>
     <div id="checkin-online-stato" style="margin-bottom:14px"></div>
     <label class="f-label">Link personale</label>
     <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1217,8 +1217,8 @@
       <button type="button" class="ospiti-btn" style="width:auto;padding:0 16px;margin:0" onclick="copiaCheckinOnlineLink()">Copia</button>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0" onclick="apriWhatsappCheckinOnline()">Invia su WhatsApp</button>
-      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0;background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)" onclick="copiaTestoEmailCheckinOnline()">Copia testo email</button>
+      <button type="button" class="ospiti-btn" id="btn-invito-email" style="flex:1;min-width:150px;margin:0" onclick="inviaInvitoEmailCheckin()">Invia invito via email</button>
+      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0;background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)" onclick="apriWhatsappCheckinOnline()">Invia su WhatsApp</button>
     </div>
     <p class="section-hint" id="checkin-online-scadenza" style="margin-top:12px"></p>
   </div>
@@ -5171,8 +5171,10 @@ async function eliminaDocumento(i) {
 // L'ospite riceve un link personale (gardenhub.it/checkin/?t=<token>), compila
 // anagrafica e foto del documento di tutti gli occupanti, e i dati atterrano in
 // p.ospiti + p.checkin_online tramite la Cloud Function 'checkin-online'.
-// L'hub qui genera solo il token e prepara i testi da inviare a mano.
+// L'hub genera il token; l'email di invito la manda la Cloud Function (da sola
+// qualche giorno prima dell'arrivo, o su richiesta con l'azione 'invito').
 const CHECKIN_ONLINE_PAGE = 'https://gardenhub.it/checkin/';
+const CHECKIN_FN_URL = 'https://checkin-online-113994721180.europe-west1.run.app';
 
 function generaCheckinToken() {
   const a = new Uint8Array(16);
@@ -5252,6 +5254,7 @@ async function apriCheckinOnlineModal() {
   linkInput.value = 'Genero il link…';
   overlay.classList.remove('hidden');
   renderStatoCheckinOnline(p);
+  aggiornaBtnInvitoEmail(p);
 
   try {
     if (!p.checkin_token) {
@@ -5286,12 +5289,22 @@ function renderStatoCheckinOnline(p) {
         <b>Compilato dall'ospite</b>${co.ricevuto_il ? ' il ' + esc(fmtDataOraIt(co.ricevuto_il)) : ''} — ${n} person${n === 1 ? 'a' : 'e'}, ${foto} foto documento.<br>
         Apri “Dettaglio ospiti” per verificare i dati.
       </div>`;
-  } else {
-    box.innerHTML =
-      `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--gray-600);line-height:1.5">
-        Non ancora compilato dall'ospite.
-      </div>`;
+    return;
   }
+  const inv = p.checkin_invito;
+  if (inv && inv.inviato_il) {
+    box.innerHTML =
+      `<div style="background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:12px;padding:10px 12px;font-size:12.5px;color:#1E3A8A;line-height:1.5">
+        <b>Invito email inviato</b> il ${esc(fmtDataOraIt(inv.inviato_il))}${inv.a ? ' a ' + esc(inv.a) : ''}.<br>
+        L'ospite non ha ancora compilato.
+      </div>`;
+    return;
+  }
+  const senzaEmail = !(p.email || '').trim();
+  box.innerHTML =
+    `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--gray-600);line-height:1.5">
+      Invito non ancora inviato.${senzaEmail ? ' <b>Manca l\'email</b> nella prenotazione: aggiungila per l\'invio automatico.' : ' Partirà da solo qualche giorno prima dell\'arrivo.'}
+    </div>`;
 }
 
 function chiudiCheckinOnlineModal() {
@@ -5312,13 +5325,50 @@ function apriWhatsappCheckinOnline() {
   window.open('https://wa.me/?text=' + encodeURIComponent(whatsapp), '_blank');
 }
 
-async function copiaTestoEmailCheckinOnline() {
+// Allinea il pulsante "Invia invito via email" allo stato della prenotazione.
+function aggiornaBtnInvitoEmail(p) {
+  const btn = document.getElementById('btn-invito-email');
+  if (!btn) return;
+  const haEmail = !!(p && (p.email || '').trim());
+  const giaInviato = !!(p && p.checkin_invito && p.checkin_invito.inviato_il);
+  const giaFatto = !!(p && ((p.checkin_online && p.checkin_online.stato === 'ricevuto') || p.checkin_fatto));
+  btn.disabled = !haEmail || giaFatto;
+  btn.textContent = !haEmail ? 'Serve l\'email in prenotazione'
+    : giaFatto ? 'Check-in già completato'
+    : giaInviato ? 'Rinvia invito via email'
+    : 'Invia invito via email';
+}
+
+async function inviaInvitoEmailCheckin() {
   const p = _prenCheckinCorrente();
-  const link = document.getElementById('checkin-online-link').value;
-  if (!p || link.indexOf('http') !== 0) return;
-  const { emailOggetto, emailCorpo } = testiCheckinOnline(p, link);
-  const ok = await copiaNegliAppunti(`Oggetto: ${emailOggetto}\n\n${emailCorpo}`);
-  showToast(ok ? 'Testo email copiato' : 'Copia non riuscita');
+  if (!p) return;
+  if (!(p.email || '').trim()) { showToast('Aggiungi un\'email alla prenotazione'); return; }
+  const forza = !!(p.checkin_invito && p.checkin_invito.inviato_il);
+  const btn = document.getElementById('btn-invito-email');
+  btn.disabled = true; const testo = btn.textContent; btn.textContent = 'Invio…';
+  try {
+    const r = await fetch(CHECKIN_FN_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ azione: 'invito', prenId: p.id, forza }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      p.checkin_invito = { inviato_il: new Date().toISOString(), a: d.inviata_a || p.email };
+      showToast('Invito inviato a ' + (d.inviata_a || p.email));
+      renderStatoCheckinOnline(p);
+    } else {
+      const m = { no_email: 'Manca l\'email nella prenotazione',
+                  gia_fatto: 'Il check-in è già stato completato',
+                  prenotazione_inesistente: 'Salva prima la prenotazione' }[d.errore]
+              || (d.errore || 'Invio non riuscito');
+      showToast(m);
+    }
+  } catch (e) {
+    showToast('Connessione assente, riprova');
+  } finally {
+    btn.textContent = testo;
+    aggiornaBtnInvitoEmail(_prenCheckinCorrente());
+  }
 }
 
 function trovaOverlap(alloggioId, checkin, checkout, excludeId) {

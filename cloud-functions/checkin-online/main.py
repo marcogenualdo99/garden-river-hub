@@ -27,9 +27,12 @@ Variabili d'ambiente attese (impostate in Console Cloud Run / Secret Manager):
 """
 
 import base64
+import datetime
+import hmac
 import json
 import os
 import re
+import secrets
 import smtplib
 import time
 import uuid
@@ -137,6 +140,42 @@ def _risolvi_token(db, token):
     if not pren.exists:
         return None, None, None
     return pren_ref, (pren.to_dict() or {}), link_ref
+
+
+def _oggi_iso():
+    return time.strftime('%Y-%m-%d', time.gmtime())
+
+
+def _iso_piu_giorni(iso, n):
+    d = datetime.date.fromisoformat(iso) + datetime.timedelta(days=n)
+    return d.isoformat()
+
+
+def _scadenza_link_ms(checkout_iso):
+    """checkout + 3 giorni in epoch ms — stesso valore che scrive il client."""
+    try:
+        d = datetime.date.fromisoformat(checkout_iso)
+        dt = datetime.datetime(d.year, d.month, d.day, 12, tzinfo=datetime.timezone.utc)
+        return int((dt + datetime.timedelta(days=3)).timestamp() * 1000)
+    except Exception:
+        return _now_ms() + 30 * 24 * 3600 * 1000
+
+
+def _assicura_token(db, pren_ref, p):
+    """Token della prenotazione: lo riusa se c'è, altrimenti lo crea insieme al
+    doc checkin_links/{token}. Muta anche p['checkin_token']."""
+    tok = _s(p.get('checkin_token'))
+    if _token_valido(tok):
+        return tok
+    tok = secrets.token_hex(16)
+    db.collection('checkin_links').document(tok).set({
+        'prenId': pren_ref.id,
+        'creato_il': _now_iso(),
+        'scade_il': _scadenza_link_ms(_s(p.get('checkout'))),
+    })
+    pren_ref.update({'checkin_token': tok})
+    p['checkin_token'] = tok
+    return tok
 
 
 def _persone_attese(p):
@@ -309,6 +348,48 @@ def _notifica_reception(p, ospiti, pren_id):
         print(f'Invio email reception fallito: {e}')
 
 
+# ── invito al cliente ──────────────────────────────────────────────────────
+
+def _costruisci_invito(p, link):
+    nome = (_s(p.get('nome')).split() or ['Gentile ospite'])[0]
+    alloggio = _s(p.get('alloggio_nome')) or 'il tuo alloggio'
+    ci, co = _fmt_data_it(p.get('checkin')), _fmt_data_it(p.get('checkout'))
+    oggetto = 'Check-in online — Garden River'
+    corpo = (
+        f"Gentile {nome},\n\n"
+        f"per velocizzare l'arrivo a Garden River la invitiamo a compilare il "
+        f"check-in online da questo link:\n{link}\n\n"
+        f"Servono i dati di tutte le persone che soggiorneranno e la foto di un "
+        f"documento d'identità di chi prenota. Bastano pochi minuti e all'arrivo "
+        f"eviterà la compilazione al banco.\n\n"
+        f"Soggiorno: {alloggio}, {ci} -> {co}\n\n"
+        f"A presto,\nGarden River\n"
+    )
+    return oggetto, corpo
+
+
+def _invia_invito(db, pren_ref, p):
+    """Manda l'email di invito al check-in all'indirizzo della prenotazione.
+    Ritorna uno di: 'ok' | 'no_email' | 'gia_inviato' | 'gia_fatto' | 'errore'.
+    Il secondo valore è l'email (o il testo errore)."""
+    email = _s(p.get('email'))
+    if not email or '@' not in email:
+        return 'no_email', None
+    if _s((p.get('checkin_invito') or {}).get('inviato_il')):
+        return 'gia_inviato', None
+    if p.get('checkin_fatto') or (p.get('checkin_online') or {}).get('stato') == 'ricevuto':
+        return 'gia_fatto', None
+
+    tok = _assicura_token(db, pren_ref, p)
+    oggetto, corpo = _costruisci_invito(p, f'{SITE_URL}/checkin/?t={tok}')
+    try:
+        _invia_email(email, oggetto, corpo)
+    except Exception as e:
+        return 'errore', str(e)
+    pren_ref.update({'checkin_invito': {'inviato_il': _now_iso(), 'a': email}})
+    return 'ok', email
+
+
 # ── azioni ─────────────────────────────────────────────────────────────────
 
 def _azione_test_email(db, origin, data):
@@ -419,9 +500,83 @@ def _azione_invia(db, origin, data):
     return _json(origin, {'ok': True})
 
 
+def _azione_invito(db, origin, data):
+    """Invio manuale/on-demand dall'hub. Body { prenId, forza? }."""
+    pren_id = _s(data.get('prenId'))
+    if not pren_id:
+        return _json(origin, {'ok': False, 'errore': 'prenId_mancante'}, 400)
+    pren_ref = db.collection('prenotazioni').document(pren_id)
+    snap = pren_ref.get()
+    if not snap.exists:
+        return _json(origin, {'ok': False, 'errore': 'prenotazione_inesistente'}, 404)
+    p = snap.to_dict() or {}
+    if data.get('forza'):
+        p.pop('checkin_invito', None)      # consente il rinvio
+    esito, dett = _invia_invito(db, pren_ref, p)
+    if esito == 'ok':
+        return _json(origin, {'ok': True, 'inviata_a': dett})
+    if esito == 'errore':
+        return _json(origin, {'ok': False, 'errore': f'invio fallito: {dett}'}, 500)
+    return _json(origin, {'ok': False, 'errore': esito}, 409 if esito != 'no_email' else 400)
+
+
+def _azione_cron(db, origin, data):
+    """Chiamata da Cloud Scheduler una volta al giorno. Manda l'invito a tutte
+    le prenotazioni in arrivo entro INVITO_GIORNI_PRIMA giorni che hanno
+    un'email e non l'hanno ancora ricevuto. Con { dry_run: true } elenca
+    soltanto, senza spedire."""
+    atteso = os.environ.get('CRON_TOKEN', '')
+    if atteso and not hmac.compare_digest(_s(data.get('_cron_token')), atteso):
+        return _json(origin, {'ok': False, 'errore': 'token_non_valido'}, 403)
+
+    try:
+        giorni = max(0, int(os.environ.get('INVITO_GIORNI_PRIMA', '5')))
+    except ValueError:
+        giorni = 5
+    dry = bool(data.get('dry_run'))
+    oggi = _oggi_iso()
+    limite = _iso_piu_giorni(oggi, giorni)
+
+    q = (db.collection('prenotazioni')
+           .where('checkin', '>=', oggi)
+           .where('checkin', '<=', limite))
+
+    inviati = saltati = errori = 0
+    anteprima = []
+    for snap in q.stream():
+        p = snap.to_dict() or {}
+        email = _s(p.get('email'))
+        if (not email or '@' not in email
+                or _s((p.get('checkin_invito') or {}).get('inviato_il'))
+                or p.get('checkin_fatto')
+                or (p.get('checkin_online') or {}).get('stato') == 'ricevuto'):
+            saltati += 1
+            continue
+        if dry:
+            anteprima.append({'prenId': snap.id, 'nome': _s(p.get('nome')),
+                              'email': email, 'checkin': _s(p.get('checkin'))})
+            continue
+        esito, _dett = _invia_invito(db, snap.reference, p)
+        if esito == 'ok':
+            inviati += 1
+        elif esito == 'errore':
+            errori += 1
+            print(f'invito fallito per {snap.id}: {_dett}')
+        else:
+            saltati += 1
+
+    res = {'ok': True, 'giorni': giorni, 'inviati': inviati,
+           'saltati': saltati, 'errori': errori}
+    if dry:
+        res['anteprima'] = anteprima
+    return _json(origin, res)
+
+
 AZIONI = {
     'carica': _azione_carica,
     'invia':  _azione_invia,
+    'invito': _azione_invito,
+    'cron':   _azione_cron,
     'test_email': _azione_test_email,
 }
 
@@ -436,6 +591,9 @@ def checkin_online(request):
         return _json(origin, {'ok': False, 'errore': 'metodo_non_permesso'}, 405)
 
     data = request.get_json(silent=True) or {}
+    # Cloud Scheduler può passare il token del cron come header invece che nel corpo.
+    if not data.get('_cron_token'):
+        data['_cron_token'] = request.headers.get('X-Cron-Token', '')
     handler = AZIONI.get(data.get('azione'))
     if not handler:
         return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
