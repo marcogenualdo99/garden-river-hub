@@ -537,13 +537,17 @@ function toggleDrawer(open) {
   document.body.classList.toggle('drawer-open', open);
 }
 
-// 👉 TARIFFE NOLEGGIO BICI — modifica solo questi numeri per cambiare prezzi
-//    e soglie orarie, il resto dell'app si adatta da solo.
+// 👉 TARIFFE NOLEGGIO BICI
 //    Logica: fino a "sogliaOrariaH" si paga a ore; superata quella soglia si
 //    passa alla fascia successiva a prezzo fisso; se il noleggio dura più di
 //    un giorno si paga "giornataIntera" per ogni giorno, con un tetto massimo
 //    pari alla tariffa "settimana" (oltre quel tetto non si paga più nulla).
-const TARIFFE_BICI = {
+//    I valori qui sotto sono solo il DEFAULT: la versione operativa vive su
+//    Firestore (doc "impostazioni/bici", campo "tariffe") ed è modificabile da
+//    Impostazioni → "Tariffe di noleggio". TARIFFE_BICI viene riscritto ad ogni
+//    snapshot di quel doc; se il doc non esiste ancora lo semina da qui
+//    ensureDefaultImpostazioni().
+const TARIFFE_BICI_DEFAULT = {
   oraria:               1,   // € per ogni ora (o frazione) iniziata
   sogliaOrariaH:        5,   // fino a 5 ore comprese: tariffa oraria
   mezzaGiornata:        5,   // € fissi da 5 a 6 ore
@@ -552,6 +556,7 @@ const TARIFFE_BICI = {
   sogliaGiornataH:     24,
   settimana:           50,   // € fissi — tetto massimo (raggiunto al 5° giorno)
 };
+let TARIFFE_BICI = { ...TARIFFE_BICI_DEFAULT };
 
 function calcolaCostoBici(ms) {
   const ore = ms / 3600000;
@@ -750,9 +755,25 @@ function setSyncStatus(state) {
 
 let _unsubBici = null;
 let _unsubAlloggi = null;
+let _unsubImpostazioni = null;
+
+// Semina "impostazioni/bici" al primissimo avvio (collezione vuota): dopo di
+// che le tariffe si modificano solo da Impostazioni, mai dal codice.
+async function ensureDefaultImpostazioni() {
+  try {
+    await waitForFirebase();
+    const { db, doc, getDoc, setDoc } = window._fb;
+    const ref = doc(db, 'impostazioni', 'bici');
+    const snap = await getDoc(ref);
+    if (!snap.exists() || !snap.data() || !snap.data().tariffe) {
+      await setDoc(ref, { tariffe: TARIFFE_BICI_DEFAULT }, { merge: true });
+    }
+  } catch(e) { console.error('Errore seed impostazioni bici:', e); }
+}
+
 async function startRealtimeSync() {
   await waitForFirebase();
-  const { db, collection, onSnapshot } = window._fb;
+  const { db, collection, doc, onSnapshot } = window._fb;
   setSyncStatus('connecting');
   try {
     _unsubBici = onSnapshot(collection(db, 'bici'), (snap) => {
@@ -782,6 +803,15 @@ async function startRealtimeSync() {
       render();
     }, (err) => { console.error('Errore listener alloggi (solo lettura):', err); });
   } catch(e) { console.error('Errore avvio sync alloggi:', e); }
+  // Impostazioni del modulo (tariffe di noleggio): un solo doc "impostazioni/bici".
+  try {
+    ensureDefaultImpostazioni();
+    _unsubImpostazioni = onSnapshot(doc(db, 'impostazioni', 'bici'), (snap) => {
+      const data = snap.exists() ? (snap.data() || {}) : {};
+      TARIFFE_BICI = { ...TARIFFE_BICI_DEFAULT, ...(data.tariffe || {}) };
+      render();
+    }, (err) => { console.error('Errore listener impostazioni bici:', err); });
+  } catch(e) { console.error('Errore avvio sync impostazioni bici:', e); }
 }
 
 async function forceRefresh(manual) {
@@ -1976,8 +2006,31 @@ function nextSuggestedNumero() {
   const nums = Object.values(bikesMap).map(b => b.numero);
   return nums.length ? Math.max.apply(null, nums) + 1 : 1;
 }
+function tariffaCampo(key, label, suffisso) {
+  const v = TARIFFE_BICI[key];
+  return '<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">'+
+    '<span style="font-size:13px;font-weight:600;color:var(--gray-700);line-height:1.35">'+label+'</span>'+
+    '<span style="flex-shrink:0;display:flex;align-items:center;gap:6px">'+
+      '<input type="number" min="0" step="0.5" id="tar-'+key+'" value="'+v+'" '+
+        'style="width:78px;height:40px;padding:0 10px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);text-align:right;background:var(--white);color:var(--gray-900);outline:none">'+
+      '<span style="font-size:12px;color:var(--gray-500);width:26px">'+(suffisso||'')+'</span>'+
+    '</span>'+
+  '</label>';
+}
 function renderSettings() {
   let html = '<div class="settings-card">'+
+    '<h3>Tariffe di noleggio</h3>'+
+    '<p style="font-size:12px;color:var(--gray-500);margin:-4px 0 14px;line-height:1.5">Valgono per tutte le bici. Il calcolo del costo (a ore, mezza giornata, giornata, settimana) si adatta da solo a questi valori.</p>'+
+    tariffaCampo('oraria',               'Tariffa oraria',                       '€/h')+
+    tariffaCampo('sogliaOrariaH',         'Fino a quante ore si paga a tariffa oraria', 'h')+
+    tariffaCampo('mezzaGiornata',         'Mezza giornata (importo fisso)',       '€')+
+    tariffaCampo('sogliaMezzaGiornataH',  'Fino a quante ore vale la mezza giornata',   'h')+
+    tariffaCampo('giornataIntera',        'Giornata intera (importo fisso, per giorno)', '€')+
+    tariffaCampo('sogliaGiornataH',       'Ore in una giornata intera',           'h')+
+    tariffaCampo('settimana',             'Settimana / tetto massimo (importo fisso)',   '€')+
+    '<button onclick="salvaTariffeBici()" style="width:100%;height:46px;margin-top:6px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)">Salva tariffe</button>'+
+  '</div>';
+  html += '<div class="settings-card">'+
     '<h3>Aggiungi una bici</h3>'+
     '<div class="settings-form-row">'+
       '<select id="add-tipo-select">'+
@@ -2009,6 +2062,34 @@ function renderSettings() {
   });
   document.getElementById('settings-container').innerHTML = html;
 }
+
+async function salvaTariffeBici() {
+  const campi = ['oraria','sogliaOrariaH','mezzaGiornata','sogliaMezzaGiornataH','giornataIntera','sogliaGiornataH','settimana'];
+  const tariffe = {};
+  for (const k of campi) {
+    const el = document.getElementById('tar-' + k);
+    const n = parseFloat(String(el ? el.value : '').replace(',', '.'));
+    if (!isFinite(n) || n < 0) { showToast('Valore non valido in "' + k + '"'); return; }
+    tariffe[k] = n;
+  }
+  if (!(tariffe.sogliaOrariaH < tariffe.sogliaMezzaGiornataH && tariffe.sogliaMezzaGiornataH < tariffe.sogliaGiornataH)) {
+    showToast('Le soglie orarie devono essere crescenti (oraria < mezza giornata < giornata)');
+    return;
+  }
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc } = window._fb;
+    setSyncStatus('saving');
+    await setDoc(doc(db, 'impostazioni', 'bici'), { tariffe }, { merge: true });
+    setSyncStatus('live');
+    showToast('Tariffe salvate');
+  } catch(e) {
+    console.error('Errore salvataggio tariffe:', e);
+    setSyncStatus('error');
+    showToast('Errore durante il salvataggio delle tariffe');
+  }
+}
+
 async function toggleDisponibilitaBici(id) {
   const b = bikesMap[id];
   if (!b) return;
