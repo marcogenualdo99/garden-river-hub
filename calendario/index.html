@@ -2768,8 +2768,11 @@ function toggleServizioConPrezzo() {
     // questo, l'eco realtime del prossimo autosave (che arriva PRIMA che
     // autosalvaPrenotazione registri le voci, v. sotto) scambierebbe una riga
     // del listino appena tornata a un valore già visto in passato per una
-    // voce nuova arrivata da un altro modulo, duplicandola.
-    impostaVociContoConosciute(contoCorrente);
+    // voce nuova arrivata da un altro modulo, duplicandola. Merge, non reset:
+    // se l'operatore ha appena rimosso a mano una voce di listino (Alloggio/
+    // Piazzola/Adulti…) un reset la dimenticherebbe e l'eco del server la
+    // farebbe ricomparire da sola.
+    aggiornaVociContoConosciute(contoCorrente);
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
   aggiornaBadgeOspiti();
@@ -4289,6 +4292,17 @@ function impostaConto(conto) {
 let contoVociConosciute = {};
 function impostaVociContoConosciute(righe) {
   contoVociConosciute = (righe || []).reduce((m, r) => (m[r.label] = (m[r.label] || 0) + 1, m), {});
+}
+// Come impostaVociContoConosciute ma NON azzera mai le etichette assenti: alza
+// il contatore solo per le righe presenti ora. Da usare quando il conto locale
+// può contenere una rimozione ancora non salvata (v. toggleServizioConPrezzo):
+// un reset pieno dimenticherebbe la voce rimossa e l'eco realtime del server —
+// che la mostra ancora finché l'autosave non conferma — la farebbe ricomparire.
+function aggiornaVociContoConosciute(righe) {
+  const conteggio = (righe || []).reduce((m, r) => (m[r.label] = (m[r.label] || 0) + 1, m), {});
+  Object.keys(conteggio).forEach(label => {
+    contoVociConosciute[label] = Math.max(contoVociConosciute[label] || 0, conteggio[label]);
+  });
 }
 // Estrae dalle righe del server SOLO quelle mai viste finora (contate per
 // etichetta, non con un Set: due noleggi della stessa bici allo stesso
