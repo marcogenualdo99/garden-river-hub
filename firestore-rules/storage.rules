@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// ════════════════════════════════════════════════════════════════════════════
+// Firebase Storage — garden-river-conti-febed
+//
+// Bucket: garden-river-conti-febed.firebasestorage.app
+//
+// MODELLO: scrittura SOLO lato server. Gli allegati li carica la Cloud Function
+// 'checkin-online' con l'Admin SDK (che ignora queste regole). Nessun client —
+// nemmeno un operatore autenticato — può scrivere su Storage dal browser.
+//
+// Lettura: consentita a chi è autenticato (anche in anonimo), così gli
+// operatori vedono le foto del documento nella scheda prenotazione. Le foto del
+// check-in hanno comunque un URL con download-token non indovinabile.
+//
+// ⚠️ Il modulo "Documenti" del Calendario (upload di file dal browser) NON
+// funziona con queste regole: va spostato anche lui su una Cloud Function.
+// Finora non è mai stato operativo (Storage non era attivo), quindi non è una
+// regressione.
+//
+// checkin/{prenId}/...  → foto documento inviate dall'ospite via check-in online
+// ════════════════════════════════════════════════════════════════════════════
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read:  if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

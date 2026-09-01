@@ -834,11 +834,15 @@
             <input class="f-input" id="f-tel" type="tel" placeholder="Opzionale" oninput="scheduleAutosave()">
           </div>
           <div>
-            <label class="f-label">Provenienza</label>
-            <select class="f-select" id="f-provenienza" onchange="scheduleAutosave()"></select>
+            <label class="f-label">Email</label>
+            <input class="f-input" id="f-email" type="email" placeholder="Per il check-in online" oninput="scheduleAutosave()">
           </div>
         </div>
         <div class="f-row">
+          <div>
+            <label class="f-label">Provenienza</label>
+            <select class="f-select" id="f-provenienza" onchange="scheduleAutosave()"></select>
+          </div>
           <div>
             <label class="f-label">Targa auto</label>
             <input class="f-input" id="f-targa" type="text" placeholder="Es. AB123CD" style="text-transform:uppercase" oninput="scheduleAutosave()">
@@ -923,6 +927,11 @@
         <button type="button" class="ospiti-btn" id="btn-apri-documenti" onclick="apriDocumentiModal()" style="background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)">
           Documenti
           <span class="ospiti-btn-badge" id="documenti-btn-badge" style="background:var(--white);color:var(--gray-700)"></span>
+        </button>
+
+        <button type="button" class="ospiti-btn" id="btn-apri-checkin-online" onclick="apriCheckinOnlineModal()" style="background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700);margin-top:8px">
+          Check-in online
+          <span class="ospiti-btn-badge" id="checkin-online-badge" style="display:none"></span>
         </button>
 
         <div>
@@ -1153,6 +1162,7 @@
   <div class="form-modal-scroll">
     <div class="form-modal-title">Ospiti da censire (Alloggiati Web)</div>
     <p class="section-hint">Per salvare la prenotazione basta il Capofamiglia/Ospite singolo (richiede documento). Gli altri Familiari vanno aggiunti e completati solo qui, prima di generare la schedina — a quel punto devono essere tanti quante le persone in prenotazione.</p>
+    <div id="ospiti-checkin-online-box" style="display:none"></div>
     <div id="ospiti-list"></div>
     <button type="button" class="add-ospite-btn" onclick="addOspiteRow()">+ Aggiungi ospite</button>
     <button type="button" class="schedina-btn" onclick="apriAnteprimaSchedina()">Anteprima schedina Alloggiati Web</button>
@@ -1188,6 +1198,32 @@
   </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiDocumentiModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE CHECK-IN ONLINE — link personale per l'ospite, da inviare a mano
+     (WhatsApp / email). Quando l'ospite compila, i dati atterrano in "Dettaglio
+     ospiti" e arriva una email alla reception (Cloud Function checkin-online). ══ -->
+<div class="modal-overlay hidden" id="checkin-online-modal-overlay">
+  <div class="form-modal-box">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title">Check-in online</div>
+    <p class="section-hint">Manda all'ospite questo link: compilerà anagrafica e foto del documento di tutti gli occupanti prima di arrivare. Quando invia, ricevi un'email e trovi i dati in “Dettaglio ospiti”, da verificare.</p>
+    <div id="checkin-online-stato" style="margin-bottom:14px"></div>
+    <label class="f-label">Link personale</label>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input class="f-input" id="checkin-online-link" readonly style="flex:1;font-size:12px">
+      <button type="button" class="ospiti-btn" style="width:auto;padding:0 16px;margin:0" onclick="copiaCheckinOnlineLink()">Copia</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0" onclick="apriWhatsappCheckinOnline()">Invia su WhatsApp</button>
+      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0;background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)" onclick="copiaTestoEmailCheckinOnline()">Copia testo email</button>
+    </div>
+    <p class="section-hint" id="checkin-online-scadenza" style="margin-top:12px"></p>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiCheckinOnlineModal()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -2309,6 +2345,9 @@ function statoPrenotazione(p) {
       ? { cls: 'st-checkin-web', label: 'Check-in · Alloggiati Web inviato' }
       : { cls: 'st-checkin',     label: 'Check-in · Alloggiati Web da inviare' };
   }
+  if (p.checkin_online && p.checkin_online.stato === 'ricevuto') {
+    return { cls: 'st-confermata', label: 'Confermata · check-in online ricevuto' };
+  }
   return { cls: 'st-confermata', label: 'Confermata' };
 }
 
@@ -3354,6 +3393,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   document.getElementById('f-nome').value = '';
   document.getElementById('f-cognome').value = '';
   document.getElementById('f-tel').value = '';
+  document.getElementById('f-email').value = '';
   document.getElementById('f-targa').value = '';
   populateProvenienzaSelect('Telefonata');
   document.getElementById('f-checkin').value  = ci;
@@ -3373,6 +3413,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   impostaNote([]);
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
+  aggiornaBadgeCheckinOnline(null);
   resetOspitiRows(1);
   sincronizzaNumeroOspiti();
   populateServiziExtraSelect();
@@ -3398,8 +3439,10 @@ function apriModificaPrenotazione(id) {
   document.getElementById('f-nome').value    = nomeCompletoParti[0] || '';
   document.getElementById('f-cognome').value = nomeCompletoParti.slice(1).join(' ');
   document.getElementById('f-tel').value  = p.tel  || '';
+  document.getElementById('f-email').value = p.email || '';
   document.getElementById('f-targa').value = p.targa || '';
   populateProvenienzaSelect(p.provenienza || 'Telefonata');
+  aggiornaBadgeCheckinOnline(p);
   document.getElementById('f-checkin').value  = p.checkin  || '';
   document.getElementById('f-checkout').value = p.checkout || '';
   document.getElementById('f-adulti').value  = p.adulti  || 0;
@@ -4346,7 +4389,9 @@ function apriPrenotazioneDaImportRiga(idx) {
   document.getElementById('f-nome').value    = nomeParti[0] || '';
   document.getElementById('f-cognome').value = nomeParti.slice(1).join(' ');
   document.getElementById('f-tel').value = r.tel || '';
+  document.getElementById('f-email').value = r.email || '';
   document.getElementById('f-targa').value = '';
+  aggiornaBadgeCheckinOnline(null);
   populateProvenienzaSelect('Agenzia');
   document.getElementById('f-checkin').value  = r.checkin;
   document.getElementById('f-checkout').value = r.checkout;
@@ -4428,7 +4473,31 @@ function apriElencoNonAssegnate() {
 
 // ── MODALE OSPITI / ALLOGGIATI WEB (passaggio separato dalla prenotazione) ─
 function apriOspitiModal() {
+  renderBoxCheckinOnlineOspiti();
   document.getElementById('ospiti-modal-overlay').classList.remove('hidden');
+}
+// Se l'ospite ha compilato il check-in online: banner + miniature delle foto
+// del documento (URL già tokenizzato, scritto dalla Cloud Function).
+function renderBoxCheckinOnlineOspiti() {
+  const box = document.getElementById('ospiti-checkin-online-box');
+  if (!box) return;
+  const p = _prenCheckinCorrente();
+  const co = p && p.checkin_online;
+  if (!co || co.stato !== 'ricevuto') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const foto = (co.foto || []).filter(f => f && f.url);
+  const miniature = foto.length
+    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">` +
+      foto.map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener" style="display:block;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden;width:84px;height:84px">
+        <img src="${esc(f.url)}" alt="${esc(f.tipo || 'documento')}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+      </a>`).join('') + `</div>`
+    : '';
+  box.style.display = '';
+  box.innerHTML =
+    `<div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;color:#166534;line-height:1.55">
+      <b>Compilato dall'ospite via check-in online</b>${co.ricevuto_il ? ' il ' + esc(fmtDataOraIt(co.ricevuto_il)) : ''}.
+      Verifica i dati qui sotto e confronta con le foto del documento.
+      ${miniature}
+    </div>`;
 }
 function chiudiOspitiModal() {
   document.getElementById('ospiti-modal-overlay').classList.add('hidden');
@@ -5098,6 +5167,160 @@ async function eliminaDocumento(i) {
   }
 }
 
+// ── CHECK-IN ONLINE ───────────────────────────────────────────────────────
+// L'ospite riceve un link personale (gardenhub.it/checkin/?t=<token>), compila
+// anagrafica e foto del documento di tutti gli occupanti, e i dati atterrano in
+// p.ospiti + p.checkin_online tramite la Cloud Function 'checkin-online'.
+// L'hub qui genera solo il token e prepara i testi da inviare a mano.
+const CHECKIN_ONLINE_PAGE = 'https://gardenhub.it/checkin/';
+
+function generaCheckinToken() {
+  const a = new Uint8Array(16);
+  (self.crypto || window.crypto).getRandomValues(a);
+  return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+}
+// Scadenza del link: checkout + 3 giorni (epoch ms, come si aspetta la CF).
+function scadenzaCheckinMs(checkoutIso) {
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(checkoutIso || '')
+    ? new Date(checkoutIso + 'T12:00:00')
+    : new Date();
+  base.setDate(base.getDate() + 3);
+  return base.getTime();
+}
+
+function aggiornaBadgeCheckinOnline(p) {
+  const badge = document.getElementById('checkin-online-badge');
+  if (!badge) return;
+  const ricevuto = !!(p && p.checkin_online && p.checkin_online.stato === 'ricevuto');
+  badge.style.display = ricevuto ? '' : 'none';
+  if (ricevuto) {
+    badge.textContent = '✓';
+    badge.style.background = 'var(--green-ok)';
+    badge.style.color = '#fff';
+  }
+}
+
+async function copiaNegliAppunti(testo) {
+  try {
+    await navigator.clipboard.writeText(testo);
+    return true;
+  } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = testo;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (e2) { return false; }
+  }
+}
+
+function testiCheckinOnline(p, link) {
+  const nome = (p.nome || '').trim().split(/\s+/)[0] || 'Gentile ospite';
+  const alloggio = p.alloggio_nome || 'il tuo alloggio';
+  const periodo = `${fmtDataIt(p.checkin)} → ${fmtDataIt(p.checkout)}`;
+  const corpo =
+`${nome}, per velocizzare l'arrivo a Garden River puoi fare il check-in online da qui:
+${link}
+
+Ti servono i dati di tutte le persone che soggiorneranno e la foto di un documento d'identità di chi prenota. Bastano pochi minuti.
+
+Soggiorno: ${alloggio}, ${periodo}
+
+A presto!
+Garden River`;
+  return {
+    whatsapp: corpo,
+    emailOggetto: 'Check-in online — Garden River',
+    emailCorpo: corpo,
+  };
+}
+
+function _prenCheckinCorrente() {
+  return prenotazioni.find(x => x.id === editingId) || null;
+}
+
+async function apriCheckinOnlineModal() {
+  if (!editingId) { showToast('Salva prima la prenotazione'); return; }
+  const p = _prenCheckinCorrente();
+  if (!p) { showToast('Prenotazione non trovata'); return; }
+
+  const overlay = document.getElementById('checkin-online-modal-overlay');
+  const linkInput = document.getElementById('checkin-online-link');
+  linkInput.value = 'Genero il link…';
+  overlay.classList.remove('hidden');
+  renderStatoCheckinOnline(p);
+
+  try {
+    if (!p.checkin_token) {
+      const { db, doc, setDoc, updateDoc } = window._fb;
+      const token = generaCheckinToken();
+      await setDoc(doc(db, 'checkin_links', token), {
+        prenId: p.id,
+        creato_il: new Date().toISOString(),
+        scade_il: scadenzaCheckinMs(p.checkout),
+      });
+      await updateDoc(doc(db, 'prenotazioni', p.id), { checkin_token: token });
+      p.checkin_token = token;
+    }
+    linkInput.value = CHECKIN_ONLINE_PAGE + '?t=' + p.checkin_token;
+    document.getElementById('checkin-online-scadenza').textContent =
+      `Il link resta valido fino a 3 giorni dopo il check-out (${fmtDataIt(p.checkout)}).`;
+  } catch (e) {
+    console.error('Errore generazione link check-in:', e);
+    linkInput.value = '';
+    showToast('Errore: ' + e.message);
+  }
+}
+
+function renderStatoCheckinOnline(p) {
+  const box = document.getElementById('checkin-online-stato');
+  const co = p.checkin_online;
+  if (co && co.stato === 'ricevuto') {
+    const n = Array.isArray(p.ospiti) ? p.ospiti.length : 0;
+    const foto = (co.foto || []).length;
+    box.innerHTML =
+      `<div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:12px;padding:10px 12px;font-size:12.5px;color:#166534;line-height:1.5">
+        <b>Compilato dall'ospite</b>${co.ricevuto_il ? ' il ' + esc(fmtDataOraIt(co.ricevuto_il)) : ''} — ${n} person${n === 1 ? 'a' : 'e'}, ${foto} foto documento.<br>
+        Apri “Dettaglio ospiti” per verificare i dati.
+      </div>`;
+  } else {
+    box.innerHTML =
+      `<div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--gray-600);line-height:1.5">
+        Non ancora compilato dall'ospite.
+      </div>`;
+  }
+}
+
+function chiudiCheckinOnlineModal() {
+  document.getElementById('checkin-online-modal-overlay').classList.add('hidden');
+}
+
+async function copiaCheckinOnlineLink() {
+  const link = document.getElementById('checkin-online-link').value;
+  if (!link || link.indexOf('http') !== 0) return;
+  showToast(await copiaNegliAppunti(link) ? 'Link copiato' : 'Copia non riuscita — selezionalo a mano');
+}
+
+function apriWhatsappCheckinOnline() {
+  const p = _prenCheckinCorrente();
+  const link = document.getElementById('checkin-online-link').value;
+  if (!p || link.indexOf('http') !== 0) return;
+  const { whatsapp } = testiCheckinOnline(p, link);
+  window.open('https://wa.me/?text=' + encodeURIComponent(whatsapp), '_blank');
+}
+
+async function copiaTestoEmailCheckinOnline() {
+  const p = _prenCheckinCorrente();
+  const link = document.getElementById('checkin-online-link').value;
+  if (!p || link.indexOf('http') !== 0) return;
+  const { emailOggetto, emailCorpo } = testiCheckinOnline(p, link);
+  const ok = await copiaNegliAppunti(`Oggetto: ${emailOggetto}\n\n${emailCorpo}`);
+  showToast(ok ? 'Testo email copiato' : 'Copia non riuscita');
+}
+
 function trovaOverlap(alloggioId, checkin, checkout, excludeId) {
   return prenotazioni.find(p => {
     if (p.id === excludeId) return false;
@@ -5137,6 +5360,7 @@ function costruisciDatiPrenotazione() {
       alloggio_nome: alloggioNome,
       nome, checkin, checkout,
       tel: document.getElementById('f-tel').value.trim(),
+      email: document.getElementById('f-email').value.trim(),
       targa: document.getElementById('f-targa').value.trim().toUpperCase(),
       provenienza: document.getElementById('f-provenienza').value,
       adulti:  datiPreventivo.adulti,
@@ -5209,6 +5433,7 @@ const FIELD_LABELS_LOG = {
   checkin: 'Check-in',
   checkout: 'Check-out',
   tel: 'Telefono',
+  email: 'Email',
   targa: 'Targa auto',
   provenienza: 'Provenienza',
   adulti: 'Adulti',

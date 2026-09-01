@@ -88,6 +88,16 @@ service cloud.firestore {
     match /impostazioni/{id} {
       allow read, write: if request.auth != null;
     }
+    // Check-in online: mappa token→prenotazione per il link pubblico
+    // (https://gardenhub.it/checkin/?t=<token>). L'hub la CREA quando genera il
+    // link; il collegamento token→prenotazione lo risolve SOLO la Cloud
+    // Function 'checkin-online' (Admin SDK), che ignora queste regole. Nessun
+    // client deve poterla leggere: un token letto darebbe accesso al form di
+    // un ospite altrui.
+    match /checkin_links/{token} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
 
     // ── Pulizie / alloggi ────────────────────────────────────────────────
     match /alloggi/{id} {

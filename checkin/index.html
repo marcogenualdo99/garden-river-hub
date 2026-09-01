@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Check-in online · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Comuni / province / stati per l'autocompletamento (stesso file del Calendario). -->
+<script src="../assets/dati-alloggiati.js" defer></script>
+<style>
+  :root{
+    --green-700:#1B4332; --green-900:#12301F; --green-ok:#16A34A;
+    --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
+    --gray-300:#D1D5DB; --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB;
+    --white:#fff; --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
+    --amber:#B45309; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+    --radius-sm:12px; --radius:16px; --radius-lg:22px;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --font-display:'Fraunces',Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--font); color:var(--gray-900); background:var(--gray-50);
+    -webkit-font-smoothing:antialiased; line-height:1.5;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px 48px}
+
+  header.top{
+    background:var(--green-700); color:#fff; padding:26px 16px 22px;
+    padding-top:calc(24px + env(safe-area-inset-top));
+    background-image:linear-gradient(135deg,#163A29 0%,#1B4332 50%,#2C6B48 100%);
+  }
+  header.top .inner{max-width:560px;margin:0 auto}
+  header.top .brand{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;opacity:.75}
+  header.top h1{font-family:var(--font-display);font-weight:600;font-size:29px;margin:6px 0 0;letter-spacing:-.01em}
+  header.top .sub{margin-top:12px;font-size:13.5px;opacity:.92;line-height:1.45}
+  header.top .sub b{font-weight:700}
+
+  .card{
+    background:var(--white); border:1px solid var(--gray-100); border-radius:var(--radius-lg);
+    box-shadow:0 2px 10px rgba(0,0,0,.05); padding:18px 16px; margin-top:16px;
+  }
+  .card h2{font-size:15px;font-weight:800;margin:0 0 4px;color:var(--gray-900)}
+  .card p.hint{font-size:12.5px;color:var(--gray-500);margin:0 0 14px;line-height:1.5}
+
+  .osp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .badge{font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;background:var(--green-700);color:#fff}
+  .badge.fam{background:var(--gray-200);color:var(--gray-700)}
+  .osp-remove{margin-left:auto;background:none;border:none;color:var(--gray-400);
+    font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);padding:4px}
+
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px}
+  .field label .req{color:var(--red);margin-left:2px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  input[type=text],input[type=date],select{
+    width:100%;height:44px;padding:0 12px;border:1.5px solid var(--gray-300);
+    border-radius:var(--radius-sm);font-size:15px;font-family:var(--font);color:var(--gray-900);
+    background:var(--white);outline:none;-webkit-appearance:none;appearance:none;
+  }
+  input:focus,select:focus{border-color:var(--green-700)}
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:34px}
+
+  .doc-block{margin-top:14px;padding-top:14px;border-top:1px dashed var(--gray-200)}
+  .doc-block .doc-title{font-size:12px;font-weight:800;color:var(--gray-900);margin-bottom:10px}
+
+  .foto-row{display:flex;gap:10px;margin-top:4px}
+  .foto-slot{flex:1;min-width:0}
+  .foto-slot .foto-label{font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:5px}
+  .foto-drop{
+    position:relative;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);
+    background:var(--gray-50);min-height:104px;display:flex;align-items:center;justify-content:center;
+    text-align:center;overflow:hidden;
+  }
+  .foto-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .foto-drop .foto-placeholder{font-size:11.5px;color:var(--gray-500);padding:8px;line-height:1.4}
+  .foto-drop img{width:100%;height:104px;object-fit:cover;display:block}
+  .foto-slot .foto-clear{width:100%;margin-top:6px;background:var(--gray-100);border:none;
+    border-radius:8px;height:30px;font-size:11.5px;font-weight:700;color:var(--gray-700);
+    cursor:pointer;font-family:var(--font);display:none}
+
+  .add-osp{width:100%;height:46px;margin-top:14px;background:var(--white);
+    border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);color:var(--green-700);
+    font-size:13.5px;font-weight:800;cursor:pointer;font-family:var(--font)}
+  .add-osp:disabled{opacity:.4;cursor:not-allowed}
+
+  .consenso{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--gray-100)}
+  .consenso:first-of-type{border-top:none}
+  .consenso input{width:22px;height:22px;margin-top:1px;flex-shrink:0;accent-color:var(--green-700)}
+  .consenso .txt{font-size:12.5px;color:var(--gray-700);line-height:1.5}
+  .consenso .txt .full{display:none;margin-top:5px;color:var(--gray-500);font-size:12px}
+  .consenso .txt .toggle{color:var(--green-700);font-weight:700;cursor:pointer;font-size:11.5px}
+
+  .errbox{background:var(--red-bg);border:1px solid var(--red-bd);border-radius:var(--radius-sm);
+    padding:12px 14px;margin-top:16px;font-size:12.5px;color:#991B1B;line-height:1.55;display:none}
+  .errbox ul{margin:6px 0 0;padding-left:18px}
+
+  .notice{background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--radius-sm);
+    padding:12px 14px;font-size:12.5px;color:var(--amber);line-height:1.5;margin-top:16px}
+
+  .submit{width:100%;height:52px;margin-top:20px;background:var(--green-700);color:#fff;
+    border:none;border-radius:999px;font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font)}
+  .submit:disabled{opacity:.5;cursor:not-allowed}
+
+  .center-state{max-width:460px;margin:0 auto;padding:64px 24px;text-align:center}
+  .center-state .icon{font-size:34px;margin-bottom:12px}
+  .center-state h2{font-family:var(--font-display);font-weight:600;font-size:23px;margin:0 0 8px}
+  .center-state p{font-size:13.5px;color:var(--gray-500);line-height:1.55;margin:0}
+  .spinner{width:30px;height:30px;border:3px solid var(--gray-200);border-top-color:var(--green-700);
+    border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+
+  .ac-list{position:absolute;z-index:50;background:#fff;border:1px solid var(--gray-200);
+    border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);overflow:hidden;max-height:240px;overflow-y:auto}
+  .ac-item{padding:9px 12px;font-size:13px;cursor:pointer}
+  .ac-item:hover{background:var(--gray-50)}
+
+  .footnote{margin-top:22px;font-size:11px;color:var(--gray-400);text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="stato-caricamento" class="center-state">
+  <div class="spinner"></div>
+  <p>Caricamento…</p>
+</div>
+
+<div id="stato-errore" class="center-state" style="display:none">
+  <div class="icon">🔒</div>
+  <h2 id="err-titolo">Link non valido</h2>
+  <p id="err-testo">Questo link per il check-in non è valido o è scaduto. Contatta la struttura per riceverne uno nuovo.</p>
+</div>
+
+<div id="stato-inviato" class="center-state" style="display:none">
+  <div class="icon">✅</div>
+  <h2>Check-in inviato</h2>
+  <p>Grazie! La reception ha ricevuto i tuoi dati. All'arrivo salterai la compilazione al banco: sarà solo una verifica veloce del documento.</p>
+</div>
+
+<div id="app" style="display:none">
+  <header class="top">
+    <div class="inner">
+      <div class="brand">Garden River</div>
+      <h1>Check-in online</h1>
+      <div class="sub" id="riepilogo"></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <p class="footnote" style="margin-top:16px;text-align:left;color:var(--gray-500);font-size:12.5px">
+      Compila i dati di <b>tutte le persone</b> che soggiorneranno. Per chi prenota
+      (capofamiglia) servono anche gli estremi e la foto di un documento d'identità.
+    </p>
+
+    <div id="avviso-gia-ricevuto" class="notice" style="display:none"></div>
+
+    <div id="schede-ospiti"></div>
+
+    <button type="button" class="add-osp" id="btn-add-osp" onclick="aggiungiOspite()">+ Aggiungi persona</button>
+
+    <div class="card" id="card-consensi">
+      <h2>Consensi</h2>
+      <label class="consenso">
+        <input type="checkbox" id="c-privacy">
+        <span class="txt">
+          Ho letto e accetto l'informativa sul trattamento dei dati personali.
+          <span class="toggle" onclick="toggleFull(this)">Leggi il testo</span>
+          <span class="full" id="full-privacy"></span>
+        </span>
+      </label>
+      <label class="consenso">
+        <input type="checkbox" id="c-regolamento">
+        <span class="txt">
+          Dichiaro di accettare il regolamento della struttura.
+          <span class="toggle" onclick="toggleFull(this)">Leggi il testo</span>
+          <span class="full" id="full-regolamento"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="errbox" id="errbox"></div>
+
+    <button type="button" class="submit" id="btn-invia" onclick="invia()">Invia il check-in</button>
+
+    <p class="footnote">I dati e il documento sono usati solo per la registrazione degli alloggiati
+      prevista per legge (art. 109 TULPS) e per la gestione del soggiorno.</p>
+  </div>
+</div>
+
+<script>
+// URL della Cloud Function (aggiornare dopo il deploy — vedi cloud-functions/checkin-online/README.md)
+const CHECKIN_FN_URL = 'https://checkin-online-113994721180.europe-west1.run.app';
+
+const MAX_LATO_FOTO = 1600;
+const QUALITA_FOTO  = 0.8;
+
+let CFG = null;                 // risposta di `carica`
+let personeAttese = 1;
+const foto = {};               // foto[i] = { fronte: dataURL, retro: dataURL, documento: dataURL }
+
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const token = new URLSearchParams(location.search).get('t') || '';
+
+// ── caricamento ───────────────────────────────────────────────────────────
+async function carica() {
+  if (!token) return mostraErrore('Link non valido', 'Manca il codice del check-in. Usa il link completo che ti ha inviato la struttura.');
+  try {
+    const r = await fetch(CHECKIN_FN_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ azione: 'carica', token }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      if (d.errore === 'link_non_valido') return mostraErrore('Link non valido o scaduto', 'Questo link per il check-in non è più attivo. Contatta la struttura per riceverne uno nuovo.');
+      return mostraErrore('Qualcosa non va', 'Riprova tra poco. Se il problema resta, contatta la struttura.');
+    }
+    CFG = d;
+    render();
+  } catch (e) {
+    mostraErrore('Connessione assente', 'Controlla la connessione e ricarica la pagina.');
+  }
+}
+
+function mostraErrore(titolo, testo) {
+  $('#stato-caricamento').style.display = 'none';
+  $('#app').style.display = 'none';
+  $('#err-titolo').textContent = titolo;
+  $('#err-testo').textContent = testo;
+  $('#stato-errore').style.display = 'block';
+}
+
+function render() {
+  const p = CFG.prenotazione;
+  personeAttese = Math.max(1, p.persone_attese || 1);
+
+  $('#riepilogo').innerHTML =
+    `<b>${esc(p.alloggio_nome || 'Soggiorno')}</b><br>` +
+    `${esc(fmtData(p.checkin))} → ${esc(fmtData(p.checkout))} · ${personeAttese} person${personeAttese === 1 ? 'a' : 'e'}`;
+
+  $('#full-privacy').textContent = CFG.testo_privacy || '';
+  $('#full-regolamento').textContent = CFG.testo_regolamento || '';
+
+  if (p.stato === 'ricevuto') {
+    const a = $('#avviso-gia-ricevuto');
+    a.style.display = 'block';
+    a.textContent = 'Hai già inviato questo check-in. Se qualcosa è cambiato puoi correggere i dati e inviarlo di nuovo: sostituirà il precedente.';
+  }
+
+  const esistenti = Array.isArray(p.ospiti) ? p.ospiti : [];
+  const n = Math.min(personeAttese, Math.max(1, esistenti.length));
+  const iniziali = Array.from({ length: n }, (_, i) => esistenti[i] || {});
+  $('#schede-ospiti').innerHTML = iniziali.map((o, i) => schedaOspite(i, o)).join('');
+  aggiornaBtnAdd();
+
+  $('#stato-caricamento').style.display = 'none';
+  $('#app').style.display = 'block';
+}
+
+// ── schede ospite ─────────────────────────────────────────────────────────
+function schedaOspite(i, o) {
+  o = o || {};
+  const isCapo = i === 0;
+  const esen = (CFG.esenzioni || []).map(e =>
+    `<option value="${esc(e.v)}" ${o.esenzione_tassa_soggiorno === e.v ? 'selected' : ''}>${esc(e.label)}</option>`).join('');
+  return `
+  <div class="card osp-card" data-idx="${i}">
+    <div class="osp-head">
+      <span class="badge ${isCapo ? '' : 'fam'}">${isCapo ? 'Chi prenota' : 'Persona ' + (i + 1)}</span>
+      ${isCapo ? '' : `<button type="button" class="osp-remove" onclick="rimuoviOspite(${i})">Rimuovi</button>`}
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Cognome<span class="req">*</span></label>
+        <input type="text" class="f-cognome" value="${esc(o.cognome || '')}" autocomplete="family-name"></div>
+      <div class="field"><label>Nome<span class="req">*</span></label>
+        <input type="text" class="f-nome" value="${esc(o.nome || '')}" autocomplete="given-name"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Sesso<span class="req">*</span></label>
+        <select class="f-sesso">
+          <option value="M" ${o.sesso === 'F' ? '' : 'selected'}>Maschio</option>
+          <option value="F" ${o.sesso === 'F' ? 'selected' : ''}>Femmina</option>
+        </select></div>
+      <div class="field"><label>Data di nascita<span class="req">*</span></label>
+        <input type="date" class="f-nascita" value="${esc(o.data_nascita || '')}"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Nato/a a (comune o stato estero)<span class="req">*</span></label>
+        <input type="text" class="f-comune ac" data-ac="comune" value="${esc(o.comune_nascita || '')}" placeholder="Es. Milano"></div>
+      <div class="field"><label>Provincia</label>
+        <input type="text" class="f-provincia ac" data-ac="provincia" maxlength="2" value="${esc(o.provincia_nascita || '')}" placeholder="MI" style="text-transform:uppercase"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>Stato di nascita<span class="req">*</span></label>
+        <input type="text" class="f-stato ac" data-ac="stato" value="${esc(o.stato_nascita || '')}" placeholder="Es. Italia"></div>
+      <div class="field"><label>Cittadinanza<span class="req">*</span></label>
+        <input type="text" class="f-cittadinanza ac" data-ac="cittadinanza" value="${esc(o.cittadinanza || '')}" placeholder="Es. Italiana"></div>
+    </div>
+
+    <div class="field"><label>Esenzione tassa di soggiorno</label>
+      <select class="f-esenzione">${esen}</select></div>
+
+    ${isCapo ? blocoDocumento(i, o) : ''}
+    ${isCapo ? '' : fotoRow(i, [['documento', 'Documento (facoltativo)']])}
+  </div>`;
+}
+
+function blocoDocumento(i, o) {
+  return `
+  <div class="doc-block">
+    <div class="doc-title">Documento d'identità</div>
+    <div class="grid2">
+      <div class="field"><label>Tipo<span class="req">*</span></label>
+        <input type="text" class="f-doc-tipo" value="${esc(o.tipo_documento || '')}" placeholder="Carta d'identità"></div>
+      <div class="field"><label>Numero<span class="req">*</span></label>
+        <input type="text" class="f-doc-numero" value="${esc(o.numero_documento || '')}"></div>
+    </div>
+    <div class="field"><label>Luogo di rilascio<span class="req">*</span></label>
+      <input type="text" class="f-doc-luogo" value="${esc(o.luogo_rilascio_documento || '')}" placeholder="Es. Comune di Milano"></div>
+    ${fotoRow(i, [['fronte', 'Foto — fronte *'], ['retro', 'Foto — retro']])}
+  </div>`;
+}
+
+function fotoRow(i, slot) {
+  return `<div class="foto-row">` + slot.map(([tipo, label]) => `
+    <div class="foto-slot" data-tipo="${tipo}">
+      <div class="foto-label">${esc(label)}</div>
+      <div class="foto-drop">
+        <span class="foto-placeholder">Tocca per scattare<br>o scegliere</span>
+        <img alt="" style="display:none">
+        <input type="file" accept="image/*" capture="environment" onchange="onFoto(this, ${i}, '${tipo}')">
+      </div>
+      <button type="button" class="foto-clear" onclick="rimuoviFoto(${i}, '${tipo}')">Rimuovi foto</button>
+    </div>`).join('') + `</div>`;
+}
+
+// ── foto ──────────────────────────────────────────────────────────────────
+async function onFoto(input, i, tipo) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const slot = input.closest('.foto-slot');
+  const ph = slot.querySelector('.foto-placeholder');
+  ph.textContent = 'Elaboro…';
+  try {
+    const dataUrl = await ridimensiona(file, MAX_LATO_FOTO, QUALITA_FOTO);
+    foto[i] = foto[i] || {};
+    foto[i][tipo] = dataUrl;
+    const img = slot.querySelector('img');
+    img.src = dataUrl; img.style.display = 'block';
+    ph.style.display = 'none';
+    slot.querySelector('.foto-clear').style.display = 'block';
+  } catch (e) {
+    ph.textContent = 'Foto non valida, riprova';
+    input.value = '';
+  }
+}
+
+function rimuoviFoto(i, tipo) {
+  if (foto[i]) delete foto[i][tipo];
+  const card = document.querySelector(`.osp-card[data-idx="${i}"]`);
+  const slot = card && card.querySelector(`.foto-slot[data-tipo="${tipo}"]`);
+  if (!slot) return;
+  slot.querySelector('input[type=file]').value = '';
+  const img = slot.querySelector('img');
+  img.src = ''; img.style.display = 'none';
+  const ph = slot.querySelector('.foto-placeholder');
+  ph.style.display = ''; ph.innerHTML = 'Tocca per scattare<br>o scegliere';
+  slot.querySelector('.foto-clear').style.display = 'none';
+}
+
+function ridimensiona(file, maxLato, q) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) return rej(new Error('dimensioni'));
+      if (Math.max(w, h) > maxLato) {
+        if (w >= h) { h = Math.round(h * maxLato / w); w = maxLato; }
+        else { w = Math.round(w * maxLato / h); h = maxLato; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      res(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img')); };
+    img.src = url;
+  });
+}
+
+// ── aggiungi / rimuovi ospite ─────────────────────────────────────────────
+function ospitiDalDom() {
+  return Array.from(document.querySelectorAll('.osp-card')).map(card => {
+    const v = s => { const el = card.querySelector(s); return el ? el.value.trim() : ''; };
+    const o = {
+      cognome: v('.f-cognome'), nome: v('.f-nome'), sesso: v('.f-sesso') || 'M',
+      data_nascita: v('.f-nascita'), comune_nascita: v('.f-comune'),
+      provincia_nascita: v('.f-provincia').toUpperCase(), stato_nascita: v('.f-stato'),
+      cittadinanza: v('.f-cittadinanza'), esenzione_tassa_soggiorno: v('.f-esenzione'),
+    };
+    if (card.dataset.idx === '0') {
+      o.tipo_documento = v('.f-doc-tipo');
+      o.numero_documento = v('.f-doc-numero');
+      o.luogo_rilascio_documento = v('.f-doc-luogo');
+    }
+    return o;
+  });
+}
+
+function aggiungiOspite() {
+  const correnti = ospitiDalDom();
+  if (correnti.length >= personeAttese) return;
+  correnti.push({});
+  $('#schede-ospiti').innerHTML = correnti.map((o, i) => schedaOspite(i, o)).join('');
+  aggiornaBtnAdd();
+}
+
+function rimuoviOspite(i) {
+  const correnti = ospitiDalDom().filter((_, idx) => idx !== i);
+  // le foto seguono gli indici: ricompatta
+  const nuoveFoto = {};
+  correnti.forEach((_, idx) => { const vecchioIdx = idx < i ? idx : idx + 1; if (foto[vecchioIdx]) nuoveFoto[idx] = foto[vecchioIdx]; });
+  Object.keys(foto).forEach(k => delete foto[k]);
+  Object.assign(foto, nuoveFoto);
+  $('#schede-ospiti').innerHTML = correnti.map((o, idx) => schedaOspite(idx, o)).join('');
+  ripristinaAnteprimeFoto();
+  aggiornaBtnAdd();
+}
+
+function ripristinaAnteprimeFoto() {
+  Object.keys(foto).forEach(i => {
+    const card = document.querySelector(`.osp-card[data-idx="${i}"]`);
+    if (!card) return;
+    Object.keys(foto[i]).forEach(tipo => {
+      const slot = card.querySelector(`.foto-slot[data-tipo="${tipo}"]`);
+      if (!slot) return;
+      const img = slot.querySelector('img');
+      img.src = foto[i][tipo]; img.style.display = 'block';
+      slot.querySelector('.foto-placeholder').style.display = 'none';
+      slot.querySelector('.foto-clear').style.display = 'block';
+    });
+  });
+}
+
+function aggiornaBtnAdd() {
+  const n = document.querySelectorAll('.osp-card').length;
+  const btn = $('#btn-add-osp');
+  btn.disabled = n >= personeAttese;
+  btn.textContent = btn.disabled
+    ? `Hai inserito tutte le ${personeAttese} persone`
+    : `+ Aggiungi persona (${n}/${personeAttese})`;
+}
+
+// ── consensi: espandi testo ───────────────────────────────────────────────
+function toggleFull(el) {
+  const full = el.parentElement.querySelector('.full');
+  const aperto = full.style.display === 'block';
+  full.style.display = aperto ? 'none' : 'block';
+  el.textContent = aperto ? 'Leggi il testo' : 'Nascondi';
+}
+
+// ── invio ─────────────────────────────────────────────────────────────────
+function valida(ospiti) {
+  const err = [];
+  ospiti.forEach((o, i) => {
+    const chi = i === 0 ? 'Chi prenota' : `Persona ${i + 1}`;
+    if (!o.cognome) err.push(`${chi}: manca il cognome`);
+    if (!o.nome) err.push(`${chi}: manca il nome`);
+    if (!o.data_nascita) err.push(`${chi}: manca la data di nascita`);
+    if (!o.comune_nascita) err.push(`${chi}: manca il luogo di nascita`);
+    if (!o.stato_nascita) err.push(`${chi}: manca lo stato di nascita`);
+    if (!o.cittadinanza) err.push(`${chi}: manca la cittadinanza`);
+    if (i === 0) {
+      if (!o.tipo_documento) err.push(`${chi}: manca il tipo di documento`);
+      if (!o.numero_documento) err.push(`${chi}: manca il numero del documento`);
+      if (!o.luogo_rilascio_documento) err.push(`${chi}: manca il luogo di rilascio`);
+      if (!(foto[0] && foto[0].fronte)) err.push(`${chi}: manca la foto del fronte del documento`);
+    }
+  });
+  if (!$('#c-privacy').checked) err.push('Devi accettare l\'informativa privacy');
+  if (!$('#c-regolamento').checked) err.push('Devi accettare il regolamento');
+  return err;
+}
+
+function raccogliFoto() {
+  const out = [];
+  Object.keys(foto).forEach(i => {
+    Object.keys(foto[i]).forEach(tipo => {
+      if (foto[i][tipo]) out.push({ ospite_idx: Number(i), tipo, data_url: foto[i][tipo] });
+    });
+  });
+  return out;
+}
+
+async function invia() {
+  chiudiAutocomplete();
+  const ospiti = ospitiDalDom();
+  const err = valida(ospiti);
+  const box = $('#errbox');
+  if (err.length) {
+    box.style.display = 'block';
+    box.innerHTML = 'Controlla questi punti:<ul>' + err.map(e => `<li>${esc(e)}</li>`).join('') + '</ul>';
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  box.style.display = 'none';
+
+  const btn = $('#btn-invia');
+  btn.disabled = true; btn.textContent = 'Invio in corso…';
+  try {
+    const r = await fetch(CHECKIN_FN_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        azione: 'invia', token, ospiti,
+        consensi: { privacy: true, regolamento: true },
+        foto: raccogliFoto(),
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      $('#app').style.display = 'none';
+      $('#stato-inviato').style.display = 'block';
+      window.scrollTo(0, 0);
+      return;
+    }
+    let msg = 'Invio non riuscito. Riprova.';
+    if (d.errore === 'dati_incompleti' && Array.isArray(d.dettagli)) msg = 'Dati incompleti:<ul>' + d.dettagli.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>';
+    else if (d.errore === 'consensi_mancanti') msg = 'Devi accettare privacy e regolamento.';
+    else if (d.errore === 'troppi_ospiti') msg = `Hai inserito più persone di quelle previste dalla prenotazione (${d.attese}).`;
+    else if (d.errore === 'foto_troppo_grande') msg = 'Una foto è troppo grande. Riprova con una foto più leggera.';
+    else if (d.errore === 'foto_formato') msg = 'Una delle foto non è in un formato valido (usa JPG o PNG).';
+    else if (d.errore === 'link_non_valido') msg = 'Il link è scaduto. Chiedi alla struttura un nuovo link.';
+    box.style.display = 'block'; box.innerHTML = msg;
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    box.style.display = 'block'; box.textContent = 'Connessione assente. Controlla la rete e riprova.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Invia il check-in';
+  }
+}
+
+// ── autocomplete comune / provincia / stato / cittadinanza ────────────────
+const AC_SORGENTI = {
+  comune:       () => (window.COMUNI_ITALIANI || []).map(c => c[0]),
+  provincia:    () => (window.PROVINCE_ITALIANE || []).map(p => p[1]),
+  stato:        () => (window.PAESI_MONDO || []).map(p => p[0]),
+  cittadinanza: () => (window.PAESI_MONDO || []).map(p => p[1]),
+};
+let acBox = null;
+function chiudiAutocomplete() { if (acBox) { acBox.remove(); acBox = null; } }
+function filtra(valori, q) {
+  const a = [], b = [], c = [];
+  for (const v of valori) {
+    const lv = v.toLowerCase();
+    if (lv.startsWith(q)) a.push(v);
+    else if (lv.split(/\s+/).some(w => w.startsWith(q))) b.push(v);
+    else if (lv.includes(q)) c.push(v);
+  }
+  const byLen = arr => arr.sort((x, y) => x.length - y.length);
+  return [...byLen(a), ...byLen(b), ...byLen(c)].slice(0, 8);
+}
+document.addEventListener('input', e => {
+  const inp = e.target;
+  if (!inp.classList || !inp.classList.contains('ac')) { chiudiAutocomplete(); return; }
+  const q = inp.value.trim().toLowerCase();
+  chiudiAutocomplete();
+  if (q.length < 2) return;
+  const risultati = filtra(AC_SORGENTI[inp.dataset.ac](), q);
+  if (!risultati.length) return;
+  const box = document.createElement('div');
+  box.className = 'ac-list';
+  const r = inp.getBoundingClientRect();
+  box.style.left = (r.left + scrollX) + 'px';
+  box.style.top = (r.bottom + scrollY + 2) + 'px';
+  box.style.width = r.width + 'px';
+  box.innerHTML = risultati.map(v => `<div class="ac-item">${esc(v)}</div>`).join('');
+  document.body.appendChild(box);
+  box.querySelectorAll('.ac-item').forEach((el, i) => {
+    el.onmousedown = ev => {
+      ev.preventDefault();
+      inp.value = risultati[i];
+      if (inp.dataset.ac === 'comune') autoProvincia(inp);
+      chiudiAutocomplete();
+    };
+  });
+  acBox = box;
+});
+document.addEventListener('focusout', e => {
+  if (e.target.classList && e.target.classList.contains('ac')) setTimeout(chiudiAutocomplete, 150);
+});
+function autoProvincia(inp) {
+  const card = inp.closest('.osp-card');
+  const prov = card && card.querySelector('.f-provincia');
+  if (!prov || prov.value.trim()) return;
+  const nome = inp.value.trim().toLowerCase();
+  const hit = (window.COMUNI_ITALIANI || []).find(c => c[0].toLowerCase() === nome);
+  if (hit) prov.value = hit[1];
+}
+
+function fmtData(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+carica();
+</script>
+</body>
+</html>

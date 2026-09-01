@@ -22,6 +22,7 @@ Verifica fatta in locale: **`garden-river-conti-febed` NON è in "modalità test
 |---|---|
 | `garden-river-conti-febed-CONSOLIDATO.rules` | **Da deployare su conti-febed durante il cutover** — include le 21 collezioni della suite (le 15 attuali + le 6 migrate). ⚠️ Prima confrontalo con le regole attuali di conti-febed (vedi sotto). |
 | `garden-river-conti-febed.rules` | Solo le 15 collezioni attuali. Riferimento / rollback se il consolidamento salta. |
+| `storage.rules` | Regole di **Firebase Storage** (Console Firebase → Storage → Regole). Scrittura solo lato server; serve al check-in online per le foto del documento. |
 | `garden-river-hub.rules` | Se NON consolidi: blinda il progetto hub. Se consolidi: dopo il cutover, per blindare il vecchio progetto svuotato (o eliminalo). |
 | `garden-river-magazzino.rules` | Come sopra per magazzino. |
 
@@ -70,6 +71,18 @@ documento `operatori/{nome}` conserva solo `{ nome, ruolo, haPin }`.
 Migrazione una tantum: azione `migra` della funzione (protetta da
 `MIGRA_TOKEN`), che trasforma i PIN in chiaro esistenti in hash e poi — con
 `pulisci:true` — cancella il campo `pin`.
+
+### Check-in online (dal 09/2026)
+
+Nuova collezione `checkin_links/{token}` = `{ prenId, creato_il, scade_il }`:
+l'hub la **crea** quando genera il link check-in di una prenotazione; solo la
+Cloud Function `checkin-online` (`cloud-functions/checkin-online/`) risolve
+`token → prenotazione`. Le regole permettono ai client solo `create`, mai
+`read/update/delete` — un token leggibile darebbe a un client il form di un
+ospite altrui.
+
+Va pubblicato anche `storage.rules` (Firebase Storage) per le foto del
+documento.
 
 ### Limiti noti (autenticazione anonima)
 
