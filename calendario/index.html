@@ -1230,9 +1230,8 @@ const LISTINI_DEFAULT = {
     // selezionato Spiaggia o un kit biancheria.
     pacchettoServiziPerMese: { 6:140, 7:155, 8:170, 9:140 },
   },
-  // Non ancora collegato al calcolo prezzi del form: nel modulo Alloggi non
-  // esiste oggi una categoria "piazzola/campeggio" da prenotare a calendario.
-  // Teniamo comunque il listino qui, pronto per quando ci sarà.
+  // Usato da calcolaPreventivoCampeggio() per le prenotazioni nella categoria
+  // "Piazzole". Tutto a tariffa giornaliera; Piazzola e Luce sempre dovute.
   campeggio: {
     validoDal: '2026-05-30',
     validoAl:  '2026-09-05',
@@ -1284,6 +1283,7 @@ function trovaPeriodoListino(periodi, iso) {
 // manca qualche dato, altrimenti { disponibile:true, righe:[{label,importo}], totale }.
 function calcolaPreventivo(input) {
   const { categoria, checkin, checkout, adulti, b0_2, b3_4, b5_9, b10_17, animali, trattamento, spiaggia, pacchettoServizi, kitBagno, kitSingolo, kitMatrimoniale } = input;
+  if (categoria === 'piazzole') return calcolaPreventivoCampeggio(input);
   const listino = listini.villini;
   if (!listino) return { disponibile:false, motivo:'Listino non ancora caricato…' };
   if (!categoria)   return { disponibile:false, motivo:'Seleziona un alloggio per vedere la stima.' };
@@ -1365,6 +1365,48 @@ function calcolaPreventivo(input) {
       totale += costoSpiaggia;
     }
   }
+  return { disponibile:true, righe, totale };
+}
+
+// Stima per l'area campeggio (categoria "piazzole"): dal listino Campeggio,
+// tutto a tariffa giornaliera. Piazzola e Luce sono sempre dovute; le persone
+// paganti sono adulti + ragazzi 10-17 + bambini 5-9 (0-4 anni gratis). Le
+// tariffe cambiano per periodo, quindi il soggiorno viene spezzato in segmenti
+// come per i villini. Gli animali si aggiungono solo se spuntati nel form.
+function calcolaPreventivoCampeggio(input) {
+  const { checkin, checkout, adulti, b5_9, b10_17, animali } = input;
+  const l = listini.campeggio;
+  if (!l) return { disponibile:false, motivo:'Listino Campeggio non ancora caricato…' };
+  if (!checkin || !checkout || checkout <= checkin) return { disponibile:false, motivo:'Imposta date di check-in/check-out valide.' };
+
+  const notti = diffDays(checkin, checkout);
+  const segmenti = [];
+  let fuoriListino = false;
+  for (let i = 0; i < notti; i++) {
+    const per = trovaPeriodoListino(l.periodi, addDaysIso(checkin, i));
+    if (!per) { fuoriListino = true; continue; }
+    const ultimo = segmenti[segmenti.length - 1];
+    if (ultimo && ultimo.per === per) ultimo.notti++;
+    else segmenti.push({ per, inizio: i, notti: 1 });
+  }
+  if (fuoriListino) return { disponibile:false, motivo:`Una o più notti sono fuori dal periodo coperto dal listino Campeggio (${fmtDataIt(l.validoDal)}–${fmtDataIt(l.validoAl)}).` };
+
+  const righe = [];
+  let totale = 0;
+  const add = (label, importo) => { if (importo > 0) { righe.push({ label, importo }); totale += importo; } };
+
+  segmenti.forEach(s => {
+    const p = s.per, n = s.notti;
+    const range = `${fmtDataIt(addDaysIso(checkin, s.inizio)).slice(0,5)}–${fmtDataIt(addDaysIso(checkin, s.inizio + n)).slice(0,5)}`;
+    const suff = `${n} nott${n === 1 ? 'e' : 'i'} (${range})`;
+    add(`Piazzola · ${suff}`, n * (Number(p.piazzola) || 0));
+    add(`Luce · ${suff}`, n * (Number(p.luce) || 0));
+    if (adulti) add(`Adulti × ${adulti} · ${suff}`, n * adulti * (Number(p.adulti) || 0));
+    if (b10_17) add(`Ragazzi 10-17 × ${b10_17} · ${suff}`, n * b10_17 * (Number(p.b10_17) || 0));
+    if (b5_9)   add(`Bambini 5-9 × ${b5_9} · ${suff}`, n * b5_9 * (Number(p.b5_9) || 0));
+    if (animali) add(`Animali · ${suff}`, n * (Number(p.animali) || 0));
+  });
+
   return { disponibile:true, righe, totale };
 }
 
@@ -2676,7 +2718,7 @@ const PREFISSI_SERVIZI_CONTO = ['Animali ·', 'Pulizia finale in presenza di ani
 // aggiornaTassaSoggiorno() (v. sezione CONTO), che deve poterla congelare da
 // sola una volta fiscalizzata — se fosse in questa lista, il ricalcolo di
 // aggiornaPreventivo() la ricreerebbe da zero perdendo il flag "fiscalizzato".
-const PREFISSI_RIGHE_LISTINO = ['Alloggio ·', 'Adulti ×', 'Ragazzi 10-17 ×', 'Bambini 5-9 ×', 'Bambini 3-4 ×', 'Bambini 0-2 ×', ...PREFISSI_SERVIZI_CONTO];
+const PREFISSI_RIGHE_LISTINO = ['Alloggio ·', 'Piazzola ·', 'Luce ·', 'Adulti ×', 'Ragazzi 10-17 ×', 'Bambini 5-9 ×', 'Bambini 3-4 ×', 'Bambini 0-2 ×', ...PREFISSI_SERVIZI_CONTO];
 function toggleServizioConPrezzo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
   if (risultato.disponibile) {
@@ -5824,7 +5866,7 @@ function renderListinoCampeggioPanel() {
   panel.innerHTML = `
     <div class="listino-card">
       <h3>Listino Campeggio</h3>
-      <p class="subtitle">Prezzi per notte — valido dal ${esc(fmtDataIt(l.validoDal))} al ${esc(fmtDataIt(l.validoAl))}. Non ancora collegato al calcolo prezzi delle prenotazioni: nel modulo Alloggi non esiste ancora una categoria "piazzola" da prenotare a calendario.</p>
+      <p class="subtitle">Prezzi per notte — valido dal ${esc(fmtDataIt(l.validoDal))} al ${esc(fmtDataIt(l.validoAl))}. Usato per la stima automatica delle prenotazioni nella categoria "Piazzole" (Piazzola e Luce sempre dovute, bambini 0-4 gratis).</p>
       <div class="listino-scroll"><table class="listino-table">
         <thead><tr><th class="row-label">Voce</th>${l.periodi.map(p => `<th>${esc(fmtPeriodoLabel(p))}</th>`).join('')}</tr></thead>
         <tbody>${righe}</tbody>
