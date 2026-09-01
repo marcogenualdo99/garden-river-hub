@@ -890,6 +890,8 @@
             </div>
           </div>
         </div>
+
+        <label class="f-check" id="chk-animali-2-wrap" style="margin-top:12px"><input type="checkbox" id="f-animali-2" onchange="syncCheckGemello('f-animali-2')"> Animali al seguito</label>
       </div>
 
       <div class="form-col">
@@ -937,7 +939,7 @@
           <div class="servizi-sub-label">Servizi a corpo</div>
           <div class="f-check-row">
             <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="toggleServizioConPrezzo()"> Spiaggia</label>
-            <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="toggleServizioConPrezzo()"> Animali al seguito</label>
+            <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="syncCheckGemello('f-animali')"> Animali al seguito</label>
             <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
           </div>
 
@@ -1373,8 +1375,10 @@ function calcolaPreventivo(input) {
 // paganti sono adulti + ragazzi 10-17 + bambini 5-9 (0-4 anni gratis). Le
 // tariffe cambiano per periodo, quindi il soggiorno viene spezzato in segmenti
 // come per i villini. Gli animali si aggiungono solo se spuntati nel form.
+// Biancheria e spiaggia à la carte usano le stesse tariffe del listino Villini
+// (stesso kit, stesso servizio spiaggia); il pacchetto forfait resta solo Villini.
 function calcolaPreventivoCampeggio(input) {
-  const { checkin, checkout, adulti, b5_9, b10_17, animali } = input;
+  const { checkin, checkout, adulti, b5_9, b10_17, animali, kitBagno, kitSingolo, kitMatrimoniale, spiaggia } = input;
   const l = listini.campeggio;
   if (!l) return { disponibile:false, motivo:'Listino Campeggio non ancora caricato…' };
   if (!checkin || !checkout || checkout <= checkin) return { disponibile:false, motivo:'Imposta date di check-in/check-out valide.' };
@@ -1406,6 +1410,16 @@ function calcolaPreventivoCampeggio(input) {
     if (b5_9)   add(`Bambini 5-9 × ${b5_9} · ${suff}`, n * b5_9 * (Number(p.b5_9) || 0));
     if (animali) add(`Animali · ${suff}`, n * (Number(p.animali) || 0));
   });
+
+  const v = listini.villini;
+  if (v && v.prezziKit) {
+    if (kitBagno)        add(`Kit bagno × ${kitBagno}`, kitBagno * (Number(v.prezziKit.bagno) || 0));
+    if (kitSingolo)      add(`Kit singolo × ${kitSingolo}`, kitSingolo * (Number(v.prezziKit.singolo) || 0));
+    if (kitMatrimoniale) add(`Kit matrimoniale × ${kitMatrimoniale}`, kitMatrimoniale * (Number(v.prezziKit.matrimoniale) || 0));
+  }
+  if (spiaggia && v && v.spiaggiaPerGiorno != null) {
+    add(`Spiaggia · ${notti} nott${notti === 1 ? 'e' : 'i'}`, notti * (Number(v.spiaggiaPerGiorno) || 0));
+  }
 
   return { disponibile:true, righe, totale };
 }
@@ -2568,8 +2582,29 @@ function populateAlloggioSelect(selectedId) {
 }
 function setCheck(id, val) {
   const el = document.getElementById(id);
+  if (!el) return;
   el.checked = val;
-  el.closest('.f-check').classList.toggle('on', val);
+  const w = el.closest('.f-check'); if (w) w.classList.toggle('on', val);
+  // Alcune spunte (es. Animali) compaiono due volte nel form: tieni allineato il gemello.
+  const tw = document.getElementById(idGemello(id));
+  if (tw && tw.type === 'checkbox') {
+    tw.checked = val;
+    const tww = tw.closest('.f-check'); if (tww) tww.classList.toggle('on', val);
+  }
+}
+// onchange di una spunta "gemella" (id / id+'-2'): allinea l'altra copia e
+// ricalcola il conto, esattamente come fa adjustQty per i kit biancheria.
+function syncCheckGemello(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const w = el.closest('.f-check'); if (w) w.classList.toggle('on', el.checked);
+  const tw = document.getElementById(idGemello(id));
+  if (tw) {
+    tw.checked = el.checked;
+    const tww = tw.closest('.f-check'); if (tww) tww.classList.toggle('on', el.checked);
+  }
+  toggleServizioConPrezzo();
+  scheduleAutosave();
 }
 ['f-spiaggia','f-animali','f-pacchetto-servizi'].forEach(id => {
   document.getElementById(id).addEventListener('change', e => {
