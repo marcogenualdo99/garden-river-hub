@@ -366,24 +366,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
-      <button class="hbtn ghost icon" onclick="openSettings()" id="btn-settings" title="Impostazioni" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ HEADER IMPOSTAZIONI ══════════════════════════════════════════════════ -->
-<div class="top-bar hidden" id="top-bar-settings">
-  <div class="header-inner">
-    <div class="header-left">
-      <button class="hbtn ghost icon" onclick="closeSettings()" title="Torna">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
-      <div>
-        <div class="header-name">Impostazioni pulizie</div>
-        <div class="header-role">Aggiungi, elimina o disattiva un alloggio</div>
-      </div>
     </div>
   </div>
 </div>
@@ -400,10 +382,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
   <div id="avvisi-container"></div>
   <div class="alert-grid" id="stats-row"></div>
   <div id="cats-container"></div>
-</main>
-
-<main id="settings-view" class="hidden">
-  <div id="settings-container"></div>
 </main>
 
 </div>
@@ -441,24 +419,20 @@ function toggleDrawer(open) {
   document.body.classList.toggle('drawer-open', open);
 }
 
-// 👉 CATEGORIE ALLOGGIO — sorgente unica condivisa con Calendario, Conti e
-//    Manutenzione. La versione operativa vive su Firestore
-//    (doc "impostazioni/categorie-alloggi", campo "lista"): questo modulo la
-//    semina al primo avvio da CATEGORIE_ALLOGGI_DEFAULT e poi la tiene
-//    aggiornata via listener. I campi "from"/"to" servono solo al primissimo
-//    popolamento della collezione "alloggi"; "soloListino" marca le categorie
-//    che esistono a listino ma non come alloggi prenotabili (non compaiono qui).
-const CATEGORIE_ALLOGGI_DEFAULT = [
-  { key:'bluehouse',      label:'Blue House',        from:9, to:14 },
-  { key:'villinicomfort', label:'Villini Comfort',   from:7, to:25 },
-  { key:'villinideluxe',  label:'Villini Deluxe',    from:1, to:6  },
-  { key:'riviera',        label:'Riviera',           from:1, to:20 },
-  { key:'supertitania',   label:'Super Titania',     from:1, to:10 },
-  { key:'joy',            label:'Joy',               from:1, to:6  },
-  { key:'villinischiera', label:'Villini a Schiera', soloListino:true },
+// 👉 CATEGORIE ALLOGGIO — sorgente unica di tutto l'hub. Si gestiscono SOLO
+//    dalle Impostazioni del Calendario (categorie + numeri delle unità); qui
+//    si leggono in sola lettura dal doc Firestore "impostazioni/categorie-alloggi".
+//    La lista sotto è solo il fallback finché il doc non è arrivato.
+const CATS_DEFAULT = [
+  { key:'bluehouse',      label:'Blue House' },
+  { key:'villinicomfort', label:'Villini Comfort' },
+  { key:'villinideluxe',  label:'Villini Deluxe' },
+  { key:'riviera',        label:'Riviera' },
+  { key:'supertitania',   label:'Super Titania' },
+  { key:'joy',            label:'Joy' },
+  { key:'piazzole',       label:'Piazzole' },
 ];
-// Categorie effettivamente gestite in questo modulo (no "soloListino").
-let CATS = CATEGORIE_ALLOGGI_DEFAULT.filter(c => !c.soloListino);
+let CATS = CATS_DEFAULT.slice();
 
 // Stessi 5 stati reali, stessi colori e stesse icone di STATO_ALLOGGIO_META
 // nel modulo Calendario (calendario/index.html) — condivisi tra i due
@@ -505,10 +479,8 @@ let alloggiMap        = {};  // id -> { id, categoria, categoriaLabel, numero, n
 let prenotazioniList  = [];  // sola lettura dalla collezione "prenotazioni" (Calendario): solo per mostrare arrivo/kit biancheria
 let expanded          = {};  // categoria key -> bool
 let logOpen           = {};  // unit id -> bool
-let settingsOpen      = false;
 
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
-function unitId(catKey, n) { return catKey + '_' + n; }
 function fmtTs(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -659,39 +631,6 @@ function setSyncStatus(state) {
   if (dot) dot.style.background = map[state] || map.offline;
 }
 
-// Crea gli alloggi mancanti in Firestore in base alla configurazione CATS.
-// Gira in background ad ogni avvio, ma legge un solo documento (non tutti e
-// 67) per controllare se la collezione è già stata inizializzata — molto più
-// veloce. Se un alloggio esiste già non viene toccato, così non si perdono
-// mai stato/storico già presenti.
-async function ensureDefaultData() {
-  await waitForFirebase();
-  const { db, collection, getDocs, setDoc, doc, query, limit } = window._fb;
-  try {
-    const snap = await getDocs(query(collection(db, 'alloggi'), limit(1)));
-    // Il riempimento automatico scatta solo al primissimo avvio (collezione
-    // del tutto vuota). Dopo, l'unico modo per aggiungere/eliminare alloggi
-    // è dalle Impostazioni — altrimenti un alloggio eliminato "rinascerebbe"
-    // da solo al prossimo refresh.
-    if (!snap.empty) return;
-    const ops = [];
-    CATS.forEach(cat => {
-      for (let n = cat.from; n <= cat.to; n++) {
-        const id = unitId(cat.key, n);
-        ops.push(setDoc(doc(db, 'alloggi', id), {
-          categoria: cat.key,
-          categoriaLabel: cat.label,
-          numero: n,
-          nome: cat.label + ' ' + n,
-          stato: 'pronta',
-          log: [{ op:'Sistema', ts: new Date().toISOString(), stato:'pronta' }],
-        }));
-      }
-    });
-    if (ops.length) await Promise.all(ops);
-  } catch(e) { console.error('Errore init alloggi:', e); }
-}
-
 let _unsubAlloggi = null;
 async function startRealtimeSync() {
   await waitForFirebase();
@@ -710,25 +649,20 @@ async function startRealtimeSync() {
   } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
 }
 
-// Categorie alloggio: doc "impostazioni/categorie-alloggi", condiviso con gli
-// altri moduli. Questo modulo è l'unico che lo semina; se manca lo crea da
-// CATEGORIE_ALLOGGI_DEFAULT, altrimenti si limita a seguirne le modifiche.
+// Categorie alloggio: sola lettura dal doc "impostazioni/categorie-alloggi".
+// La gestione (categorie + numeri unità) è solo nelle Impostazioni del Calendario.
 let _unsubCategorie = null;
 async function startRealtimeSyncCategorie() {
   await waitForFirebase();
-  const { db, doc, setDoc, onSnapshot } = window._fb;
+  const { db, doc, onSnapshot } = window._fb;
   try {
     _unsubCategorie = onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
-      if (!snap.exists()) {
-        setDoc(doc(db, 'impostazioni', 'categorie-alloggi'), { lista: CATEGORIE_ALLOGGI_DEFAULT })
-          .catch(e => console.error('Errore seed categorie alloggio:', e));
-        return; // la scrittura ri-scatena questo stesso listener
-      }
-      const lista = Array.isArray(snap.data().lista) && snap.data().lista.length
-        ? snap.data().lista : CATEGORIE_ALLOGGI_DEFAULT;
-      CATS = lista.filter(c => c && c.key && !c.soloListino);
+      const lista = snap.exists() && Array.isArray(snap.data().lista) && snap.data().lista.length
+        ? snap.data().lista : null;
+      CATS = lista
+        ? lista.filter(c => c && c.key && c.label).map(c => ({ key: c.key, label: c.label }))
+        : CATS_DEFAULT.slice();
       render();
-      if (settingsOpen) renderSettings();
     }, (err) => { console.error('Errore listener categorie alloggio:', err); });
   } catch(e) { console.error('Errore avvio sync categorie alloggio:', e); }
 }
@@ -859,7 +793,6 @@ function applyRole() {
   document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
   document.getElementById('header-name').textContent   = currentOperatore || '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
-  document.getElementById('btn-settings').style.display = admin ? '' : 'none';
 }
 function initLogin() {
   if (!loadHubSession()) {
@@ -920,7 +853,6 @@ function render() {
   renderAvvisiGlobali();
   renderStats();
   renderCats();
-  if (settingsOpen) renderSettings();
   hydrateIcons(); // ri-inietta le icone anche dentro il contenuto appena generato
 }
 
@@ -1031,7 +963,8 @@ function renderCats() {
     document.getElementById('cats-container').innerHTML = html;
     return;
   }
-  const html = CATS.map(cat => {
+  // Solo le categorie che hanno almeno un'unità (es. Piazzole non è "da pulire").
+  const html = CATS.filter(cat => unitsForCat(cat.key).length).map(cat => {
     const open = !!expanded[cat.key];
     const daGestire = unitsDaGestire(cat.key);
     let unitsHtml = '';
@@ -1052,104 +985,8 @@ function renderCats() {
   document.getElementById('cats-container').innerHTML = html;
 }
 
-// ── IMPOSTAZIONI (solo admin): aggiungi / elimina / disattiva un alloggio ───
-function openSettings() {
-  if (!isAdmin()) return;
-  settingsOpen = true;
-  document.getElementById('top-bar-main').classList.add('hidden');
-  document.getElementById('top-bar-settings').classList.remove('hidden');
-  document.getElementById('main-view').classList.add('hidden');
-  document.getElementById('settings-view').classList.remove('hidden');
-  renderSettings();
-}
-function closeSettings() {
-  settingsOpen = false;
-  document.getElementById('top-bar-settings').classList.add('hidden');
-  document.getElementById('top-bar-main').classList.remove('hidden');
-  document.getElementById('settings-view').classList.add('hidden');
-  document.getElementById('main-view').classList.remove('hidden');
-}
-function renderSettings() {
-  const catOptions = CATS.map(c => '<option value="'+c.key+'">'+c.label+'</option>').join('');
-  let html = '<div class="settings-card">'+
-    '<h3>Aggiungi un alloggio</h3>'+
-    '<div class="settings-form-row">'+
-      '<select id="add-cat-select">'+catOptions+'</select>'+
-      '<input type="number" id="add-num-input" placeholder="Numero" min="1">'+
-      '<button onclick="addAlloggio()" aria-label="Aggiungi alloggio">+</button>'+
-    '</div>'+
-  '</div>';
-  CATS.forEach(cat => {
-    const units = unitsForCat(cat.key);
-    html += '<div class="settings-cat-title">'+cat.label+' ('+units.length+')</div>';
-    if (!units.length) {
-      html += '<div style="font-size:12px;color:var(--gray-500);padding:0 4px 8px">Nessun alloggio in questa categoria</div>';
-    }
-    units.forEach(u => {
-      const m = STATUS_META[u.stato] || STATUS_META.pronta;
-      const nonDisp = u.stato === 'non_disponibile';
-      html += '<div class="settings-row">'+
-        '<div><div class="nome">'+u.nome+'</div><div class="stato-lbl" style="color:'+m.color+'">'+m.label+'</div></div>'+
-        '<div class="btns">'+
-          '<button class="btn-toggle" onclick="toggleDisponibilita(\''+u.id+'\')">'+(nonDisp ? 'Riattiva' : 'Rendi non disp.')+'</button>'+
-          '<button class="btn-delete" onclick="requestDeleteAlloggio(\''+u.id+'\')">Elimina</button>'+
-        '</div>'+
-      '</div>';
-    });
-  });
-  document.getElementById('settings-container').innerHTML = html;
-}
-function toggleDisponibilita(id) {
-  const u = alloggiMap[id];
-  if (!u) return;
-  setStato(id, u.stato === 'non_disponibile' ? 'pronta' : 'non_disponibile');
-}
-async function addAlloggio() {
-  const catKey = document.getElementById('add-cat-select').value;
-  const numInput = document.getElementById('add-num-input');
-  const n = parseInt(numInput.value, 10);
-  const cat = CATS.find(c => c.key === catKey);
-  if (!cat || !n || n < 1) { showToast('Inserisci un numero valido'); return; }
-  const id = unitId(catKey, n);
-  if (alloggiMap[id]) { showToast('Questo alloggio esiste già'); return; }
-  try {
-    await waitForFirebase();
-    const { db, doc, setDoc } = window._fb;
-    await setDoc(doc(db, 'alloggi', id), {
-      categoria: cat.key,
-      categoriaLabel: cat.label,
-      numero: n,
-      nome: cat.label + ' ' + n,
-      stato: 'pronta',
-      log: [{ op: currentOperatore || 'Operatore', ts: new Date().toISOString(), stato:'pronta' }],
-    });
-    numInput.value = '';
-    showToast('Alloggio aggiunto');
-  } catch(e) {
-    console.error('Errore aggiunta alloggio:', e);
-    showToast('Errore durante l\'aggiunta');
-  }
-}
-function requestDeleteAlloggio(id) {
-  const u = alloggiMap[id];
-  if (!u) return;
-  showModal(
-    'Eliminare ' + u.nome + '?',
-    'Questa azione non può essere annullata. L\'alloggio e il suo storico verranno eliminati definitivamente.',
-    'Elimina',
-    async () => {
-      try {
-        await waitForFirebase();
-        const { db, doc, deleteDoc } = window._fb;
-        await deleteDoc(doc(db, 'alloggi', id));
-        showToast('Alloggio eliminato');
-      } catch(e) {
-        console.error('Errore eliminazione alloggio:', e);
-        showToast('Errore durante l\'eliminazione');
-      }
-    }
-  );
-}
+// Categorie e unità (numeri) si gestiscono SOLO dalle Impostazioni del
+// Calendario → tab "Alloggi". Qui il modulo è di sola lettura.
 
 // ── MODAL DI CONFERMA ────────────────────────────────────────────────────
 function showModal(title, body, confirmLabel, onConfirm) {
@@ -1181,13 +1018,9 @@ async function start() {
     setSyncStatus('error');
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
-  // Le due cose partono in parallelo: la sync mostra subito i dati appena
-  // arrivano, mentre il controllo di inizializzazione gira in background
-  // (serve solo al primissimo avvio in assoluto, non deve far aspettare).
   startRealtimeSync();
   startRealtimeSyncPrenotazioni();
   startRealtimeSyncCategorie();
-  ensureDefaultData();
 }
 start();
 </script>

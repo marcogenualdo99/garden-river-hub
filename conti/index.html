@@ -704,7 +704,7 @@ function initials(o)  { return (o.cognome[0]||'') + (o.nome[0]||''); }
 // Ordine delle categorie alloggio: sorgente unica condivisa, doc Firestore
 // "impostazioni/categorie-alloggi" (seminato dal modulo Alloggi). Qui si legge
 // soltanto; la lista sotto è il fallback finché il doc non è arrivato.
-const ALLOGGIO_CAT_ORDER_DEFAULT = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy','Villini a Schiera'];
+const ALLOGGIO_CAT_ORDER_DEFAULT = ['Blue House','Villini Comfort','Villini Deluxe','Riviera','Super Titania','Joy','Piazzole'];
 let ALLOGGIO_CAT_ORDER = [...ALLOGGIO_CAT_ORDER_DEFAULT];
 function escHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

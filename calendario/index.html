@@ -111,8 +111,11 @@
 .cal-counts-cell { flex: none; text-align: center; padding: 4px 2px; font-size: 11px; font-weight: 800; color: var(--gray-700); border-right: 1px solid var(--gray-100); }
 .cal-counts-row.occupate .cal-counts-cell { color: var(--terracotta); }
 
-.cal-cat-row { display: flex; background: var(--green-50); border-bottom: 1px solid var(--gray-100); }
-.cal-cat-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 3; background: var(--green-50); padding: 6px 12px; font-size: 11px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--gray-200); }
+.cal-cat-row { display: flex; background: var(--green-50); border-bottom: 1px solid var(--gray-100); cursor: pointer; user-select: none; }
+.cal-cat-row:hover .cal-cat-label { background: var(--green-100, #dcece0); }
+.cal-cat-label { width: var(--label-w); flex: none; position: sticky; left: 0; z-index: 3; background: var(--green-50); padding: 6px 12px; font-size: 11px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .04em; border-right: 1px solid var(--gray-200); display: flex; align-items: center; gap: 5px; }
+.cal-cat-chev { font-size: 9px; opacity: .8; }
+.cal-cat-count { margin-left: auto; background: var(--green-700); color: #fff; border-radius: 9px; padding: 0 6px; font-size: 10px; line-height: 15px; letter-spacing: 0; }
 .cal-cat-fill { flex: none; }
 
 .cal-row { display: flex; border-bottom: 1px solid var(--gray-100); }
@@ -711,12 +714,14 @@
     </div>
   </div>
   <div class="listino-tabs">
-    <button type="button" class="listino-tab active" id="tab-villini" onclick="switchListinoTab('villini')">Villini</button>
+    <button type="button" class="listino-tab active" id="tab-alloggi" onclick="switchListinoTab('alloggi')">Alloggi</button>
+    <button type="button" class="listino-tab" id="tab-villini" onclick="switchListinoTab('villini')">Villini</button>
     <button type="button" class="listino-tab" id="tab-campeggio" onclick="switchListinoTab('campeggio')">Campeggio</button>
     <button type="button" class="listino-tab" id="tab-generali" onclick="switchListinoTab('generali')">Generali</button>
     <button type="button" class="listino-tab" id="tab-fiscalizzazione" onclick="switchListinoTab('fiscalizzazione')">Fiscalizzazione</button>
   </div>
-  <div id="listino-villini-panel"></div>
+  <div id="listino-alloggi-panel"></div>
+  <div id="listino-villini-panel" class="hidden"></div>
   <div id="listino-campeggio-panel" class="hidden"></div>
   <div id="listino-generali-panel" class="hidden"></div>
   <div id="listino-fiscalizzazione-panel" class="hidden"></div>
@@ -1732,7 +1737,10 @@ async function startRealtimeSync() {
   try {
     _unsubAlloggi = onSnapshot(collection(db, 'alloggi'), (snap) => {
       alloggiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      calcolaOrfaniAlloggi();
       renderGrid();
+      const sv = document.getElementById('settings-view');
+      if (sv && !sv.classList.contains('hidden')) renderListiniSettings();
     }, (err) => { console.error('Errore lettura alloggi:', err); setSyncStatus('error'); });
   } catch(e) { console.error('Errore avvio sync alloggi:', e); setSyncStatus('error'); }
   try {
@@ -1959,13 +1967,33 @@ function groupedAlloggi() {
   const map = {};
   alloggiFiltrati().forEach(a => {
     const key = a.categoria || 'altro';
-    if (!map[key]) map[key] = { label: a.categoriaLabel || key, items: [] };
+    if (!map[key]) map[key] = { key, label: a.categoriaLabel || key, items: [] };
     map[key].items.push(a);
   });
   const cats = Object.values(map);
   cats.forEach(c => c.items.sort((x,y) => (x.numero||0) - (y.numero||0)));
-  cats.sort((a,b) => a.label.localeCompare(b.label));
+  // Ordine = quello della sorgente unica "categorie-alloggi"; le categorie non
+  // presenti in lista finiscono in fondo, in ordine alfabetico.
+  const ordine = categorieAlloggi.map(c => c.key);
+  cats.sort((a,b) => {
+    const ia = ordine.indexOf(a.key), ib = ordine.indexOf(b.key);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.label.localeCompare(b.label);
+  });
   return cats;
+}
+
+// Categorie ripiegate nel planning (per non intasare la griglia). Persistite
+// per dispositivo; il toggle è sull'intestazione di categoria.
+let categorieCollassate = new Set();
+try {
+  const _cc = localStorage.getItem('cal_categorie_collassate');
+  if (_cc) categorieCollassate = new Set(JSON.parse(_cc));
+} catch(e) {}
+function toggleCategoriaCollassata(key) {
+  if (categorieCollassate.has(key)) categorieCollassate.delete(key);
+  else categorieCollassate.add(key);
+  try { localStorage.setItem('cal_categorie_collassate', JSON.stringify([...categorieCollassate])); } catch(e) {}
+  renderGrid();
 }
 
 // ── BIANCHERIA (kit bagno / singolo / matrimoniale) ──────────────────────
@@ -2203,7 +2231,11 @@ function renderGrid() {
   }
 
   cats.forEach(cat => {
-    html += `<div class="cal-cat-row"><div class="cal-cat-label">${esc(cat.label)}</div><div class="cal-cat-fill" style="width:${trackWidth}px"></div></div>`;
+    const collassata = categorieCollassate.has(cat.key);
+    html += `<div class="cal-cat-row" onclick="toggleCategoriaCollassata('${esc(cat.key)}')" title="${collassata ? 'Espandi' : 'Riduci'} questa categoria">`
+      + `<div class="cal-cat-label"><span class="cal-cat-chev">${collassata ? '▸' : '▾'}</span>${esc(cat.label)}<span class="cal-cat-count">${cat.items.length}</span></div>`
+      + `<div class="cal-cat-fill" style="width:${trackWidth}px"></div></div>`;
+    if (collassata) return;
     cat.items.forEach(a => {
       html += `<div class="cal-row">
         <div class="cal-row-label">${iconaStatoAlloggioHtml(a)}<span class="cal-row-label-text">${esc(a.nome || a.id)}</span></div>
@@ -5438,42 +5470,87 @@ function confermaAsync(title, bodyHtml) {
   });
 }
 
-// ── IMPOSTAZIONI LISTINI (solo admin) ─────────────────────────────────────
-// Le righe della tabella prezzi seguono le categorie alloggio, che sono una
-// sorgente unica condivisa: doc "impostazioni/categorie-alloggi" (seminato dal
-// modulo Alloggi). Qui si legge soltanto; CATEGORIE_LISTINO_DEFAULT è il
-// fallback finché il doc non è arrivato. Include anche le categorie
-// "soloListino" (es. Villini a Schiera), che non sono alloggi prenotabili.
-const CATEGORIE_LISTINO_DEFAULT = [
-  { key:'bluehouse',      label:'Blue House' },
-  { key:'villinicomfort', label:'Villini Comfort' },
-  { key:'villinideluxe',  label:'Villini Deluxe' },
-  { key:'riviera',        label:'Riviera' },
-  { key:'supertitania',   label:'Super Titania' },
-  { key:'joy',            label:'Joy' },
-  { key:'villinischiera', label:'Villini a Schiera' },
+// ── CATEGORIE ALLOGGIO — sorgente unica di tutto l'hub ────────────────────
+// Doc Firestore "impostazioni/categorie-alloggi" = { lista:[{key,label,numeri:[…]}] }.
+// Il Calendario è l'unico modulo che lo può modificare (Impostazioni → tab
+// "Alloggi") e lo tiene sincronizzato con la collezione "alloggi": alla
+// creazione di un numero crea il relativo doc unità; i doc rimasti fuori da
+// ogni categoria sono "orfani" e si eliminano a mano. Alloggi, Conti e
+// Manutenzione leggono questa lista in sola lettura.
+const CATEGORIE_ALLOGGI_DEFAULT = [
+  { key:'bluehouse',      label:'Blue House',      numeri:[] },
+  { key:'villinicomfort', label:'Villini Comfort', numeri:[] },
+  { key:'villinideluxe',  label:'Villini Deluxe',  numeri:[] },
+  { key:'riviera',        label:'Riviera',         numeri:[] },
+  { key:'supertitania',   label:'Super Titania',   numeri:[] },
+  { key:'joy',            label:'Joy',             numeri:[] },
+  { key:'piazzole',       label:'Piazzole',        numeri:[] },
 ];
-let CATEGORIE_LISTINO = CATEGORIE_LISTINO_DEFAULT.slice();
-let listinoTabAttiva = 'villini';
+let categorieAlloggi = CATEGORIE_ALLOGGI_DEFAULT.map(c => ({ ...c, numeri:[] }));
+let orfaniAlloggi = [];   // doc "alloggi" non presenti in nessuna categoria
+let listinoTabAttiva = 'alloggi';
 
-let _unsubCategorieListino = null;
-function startRealtimeSyncCategorie() {
+// Categorie usate dalla tabella prezzi Villini: tutte tranne Piazzole, che ha
+// il suo listino "Campeggio" a parte (forma diversa).
+function categorieListino() {
+  return categorieAlloggi.filter(c => c.key !== 'piazzole').map(c => ({ key:c.key, label:c.label }));
+}
+function normNumeri(arr) {
+  return [...new Set((arr || []).map(Number).filter(n => Number.isInteger(n) && n > 0))].sort((a,b) => a-b);
+}
+
+let _unsubCategorieAlloggi = null;
+function startCategorieAlloggiSync() {
   waitForFirebase().then(() => {
     const { db, doc, onSnapshot } = window._fb;
-    _unsubCategorieListino = onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
-      const lista = snap.exists() && Array.isArray(snap.data().lista) && snap.data().lista.length
-        ? snap.data().lista : null;
-      CATEGORIE_LISTINO = lista
-        ? lista.filter(c => c && c.key && c.label).map(c => ({ key: c.key, label: c.label }))
-        : CATEGORIE_LISTINO_DEFAULT.slice();
+    _unsubCategorieAlloggi = onSnapshot(doc(db, 'impostazioni', 'categorie-alloggi'), (snap) => {
+      const raw = snap.exists() ? (snap.data() || {}) : null;
+      const listaOk = raw && Array.isArray(raw.lista) && raw.lista.length
+        && raw.lista.every(c => c && c.key && c.label && Array.isArray(c.numeri));
+      if (!listaOk) { seedCategorieAlloggi(raw); return; } // manca o schema vecchio → semina
+      categorieAlloggi = raw.lista.map(c => ({
+        key: String(c.key), label: String(c.label), numeri: normNumeri(c.numeri),
+      }));
+      calcolaOrfaniAlloggi();
       const sv = document.getElementById('settings-view');
       if (sv && !sv.classList.contains('hidden')) renderListiniSettings();
     }, (err) => console.error('Errore listener categorie alloggio:', err));
   });
 }
 
+// Prima creazione del doc: ricava i numeri dai doc REALI già in collezione
+// "alloggi", più le 7 categorie canoniche (Piazzole vuota). Gira una volta sola.
+async function seedCategorieAlloggi(raw) {
+  try {
+    await waitForFirebase();
+    const { db, doc, setDoc, getDocs, collection } = window._fb;
+    const snap = await getDocs(collection(db, 'alloggi'));
+    const perCat = {};
+    snap.forEach(d => { const v = d.data(); if (!v || !v.categoria) return;
+      (perCat[v.categoria] = perCat[v.categoria] || []).push(Number(v.numero)); });
+    const vecchie = (raw && Array.isArray(raw.lista)) ? raw.lista : [];
+    const etichetta = k => (vecchie.find(c => c && c.key === k) || {}).label
+      || (CATEGORIE_ALLOGGI_DEFAULT.find(c => c.key === k) || {}).label || k;
+    const chiavi = [...new Set([...CATEGORIE_ALLOGGI_DEFAULT.map(c => c.key), ...Object.keys(perCat)])];
+    chiavi.sort((a,b) => {
+      const ia = CATEGORIE_ALLOGGI_DEFAULT.findIndex(c => c.key === a);
+      const ib = CATEGORIE_ALLOGGI_DEFAULT.findIndex(c => c.key === b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+    const lista = chiavi.map(k => ({ key:k, label:etichetta(k), numeri:normNumeri(perCat[k]) }));
+    await setDoc(doc(db, 'impostazioni', 'categorie-alloggi'), { lista });
+  } catch(e) { console.error('Errore seed categorie alloggio:', e); }
+}
+
+function calcolaOrfaniAlloggi() {
+  const attesi = new Set();
+  categorieAlloggi.forEach(c => c.numeri.forEach(n => attesi.add(c.key + '_' + n)));
+  orfaniAlloggi = (alloggiList || []).filter(a => !attesi.has(a.id));
+}
+
 function openSettingsListini() {
   if (!isAdmin()) return;
+  catAllDraft = null; // riparti sempre dallo stato salvato
   document.getElementById('main-view').classList.add('hidden');
   document.getElementById('settings-view').classList.remove('hidden');
   renderListiniSettings();
@@ -5484,20 +5561,162 @@ function closeSettingsListini() {
 }
 function switchListinoTab(tab) {
   listinoTabAttiva = tab;
-  document.getElementById('tab-villini').classList.toggle('active', tab === 'villini');
-  document.getElementById('tab-campeggio').classList.toggle('active', tab === 'campeggio');
-  document.getElementById('tab-generali').classList.toggle('active', tab === 'generali');
-  document.getElementById('tab-fiscalizzazione').classList.toggle('active', tab === 'fiscalizzazione');
-  document.getElementById('listino-villini-panel').classList.toggle('hidden', tab !== 'villini');
-  document.getElementById('listino-campeggio-panel').classList.toggle('hidden', tab !== 'campeggio');
-  document.getElementById('listino-generali-panel').classList.toggle('hidden', tab !== 'generali');
-  document.getElementById('listino-fiscalizzazione-panel').classList.toggle('hidden', tab !== 'fiscalizzazione');
+  ['alloggi','villini','campeggio','generali','fiscalizzazione'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', tab === t);
+    document.getElementById('listino-' + t + '-panel').classList.toggle('hidden', tab !== t);
+  });
   renderListiniSettings();
 }
 function fmtPeriodoLabel(p) { return `${fmtDataIt(p.da).slice(0,5)}–${fmtDataIt(p.a).slice(0,5)}`; }
 
+// ── TAB "ALLOGGI": categorie + numeri (sorgente unica dell'hub) ────────────
+let catAllDraft = null;  // copia di lavoro, si azzera al rientro nel tab o dopo il salvataggio
+function cloneCatAllDraft() {
+  catAllDraft = categorieAlloggi.map(c => ({ key:c.key, label:c.label, numeri:[...c.numeri] }));
+}
+function catAllAggiungiNumero(i) {
+  const el = document.getElementById('catall-add-' + i);
+  const n = parseInt(el && el.value, 10);
+  if (!Number.isInteger(n) || n < 1) { showToast('Numero non valido'); return; }
+  const c = catAllDraft[i];
+  if (!c.numeri.includes(n)) c.numeri.push(n);
+  c.numeri.sort((a,b) => a-b);
+  renderCategorieAlloggiPanel();
+}
+function catAllRimuoviNumero(i, n) {
+  catAllDraft[i].numeri = catAllDraft[i].numeri.filter(x => x !== n);
+  renderCategorieAlloggiPanel();
+}
+function catAllSposta(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= catAllDraft.length) return;
+  const t = catAllDraft[i]; catAllDraft[i] = catAllDraft[j]; catAllDraft[j] = t;
+  renderCategorieAlloggiPanel();
+}
+function catAllEliminaCategoria(i) {
+  if (catAllDraft[i].numeri.length) { showToast('Categoria con unità: togli prima i numeri'); return; }
+  catAllDraft.splice(i, 1);
+  renderCategorieAlloggiPanel();
+}
+function catAllAggiungiCategoria() {
+  const el = document.getElementById('catall-nuova-label');
+  const label = (el && el.value || '').trim();
+  if (!label) { showToast('Inserisci un nome'); return; }
+  const key = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '');
+  if (!key) { showToast('Nome non valido'); return; }
+  if (catAllDraft.some(c => c.key === key)) { showToast('Categoria già presente'); return; }
+  catAllDraft.push({ key, label, numeri: [] });
+  renderCategorieAlloggiPanel();
+}
+function catAllAnnulla() { catAllDraft = null; renderCategorieAlloggiPanel(); showToast('Modifiche annullate'); }
+function catAllEliminaOrfano(id) {
+  apriModaleConferma('Eliminare l\'unità?',
+    `L'alloggio <strong>${esc(id)}</strong> verrà eliminato definitivamente, con il suo stato e lo storico pulizie.`,
+    async () => {
+      try {
+        await waitForFirebase();
+        const { db, doc, deleteDoc } = window._fb;
+        await deleteDoc(doc(db, 'alloggi', id));
+        showToast('Unità eliminata');
+      } catch(e) { console.error('Errore eliminazione orfano:', e); showToast('Errore eliminazione'); }
+    }, 'Elimina', true);
+}
+
+async function salvaCategorieAlloggi() {
+  if (!catAllDraft) return;
+  const keys = new Set();
+  for (const c of catAllDraft) {
+    if (!c.label.trim()) { showToast('Ogni categoria deve avere un nome'); return; }
+    if (keys.has(c.key)) { showToast('Categoria duplicata: ' + c.key); return; }
+    keys.add(c.key);
+  }
+  const lista = catAllDraft.map(c => ({ key:c.key, label:c.label.trim(), numeri: normNumeri(c.numeri) }));
+  const esistenti = new Set((alloggiList || []).map(a => a.id));
+  const daCreare = [];
+  lista.forEach(c => c.numeri.forEach(n => {
+    const id = c.key + '_' + n;
+    if (!esistenti.has(id)) daCreare.push({ id, categoria:c.key, categoriaLabel:c.label, numero:n });
+  }));
+  try {
+    setSyncStatus('saving');
+    await waitForFirebase();
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'categorie-alloggi'), { lista });
+    await Promise.all(daCreare.map(u => setDoc(doc(db, 'alloggi', u.id), {
+      categoria: u.categoria, categoriaLabel: u.categoriaLabel, numero: u.numero,
+      nome: u.categoriaLabel + ' ' + u.numero, stato: 'pronta',
+      log: [{ op: currentOperatore || 'Sistema', ts: new Date().toISOString(), stato: 'pronta' }],
+    })));
+    setSyncStatus('live');
+    catAllDraft = null;
+    showToast(daCreare.length ? `Salvato · ${daCreare.length} unità create` : 'Categorie salvate');
+  } catch(e) {
+    console.error('Errore salvataggio categorie alloggio:', e);
+    setSyncStatus('error');
+    showToast('Errore nel salvataggio');
+  }
+}
+
+function renderCategorieAlloggiPanel() {
+  const panel = document.getElementById('listino-alloggi-panel');
+  if (!panel) return;
+  if (!catAllDraft) cloneCatAllDraft();
+  const totUnita = catAllDraft.reduce((s, c) => s + c.numeri.length, 0);
+
+  const cats = catAllDraft.map((c, i) => {
+    const chips = c.numeri.length
+      ? c.numeri.map(n => `<span style="display:inline-flex;align-items:center;gap:2px;background:var(--gray-100);border-radius:14px;padding:3px 4px 3px 10px;font-size:12px;font-weight:700;color:var(--gray-800)">${n}<button type="button" title="Togli ${esc(c.label)} ${n}" onclick="catAllRimuoviNumero(${i},${n})" style="border:none;background:none;cursor:pointer;font-size:15px;line-height:1;color:var(--gray-500);padding:0 3px">×</button></span>`).join(' ')
+      : '<span style="font-size:12px;color:var(--gray-400)">nessuna unità</span>';
+    return `
+      <div class="listino-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <button type="button" title="Su" ${i===0?'disabled':''} onclick="catAllSposta(${i},-1)" style="border:1px solid var(--gray-200);background:var(--white);border-radius:5px;width:26px;height:18px;cursor:pointer;line-height:1;font-size:9px;color:var(--gray-600)">▲</button>
+            <button type="button" title="Giù" ${i===catAllDraft.length-1?'disabled':''} onclick="catAllSposta(${i},1)" style="border:1px solid var(--gray-200);background:var(--white);border-radius:5px;width:26px;height:18px;cursor:pointer;line-height:1;font-size:9px;color:var(--gray-600)">▼</button>
+          </div>
+          <h3 style="flex:1;margin:0">${esc(c.label)}</h3>
+          <span style="font-size:12px;color:var(--gray-500)">${c.numeri.length} unità</span>
+          ${c.numeri.length === 0 ? `<button type="button" onclick="catAllEliminaCategoria(${i})" style="border:none;background:#fde8e8;color:#c0392b;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">Elimina</button>` : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">${chips}</div>
+        <div style="display:flex;gap:8px">
+          <input type="number" min="1" id="catall-add-${i}" placeholder="Numero…" class="listino-input" style="width:110px;height:36px">
+          <button type="button" class="listino-save-btn" style="height:36px;padding:0 14px;font-size:13px" onclick="catAllAggiungiNumero(${i})">+ Aggiungi</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const orfani = orfaniAlloggi.length ? `
+    <div class="listino-card" style="border:1.5px solid #e0a020;background:#fff9ec">
+      <h3 style="margin:0 0 6px">Unità orfane (${orfaniAlloggi.length})</h3>
+      <p class="subtitle" style="margin-bottom:10px">Questi alloggi sono in archivio ma non compaiono in nessuna categoria/numero qui sopra. Aggiungi il numero alla categoria giusta e salva, oppure elimina l'unità se non serve più (perdi stato e storico pulizie).</p>
+      ${orfaniAlloggi.map(a => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--gray-100)"><span style="font-size:13px;font-weight:700">${esc(a.nome || a.id)}<span style="font-weight:400;color:var(--gray-500)"> · ${esc(a.categoria || '?')} ${a.numero ?? ''}</span></span><button type="button" onclick="catAllEliminaOrfano('${esc(a.id)}')" style="border:none;background:#fde8e8;color:#c0392b;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">Elimina</button></div>`).join('')}
+    </div>` : '';
+
+  panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Categorie alloggio e numeri</h3>
+      <p class="subtitle">Sorgente unica per tutto l'hub — Pulizie, Conti, Manutenzione e i listini leggono questa lista. Aggiungendo un numero viene creato l'alloggio corrispondente; togliendolo l'unità diventa "orfana" e va eliminata qui sotto. Le etichette non si rinominano da qui: romperebbe prenotazioni e ticket già salvati.</p>
+      <p class="subtitle" style="margin-top:-4px"><strong>${catAllDraft.length}</strong> categorie · <strong>${totUnita}</strong> unità totali</p>
+    </div>
+    ${cats}
+    <div class="listino-card">
+      <h3 style="margin:0 0 10px">Aggiungi categoria</h3>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="catall-nuova-label" placeholder="Nome categoria…" class="listino-input" style="flex:1;height:38px;text-align:left;padding:0 10px">
+        <button type="button" class="listino-save-btn" style="height:38px;padding:0 16px;font-size:13px" onclick="catAllAggiungiCategoria()">+ Categoria</button>
+      </div>
+    </div>
+    ${orfani}
+    <div class="listino-save-row" style="gap:10px">
+      <button type="button" class="listino-save-btn" style="background:var(--gray-200);color:var(--gray-800)" onclick="catAllAnnulla()">Annulla</button>
+      <button type="button" class="listino-save-btn" onclick="salvaCategorieAlloggi()">Salva categorie e numeri</button>
+    </div>`;
+}
+
 function renderListiniSettings() {
-  if (listinoTabAttiva === 'villini') renderListinoVilliniPanel();
+  if (listinoTabAttiva === 'alloggi') renderCategorieAlloggiPanel();
+  else if (listinoTabAttiva === 'villini') renderListinoVilliniPanel();
   else if (listinoTabAttiva === 'campeggio') renderListinoCampeggioPanel();
   else if (listinoTabAttiva === 'generali') renderGeneraliPanel();
   else renderFiscalizzazionePanel();
@@ -5508,7 +5727,7 @@ function renderListinoVilliniPanel() {
   const l = listini.villini;
   if (!l) { panel.innerHTML = '<div class="listino-card">Caricamento…</div>'; return; }
 
-  const righeAlloggio = CATEGORIE_LISTINO.map(cat => `
+  const righeAlloggio = categorieListino().map(cat => `
     <tr>
       <td class="row-label">${esc(cat.label)}</td>
       ${l.periodi.map((p,i) => `<td><input class="listino-input" type="number" step="0.01" min="0" data-periodo="${i}" data-categoria="${cat.key}" value="${p.prezzi[cat.key] ?? ''}"></td>`).join('')}
@@ -5896,7 +6115,7 @@ async function start() {
   ensureDefaultListini();
   startImpostazioniCalendarioSync();
   ensureDefaultImpostazioniCalendario();
-  startRealtimeSyncCategorie();
+  startCategorieAlloggiSync();
   startOspitiPensioneSync();
   startManutenzioneAlertSync();
   startFamiglieRistorazioneAlertSync();
