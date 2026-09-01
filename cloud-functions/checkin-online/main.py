@@ -311,6 +311,25 @@ def _notifica_reception(p, ospiti, pren_id):
 
 # ── azioni ─────────────────────────────────────────────────────────────────
 
+def _azione_test_email(db, origin, data):
+    """Invia un'email di prova a MAIL_RECEPTION, per verificare le credenziali
+    SMTP senza dover fare un check-in vero. Destinatario fisso (l'indirizzo
+    della reception), quindi non è sfruttabile per spam verso terzi."""
+    dest = os.environ.get('MAIL_RECEPTION', '')
+    if not dest:
+        return _json(origin, {'ok': False, 'errore': 'MAIL_RECEPTION non configurato'}, 400)
+    try:
+        _invia_email(
+            dest,
+            'Test check-in online — Garden River',
+            "Se leggi questa email, l'invio dalla funzione checkin-online verso "
+            "la reception funziona correttamente.\n\nPuoi ignorare questo messaggio.\n",
+        )
+    except Exception as e:
+        return _json(origin, {'ok': False, 'errore': f'invio fallito: {e}'}, 500)
+    return _json(origin, {'ok': True, 'inviata_a': dest})
+
+
 def _azione_carica(db, origin, data):
     _, p, _ = _risolvi_token(db, data.get('token'))
     if not p:
@@ -403,6 +422,7 @@ def _azione_invia(db, origin, data):
 AZIONI = {
     'carica': _azione_carica,
     'invia':  _azione_invia,
+    'test_email': _azione_test_email,
 }
 
 

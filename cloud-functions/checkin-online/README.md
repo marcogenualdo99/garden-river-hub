@@ -75,7 +75,22 @@ Console → **IAM** → quell'account → *Modifica* → *Aggiungi ruolo* →
 **Storage Object Admin** (`roles/storage.objectAdmin`) → *Salva*.
 (Se hai già fatto questo passo per il backup notturno, è a posto.)
 
-## 6. Prova
+## 6a. Prova solo l'email (senza fare un check-in)
+
+Da terminale, o incollando l'URL con `curl`:
+
+```
+curl -X POST https://checkin-online-113994721180.europe-west1.run.app \
+  -H "Content-Type: application/json" -d '{"azione":"test_email"}'
+```
+
+- `{"ok": true, "inviata_a": "..."}` → arriva un'email "Test check-in online" a
+  `MAIL_RECEPTION`. Credenziali Aruba a posto.
+- `{"ok": false, "errore": "invio fallito: ..."}` → l'errore SMTP è nel
+  messaggio (di solito password errata, o la casella Aruba non ha l'invio SMTP
+  abilitato).
+
+## 6. Prova completa
 
 1. Nel Calendario apri una prenotazione, premi **Check-in online**, copia il
    link.
