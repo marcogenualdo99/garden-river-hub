@@ -421,13 +421,6 @@ main { max-width: 980px; }
       <select class="ctrl-select" id="sel-anno-report" style="display:none" onchange="loadReport()"></select>
     </div>
 
-    <div class="chk-grid" id="report-opzioni" style="margin-bottom:16px">
-      <label class="chk-pill"><input type="checkbox" id="opt-kpi" checked onchange="onReportOptChange()"> KPI</label>
-      <label class="chk-pill"><input type="checkbox" id="opt-tabelle" checked onchange="onReportOptChange()"> Tabelle giornaliere</label>
-      <label class="chk-pill"><input type="checkbox" id="opt-economico" checked onchange="onReportOptChange()"> Riepilogo economico</label>
-      <label class="chk-pill"><input type="checkbox" id="opt-log" checked onchange="onReportOptChange()"> Registro modifiche</label>
-    </div>
-
     <div id="report-body">
       <p class="perm-hint">Seleziona sede e periodo per generare il report.</p>
     </div>
@@ -543,22 +536,12 @@ let _savingPresenza = false;
 let reportView  = 'mese'; // 'mese' | 'anno'
 let reportRows  = [];     // righe presenze caricate per il periodo
 let reportLog   = [];
-let _lastSedeFiltro = 'tutte'; // per poter ri-renderizzare quando cambiano le opzioni, senza ricaricare i dati
-// Quali informazioni includere nel report (a schermo, export Excel e stampa
-// usano tutti questa stessa selezione, così non divergono mai).
-let reportOptions = { kpi: true, tabelle: true, economico: true, log: true };
-function leggiReportOptions() {
-  reportOptions = {
-    kpi:       document.getElementById('opt-kpi').checked,
-    tabelle:   document.getElementById('opt-tabelle').checked,
-    economico: document.getElementById('opt-economico').checked,
-    log:       document.getElementById('opt-log').checked,
-  };
-}
-function onReportOptChange() {
-  leggiReportOptions();
-  renderReport(_lastSedeFiltro);
-}
+let _lastSedeFiltro = 'tutte';
+// Cosa includere SOLO nell'export Excel (la vista a schermo e la stampa
+// mostrano sempre tutto — queste spuntano riguardano unicamente il file
+// che scarichi con "Esporta Excel").
+let excelOptions = { tabelle: true, economico: true };
+function toggleExcelOpt(key, checked) { excelOptions[key] = checked; }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -1328,7 +1311,6 @@ function buildTabelleReportHtml(sediInGioco, dal, al) {
 
 function renderReport(sedeFiltro) {
   _lastSedeFiltro = sedeFiltro;
-  leggiReportOptions();
   const wrap = document.getElementById('report-body');
   const { dal, al } = datesOfPeriod();
   const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
@@ -1337,22 +1319,20 @@ function renderReport(sedeFiltro) {
 
   const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, missingBySede, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
 
-  let html = '';
+  // La vista a schermo mostra sempre tutto — le opzioni di selezione
+  // riguardano solo l'export Excel (v. esportaExcelReport).
+  let html = `<div class="kpi-strip-local">
+    <div class="kpi-chip-l"><div class="kl-label">Pasti totali</div><div class="kl-value">${pastiTot}</div></div>
+    <div class="kpi-chip-l"><div class="kl-label">Importo (imponibile)</div><div class="kl-value">${fmtEUR(importoTot)}</div></div>
+    <div class="kpi-chip-l"><div class="kl-label">Giorni di servizio</div><div class="kl-value">${giorniServizioTot}</div></div>
+    <div class="kpi-chip-l"><div class="kl-label">Media giornaliera</div><div class="kl-value">${mediaGiornaliera.toFixed(1)}</div></div>
+  </div>`;
 
-  if (reportOptions.kpi) {
-    html += `<div class="kpi-strip-local">
-      <div class="kpi-chip-l"><div class="kl-label">Pasti totali</div><div class="kl-value">${pastiTot}</div></div>
-      <div class="kpi-chip-l"><div class="kl-label">Importo (imponibile)</div><div class="kl-value">${fmtEUR(importoTot)}</div></div>
-      <div class="kpi-chip-l"><div class="kl-label">Giorni di servizio</div><div class="kl-value">${giorniServizioTot}</div></div>
-      <div class="kpi-chip-l"><div class="kl-label">Media giornaliera</div><div class="kl-value">${mediaGiornaliera.toFixed(1)}</div></div>
-    </div>`;
-
-    const missingEntries = Object.entries(missingBySede);
-    if (missingEntries.length) {
-      html += `<div class="warn-banner">⚠️ Giorni di servizio senza presenze inserite:<br>` +
-        missingEntries.map(([nome, dates]) => `<b>${escHtml(nome)}</b>: ${dates.slice(0,10).map(d=>fmtDateIt(d,{day:'2-digit',month:'2-digit'})).join(', ')}${dates.length>10?` … (+${dates.length-10})`:''}`).join('<br>') +
-        `</div>`;
-    }
+  const missingEntries = Object.entries(missingBySede);
+  if (missingEntries.length) {
+    html += `<div class="warn-banner">⚠️ Giorni di servizio senza presenze inserite:<br>` +
+      missingEntries.map(([nome, dates]) => `<b>${escHtml(nome)}</b>: ${dates.slice(0,10).map(d=>fmtDateIt(d,{day:'2-digit',month:'2-digit'})).join(', ')}${dates.length>10?` … (+${dates.length-10})`:''}`).join('<br>') +
+      `</div>`;
   }
 
   html += `<div class="rpt-actions">
@@ -1364,21 +1344,24 @@ function renderReport(sedeFiltro) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Stampa
     </button>
+  </div>
+  <div class="chk-grid" style="margin:-10px 0 20px">
+    <span style="font-size:12px;color:var(--gray-500);align-self:center;margin-right:2px">Nell'export Excel includi:</span>
+    <label class="chk-pill"><input type="checkbox" ${excelOptions.tabelle?'checked':''} onchange="toggleExcelOpt('tabelle', this.checked)"> Tabelle giornaliere</label>
+    <label class="chk-pill"><input type="checkbox" ${excelOptions.economico?'checked':''} onchange="toggleExcelOpt('economico', this.checked)"> Riepilogo economico</label>
   </div>`;
 
-  if (reportOptions.tabelle) html += buildTabelleReportHtml(sediInGioco, dal, al);
+  html += buildTabelleReportHtml(sediInGioco, dal, al);
 
-  if (reportOptions.economico) {
-    html += `<div class="econ-summary">
-      <h3 style="margin-bottom:12px">Riepilogo economico</h3>
-      <div class="econ-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
-      <div class="econ-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
-      <div class="econ-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
-      <div class="econ-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
-    </div>`;
-  }
+  html += `<div class="econ-summary">
+    <h3 style="margin-bottom:12px">Riepilogo economico</h3>
+    <div class="econ-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
+    <div class="econ-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
+    <div class="econ-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
+    <div class="econ-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
+  </div>`;
 
-  if (reportOptions.log && reportLog.length) {
+  if (reportLog.length) {
     html += `<div class="card"><h3 style="margin-bottom:10px">Registro modifiche</h3>`;
     reportLog.slice(0,60).forEach(l => {
       const sedeName = sediList.find(s=>s.id===l.sedeId)?.nome || l.sedeId;
@@ -1400,7 +1383,6 @@ function periodoReportLabel() {
   return 'Anno scolastico ' + document.getElementById('sel-anno-report').value;
 }
 function stampaReport() {
-  leggiReportOptions();
   const sedeFiltro = document.getElementById('sel-sede-report').value || 'tutte';
   const { dal, al } = datesOfPeriod();
   const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
@@ -1409,25 +1391,24 @@ function stampaReport() {
   const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
   const sedeLabel = sedeFiltro === 'tutte' ? 'Tutte le sedi' : sediInGioco[0].nome;
 
+  // La stampa, come la vista a schermo, è sempre completa — le opzioni di
+  // selezione valgono solo per l'export Excel.
   let bodyHtml = `
     <div class="print-header">
       <h1>Garden River — Mense scolastiche</h1>
       <p>${escHtml(sedeLabel)} · ${escHtml(periodoReportLabel())}</p>
-    </div>`;
-  if (reportOptions.economico) {
-    bodyHtml += `
+    </div>
     <div class="print-riepilogo">
       <h2>Riepilogo economico</h2>
-      ${reportOptions.kpi ? `<div class="print-riepilogo-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
+      <div class="print-riepilogo-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
       <div class="print-riepilogo-row"><span>Giorni di servizio</span><span>${giorniServizioTot}</span></div>
-      <div class="print-riepilogo-row"><span>Media giornaliera</span><span>${mediaGiornaliera.toFixed(1)}</span></div>` : ''}
+      <div class="print-riepilogo-row"><span>Media giornaliera</span><span>${mediaGiornaliera.toFixed(1)}</span></div>
       <div class="print-riepilogo-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
       <div class="print-riepilogo-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
       <div class="print-riepilogo-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
     </div>`;
-  }
-  if (reportOptions.tabelle) bodyHtml += buildTabelleReportHtml(sediInGioco, dal, al);
-  if (reportOptions.log && reportLog.length) {
+  bodyHtml += buildTabelleReportHtml(sediInGioco, dal, al);
+  if (reportLog.length) {
     bodyHtml += `<h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px">Registro modifiche</h2>`;
     reportLog.slice(0,60).forEach(l => {
       const sedeName = sediList.find(s=>s.id===l.sedeId)?.nome || l.sedeId;
@@ -1477,8 +1458,7 @@ function loadExcelJS() {
 }
 
 async function esportaExcelReport() {
-  leggiReportOptions();
-  if (!reportOptions.tabelle && !reportOptions.economico) { showToast('Seleziona almeno una sezione da esportare'); return; }
+  if (!excelOptions.tabelle && !excelOptions.economico) { showToast('Seleziona almeno una sezione da esportare'); return; }
   const btn = event?.target?.closest('button');
   if (btn) { btn.disabled = true; }
   try {
@@ -1495,7 +1475,7 @@ async function esportaExcelReport() {
     let pastiTot = 0, importoTot = 0;
     let ivaPct = 4;
 
-    if (reportOptions.tabelle) sediInGioco.forEach(sede => {
+    if (excelOptions.tabelle) sediInGioco.forEach(sede => {
       const righeSede = reportRows.filter(r => r.sedeId === sede.id);
       const ordini = ordiniAttiviSede(sede);
       const dates = allDatesInRange(dal, al);
@@ -1538,7 +1518,7 @@ async function esportaExcelReport() {
     });
 
     // Foglio RIEPILOGO (solo se richiesto)
-    if (reportOptions.economico) {
+    if (excelOptions.economico) {
     const rs = wb.addWorksheet('RIEPILOGO');
     rs.addRow(['Sede', 'Ordine', 'Pasti', 'Prezzo unitario', 'Imponibile']);
     rs.getRow(1).font = { bold: true };
