@@ -538,10 +538,57 @@ let reportRows  = [];     // righe presenze caricate per il periodo
 let reportLog   = [];
 let _lastSedeFiltro = 'tutte';
 // Cosa includere SOLO nell'export Excel (la vista a schermo e la stampa
-// mostrano sempre tutto — queste spuntano riguardano unicamente il file
-// che scarichi con "Esporta Excel").
-let excelOptions = { tabelle: true, economico: true };
-function toggleExcelOpt(key, checked) { excelOptions[key] = checked; }
+// mostrano sempre tutto — questi filtri riguardano unicamente il file che
+// scarichi con "Esporta Excel"): sede per sede, quali sedi e quali ordini
+// scolastici di ciascuna includere, più se mettere o no i dati contabili
+// nel foglio RIEPILOGO (che invece c'è sempre, solo i pasti o anche i soldi).
+let excelOptions = { sedi: {}, ordini: {}, contabile: true };
+function ensureExcelOptionsDefaults() {
+  sediList.filter(s => s.attiva !== false).forEach(sede => {
+    if (excelOptions.sedi[sede.id] === undefined) excelOptions.sedi[sede.id] = true;
+    if (!excelOptions.ordini[sede.id]) excelOptions.ordini[sede.id] = {};
+    ordiniAttiviSede(sede).forEach(o => {
+      if (excelOptions.ordini[sede.id][o.id] === undefined) excelOptions.ordini[sede.id][o.id] = true;
+    });
+  });
+}
+function toggleExcelSede(sedeId, checked) {
+  excelOptions.sedi[sedeId] = checked;
+  renderExcelOptionsPanel();
+}
+function toggleExcelOrdine(sedeId, ordineId, checked) {
+  if (!excelOptions.ordini[sedeId]) excelOptions.ordini[sedeId] = {};
+  excelOptions.ordini[sedeId][ordineId] = checked;
+}
+function toggleExcelContabile() {
+  excelOptions.contabile = !excelOptions.contabile;
+  renderExcelOptionsPanel();
+}
+function excelSediOrdiniHtml() {
+  ensureExcelOptionsDefaults();
+  const sediAttive = sediList.filter(s => s.attiva !== false);
+  if (!sediAttive.length) return '<p class="perm-hint" style="padding:0">Nessuna sede attiva.</p>';
+  return sediAttive.map(sede => {
+    const sedeOn = excelOptions.sedi[sede.id] !== false;
+    const ordini = ordiniAttiviSede(sede);
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)">
+      <label class="chk-pill" style="margin-bottom:8px;font-weight:800">
+        <input type="checkbox" ${sedeOn?'checked':''} onchange="toggleExcelSede('${sede.id}', this.checked)"> ${escHtml(sede.nome)}
+      </label>
+      <div class="chk-grid" style="margin-left:22px;opacity:${sedeOn?1:.4}">
+        ${ordini.map(o => `<label class="chk-pill">
+          <input type="checkbox" ${excelOptions.ordini[sede.id]?.[o.id]!==false?'checked':''} ${sedeOn?'':'disabled'} onchange="toggleExcelOrdine('${sede.id}','${o.id}', this.checked)"> ${escHtml(o.nome)}
+        </label>`).join('') || '<span class="perm-hint" style="padding:0">Nessun ordine attivo.</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderExcelOptionsPanel() {
+  const wrap = document.getElementById('excel-sedi-ordini');
+  if (wrap) wrap.innerHTML = excelSediOrdiniHtml();
+  const tgl = document.getElementById('excel-contabile-toggle');
+  if (tgl) tgl.classList.toggle('on', excelOptions.contabile);
+}
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -1345,10 +1392,17 @@ function renderReport(sedeFiltro) {
       Stampa
     </button>
   </div>
-  <div class="chk-grid" style="margin:-10px 0 20px">
-    <span style="font-size:12px;color:var(--gray-500);align-self:center;margin-right:2px">Nell'export Excel includi:</span>
-    <label class="chk-pill"><input type="checkbox" ${excelOptions.tabelle?'checked':''} onchange="toggleExcelOpt('tabelle', this.checked)"> Tabelle giornaliere</label>
-    <label class="chk-pill"><input type="checkbox" ${excelOptions.economico?'checked':''} onchange="toggleExcelOpt('economico', this.checked)"> Riepilogo economico</label>
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:4px">Cosa esportare in Excel</h3>
+    <p class="subtitle">Sedi e ordini scolastici da includere — indipendente da quello che stai guardando qui sopra.</p>
+    <div id="excel-sedi-ordini">${excelSediOrdiniHtml()}</div>
+    <div class="toggle-row">
+      <div class="toggle-label-wrap">
+        <div class="toggle-label">Dati contabili nel riepilogo</div>
+        <div class="toggle-sub">Prezzo, imponibile, IVA e totale. Il foglio RIEPILOGO con i pasti c'è sempre comunque.</div>
+      </div>
+      <button class="toggle-switch${excelOptions.contabile?' on':''}" id="excel-contabile-toggle" onclick="toggleExcelContabile()"></button>
+    </div>
   </div>`;
 
   html += buildTabelleReportHtml(sediInGioco, dal, al);
@@ -1458,14 +1512,14 @@ function loadExcelJS() {
 }
 
 async function esportaExcelReport() {
-  if (!excelOptions.tabelle && !excelOptions.economico) { showToast('Seleziona almeno una sezione da esportare'); return; }
+  ensureExcelOptionsDefaults();
+  const sediScelte = sediList.filter(s => s.attiva !== false && excelOptions.sedi[s.id] !== false);
+  if (!sediScelte.length) { showToast('Seleziona almeno una sede da esportare'); return; }
   const btn = event?.target?.closest('button');
   if (btn) { btn.disabled = true; }
   try {
     await loadExcelJS();
-    const sedeFiltro = document.getElementById('sel-sede-report').value || 'tutte';
     const { dal, al } = datesOfPeriod();
-    const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
     const cats = categorieAttive();
 
     const wb = new ExcelJS.Workbook();
@@ -1474,14 +1528,16 @@ async function esportaExcelReport() {
 
     let pastiTot = 0, importoTot = 0;
     let ivaPct = 4;
+    let nessunOrdineScelto = true;
 
-    if (excelOptions.tabelle) sediInGioco.forEach(sede => {
+    sediScelte.forEach(sede => {
       const righeSede = reportRows.filter(r => r.sedeId === sede.id);
-      const ordini = ordiniAttiviSede(sede);
+      const ordini = ordiniAttiviSede(sede).filter(o => excelOptions.ordini[sede.id]?.[o.id] !== false);
       const dates = allDatesInRange(dal, al);
 
       ordini.forEach(o => {
-        const sheetName = (sediInGioco.length > 1 ? sede.nome + ' ' : '') + o.nome;
+        nessunOrdineScelto = false;
+        const sheetName = (sediScelte.length > 1 ? sede.nome + ' ' : '') + o.nome;
         const ws = wb.addWorksheet(sheetName.slice(0,31));
         ws.getCell('A1').value = sede.nome;
         ws.getCell('A1').font = { bold: true, size: 13 };
@@ -1517,15 +1573,17 @@ async function esportaExcelReport() {
       });
     });
 
-    // Foglio RIEPILOGO (solo se richiesto)
-    if (excelOptions.economico) {
+    if (nessunOrdineScelto) { showToast('Seleziona almeno un ordine scolastico da esportare'); if (btn) btn.disabled = false; return; }
+
+    // Foglio RIEPILOGO: c'è sempre; la parte contabile (prezzo/imponibile/
+    // IVA/totale) solo se richiesta, altrimenti resta solo il conteggio pasti.
     const rs = wb.addWorksheet('RIEPILOGO');
-    rs.addRow(['Sede', 'Ordine', 'Pasti', 'Prezzo unitario', 'Imponibile']);
+    rs.addRow(excelOptions.contabile ? ['Sede', 'Ordine', 'Pasti', 'Prezzo unitario', 'Imponibile'] : ['Sede', 'Ordine', 'Pasti']);
     rs.getRow(1).font = { bold: true };
     let r = 2;
-    sediInGioco.forEach(sede => {
+    sediScelte.forEach(sede => {
       const righeSede = reportRows.filter(r2 => r2.sedeId === sede.id);
-      const ordini = ordiniAttiviSede(sede);
+      const ordini = ordiniAttiviSede(sede).filter(o => excelOptions.ordini[sede.id]?.[o.id] !== false);
       const dates = allDatesInRange(dal, al);
       ordini.forEach(o => {
         let pastiOrdine = 0, importoOrdine = 0;
@@ -1538,25 +1596,29 @@ async function esportaExcelReport() {
             importoOrdine += p * prezzoVigente(sede, d).prezzo;
           }
         });
-        const prezzo = prezzoVigente(sede, al);
-        ivaPct = prezzo.iva_pct;
         pastiTot += pastiOrdine; importoTot += importoOrdine;
-        rs.addRow([sede.nome, o.nome, pastiOrdine, prezzo.prezzo, { formula: `C${r}*D${r}` }]);
+        if (excelOptions.contabile) {
+          const prezzo = prezzoVigente(sede, al);
+          ivaPct = prezzo.iva_pct;
+          rs.addRow([sede.nome, o.nome, pastiOrdine, prezzo.prezzo, { formula: `C${r}*D${r}` }]);
+        } else {
+          rs.addRow([sede.nome, o.nome, pastiOrdine]);
+        }
         r++;
       });
     });
     rs.addRow([]);
-    const rTotPasti = r + 1;
-    rs.addRow(['', 'TOTALE PASTI', { formula: `SUM(C2:C${r-1})` }]);
-    rs.addRow(['', 'IMPONIBILE', '', '', { formula: `SUM(E2:E${r-1})` }]);
-    const imponibileRow = r + 2;
-    rs.addRow(['', `IVA ${ivaPct}%`, '', '', { formula: `E${imponibileRow}*${ivaPct}/100` }]);
-    const ivaRow = r + 3;
-    rs.addRow(['', 'TOTALE', '', '', { formula: `E${imponibileRow}+E${ivaRow}` }]);
-    rs.columns.forEach(c => { c.width = 18; });
+    if (excelOptions.contabile) {
+      rs.addRow(['', 'TOTALE PASTI', { formula: `SUM(C2:C${r-1})` }]);
+      rs.addRow(['', 'IMPONIBILE', '', '', { formula: `SUM(E2:E${r-1})` }]);
+      const imponibileRow = r + 2;
+      rs.addRow(['', `IVA ${ivaPct}%`, '', '', { formula: `E${imponibileRow}*${ivaPct}/100` }]);
+      const ivaRow = r + 3;
+      rs.addRow(['', 'TOTALE', '', '', { formula: `E${imponibileRow}+E${ivaRow}` }]);
+    } else {
+      rs.addRow(['', 'TOTALE PASTI', { formula: `SUM(C2:C${r-1})` }]);
     }
-
-    if (!wb.worksheets.length) { showToast('Nulla da esportare con le sezioni selezionate'); if (btn) btn.disabled = false; return; }
+    rs.columns.forEach(c => { c.width = 18; });
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/octet-stream' });
