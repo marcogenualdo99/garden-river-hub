@@ -398,10 +398,6 @@ main { max-width: 980px; }
         <button class="date-nav-btn" onclick="shiftGiorno(1)" title="Giorno successivo" aria-label="Giorno successivo">&#8250;</button>
       </div>
       <button class="btn-oggi" onclick="vaiOggi()">Oggi</button>
-      <button class="rpt-btn ghost" onclick="copiaDaUltimoGiorno()" id="btn-copia">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        Copia dall'ultimo giorno
-      </button>
     </div>
 
     <div class="week-nav">
@@ -423,6 +419,13 @@ main { max-width: 980px; }
       <select class="ctrl-select" id="sel-sede-report" onchange="loadReport()"></select>
       <input type="month" class="ctrl-date" id="inp-mese-report" onchange="loadReport()">
       <select class="ctrl-select" id="sel-anno-report" style="display:none" onchange="loadReport()"></select>
+    </div>
+
+    <div class="chk-grid" id="report-opzioni" style="margin-bottom:16px">
+      <label class="chk-pill"><input type="checkbox" id="opt-kpi" checked onchange="onReportOptChange()"> KPI</label>
+      <label class="chk-pill"><input type="checkbox" id="opt-tabelle" checked onchange="onReportOptChange()"> Tabelle giornaliere</label>
+      <label class="chk-pill"><input type="checkbox" id="opt-economico" checked onchange="onReportOptChange()"> Riepilogo economico</label>
+      <label class="chk-pill"><input type="checkbox" id="opt-log" checked onchange="onReportOptChange()"> Registro modifiche</label>
     </div>
 
     <div id="report-body">
@@ -540,6 +543,22 @@ let _savingPresenza = false;
 let reportView  = 'mese'; // 'mese' | 'anno'
 let reportRows  = [];     // righe presenze caricate per il periodo
 let reportLog   = [];
+let _lastSedeFiltro = 'tutte'; // per poter ri-renderizzare quando cambiano le opzioni, senza ricaricare i dati
+// Quali informazioni includere nel report (a schermo, export Excel e stampa
+// usano tutti questa stessa selezione, così non divergono mai).
+let reportOptions = { kpi: true, tabelle: true, economico: true, log: true };
+function leggiReportOptions() {
+  reportOptions = {
+    kpi:       document.getElementById('opt-kpi').checked,
+    tabelle:   document.getElementById('opt-tabelle').checked,
+    economico: document.getElementById('opt-economico').checked,
+    log:       document.getElementById('opt-log').checked,
+  };
+}
+function onReportOptChange() {
+  leggiReportOptions();
+  renderReport(_lastSedeFiltro);
+}
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -1059,29 +1078,6 @@ function toggleChiuso() {
 function onMotivoInput(v) { draftMeta.motivo = v; scheduleAutosave(); }
 function onNoteInput(v) { draftMeta.note = v; scheduleAutosave(); }
 
-async function copiaDaUltimoGiorno() {
-  const sede = sediList.find(s => s.id === selSedeId);
-  if (!sede) return;
-  let d = addDays(selData, -1);
-  let found = null;
-  for (let i = 0; i < 60 && !found; i++) {
-    if (isServiceDay(sede, d)) {
-      await loadMeseDocs(sede.id, meseOf(d));
-      const doc = findPresenzaDoc(sede.id, d);
-      if (doc && !doc.chiuso && totalePasti(doc.righe) > 0) found = doc;
-    }
-    d = addDays(d, -1);
-  }
-  if (!found) { showToast('Nessun giorno precedente con dati da copiare'); return; }
-  ordiniAttiviSede(sede).forEach(o => {
-    draftRighe[o.id] = draftRighe[o.id] || {};
-    categorieAttive().forEach(c => { draftRighe[o.id][c.id] = (found.righe && found.righe[o.id] && found.righe[o.id][c.id]) || 0; });
-  });
-  draftMeta.chiuso = false;
-  renderOrdiniPresenzeBody();
-  showToast('Copiato dal ' + fmtDateIt(found.data));
-  scheduleAutosave();
-}
 
 // ── AUTOSAVE ──────────────────────────────────────────────────────────────
 // Ogni modifica (contatori, chiuso, motivo, note) chiama scheduleAutosave():
@@ -1331,6 +1327,8 @@ function buildTabelleReportHtml(sediInGioco, dal, al) {
 }
 
 function renderReport(sedeFiltro) {
+  _lastSedeFiltro = sedeFiltro;
+  leggiReportOptions();
   const wrap = document.getElementById('report-body');
   const { dal, al } = datesOfPeriod();
   const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
@@ -1339,18 +1337,22 @@ function renderReport(sedeFiltro) {
 
   const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, missingBySede, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
 
-  let html = `<div class="kpi-strip-local">
-    <div class="kpi-chip-l"><div class="kl-label">Pasti totali</div><div class="kl-value">${pastiTot}</div></div>
-    <div class="kpi-chip-l"><div class="kl-label">Importo (imponibile)</div><div class="kl-value">${fmtEUR(importoTot)}</div></div>
-    <div class="kpi-chip-l"><div class="kl-label">Giorni di servizio</div><div class="kl-value">${giorniServizioTot}</div></div>
-    <div class="kpi-chip-l"><div class="kl-label">Media giornaliera</div><div class="kl-value">${mediaGiornaliera.toFixed(1)}</div></div>
-  </div>`;
+  let html = '';
 
-  const missingEntries = Object.entries(missingBySede);
-  if (missingEntries.length) {
-    html += `<div class="warn-banner">⚠️ Giorni di servizio senza presenze inserite:<br>` +
-      missingEntries.map(([nome, dates]) => `<b>${escHtml(nome)}</b>: ${dates.slice(0,10).map(d=>fmtDateIt(d,{day:'2-digit',month:'2-digit'})).join(', ')}${dates.length>10?` … (+${dates.length-10})`:''}`).join('<br>') +
-      `</div>`;
+  if (reportOptions.kpi) {
+    html += `<div class="kpi-strip-local">
+      <div class="kpi-chip-l"><div class="kl-label">Pasti totali</div><div class="kl-value">${pastiTot}</div></div>
+      <div class="kpi-chip-l"><div class="kl-label">Importo (imponibile)</div><div class="kl-value">${fmtEUR(importoTot)}</div></div>
+      <div class="kpi-chip-l"><div class="kl-label">Giorni di servizio</div><div class="kl-value">${giorniServizioTot}</div></div>
+      <div class="kpi-chip-l"><div class="kl-label">Media giornaliera</div><div class="kl-value">${mediaGiornaliera.toFixed(1)}</div></div>
+    </div>`;
+
+    const missingEntries = Object.entries(missingBySede);
+    if (missingEntries.length) {
+      html += `<div class="warn-banner">⚠️ Giorni di servizio senza presenze inserite:<br>` +
+        missingEntries.map(([nome, dates]) => `<b>${escHtml(nome)}</b>: ${dates.slice(0,10).map(d=>fmtDateIt(d,{day:'2-digit',month:'2-digit'})).join(', ')}${dates.length>10?` … (+${dates.length-10})`:''}`).join('<br>') +
+        `</div>`;
+    }
   }
 
   html += `<div class="rpt-actions">
@@ -1364,17 +1366,19 @@ function renderReport(sedeFiltro) {
     </button>
   </div>`;
 
-  html += buildTabelleReportHtml(sediInGioco, dal, al);
+  if (reportOptions.tabelle) html += buildTabelleReportHtml(sediInGioco, dal, al);
 
-  html += `<div class="econ-summary">
-    <h3 style="margin-bottom:12px">Riepilogo economico</h3>
-    <div class="econ-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
-    <div class="econ-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
-    <div class="econ-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
-    <div class="econ-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
-  </div>`;
+  if (reportOptions.economico) {
+    html += `<div class="econ-summary">
+      <h3 style="margin-bottom:12px">Riepilogo economico</h3>
+      <div class="econ-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
+      <div class="econ-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
+      <div class="econ-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
+      <div class="econ-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
+    </div>`;
+  }
 
-  if (reportLog.length) {
+  if (reportOptions.log && reportLog.length) {
     html += `<div class="card"><h3 style="margin-bottom:10px">Registro modifiche</h3>`;
     reportLog.slice(0,60).forEach(l => {
       const sedeName = sediList.find(s=>s.id===l.sedeId)?.nome || l.sedeId;
@@ -1396,31 +1400,40 @@ function periodoReportLabel() {
   return 'Anno scolastico ' + document.getElementById('sel-anno-report').value;
 }
 function stampaReport() {
+  leggiReportOptions();
   const sedeFiltro = document.getElementById('sel-sede-report').value || 'tutte';
   const { dal, al } = datesOfPeriod();
   const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
   if (!sediInGioco.length) { showToast('Nessuna sede da stampare'); return; }
 
   const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
-  const tabelleHtml = buildTabelleReportHtml(sediInGioco, dal, al);
   const sedeLabel = sedeFiltro === 'tutte' ? 'Tutte le sedi' : sediInGioco[0].nome;
 
-  const bodyHtml = `
+  let bodyHtml = `
     <div class="print-header">
       <h1>Garden River — Mense scolastiche</h1>
       <p>${escHtml(sedeLabel)} · ${escHtml(periodoReportLabel())}</p>
-    </div>
+    </div>`;
+  if (reportOptions.economico) {
+    bodyHtml += `
     <div class="print-riepilogo">
       <h2>Riepilogo economico</h2>
-      <div class="print-riepilogo-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
+      ${reportOptions.kpi ? `<div class="print-riepilogo-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
       <div class="print-riepilogo-row"><span>Giorni di servizio</span><span>${giorniServizioTot}</span></div>
-      <div class="print-riepilogo-row"><span>Media giornaliera</span><span>${mediaGiornaliera.toFixed(1)}</span></div>
+      <div class="print-riepilogo-row"><span>Media giornaliera</span><span>${mediaGiornaliera.toFixed(1)}</span></div>` : ''}
       <div class="print-riepilogo-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
       <div class="print-riepilogo-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
       <div class="print-riepilogo-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
-    </div>
-    ${tabelleHtml}
-  `;
+    </div>`;
+  }
+  if (reportOptions.tabelle) bodyHtml += buildTabelleReportHtml(sediInGioco, dal, al);
+  if (reportOptions.log && reportLog.length) {
+    bodyHtml += `<h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:#555;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px">Registro modifiche</h2>`;
+    reportLog.slice(0,60).forEach(l => {
+      const sedeName = sediList.find(s=>s.id===l.sedeId)?.nome || l.sedeId;
+      bodyHtml += `<div style="font-size:11px;padding:3px 0;border-bottom:1px dotted #eee">${escHtml(l.operatore||'—')} · ${fmtOrario(l.quando)} · ${escHtml(sedeName)} · ${fmtDateIt(l.data||'')} · ${escHtml(l.azione||'')}</div>`;
+    });
+  }
 
   const w = window.open('', '_blank');
   if (!w) { showToast('Il browser ha bloccato la finestra di stampa'); return; }
@@ -1464,6 +1477,8 @@ function loadExcelJS() {
 }
 
 async function esportaExcelReport() {
+  leggiReportOptions();
+  if (!reportOptions.tabelle && !reportOptions.economico) { showToast('Seleziona almeno una sezione da esportare'); return; }
   const btn = event?.target?.closest('button');
   if (btn) { btn.disabled = true; }
   try {
@@ -1480,7 +1495,7 @@ async function esportaExcelReport() {
     let pastiTot = 0, importoTot = 0;
     let ivaPct = 4;
 
-    sediInGioco.forEach(sede => {
+    if (reportOptions.tabelle) sediInGioco.forEach(sede => {
       const righeSede = reportRows.filter(r => r.sedeId === sede.id);
       const ordini = ordiniAttiviSede(sede);
       const dates = allDatesInRange(dal, al);
@@ -1522,7 +1537,8 @@ async function esportaExcelReport() {
       });
     });
 
-    // Foglio RIEPILOGO
+    // Foglio RIEPILOGO (solo se richiesto)
+    if (reportOptions.economico) {
     const rs = wb.addWorksheet('RIEPILOGO');
     rs.addRow(['Sede', 'Ordine', 'Pasti', 'Prezzo unitario', 'Imponibile']);
     rs.getRow(1).font = { bold: true };
@@ -1558,6 +1574,9 @@ async function esportaExcelReport() {
     const ivaRow = r + 3;
     rs.addRow(['', 'TOTALE', '', '', { formula: `E${imponibileRow}+E${ivaRow}` }]);
     rs.columns.forEach(c => { c.width = 18; });
+    }
+
+    if (!wb.worksheets.length) { showToast('Nulla da esportare con le sezioni selezionate'); if (btn) btn.disabled = false; return; }
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: 'application/octet-stream' });
@@ -1664,8 +1683,20 @@ function renderSedeEditCard() {
     </div>
 
     <div class="field-group" style="margin-bottom:10px">
-      <label class="field-label">Tariffe (prezzo a pasto, IVA esclusa)</label>
+      <label class="field-label">Prezzo a pasto attuale (IVA esclusa)</label>
+      <div class="mini-row" style="margin-top:0">
+        <input type="number" step="0.01" min="0" class="mini-input" id="sf-prezzo-attuale" placeholder="Prezzo €" value="${prezzoAttualeDraft().prezzo || ''}" style="width:120px;height:46px">
+        <span style="font-size:13px;color:var(--gray-500)">IVA</span>
+        <input type="number" step="0.1" min="0" class="mini-input" id="sf-iva-attuale" placeholder="IVA %" value="${prezzoAttualeDraft().iva_pct}" style="width:80px;height:46px">
+        <span style="font-size:13px;color:var(--gray-500)">%</span>
+      </div>
+      <div class="toggle-sub" style="margin-top:2px">Si salva insieme al resto della sede, con "Salva sede" qui sotto — vale da oggi.</div>
+    </div>
+
+    <div class="field-group" style="margin-bottom:10px">
+      <label class="field-label">Storico tariffe / variazioni programmate</label>
       <div id="sf-tariffe">${renderTariffeRows()}</div>
+      <div class="toggle-sub" style="margin:2px 0 6px">Per programmare in anticipo un cambio prezzo da una data futura (o per correggere un prezzo passato):</div>
       <div class="mini-row">
         <input type="date" class="mini-input" id="sf-tar-dal">
         <input type="number" step="0.01" class="mini-input" id="sf-tar-prezzo" placeholder="Prezzo €" style="width:100px">
@@ -1742,12 +1773,41 @@ function sfAggiungiChiusura() {
 }
 function sfRimuoviChiusura(i) { _sedeEditDraft.chiusure.splice(i,1); renderSedeEditCard(); }
 
+// Prezzo "vigente oggi" nella bozza in modifica (per precompilare il campo
+// diretto): stessa logica di prezzoVigente(), ma sulle tariffe non ancora
+// salvate, con fallback 4% di IVA se non c'è ancora nessuna tariffa.
+function prezzoAttualeDraft() {
+  if (!_sedeEditDraft) return { prezzo: 0, iva_pct: 4 };
+  const oggi = todayStr();
+  const tariffe = (_sedeEditDraft.tariffe || []).filter(t => t.dal && t.dal <= oggi).sort((a,b) => a.dal < b.dal ? -1 : 1);
+  if (!tariffe.length) return { prezzo: 0, iva_pct: 4 };
+  const t = tariffe[tariffe.length - 1];
+  return { prezzo: Number(t.prezzo) || 0, iva_pct: t.iva_pct != null ? Number(t.iva_pct) : 4 };
+}
+
 async function salvaSede() {
   const d = _sedeEditDraft;
   d.nome = document.getElementById('sf-nome').value.trim();
   d.ente = document.getElementById('sf-ente').value.trim();
   d.indirizzo = document.getElementById('sf-indirizzo').value.trim();
   if (!d.nome) { showToast('Indica il nome della scuola'); shakeField('sf-nome'); return; }
+
+  // Prezzo attuale: campo diretto, sempre visibile — va scritto in tariffe[]
+  // come voce "dal oggi" (aggiornando quella di oggi se già c'è, altrimenti
+  // creandone una nuova) PRIMA di salvare, altrimenti si perde silenziosamente
+  // se non si passa dal flusso separato "+Aggiungi" qui sotto.
+  const prezzoInp = document.getElementById('sf-prezzo-attuale');
+  const ivaInp = document.getElementById('sf-iva-attuale');
+  const prezzoAttuale = parseFloat(prezzoInp.value);
+  const ivaAttuale = parseFloat(ivaInp.value);
+  if (prezzoInp.value !== '' && !isNaN(prezzoAttuale)) {
+    const oggi = todayStr();
+    d.tariffe = d.tariffe || [];
+    const esistente = d.tariffe.find(t => t.dal === oggi);
+    if (esistente) { esistente.prezzo = prezzoAttuale; esistente.iva_pct = isNaN(ivaAttuale) ? 4 : ivaAttuale; }
+    else d.tariffe.push({ dal: oggi, prezzo: prezzoAttuale, iva_pct: isNaN(ivaAttuale) ? 4 : ivaAttuale });
+  }
+
   try {
     const { db, doc, collection, addDoc, setDoc, serverTimestamp } = window._fb;
     if (_sedeEditId) {
@@ -1792,6 +1852,7 @@ function renderCategorieGlobaliList() {
     <div class="op-row">
       <input class="rename-input" value="${escHtml(c.nome)}" onchange="rinominaCategoriaGlobale(${i}, this.value)" aria-label="Nome categoria">
       <button class="toggle-switch${c.attivo!==false?' on':''}" onclick="toggleCategoriaGlobale(${i})" title="${c.attivo!==false?'Disattiva':'Riattiva'}"></button>
+      <button class="sm-del" onclick="eliminaCategoriaGlobale(${i})" title="Elimina categoria">✕</button>
     </div>`).join('');
 }
 async function salvaImpostazioniMense() {
@@ -1819,6 +1880,15 @@ async function rinominaCategoriaGlobale(i, nome) {
   if (!nome || nome === CATEGORIE[i].nome) { renderCategorieGlobaliList(); return; }
   CATEGORIE[i].nome = nome;
   try { await salvaImpostazioniMense(); showToast('✓ Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
+}
+function eliminaCategoriaGlobale(i) {
+  if (CATEGORIE.length <= 1) { showToast('Deve restare almeno una categoria'); return; }
+  const c = CATEGORIE[i];
+  showModal('Elimina categoria', `"${c.nome}" verrà rimossa da tutte le sedi e dai nuovi conteggi. I pasti già registrati con questa categoria restano nello storico ma non saranno più visibili/modificabili da qui. Continuare?`, 'Elimina', 'var(--red)', async () => {
+    CATEGORIE.splice(i, 1);
+    renderCategorieGlobaliList();
+    try { await salvaImpostazioniMense(); showToast('Categoria eliminata'); } catch(e) { showToast('Errore salvataggio'); }
+  });
 }
 async function aggiungiOrdineGlobale() {
   const inp = document.getElementById('inp-nuovo-ordine');
