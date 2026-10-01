@@ -78,8 +78,18 @@ main { max-width: 980px; }
 .ctrl-seg button { border: none; background: none; padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 700; font-family: var(--font); color: var(--gray-700); cursor: pointer; }
 .ctrl-seg button.active { background: var(--white); color: var(--green-700); box-shadow: var(--shadow-sm); }
 
+/* ══ NAVIGAZIONE DATA ════════════════════════════════════════════════════ */
+.date-nav { display: flex; align-items: center; gap: 6px; }
+.date-nav-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); color: var(--green-700); font-size: 18px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; -webkit-tap-highlight-color: transparent; transition: background .15s, transform .1s; }
+.date-nav-btn:active { background: var(--green-50); transform: scale(.94); }
+.btn-oggi { height: 44px; padding: 0 16px; border-radius: var(--radius-xl); border: 1.5px solid var(--gray-300); background: var(--white); color: var(--gray-700); font-size: 13px; font-weight: 700; font-family: var(--font); cursor: pointer; flex-shrink: 0; }
+.btn-oggi:active { background: var(--gray-100); }
+
 /* ══ WEEK STRIP ═══════════════════════════════════════════════════════════ */
-.week-strip { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; margin-bottom: 18px; }
+.week-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.week-nav-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); color: var(--green-700); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 800; -webkit-tap-highlight-color: transparent; }
+.week-nav-btn:active { background: var(--green-50); transform: scale(.94); }
+.week-strip { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; flex: 1; }
 .week-day { background: var(--white); border: 1.5px solid var(--gray-100); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; cursor: pointer; transition: all .15s; }
 .week-day .wd-label { font-size: 10px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; }
 .week-day .wd-num { font-size: 16px; font-weight: 800; color: var(--gray-900); margin: 3px 0; }
@@ -98,17 +108,26 @@ main { max-width: 980px; }
 .cat-row:last-of-type { border-bottom: none; }
 .cat-name { font-size: 14px; font-weight: 600; color: var(--gray-700); }
 .cat-counter { display: flex; align-items: center; gap: 10px; }
-.cnt-btn { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); font-size: 18px; font-weight: 800; color: var(--green-700); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.cnt-btn { width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--gray-300); background: var(--white); font-size: 20px; font-weight: 800; color: var(--green-700); cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; flex-shrink: 0; transition: background .15s, transform .1s; }
 .cnt-btn:active { background: var(--green-50); transform: scale(.94); }
 .cnt-btn:disabled { opacity: .3; pointer-events: none; }
-.cnt-val { min-width: 32px; text-align: center; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cnt-input { width: 56px; height: 44px; text-align: center; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); font-family: var(--font); color: var(--gray-900); outline: none; -moz-appearance: textfield; }
+.cnt-input::-webkit-outer-spin-button, .cnt-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cnt-input:focus { border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(64,145,108,.12); }
 .ordine-total-row { display: flex; justify-content: space-between; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--gray-100); font-size: 14px; font-weight: 800; color: var(--green-700); }
 
 .day-total-bar { background: var(--grad-forest); color: #fff; border-radius: var(--radius-lg); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .day-total-bar .dt-label { font-size: 12px; font-weight: 700; opacity: .8; text-transform: uppercase; letter-spacing: .04em; }
 .day-total-bar .dt-value { font-size: 28px; font-weight: 800; }
 
-.save-meta { font-size: 12px; color: var(--gray-500); text-align: center; margin: 10px 0 4px; }
+/* ══ STATO SALVATAGGIO (autosave, niente pulsante Salva) ═══════════════════ */
+.save-status { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12.5px; color: var(--gray-500); font-weight: 600; margin: 4px 0 18px; padding: 10px; }
+.save-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0; transition: background .25s; }
+.save-status-dot.pending { background: var(--amber); animation: gr-pulse 1s ease-in-out infinite; }
+.save-status-dot.saving { background: #60A5FA; animation: gr-pulse 1s ease-in-out infinite; }
+.save-status-dot.saved { background: var(--green-ok); }
+.save-status-dot.error { background: var(--red); }
+@keyframes gr-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 .closed-banner { background: var(--amber-bg); border: 1.5px solid var(--amber-bd); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; color: var(--amber); font-size: 14px; font-weight: 700; }
 
 .hist-item { font-size: 12.5px; color: var(--gray-700); padding: 8px 0; border-bottom: 1px solid var(--gray-100); line-height: 1.5; }
@@ -122,6 +141,10 @@ main { max-width: 980px; }
 .kpi-chip-l .kl-label { font-size: 11px; font-weight: 700; color: var(--gray-500); margin-bottom: 6px; }
 .kpi-chip-l .kl-value { font-size: 22px; font-weight: 800; color: var(--gray-900); }
 
+.rpt-sede-title { font-size: 19px; font-weight: 800; font-family: var(--font-display); color: var(--gray-900); margin: 26px 0 4px; padding-bottom: 8px; border-bottom: 2px solid var(--green-100); }
+.rpt-sede-title:first-child { margin-top: 0; }
+.rpt-table-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: var(--green-700); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 8px; }
+.rpt-table-head .rpt-table-count { font-size: 11px; font-weight: 700; color: var(--white); background: var(--green-700); padding: 2px 9px; border-radius: 10px; text-transform: none; letter-spacing: 0; }
 .rpt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 20px; background: var(--white); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .rpt-table th, .rpt-table td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--gray-100); }
 .rpt-table th:first-child, .rpt-table td:first-child { text-align: left; }
@@ -158,6 +181,9 @@ main { max-width: 980px; }
 .tariffa-row, .chiusura-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
 .tariffa-row:last-of-type, .chiusura-row:last-of-type { border-bottom: none; }
 .sm-del { width: 26px; height: 26px; border: none; background: var(--red-bg); color: var(--red); border-radius: 50%; font-size: 13px; cursor: pointer; flex-shrink: 0; }
+.rename-input { flex: 1; min-width: 100px; height: 36px; padding: 0 10px; border: 1.5px solid transparent; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; font-family: var(--font); color: var(--gray-900); background: transparent; outline: none; transition: border-color .15s, background .15s; }
+.rename-input:hover { background: var(--gray-50); }
+.rename-input:focus { border-color: var(--green-400); background: var(--white); box-shadow: 0 0 0 3px rgba(64,145,108,.12); }
 
 /* ══ FORM CARD / CAMPI / TOGGLE (stesso pattern di Manutenzione — non in
    theme.css, ogni modulo li ridefinisce localmente) ═══════════════════════ */
@@ -186,13 +212,6 @@ main { max-width: 980px; }
 .btn-submit svg { width: 18px; height: 18px; }
 
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
-
-/* ══ PRINT ═══════════════════════════════════════════════════════════════ */
-@media print {
-  .nav-zone, .drawer, .drawer-overlay, .top-bar, .nav-wrap, .rpt-actions, .ctrl-bar, .hamburger { display: none !important; }
-  .main-col { margin: 0 !important; }
-  body { background: #fff; }
-}
 </style>
 </head>
 <body>
@@ -373,14 +392,23 @@ main { max-width: 980px; }
   <div id="sec-presenze" class="section active">
     <div class="ctrl-bar">
       <select class="ctrl-select" id="sel-sede-presenze" onchange="onSedeChange()"></select>
-      <input type="date" class="ctrl-date" id="inp-data-presenze" onchange="onDateChange()">
+      <div class="date-nav">
+        <button class="date-nav-btn" onclick="shiftGiorno(-1)" title="Giorno precedente" aria-label="Giorno precedente">&#8249;</button>
+        <input type="date" class="ctrl-date" id="inp-data-presenze" onchange="onDateChange()">
+        <button class="date-nav-btn" onclick="shiftGiorno(1)" title="Giorno successivo" aria-label="Giorno successivo">&#8250;</button>
+      </div>
+      <button class="btn-oggi" onclick="vaiOggi()">Oggi</button>
       <button class="rpt-btn ghost" onclick="copiaDaUltimoGiorno()" id="btn-copia">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         Copia dall'ultimo giorno
       </button>
     </div>
 
-    <div class="week-strip" id="week-strip"></div>
+    <div class="week-nav">
+      <button class="week-nav-btn" onclick="shiftSettimana(-1)" title="Settimana precedente" aria-label="Settimana precedente">&#8249;</button>
+      <div class="week-strip" id="week-strip"></div>
+      <button class="week-nav-btn" onclick="shiftSettimana(1)" title="Settimana successiva" aria-label="Settimana successiva">&#8250;</button>
+    </div>
 
     <div id="presenze-body"></div>
   </div>
@@ -799,6 +827,18 @@ function onDateChange() {
   if (v) selData = v;
   renderPresenzeTab();
 }
+function shiftGiorno(delta) {
+  selData = addDays(selData, delta);
+  renderPresenzeTab();
+}
+function shiftSettimana(delta) {
+  selData = addDays(selData, delta * 7);
+  renderPresenzeTab();
+}
+function vaiOggi() {
+  selData = todayStr();
+  renderPresenzeTab();
+}
 
 async function renderPresenzeTab() {
   const sel = document.getElementById('sel-sede-presenze');
@@ -812,12 +852,11 @@ async function renderPresenzeTab() {
     document.getElementById('presenze-body').innerHTML = '<p class="perm-hint">Nessuna sede attiva. Creane una da Impostazioni.</p>';
     return;
   }
-  await loadMeseDocs(selSedeId, meseOf(selData));
   const monday = mondayOfWeek(selData);
-  const prevMese = meseOf(addDays(monday, 0));
-  await loadMeseDocs(selSedeId, prevMese);
-  const monPlus6 = addDays(monday, 6);
-  if (meseOf(monPlus6) !== prevMese) await loadMeseDocs(selSedeId, meseOf(monPlus6));
+  // I mesi coinvolti (giorno selezionato + inizio/fine della settimana mostrata)
+  // sono al massimo 3: li carica tutti in parallelo invece che uno alla volta.
+  const mesiNecessari = new Set([meseOf(selData), meseOf(monday), meseOf(addDays(monday, 6))]);
+  await Promise.all([...mesiNecessari].map(m => loadMeseDocs(selSedeId, m)));
 
   renderWeekStrip(sede, monday);
   await loadGiornoCorrente(sede);
@@ -926,11 +965,11 @@ function renderOrdiniPresenzeBody() {
     ${draftMeta.chiuso ? `
     <div class="field-group">
       <label class="field-label">Motivo</label>
-      <input class="field-select" id="inp-motivo-chiuso" style="height:46px;padding:0 14px" value="${escHtml(draftMeta.motivo)}" placeholder="Es. Sciopero, gita, chiusura scuola…">
+      <input class="field-select" id="inp-motivo-chiuso" style="height:46px;padding:0 14px" value="${escHtml(draftMeta.motivo)}" placeholder="Es. Sciopero, gita, chiusura scuola…" oninput="onMotivoInput(this.value)">
     </div>` : ''}
     <div class="field-group">
       <label class="field-label">Note</label>
-      <textarea class="field-textarea" id="inp-note-giorno" rows="2" placeholder="Note facoltative…">${escHtml(draftMeta.note)}</textarea>
+      <textarea class="field-textarea" id="inp-note-giorno" rows="2" placeholder="Note facoltative…" oninput="onNoteInput(this.value)">${escHtml(draftMeta.note)}</textarea>
     </div>
   </div></div>`;
 
@@ -944,9 +983,9 @@ function renderOrdiniPresenzeBody() {
         html += `<div class="cat-row">
           <div class="cat-name">${escHtml(c.nome)}</div>
           <div class="cat-counter">
-            <button class="cnt-btn" onclick="incCounter('${o.id}','${c.id}',-1)" ${v<=0?'disabled':''}>−</button>
-            <div class="cnt-val" id="val-${o.id}-${c.id}">${v}</div>
-            <button class="cnt-btn" onclick="incCounter('${o.id}','${c.id}',1)">+</button>
+            <button class="cnt-btn" id="minus-${o.id}-${c.id}" onclick="incCounter('${o.id}','${c.id}',-1)" ${v<=0?'disabled':''} aria-label="Diminuisci ${escHtml(c.nome)}">−</button>
+            <input type="number" inputmode="numeric" min="0" class="cnt-input" id="val-${o.id}-${c.id}" value="${v}" onfocus="this.select()" onchange="setCounterValue('${o.id}','${c.id}', this.value)" aria-label="${escHtml(c.nome)}">
+            <button class="cnt-btn" onclick="incCounter('${o.id}','${c.id}',1)" aria-label="Aumenta ${escHtml(c.nome)}">+</button>
           </div>
         </div>`;
       });
@@ -957,26 +996,26 @@ function renderOrdiniPresenzeBody() {
     html += `<div class="day-total-bar"><div><div class="dt-label">Totale pasti del giorno</div></div><div class="dt-value" id="day-total-val">${totGiorno}</div></div>`;
   }
 
-  html += `<button class="btn-submit" id="btn-salva-presenza" onclick="salvaPresenza()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-    Salva
-  </button>`;
+  // Niente pulsante Salva: ogni modifica si autosalva (debounce), lo stato
+  // è questa riga che si aggiorna da sola (v. scheduleAutosave/setSaveStatus).
+  html += `<div class="save-status" id="save-status"><span class="save-status-dot" id="save-status-dot"></span><span id="save-status-text">—</span></div>`;
 
-  if (draftMeta._exists) {
-    html += `<div class="save-meta">Salvato da <b>${escHtml(draftMeta.operatore||'—')}</b> alle ${fmtOrario(draftMeta.aggiornato_il)}</div>`;
-  }
-
-  if (dayLog.length) {
-    html += `<div class="card" style="margin-top:18px"><h3 style="margin-bottom:10px">Storico modifiche del giorno</h3>`;
-    dayLog.forEach(l => {
-      const mods = (l.modifiche||[]).map(m => `${escHtml(m.campo)}: ${escHtml(String(m.da))} → ${escHtml(String(m.a))}`).join('; ');
-      html += `<div class="hist-item"><b>${escHtml(l.operatore||'—')}</b> · ${fmtOrario(l.quando)} · ${escHtml(l.azione||'')}${mods?' — '+mods:''}</div>`;
-    });
-    html += `</div>`;
-  }
+  html += `<div id="day-log-wrap">${dayLogSectionHtml()}</div>`;
 
   wrap.innerHTML = html;
   ordini.forEach(o => updateSubtotale(o.id));
+  setSaveStatus(draftMeta._exists ? 'exists' : 'new');
+}
+
+function dayLogSectionHtml() {
+  if (!dayLog.length) return '';
+  let html = `<div class="card" id="day-log-card" style="margin-top:18px"><h3 style="margin-bottom:10px">Storico modifiche del giorno</h3>`;
+  dayLog.forEach(l => {
+    const mods = (l.modifiche||[]).map(m => `${escHtml(m.campo)}: ${escHtml(String(m.da))} → ${escHtml(String(m.a))}`).join('; ');
+    html += `<div class="hist-item"><b>${escHtml(l.operatore||'—')}</b> · ${fmtOrario(l.quando)} · ${escHtml(l.azione||'')}${mods?' — '+mods:''}</div>`;
+  });
+  html += `</div>`;
+  return html;
 }
 
 function updateSubtotale(ordineId) {
@@ -993,22 +1032,32 @@ function updateDayTotal() {
   const el = document.getElementById('day-total-val');
   if (el) el.textContent = tot;
 }
-function incCounter(ordineId, catId, delta) {
+// Contatori -/+ e input diretto da tastiera scrivono entrambi qui: unica
+// fonte di verità per il valore, poi autosave con debounce (niente bottone).
+function setCounterValue(ordineId, catId, value) {
+  let v = parseInt(value, 10);
+  if (isNaN(v) || v < 0) v = 0;
   if (!draftRighe[ordineId]) draftRighe[ordineId] = {};
-  const cur = draftRighe[ordineId][catId] || 0;
-  const next = Math.max(0, cur + delta);
-  draftRighe[ordineId][catId] = next;
-  const valEl = document.getElementById(`val-${ordineId}-${catId}`);
-  if (valEl) valEl.textContent = next;
-  const minusBtn = valEl ? valEl.previousElementSibling : null;
-  if (minusBtn) minusBtn.disabled = next <= 0;
+  draftRighe[ordineId][catId] = v;
+  const inputEl = document.getElementById(`val-${ordineId}-${catId}`);
+  if (inputEl && Number(inputEl.value) !== v) inputEl.value = v;
+  const minusBtn = document.getElementById(`minus-${ordineId}-${catId}`);
+  if (minusBtn) minusBtn.disabled = v <= 0;
   updateSubtotale(ordineId);
   updateDayTotal();
+  scheduleAutosave();
+}
+function incCounter(ordineId, catId, delta) {
+  const cur = (draftRighe[ordineId] && draftRighe[ordineId][catId]) || 0;
+  setCounterValue(ordineId, catId, Math.max(0, cur + delta));
 }
 function toggleChiuso() {
   draftMeta.chiuso = !draftMeta.chiuso;
   renderOrdiniPresenzeBody();
+  scheduleAutosave();
 }
+function onMotivoInput(v) { draftMeta.motivo = v; scheduleAutosave(); }
+function onNoteInput(v) { draftMeta.note = v; scheduleAutosave(); }
 
 async function copiaDaUltimoGiorno() {
   const sede = sediList.find(s => s.id === selSedeId);
@@ -1031,6 +1080,33 @@ async function copiaDaUltimoGiorno() {
   draftMeta.chiuso = false;
   renderOrdiniPresenzeBody();
   showToast('Copiato dal ' + fmtDateIt(found.data));
+  scheduleAutosave();
+}
+
+// ── AUTOSAVE ──────────────────────────────────────────────────────────────
+// Ogni modifica (contatori, chiuso, motivo, note) chiama scheduleAutosave():
+// un debounce breve evita una scrittura Firestore per ogni singolo click,
+// ma non serve mai premere un pulsante "Salva" — lo stato si vede nella
+// riga sotto i contatori (save-status).
+let _autosaveTimer = null;
+function scheduleAutosave() {
+  setSaveStatus('pending');
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(() => { salvaPresenza(); }, 600);
+}
+function nowHHMM() { return new Date().toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }); }
+function setSaveStatus(state) {
+  const dot = document.getElementById('save-status-dot');
+  const text = document.getElementById('save-status-text');
+  if (!dot || !text) return;
+  dot.className = 'save-status-dot' + (state === 'exists' || state === 'new' ? '' : ' ' + (state === 'saved' ? 'saved' : state));
+  if (state === 'pending') text.textContent = 'Modifiche in corso…';
+  else if (state === 'saving') text.textContent = 'Salvataggio…';
+  else if (state === 'saved') { dot.className = 'save-status-dot saved'; text.textContent = `Salvato da ${escHtml(currentOperatore||'—')} alle ${nowHHMM()}`; }
+  else if (state === 'error') text.textContent = 'Errore di salvataggio — nuovo tentativo a breve';
+  else if (state === 'needs-motivo') { dot.className = 'save-status-dot pending'; text.textContent = 'Specifica il motivo per salvare la chiusura'; }
+  else if (state === 'exists') text.textContent = `Salvato da ${escHtml(draftMeta.operatore||'—')} alle ${fmtOrario(draftMeta.aggiornato_il)}`;
+  else text.textContent = 'Non ancora salvato';
 }
 
 async function salvaPresenza() {
@@ -1038,15 +1114,12 @@ async function salvaPresenza() {
   const sede = sediList.find(s => s.id === selSedeId);
   if (!sede) return;
 
-  const motivoInp = document.getElementById('inp-motivo-chiuso');
-  const noteInp = document.getElementById('inp-note-giorno');
-  const motivo = motivoInp ? motivoInp.value.trim() : draftMeta.motivo;
-  const note = noteInp ? noteInp.value.trim() : draftMeta.note;
-  if (draftMeta.chiuso && !motivo) { showToast('Indica il motivo della chiusura'); if (motivoInp) shakeField('inp-motivo-chiuso'); return; }
+  const motivo = (draftMeta.motivo || '').trim();
+  const note = (draftMeta.note || '').trim();
+  if (draftMeta.chiuso && !motivo) { setSaveStatus('needs-motivo'); return; }
 
-  const btn = document.getElementById('btn-salva-presenza');
   _savingPresenza = true;
-  if (btn) { btn.disabled = true; btn.innerHTML = `<div style="width:20px;height:20px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:gr-spin .7s linear infinite"></div> Salvataggio…`; }
+  setSaveStatus('saving');
   setSyncStatus('saving');
 
   const righe = {};
@@ -1074,6 +1147,10 @@ async function salvaPresenza() {
     });
   }
 
+  // Nessuna modifica reale rispetto all'ultimo salvataggio: niente scrittura.
+  if (oldDoc && !modifiche.length) { _savingPresenza = false; setSaveStatus('exists'); return; }
+
+  const savedForData = selData, savedForSede = sede.id;
   try {
     const { db, doc, writeBatch, serverTimestamp, collection } = window._fb;
     const batch = writeBatch(db);
@@ -1092,17 +1169,32 @@ async function salvaPresenza() {
       });
     }
     await batch.commit();
-    showToast('✓ Presenze salvate');
     setSyncStatus('live');
-    delete weekDocsCache[sede.id + '|' + meseOf(selData)];
-    await renderPresenzeTab();
+    draftMeta._exists = true;
+    draftMeta.operatore = currentOperatore;
+    // Se nel frattempo l'operatore è passato a un altro giorno/sede, non
+    // tocca la UI corrente — aggiorna solo lo stato se siamo ancora lì.
+    if (selData === savedForData && sede.id === savedForSede) setSaveStatus('saved');
+    await refreshAfterSave(sede);
   } catch(e) {
     console.error('Errore salvataggio presenze:', e);
-    showToast('Errore durante il salvataggio');
+    if (selData === savedForData && sede.id === savedForSede) setSaveStatus('error');
     setSyncStatus('error');
   } finally {
     _savingPresenza = false;
   }
+}
+
+// Dopo un salvataggio aggiorna solo striscia settimana e storico modifiche
+// (non l'intero form: così non si perde il focus se l'operatore sta ancora
+// scrivendo in un altro campo).
+async function refreshAfterSave(sede) {
+  delete weekDocsCache[sede.id + '|' + meseOf(selData)];
+  await loadMeseDocs(sede.id, meseOf(selData));
+  renderWeekStrip(sede, mondayOfWeek(selData));
+  await loadDayLog(sede.id, selData);
+  const logWrap = document.getElementById('day-log-wrap');
+  if (logWrap) logWrap.innerHTML = dayLogSectionHtml();
 }
 
 function shakeField(id) {
@@ -1145,12 +1237,20 @@ async function loadReport() {
   let rows = [];
   let logRows = [];
   try {
-    for (const mese of mesi) {
-      const snap = await getDocs(query(collection(db, 'mense_presenze'), where('mese','==',mese)));
-      snap.docs.forEach(d => rows.push({ id: d.id, ...d.data() }));
-      const logSnap = await getDocs(query(collection(db, 'mense_log'), where('mese','==',mese)));
+    // Un mese = due query (presenze + log); tutti i mesi del periodo vengono
+    // interrogati in parallelo invece che uno alla volta (prima, su "Anno
+    // scolastico" erano fino a 24 andate e ritorni in sequenza — molto lento).
+    const perMese = await Promise.all(mesi.map(async mese => {
+      const [presSnap, logSnap] = await Promise.all([
+        getDocs(query(collection(db, 'mense_presenze'), where('mese','==',mese))),
+        getDocs(query(collection(db, 'mense_log'), where('mese','==',mese))),
+      ]);
+      return { presSnap, logSnap };
+    }));
+    perMese.forEach(({ presSnap, logSnap }) => {
+      presSnap.docs.forEach(d => rows.push({ id: d.id, ...d.data() }));
       logSnap.docs.forEach(d => logRows.push({ id: d.id, ...d.data() }));
-    }
+    });
   } catch(e) { console.error('Errore caricamento report:', e); wrap.innerHTML = '<p class="perm-hint">Errore nel caricamento dei dati.</p>'; return; }
 
   if (sedeFiltro !== 'tutte') {
@@ -1168,14 +1268,9 @@ async function loadReport() {
   renderReport(sedeFiltro);
 }
 
-function renderReport(sedeFiltro) {
-  const wrap = document.getElementById('report-body');
-  const { dal, al } = datesOfPeriod();
-  const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
-
-  if (!sediInGioco.length) { wrap.innerHTML = '<p class="perm-hint">Nessuna sede da mostrare.</p>'; return; }
-
-  // KPI aggregati
+// Calcola i KPI/riepilogo economico — condiviso tra la vista a schermo e la
+// stampa, così i due output non possono mai disallinearsi.
+function calcolaKpiReport(sediInGioco, dal, al) {
   let pastiTot = 0, importoTot = 0, giorniServizioTot = 0, giorniInseritiTot = 0;
   const missingBySede = {};
   sediInGioco.forEach(sede => {
@@ -1201,6 +1296,48 @@ function renderReport(sedeFiltro) {
   const mediaGiornaliera = giorniInseritiTot ? (pastiTot / giorniInseritiTot) : 0;
   const ivaPct = sediInGioco[0] ? prezzoVigente(sediInGioco[0], al).iva_pct : 4;
   const iva = importoTot * (ivaPct/100);
+  return { pastiTot, importoTot, giorniServizioTot, giorniInseritiTot, mediaGiornaliera, missingBySede, ivaPct, iva };
+}
+
+// Costruisce le tabelle giorno-per-giorno: una per ordine scolastico, SEMPRE
+// con un'intestazione visibile che dice di quale ordine si tratta (prima
+// mancava: più tabelle con le stesse date sembravano duplicate).
+function buildTabelleReportHtml(sediInGioco, dal, al) {
+  let html = '';
+  sediInGioco.forEach(sede => {
+    const righeSede = reportRows.filter(r => r.sedeId === sede.id);
+    const ordini = ordiniAttiviSede(sede);
+    const cats = categorieAttive();
+    if (sediInGioco.length > 1) html += `<div class="rpt-sede-title">${escHtml(sede.nome)}</div>`;
+    if (!ordini.length) { html += `<p class="perm-hint">Nessun ordine attivo per questa sede.</p>`; return; }
+    ordini.forEach(o => {
+      html += `<div class="rpt-table-head">${escHtml(o.nome)}</div>`;
+      html += `<table class="rpt-table"><thead><tr><th>Giorno</th>${cats.map(c=>`<th>${escHtml(c.nome)}</th>`).join('')}<th>Totale</th></tr></thead><tbody>`;
+      let totCols = cats.map(()=>0); let totGen = 0;
+      allDatesInRange(dal, al).forEach(d => {
+        const service = isServiceDay(sede, d);
+        const doc = righeSede.find(r => r.data === d);
+        if (!service) { html += `<tr class="no-service"><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td>${cats.map(()=>'<td>—</td>').join('')}<td>—</td></tr>`; return; }
+        if (doc && doc.chiuso) { html += `<tr class="chiuso"><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td><td colspan="${cats.length+1}">${escHtml(doc.motivo||'Nessun servizio')}</td></tr>`; return; }
+        const vals = cats.map((c,i) => { const v = (doc && doc.righe && doc.righe[o.id] && doc.righe[o.id][c.id]) || 0; totCols[i]+=v; return v; });
+        const rowTot = vals.reduce((a,b)=>a+b,0); totGen += rowTot;
+        html += `<tr><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td>${vals.map(v=>`<td>${v}</td>`).join('')}<td>${rowTot}</td></tr>`;
+      });
+      html += `<tr class="tot-row"><td>Totale</td>${totCols.map(v=>`<td>${v}</td>`).join('')}<td>${totGen}</td></tr>`;
+      html += `</tbody></table>`;
+    });
+  });
+  return html;
+}
+
+function renderReport(sedeFiltro) {
+  const wrap = document.getElementById('report-body');
+  const { dal, al } = datesOfPeriod();
+  const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
+
+  if (!sediInGioco.length) { wrap.innerHTML = '<p class="perm-hint">Nessuna sede da mostrare.</p>'; return; }
+
+  const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, missingBySede, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
 
   let html = `<div class="kpi-strip-local">
     <div class="kpi-chip-l"><div class="kl-label">Pasti totali</div><div class="kl-value">${pastiTot}</div></div>
@@ -1221,34 +1358,13 @@ function renderReport(sedeFiltro) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
       Esporta Excel
     </button>
-    <button class="rpt-btn ghost" onclick="window.print()">
+    <button class="rpt-btn ghost" onclick="stampaReport()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Stampa
     </button>
   </div>`;
 
-  sediInGioco.forEach(sede => {
-    const righeSede = reportRows.filter(r => r.sedeId === sede.id);
-    const ordini = ordiniAttiviSede(sede);
-    const cats = categorieAttive();
-    html += `<h3 style="margin:18px 0 10px">${escHtml(sede.nome)}</h3>`;
-    ordini.forEach(o => {
-      html += `<table class="rpt-table"><thead><tr><th>Giorno</th>${cats.map(c=>`<th>${escHtml(c.nome)}</th>`).join('')}<th>Totale</th></tr></thead><tbody>`;
-      let totCols = cats.map(()=>0); let totGen = 0;
-      allDatesInRange(dal, al).forEach(d => {
-        const service = isServiceDay(sede, d);
-        const doc = righeSede.find(r => r.data === d);
-        const cls = !service ? 'no-service' : (doc && doc.chiuso ? 'chiuso' : '');
-        if (!service) { html += `<tr class="no-service"><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td>${cats.map(()=>'<td>—</td>').join('')}<td>—</td></tr>`; return; }
-        if (doc && doc.chiuso) { html += `<tr class="chiuso"><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td><td colspan="${cats.length+1}">${escHtml(doc.motivo||'Nessun servizio')}</td></tr>`; return; }
-        const vals = cats.map((c,i) => { const v = (doc && doc.righe && doc.righe[o.id] && doc.righe[o.id][c.id]) || 0; totCols[i]+=v; return v; });
-        const rowTot = vals.reduce((a,b)=>a+b,0); totGen += rowTot;
-        html += `<tr><td>${fmtDateIt(d,{day:'2-digit',month:'2-digit'})}</td>${vals.map(v=>`<td>${v}</td>`).join('')}<td>${rowTot}</td></tr>`;
-      });
-      html += `<tr class="tot-row"><td>Totale</td>${totCols.map(v=>`<td>${v}</td>`).join('')}<td>${totGen}</td></tr>`;
-      html += `</tbody></table>`;
-    });
-  });
+  html += buildTabelleReportHtml(sediInGioco, dal, al);
 
   html += `<div class="econ-summary">
     <h3 style="margin-bottom:12px">Riepilogo economico</h3>
@@ -1268,6 +1384,71 @@ function renderReport(sedeFiltro) {
   }
 
   wrap.innerHTML = html;
+}
+
+// ── STAMPA REPORT — stesso stile professionale bianco/nero di Ristorazione
+//    (finestra a parte con documento dedicato, non la pagina a schermo) ────
+function periodoReportLabel() {
+  if (reportView === 'mese') {
+    const mese = document.getElementById('inp-mese-report').value || meseOf(todayStr());
+    return fmtDateIt(mese + '-01', { month: 'long', year: 'numeric' });
+  }
+  return 'Anno scolastico ' + document.getElementById('sel-anno-report').value;
+}
+function stampaReport() {
+  const sedeFiltro = document.getElementById('sel-sede-report').value || 'tutte';
+  const { dal, al } = datesOfPeriod();
+  const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
+  if (!sediInGioco.length) { showToast('Nessuna sede da stampare'); return; }
+
+  const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
+  const tabelleHtml = buildTabelleReportHtml(sediInGioco, dal, al);
+  const sedeLabel = sedeFiltro === 'tutte' ? 'Tutte le sedi' : sediInGioco[0].nome;
+
+  const bodyHtml = `
+    <div class="print-header">
+      <h1>Garden River — Mense scolastiche</h1>
+      <p>${escHtml(sedeLabel)} · ${escHtml(periodoReportLabel())}</p>
+    </div>
+    <div class="print-riepilogo">
+      <h2>Riepilogo economico</h2>
+      <div class="print-riepilogo-row"><span>Pasti totali</span><span>${pastiTot}</span></div>
+      <div class="print-riepilogo-row"><span>Giorni di servizio</span><span>${giorniServizioTot}</span></div>
+      <div class="print-riepilogo-row"><span>Media giornaliera</span><span>${mediaGiornaliera.toFixed(1)}</span></div>
+      <div class="print-riepilogo-row"><span>Imponibile</span><span>${fmtEUR(importoTot)}</span></div>
+      <div class="print-riepilogo-row"><span>IVA ${ivaPct}%</span><span>${fmtEUR(iva)}</span></div>
+      <div class="print-riepilogo-row"><span>Totale</span><span>${fmtEUR(importoTot+iva)}</span></div>
+    </div>
+    ${tabelleHtml}
+  `;
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Il browser ha bloccato la finestra di stampa'); return; }
+  w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Report Mense — ${escHtml(sedeLabel)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #000; padding: 28px; margin: 0; }
+  .print-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 20px; }
+  .print-header h1 { font-size: 20px; margin: 0 0 2px; letter-spacing: .5px; }
+  .print-header p { font-size: 13px; margin: 0; color: #444; }
+  .print-riepilogo { margin-bottom: 22px; background: #f8f8f8; border: 1.5px solid #e0e0e0; border-radius: 6px; padding: 12px 16px; }
+  .print-riepilogo h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #555; margin: 0 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .print-riepilogo-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dotted #ddd; }
+  .print-riepilogo-row:last-child { border-bottom: none; font-weight: 700; }
+  .rpt-sede-title { font-size: 16px; font-weight: 700; margin: 22px 0 6px; border-bottom: 1.5px solid #000; padding-bottom: 4px; }
+  .rpt-table-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #555; margin: 14px 0 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; break-inside: avoid; }
+  th, td { padding: 4px 8px; text-align: right; border-bottom: 1px solid #eee; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { background: #111; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; }
+  tr.tot-row { font-weight: 700; background: #f0f0f0; }
+  tr.chiuso td { font-style: italic; color: #888; }
+  tr.no-service td { color: #ccc; }
+  @page { margin: 14mm; }
+</style></head><body>${bodyHtml}
+<script>window.onload = () => setTimeout(() => window.print(), 400);<\/script>
+</body></html>`);
+  w.document.close();
 }
 
 // ── EXPORT EXCEL (ExcelJS caricato da cdnjs al momento dell'export) ────────
@@ -1592,13 +1773,16 @@ function eliminaSede(id) {
 }
 
 // ── IMPOSTAZIONI: ordini / categorie globali ─────────────────────────────
+// Rinominare cambia solo "nome" (visualizzato ovunque): l'"id" resta stabile
+// perché è la chiave usata dentro sede.ordini[] e righe[ordineId][categoriaId]
+// — rinominare non deve rompere i dati già salvati.
 function renderOrdiniGlobaliList() {
   const wrap = document.getElementById('ordini-globali-list');
   if (!wrap) return;
   wrap.innerHTML = ORDINI.map((o,i) => `
     <div class="op-row">
-      <div class="op-name">${escHtml(o.nome)}</div>
-      <button class="toggle-switch${o.attivo!==false?' on':''}" onclick="toggleOrdineGlobale(${i})"></button>
+      <input class="rename-input" value="${escHtml(o.nome)}" onchange="rinominaOrdineGlobale(${i}, this.value)" aria-label="Nome ordine">
+      <button class="toggle-switch${o.attivo!==false?' on':''}" onclick="toggleOrdineGlobale(${i})" title="${o.attivo!==false?'Disattiva':'Riattiva'}"></button>
     </div>`).join('');
 }
 function renderCategorieGlobaliList() {
@@ -1606,8 +1790,8 @@ function renderCategorieGlobaliList() {
   if (!wrap) return;
   wrap.innerHTML = CATEGORIE.map((c,i) => `
     <div class="op-row">
-      <div class="op-name">${escHtml(c.nome)}</div>
-      <button class="toggle-switch${c.attivo!==false?' on':''}" onclick="toggleCategoriaGlobale(${i})"></button>
+      <input class="rename-input" value="${escHtml(c.nome)}" onchange="rinominaCategoriaGlobale(${i}, this.value)" aria-label="Nome categoria">
+      <button class="toggle-switch${c.attivo!==false?' on':''}" onclick="toggleCategoriaGlobale(${i})" title="${c.attivo!==false?'Disattiva':'Riattiva'}"></button>
     </div>`).join('');
 }
 async function salvaImpostazioniMense() {
@@ -1623,6 +1807,18 @@ async function toggleCategoriaGlobale(i) {
   CATEGORIE[i].attivo = CATEGORIE[i].attivo === false ? true : false;
   renderCategorieGlobaliList();
   try { await salvaImpostazioniMense(); } catch(e) { showToast('Errore salvataggio'); }
+}
+async function rinominaOrdineGlobale(i, nome) {
+  nome = nome.trim();
+  if (!nome || nome === ORDINI[i].nome) { renderOrdiniGlobaliList(); return; }
+  ORDINI[i].nome = nome;
+  try { await salvaImpostazioniMense(); showToast('✓ Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
+}
+async function rinominaCategoriaGlobale(i, nome) {
+  nome = nome.trim();
+  if (!nome || nome === CATEGORIE[i].nome) { renderCategorieGlobaliList(); return; }
+  CATEGORIE[i].nome = nome;
+  try { await salvaImpostazioniMense(); showToast('✓ Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
 }
 async function aggiungiOrdineGlobale() {
   const inp = document.getElementById('inp-nuovo-ordine');
