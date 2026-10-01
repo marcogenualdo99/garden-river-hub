@@ -27,7 +27,8 @@ const ICONS = {
   BROOM: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 3 10 13"/><path d="M10.5 12.5c1 1 1 3-1 4.5-2 1.5-5 1.5-7 3.5 1-2.5.5-5 2-7 1.5-2 3.5-2.5 5-2Z"/><path d="M13 6l3.5 3.5"/></svg>',
   CHECK: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>',
   BLOCK: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M6.5 6.5l11 11"/></svg>',
-  FILTER: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5Z"/></svg>'
+  FILTER: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5Z"/></svg>',
+  MENSE: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 8v3a1.5 1.5 0 0 0 3 0V8M9.5 11v5M15 8l-1 4h2l-1 5"/></svg>'
 };
 
 function hydrateIcons(root) {

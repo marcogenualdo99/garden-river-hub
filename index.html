@@ -498,6 +498,12 @@
       <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
     </div>
   </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
 
   <div class="sidebar-spacer"></div>
   <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
@@ -513,6 +519,7 @@
   <div class="rail-item" onclick="openModule('bici/')"><span data-icon="BICI"></span><span>Bici</span></div>
   <div class="rail-item" onclick="openModule('spiaggia/')"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></div>
   <div class="rail-item" onclick="openModule('manutenzione/')"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></div>
+  <div class="rail-item" onclick="openModule('mense/')"><span data-icon="MENSE"></span><span>Mense</span></div>
   <div class="rail-spacer"></div>
   <div class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></div>
 </aside>
@@ -549,6 +556,12 @@
       <a class="nav-item" href="bici/"><span data-icon="BICI"></span>Bici</a>
       <a class="nav-item" href="spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
       <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="mense/"><span data-icon="MENSE"></span>Mense</a>
     </div>
   </div>
   <div class="sidebar-spacer"></div>
@@ -769,6 +782,7 @@ const ICON_RISTORAZIONE  = ICONS.RISTORAZIONE;
 const ICON_WRENCH        = ICONS.MANUTENZIONE;
 const ICON_SPIAGGIA      = ICONS.SPIAGGIA;
 const ICON_CALENDAR      = ICONS.CALENDAR;
+const ICON_MENSE         = ICONS.MENSE;
 
 hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 
@@ -826,6 +840,20 @@ const MODULES = [
     sezioni: [
       { id: 'tickets',  nome: 'Segnala ticket' },
       { id: 'gestione', nome: 'Gestione ticket (cambia stato)' },
+    ],
+  },
+  {
+    id: 'mense',
+    nome: 'Mense scolastiche',
+    titolo: 'Mense scolastiche',
+    url: 'mense/',
+    icon: ICON_MENSE,
+    tile: 'white',
+    statKey: 'mense',
+    sezioni: [
+      { id: 'presenze',     nome: 'Presenze' },
+      { id: 'report',       nome: 'Report' },
+      { id: 'impostazioni', nome: 'Impostazioni', defaultOff: true },
     ],
   },
   {
@@ -1188,6 +1216,41 @@ async function startHomeStatsSync() {
         : `🔧 ${nuovi.length} nuovi ticket di manutenzione`;
       showNotifBanner(msg);
     }, (err) => console.error('Errore listener manutenzione:', err));
+
+    // ── Mense: pasti di oggi (data corrente) + sedi ancora da inserire ──
+    // "Da inserire" = sedi attive il cui giorno di servizio odierno non ha
+    // ancora un documento di presenze salvato (né chiuso né con pasti > 0).
+    let menseSediCache = [];
+    function ricalcolaMense() {
+      const oggi = new Date().toISOString().slice(0, 10);
+      const dowMap = ['dom','lun','mar','mer','gio','ven','sab'];
+      const oggiKey = dowMap[new Date().getDay()];
+      const sediAttive = menseSediCache.filter(s => s.attiva !== false);
+      const sediServizioOggi = sediAttive.filter(s => {
+        const gs = s.giorni_servizio || { lun:true,mar:true,mer:true,gio:true,ven:true,sab:false,dom:false };
+        if (!gs[oggiKey]) return false;
+        const chiuse = (s.chiusure || []).some(c => c.dal && c.al && oggi >= c.dal && oggi <= c.al);
+        return !chiuse;
+      });
+      const daInserire = sediServizioOggi.filter(s => !menseDocsOggi.has(s.id)).length;
+      let pastiOggi = 0;
+      menseDocsOggi.forEach(doc => {
+        if (doc.chiuso) return;
+        Object.values(doc.righe || {}).forEach(cats => Object.values(cats || {}).forEach(n => { pastiOggi += Number(n) || 0; }));
+      });
+      homeStats.mense = { pastiOggi, daInserire };
+      if (currentOperatore) renderHome();
+    }
+    let menseDocsOggi = new Map(); // sedeId -> doc presenze di oggi
+    onSnapshot(collection(db, 'mense_sedi'), (snap) => {
+      menseSediCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      ricalcolaMense();
+    }, (err) => console.error('Errore statistiche sedi mensa:', err));
+    const oggiMensa = new Date().toISOString().slice(0, 10);
+    onSnapshot(query(collection(db, 'mense_presenze'), where('data', '==', oggiMensa)), (snap) => {
+      menseDocsOggi = new Map(snap.docs.map(d => [d.data().sedeId, d.data()]));
+      ricalcolaMense();
+    }, (err) => console.error('Errore statistiche presenze mensa:', err));
 
     // ── Spiaggia: prenotazioni attive oggi ──
     onSnapshot(collection(db, 'beach_prenotazioni'), (snap) => {
@@ -1837,7 +1900,7 @@ function clearSearch() {
 // Calcolate dai dati reali delle altre app (lette in sola lettura dalle
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
-let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null, presenti: null, oggiStruttura: null };
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null, mense: null, presenti: null, oggiStruttura: null };
 let prenotazioniList = []; // sola lettura da 'prenotazioni' (Calendario) — per il blocco "Presenti + ricerca" in home
 
 function statoModulo(mod) {
@@ -1878,6 +1941,12 @@ function statoModulo(mod) {
     return s.attive > 0
       ? { sub: `${s.attive} prenotazion${s.attive===1?'e':'i'} attive oggi`, badge: null }
       : { sub: 'Nessuna prenotazione oggi', badge: null };
+  }
+  if (mod.statKey === 'mense') {
+    return {
+      sub: `${s.pastiOggi} past${s.pastiOggi===1?'o':'i'} oggi`,
+      badge: s.daInserire > 0 ? `${s.daInserire} da inserire` : null,
+    };
   }
   return { sub: '', badge: null };
 }
@@ -2462,7 +2531,9 @@ function renderPermessiForm(nome) {
     return `<div class="perm-module">
       <div class="perm-module-title">${mod.nome}</div>
       ${mod.sezioni.map(s => {
-        const checked = sez[s.id] !== false;
+        // Una sezione defaultOff (es. Mense · Impostazioni) va abilitata esplicitamente;
+        // tutte le altre restano visibili finché non la si disattiva a mano.
+        const checked = s.defaultOff ? sez[s.id] === true : sez[s.id] !== false;
         return `<label class="perm-row"><input type="checkbox" id="perm-${mod.id}-${s.id}" ${checked?'checked':''}> ${s.nome}</label>`;
       }).join('')}
     </div>`;

@@ -84,6 +84,24 @@ ospite altrui.
 Va pubblicato anche `storage.rules` (Firebase Storage) per le foto del
 documento.
 
+### Mense scolastiche (dal 10/2026)
+
+Nuove collezioni in `garden-river-conti-febed`:
+
+- `mense_sedi/{id}` — scuole servite (nome, ente pagante, ordini attivi,
+  giorni di servizio, operatori abilitati, tariffe, periodi di chiusura).
+  Client autenticato: `read, write`.
+- `mense_presenze/{sedeId}_{YYYY-MM-DD}` — conteggio pasti del giorno.
+  Client autenticato: `read, write` (nessun limite alle correzioni, come da
+  specifica).
+- `mense_log/{auto}` — registro modifiche, **append-only**: `read, create`
+  per il client autenticato, `update`/`delete` sempre negati (stesso pattern
+  di `scontrini_fiscali`). Scritto in batch insieme a ogni salvataggio di
+  `mense_presenze`.
+- `impostazioni/mense` — ordini e categorie della suite mense: già coperta
+  dalla regola generica `impostazioni/{id}`, nessuna modifica alle regole
+  necessaria per questo documento.
+
 ### Limiti noti (autenticazione anonima)
 
 - Dati Alloggiati Web (`ospiti`, `prenotazioni`) → leggibili da chi è
