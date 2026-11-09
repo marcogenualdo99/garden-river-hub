@@ -4262,6 +4262,14 @@ function mappaTrattamentoScidoo(retta) {
   if (norm.includes('mezza pensione')) return 'MP';
   return 'no';
 }
+// "Premium" nel nome tariffa (es. "Pacchetto Servizi - Pernottamento Premium
+// Mrpreno") corrisponde al "Pacchetto biancheria + spiaggia" di GardenHub:
+// va segnata la spunta (per logistica/pulizie) ma SENZA aggiungerla come
+// riga a pagamento nel conto — è già compresa nel Totale che arriva da
+// Scidoo, altrimenti verrebbe addebitata due volte.
+function pacchettoServiziScidoo(retta) {
+  return /premium/i.test(String(retta || ''));
+}
 // "1.078,00" (punto delle migliaia, virgola decimale) → 1078.00
 function parseNumeroIt(s) {
   return parseFloat(String(s || '0').replace(/\./g, '').replace(',', '.')) || 0;
@@ -4290,6 +4298,7 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
     animali: false, noteAnimali: '', noteGenerali: '', note,
     tipoAlloggio,
     trattamento: mappaTrattamentoScidoo(campoScidoo(row, 'Retta')),
+    pacchettoServizi: pacchettoServiziScidoo(campoScidoo(row, 'Retta')),
     totale: parseNumeroIt(campoScidoo(row, 'Totale')),
     caparra: parseNumeroIt(campoScidoo(row, 'Caparra')),
     alloggioId: null, alloggioNome: null,
@@ -4470,7 +4479,7 @@ function costruisciDatiImportRiga(r) {
     bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
     trattamento_ristorazione: r.trattamento,
     biancheria_kit_bagno: 0, biancheria_kit_singolo: 0, biancheria_kit_matrimoniale: 0,
-    bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: false,
+    bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: !!r.pacchettoServizi,
     preventivo_stimato: null,
     note,
     conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
@@ -4589,7 +4598,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   setQty('f-kit-matrimoniale', 0);
   setCheck('f-spiaggia', false);
   setCheck('f-animali', r.animali);
-  setCheck('f-pacchetto-servizi', false);
+  setCheck('f-pacchetto-servizi', !!r.pacchettoServizi);
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
   impostaNote((r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []));
   impostaConto(null);
@@ -6525,6 +6534,111 @@ function renderListiniSettings() {
   else renderFiscalizzazionePanel();
 }
 
+// ── IMPORT LISTINO DA FILE ──────────────────────────────────────────────
+// I 3 file stagionali (Solo Pernottamento / Mezza Pensione / Pensione
+// Completa) hanno sempre lo stesso formato "a matrice": riga 1 = periodi
+// (colonne), righe successive = una voce per riga (categoria alloggio,
+// fascia età, extra). I prezzi sono testo con "€" e virgola italiana, non
+// numeri — vanno interpretati come stringa, non letti come celle numeriche.
+function parseEuro(s) {
+  return parseFloat(String(s || '0').replace('€', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+}
+const FASCE_LISTINO_FILE = [
+  { match: 'adulti', fascia: 'adulti' },
+  { match: 'ragazzi 10-17', fascia: 'b10_17' },
+  { match: 'bambini 0-2', fascia: 'b0_2' },
+  { match: 'bambini 3-4', fascia: 'b3_4' },
+  { match: 'bambini 5-9', fascia: 'b5_9' },
+];
+async function parseListinoVillaggioFile(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const foglio = wb.Sheets[wb.SheetNames[0]];
+  const righe = XLSX.utils.sheet_to_json(foglio, { header: 1, defval: '' });
+  if (!righe.length) throw new Error('File vuoto o illeggibile');
+  const titolo = String(righe[0][0] || '');
+  const annoMatch = titolo.match(/al\s*\d{2}\/\d{2}\/(\d{4})/);
+  const anno = annoMatch ? annoMatch[1] : String(new Date().getFullYear());
+  const periodi = righe[0].slice(1).map(cella => {
+    const m = String(cella || '').match(/(\d{2})\/(\d{2})\s*-\s*(\d{2})\/(\d{2})/);
+    if (!m) return null;
+    const [, d1, m1, d2, m2] = m;
+    return { da: `${anno}-${m1}-${d1}`, a: `${anno}-${m2}-${d2}`, prezzi: {} };
+  });
+  if (periodi.some(p => !p)) throw new Error('Intestazione periodi non riconosciuta (riga 1 del file)');
+  const persona = {};
+  const extra = { postoAggiuntivo: null, animaliPerNotte: null, puliziaFinaleAnimali: null, pacchettoServiziPerMese: {} };
+  const categoriePrezzi = {}; // etichetta originale del file → prezzi per periodo
+  for (let r = 1; r < righe.length; r++) {
+    const riga = righe[r];
+    const etichetta = String(riga[0] || '').trim();
+    if (!etichetta) continue;
+    const norm = etichetta.toLowerCase();
+    const valori = periodi.map((_, i) => parseEuro(riga[i + 1]));
+    const fascia = FASCE_LISTINO_FILE.find(f => norm === f.match || norm.startsWith(f.match));
+    if (fascia) { persona[fascia.fascia] = valori[0]; continue; }
+    if (norm === 'posto aggiuntivo') { extra.postoAggiuntivo = valori[0]; continue; }
+    if (norm === 'animali') { extra.animaliPerNotte = valori[0]; continue; }
+    if (norm.includes('pulizie finali')) { extra.puliziaFinaleAnimali = valori[0]; continue; }
+    if (norm.startsWith('pacchetto servizi giugno'))    { extra.pacchettoServiziPerMese[6] = valori[0]; continue; }
+    if (norm.startsWith('pacchetto servizi luglio'))    { extra.pacchettoServiziPerMese[7] = valori[0]; continue; }
+    if (norm.startsWith('pacchetto servizi agosto'))    { extra.pacchettoServiziPerMese[8] = valori[0]; continue; }
+    if (norm.startsWith('pacchetto servizi settembre')) { extra.pacchettoServiziPerMese[9] = valori[0]; continue; }
+    // "Servizio spiaggia" e "Presenza animali" ignorate di proposito — v.
+    // conferma utente del 09/11/2026 (spiaggia resta quella già impostata,
+    // "Presenza animali" è un doppione di "Animali" nel file).
+    if (norm.startsWith('servizio spiaggia') || norm === 'presenza animali') continue;
+    categoriePrezzi[etichetta] = valori; // resto = riga categoria alloggio
+  }
+  return { anno, periodi, persona, extra, categoriePrezzi };
+}
+// Unisce i 3 file caricati nel pannello (vedi HTML sotto) dentro
+// listini.villini SENZA salvare su Firestore: solo ripopola i campi del
+// pannello, così lo staff controlla i numeri prima di premere "Salva
+// listino Villini" (che resta l'unico punto di scrittura).
+async function importaListinoVilliniDaFile() {
+  const fNo = document.getElementById('lv-file-no').files[0];
+  const fMp = document.getElementById('lv-file-mp').files[0];
+  const fPc = document.getElementById('lv-file-pc').files[0];
+  if (!fNo || !fMp || !fPc) { showToast('Carica tutti e 3 i file: Solo Pernottamento, Mezza Pensione, Pensione Completa'); return; }
+  try {
+    const [pNo, pMp, pPc] = await Promise.all([fNo, fMp, fPc].map(parseListinoVillaggioFile));
+    if (pMp.periodi.length !== pNo.periodi.length || pPc.periodi.length !== pNo.periodi.length) {
+      showToast('I 3 file hanno un numero di periodi diverso — controllali, import annullato.');
+      return;
+    }
+    const lAttuale = listini.villini || {};
+    const periodi = pNo.periodi.map(p => ({ da: p.da, a: p.a, prezzi: {} }));
+    const nonAbbinate = [];
+    categorieListino().forEach(cat => {
+      const etichettaFile = Object.keys(pNo.categoriePrezzi).find(l => l.toLowerCase().includes(cat.label.toLowerCase()));
+      if (!etichettaFile) { nonAbbinate.push(cat.label); return; }
+      pNo.categoriePrezzi[etichettaFile].forEach((prezzo, i) => { periodi[i].prezzi[cat.key] = prezzo; });
+    });
+    listini.villini = {
+      ...lAttuale,
+      validoDal: periodi[0].da,
+      validoAl: periodi[periodi.length - 1].a,
+      periodi,
+      trattamenti: {
+        PC: { adulti: pPc.persona.adulti||0, b10_17: pPc.persona.b10_17||0, b5_9: pPc.persona.b5_9||0, b3_4: pPc.persona.b3_4||0, b0_2: pPc.persona.b0_2||0 },
+        MP: { adulti: pMp.persona.adulti||0, b10_17: pMp.persona.b10_17||0, b5_9: pMp.persona.b5_9||0, b3_4: pMp.persona.b3_4||0, b0_2: pMp.persona.b0_2||0 },
+        no: { adulti: pNo.persona.adulti||0, b10_17: pNo.persona.b10_17||0, b5_9: pNo.persona.b5_9||0, b3_4: pNo.persona.b3_4||0, b0_2: pNo.persona.b0_2||0 },
+      },
+      postoAggiuntivo: pNo.extra.postoAggiuntivo ?? lAttuale.postoAggiuntivo,
+      animaliPerNotte: pNo.extra.animaliPerNotte ?? lAttuale.animaliPerNotte,
+      puliziaFinaleAnimali: pNo.extra.puliziaFinaleAnimali ?? lAttuale.puliziaFinaleAnimali,
+      pacchettoServiziPerMese: { ...lAttuale.pacchettoServiziPerMese, ...pNo.extra.pacchettoServiziPerMese },
+      // prezziKit e spiaggiaPerGiorno NON arrivano dal file: restano quelli
+      // già salvati (scelta esplicita dell'utente per spiaggiaPerGiorno).
+    };
+    renderListinoVilliniPanel();
+    showToast(`Letti ${periodi.length} periodi dai 3 file${nonAbbinate.length ? ` — categorie non trovate nel file: ${nonAbbinate.join(', ')}` : ''}. Controlla i valori e premi "Salva listino Villini" per confermare.`);
+  } catch(e) {
+    console.error('Errore import listino da file:', e);
+    showToast('Errore lettura file: ' + e.message);
+  }
+}
 function renderListinoVilliniPanel() {
   const panel = document.getElementById('listino-villini-panel');
   const l = listini.villini;
@@ -6546,6 +6660,16 @@ function renderListinoVilliniPanel() {
     </tr>`).join('');
 
   panel.innerHTML = `
+    <div class="listino-card">
+      <h3>Importa da file</h3>
+      <p class="subtitle">Carica i 3 file stagionali del listino Villaggio (stesso formato ogni anno): sostituiscono periodi, tariffe alloggio, prezzi persona ed extra qui sotto — niente viene salvato finché non premi "Salva listino Villini" in fondo alla pagina.</p>
+      <div class="listino-extra-grid">
+        <div class="listino-extra-field"><label>Solo Pernottamento</label><input type="file" id="lv-file-no" accept=".xls,.xlsx"></div>
+        <div class="listino-extra-field"><label>Mezza Pensione</label><input type="file" id="lv-file-mp" accept=".xls,.xlsx"></div>
+        <div class="listino-extra-field"><label>Pensione Completa</label><input type="file" id="lv-file-pc" accept=".xls,.xlsx"></div>
+      </div>
+      <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="importaListinoVilliniDaFile()">Importa dai 3 file</button></div>
+    </div>
     <div class="listino-card">
       <h3>Tariffe alloggio per periodo</h3>
       <p class="subtitle">Prezzo per notte a unità, uguale per Pensione Completa/Mezza Pensione/Solo Pernottamento — valido dal ${esc(fmtDataIt(l.validoDal))} al ${esc(fmtDataIt(l.validoAl))}.</p>
