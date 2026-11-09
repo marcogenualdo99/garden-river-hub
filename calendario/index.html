@@ -4177,6 +4177,125 @@ function mappaCategoriaAgenzia(tipoAlloggio) {
 function trovaPrenotazioneEsistentePerAgenziaId(agenziaId) {
   return prenotazioni.find(p => p.agenzia_id === agenziaId);
 }
+// ── IMPORT SCIDOO (export CSV prenotazioni dal gestionale ufficiale) ───────
+// Le intestazioni del CSV hanno maiuscole e talvolta spazi extra (es.
+// "Ragazzi 11-17 ") diversi da come li scriviamo qui: leggiamo per nome
+// normalizzato invece che per chiave esatta, così un header con uno spazio
+// in più non rompe silenziosamente l'import.
+function campoScidoo(row, nome) {
+  const chiave = Object.keys(row).find(k => k.trim().toLowerCase() === nome.toLowerCase());
+  return chiave ? row[chiave] : '';
+}
+// Il file di Scidoo usa date già in formato ISO (aaaa-mm-gg), a differenza
+// di parseDataAgenzia che si aspetta gg/mm/aaaa.
+function parseDataISO(val) {
+  if (!val && val !== 0) return '';
+  if (val instanceof Date) {
+    return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+  }
+  const parti = String(val).trim().split(/[-\/]/);
+  if (parti.length !== 3) return '';
+  const [y, m, d] = parti;
+  return `${y.length === 4 ? y : '20' + y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+// Le fasce età di Scidoo (0-2 / 2-6 / 6-10 / 11-17) non coincidono con
+// quelle di GardenHub (0-2 / 3-4 / 5-9 / 10-17): è una conversione
+// approssimata ai confini (età 2, 6, 10 possono finire nella fascia
+// adiacente), scelta deliberatamente dopo conferma dell'utente al posto di
+// lasciare le fasce vuote.
+function bucketEtaBambiniScidoo(row) {
+  return {
+    b0_2:   parseInt(campoScidoo(row, 'Neonati 0-2'), 10) || 0,
+    b3_4:   parseInt(campoScidoo(row, 'Bambini 2-6'), 10) || 0,
+    b5_9:   parseInt(campoScidoo(row, 'Bambini 6-10'), 10) || 0,
+    b10_17: parseInt(campoScidoo(row, 'Ragazzi 11-17'), 10) || 0,
+  };
+}
+// "Retta" è il nome della tariffa (es. "Pacchetto Servizi - Mezza Pensione
+// Premium Mrpreno"), non un valore numerico: il trattamento si deduce dal
+// testo, come per l'altra agenzia ma su un formato diverso.
+function mappaTrattamentoScidoo(retta) {
+  const norm = String(retta || '').toLowerCase();
+  if (norm.includes('pensione completa')) return 'PC';
+  if (norm.includes('mezza pensione')) return 'MP';
+  return 'no';
+}
+// "1.078,00" (punto delle migliaia, virgola decimale) → 1078.00
+function parseNumeroIt(s) {
+  return parseFloat(String(s || '0').replace(/\./g, '').replace(',', '.')) || 0;
+}
+const STATI_SCIDOO_NON_IMPORTABILI = ['annullata', 'annullato', 'rifiutata', 'scaduta'];
+function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
+  const agenziaId = String(campoScidoo(row, 'ID') || '').trim();
+  const cliente = String(campoScidoo(row, 'Nome Cliente') || '').trim();
+  const checkin = parseDataISO(campoScidoo(row, 'Checkin'));
+  const checkout = parseDataISO(campoScidoo(row, 'Checkout'));
+  const stato = String(campoScidoo(row, 'Stato') || '').trim();
+  const tipoAlloggio = String(campoScidoo(row, 'Categoria Richiesta') || '').trim();
+  const alloggioFile = String(campoScidoo(row, 'Alloggio') || '').trim();
+  const numeroRichiesto = (alloggioFile.match(/(\d+)\s*$/) || [])[1] || null;
+  const note = [
+    ['Generali', 'Nota Generica'], ['Ristorazione', 'Nota Ristorante'],
+    ['OTA', 'Nota OTA'], ['Pulizie', 'Nota Pulizie'], ['Bar', 'Nota Bar'],
+  ].map(([categoria, col]) => ({ categoria, testo: String(campoScidoo(row, col) || '').trim() }))
+   .filter(n => n.testo);
+  const risultato = {
+    agenziaId, cliente, checkin, checkout,
+    tel: String(campoScidoo(row, 'Cellulare') || campoScidoo(row, 'Telefono') || '').trim(),
+    email: String(campoScidoo(row, 'Email') || '').trim(),
+    adulti: parseInt(campoScidoo(row, 'Adulti'), 10) || 0,
+    bambiniFasce: bucketEtaBambiniScidoo(row),
+    animali: false, noteAnimali: '', noteGenerali: '', note,
+    tipoAlloggio,
+    trattamento: mappaTrattamentoScidoo(campoScidoo(row, 'Retta')),
+    totale: parseNumeroIt(campoScidoo(row, 'Totale')),
+    caparra: parseNumeroIt(campoScidoo(row, 'Caparra')),
+    alloggioId: null, alloggioNome: null,
+    stato: null, erroreMsg: null,
+    selezionata: true,
+  };
+  if (!agenziaId || !cliente || !checkin || !checkout || checkout <= checkin) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = 'Dati mancanti o date non valide';
+    return risultato;
+  }
+  if (STATI_SCIDOO_NON_IMPORTABILI.some(s => stato.toLowerCase().includes(s))) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Prenotazione non confermata (stato: "${stato}")`;
+    return risultato;
+  }
+  if (trovaPrenotazioneEsistentePerAgenziaId(agenziaId)) {
+    risultato.stato = 'esistente';
+    return risultato;
+  }
+  const categoria = mappaCategoriaAgenzia(tipoAlloggio);
+  if (!categoria) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Categoria "${tipoAlloggio}" non riconosciuta`;
+    return risultato;
+  }
+  const libero = a => {
+    if (trovaOverlap(a.id, checkin, checkout, null)) return false;
+    const riservate = riservatePerCategoria[a.id] || [];
+    return !riservate.some(r => checkin < r.checkout && checkout > r.checkin);
+  };
+  // L'unità specifica l'ha già scelta Scidoo: la onoriamo invece di
+  // assegnarne una diversa in automatico. Se non è libera (o non la
+  // troviamo) la riga va "da assegnare a mano", non su un'altra unità.
+  const scelto = numeroRichiesto
+    ? alloggiList.filter(a => a.categoria === categoria).find(a => String(a.numero) === numeroRichiesto && libero(a))
+    : null;
+  if (scelto) {
+    risultato.alloggioId = scelto.id;
+    risultato.alloggioNome = scelto.nome;
+    (riservatePerCategoria[scelto.id] = riservatePerCategoria[scelto.id] || []).push({ checkin, checkout });
+    risultato.stato = 'nuova';
+  } else {
+    risultato.stato = 'da_assegnare';
+    if (numeroRichiesto) risultato.erroreMsg = `Unità "${alloggioFile}" non libera o non trovata`;
+  }
+  return risultato;
+}
 // Elabora una riga grezza del file: decide se è nuova, già presente,
 // da assegnare a mano (categoria piena) o in errore (dati insufficienti).
 // "riservatePerCategoria" tiene traccia, dentro alla stessa importazione, di
@@ -4245,6 +4364,7 @@ function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
 // apertura scheda, conferma in blocco) resta identico e non va toccato.
 const SORGENTI_IMPORT = {
   agenzia_standard: { nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard },
+  scidoo: { nome: 'SCIDOO', elaboraRiga: elaboraRigaImportazioneScidoo },
 };
 let sorgenteImportSelezionata = 'agenzia_standard';
 function popolaSelectSorgenteImport() {
@@ -4290,19 +4410,22 @@ function costruisciDatiImportRiga(r) {
   const bambiniTotale = r.bambiniFasce.b0_2 + r.bambiniFasce.b3_4 + r.bambiniFasce.b5_9 + r.bambiniFasce.b10_17;
   const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
   if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  // Le sorgenti con note già divise per categoria (es. Scidoo) passano
+  // "note" pronto; l'altra sorgente passa solo testo libero da incapsulare.
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
+  const note = (r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []);
   const data = {
     alloggio_id: r.alloggioId || '',
     alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
     nome: r.cliente, checkin: r.checkin, checkout: r.checkout,
-    tel: r.tel, targa: '', provenienza: 'Agenzia',
+    tel: r.tel, email: r.email || '', targa: '', provenienza: 'Agenzia',
     adulti: r.adulti, bambini: bambiniTotale,
     bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
     trattamento_ristorazione: r.trattamento,
     biancheria_kit_bagno: 0, biancheria_kit_singolo: 0, biancheria_kit_matrimoniale: 0,
     bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: false,
     preventivo_stimato: null,
-    note: noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : [],
+    note,
     conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
     ospiti: [],
     agenzia_id: r.agenziaId,
@@ -4421,7 +4544,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   setCheck('f-animali', r.animali);
   setCheck('f-pacchetto-servizi', false);
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
-  impostaNote(noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []);
+  impostaNote((r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []));
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
   resetOspitiRows(1);
