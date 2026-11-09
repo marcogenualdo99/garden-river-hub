@@ -3014,7 +3014,14 @@ function calcolaKitDaPersone(adulti, b3_4, b5_9, b10_17) {
     singolo: Math.max(0, persone - 2),
   };
 }
-// Ricalcola e scrive i 3 campi kit dalle persone attualmente nel form.
+// Ricalcola e scrive i 3 campi kit dalle persone attualmente nel form —
+// ma SOLO quando il Pacchetto biancheria + spiaggia è spuntato: senza
+// pacchetto una prenotazione non ha di default alcun servizio biancheria
+// (bug scoperto il 09/11/2026: un soggiorno "solo pernottamento" senza
+// servizi si ritrovava comunque i kit inseriti). A pacchetto spento i
+// campi restano quello che sono — 0 di default, oppure quanto impostato
+// a mano con i pulsanti +/- per un ordine di biancheria "a la carte"
+// senza pacchetto.
 // Va richiamata esplicitamente da un'azione dell'operatore (cambio
 // adulti/bambini, spunta pacchetto) — MAI da aggiornaPreventivo() in
 // generale, altrimenti il solo aprire una prenotazione già salvata (che
@@ -3022,6 +3029,7 @@ function calcolaKitDaPersone(adulti, b3_4, b5_9, b10_17) {
 // sovrascriverebbe in silenzio un kit eventualmente diverso da quello
 // ricalcolato.
 function aggiornaKitBiancheriaAuto() {
+  if (!document.getElementById('f-pacchetto-servizi').checked) return;
   const adulti = parseInt(document.getElementById('f-adulti').value, 10) || 0;
   const b3_4   = parseInt(document.getElementById('f-bambini-3-4').value, 10) || 0;
   const b5_9   = parseInt(document.getElementById('f-bambini-5-9').value, 10) || 0;
@@ -3462,10 +3470,12 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   document.getElementById('f-bambini-5-9').value   = 0;
   document.getElementById('f-bambini-10-17').value = 0;
   document.getElementById('f-trattamento').value = 'no';
-  aggiornaKitBiancheriaAuto(); // kit dalle persone di default (2 adulti) appena impostate sopra
   setCheck('f-spiaggia', false);
   setCheck('f-animali', false);
   setCheck('f-pacchetto-servizi', false);
+  setQty('f-kit-bagno', 0);
+  setQty('f-kit-singolo', 0);
+  setQty('f-kit-matrimoniale', 0);
   impostaNote([]);
   impostaConto(null);
   document.getElementById('documenti-btn-badge').textContent = '';
@@ -3568,12 +3578,15 @@ function switchPrenTab(tab) {
   else if (tab === 'conto') sincronizzaContoPrimaDiSalvare();
 }
 // La scheda Spiaggia ha senso solo se in conto c'è davvero un servizio
-// spiaggia: va richiamata ogni volta che il conto si aggiorna.
+// spiaggia: va richiamata ogni volta che il conto si aggiorna. Il servizio
+// spiaggia arriva anche dal Pacchetto biancheria + spiaggia (riga diversa
+// da "Spiaggia · N notti" dell'a la carte) — bug scoperto il 09/11/2026:
+// con solo il pacchetto attivo la scheda restava nascosta.
 function aggiornaVisibilitaTabSpiaggia() {
   const tab = document.getElementById('pren-tab-spiaggia');
   if (!tab) return;
   const cera = !tab.classList.contains('hidden');
-  const cDeveEssere = contoCorrente.some(r => r.label.startsWith('Spiaggia ·'));
+  const cDeveEssere = contoCorrente.some(r => r.label.startsWith('Spiaggia ·') || r.label === 'Pacchetto biancheria + spiaggia');
   tab.classList.toggle('hidden', !cDeveEssere);
   if (cera && !cDeveEssere && tab.classList.contains('active')) switchPrenTab('dettagli');
 }
@@ -4531,7 +4544,13 @@ function costruisciDatiImportRiga(r) {
   // "note" pronto; l'altra sorgente passa solo testo libero da incapsulare.
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
   const note = (r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []);
-  const kit = calcolaKitDaPersone(r.adulti, r.bambiniFasce.b3_4, r.bambiniFasce.b5_9, r.bambiniFasce.b10_17);
+  // Solo le prenotazioni col Pacchetto biancheria + spiaggia hanno davvero
+  // un servizio biancheria da fornire — un soggiorno senza pacchetto (es.
+  // "solo pernottamento" senza servizi) non deve ritrovarsi comunque i kit
+  // inseriti (bug scoperto il 09/11/2026 su una prenotazione Scidoo reale).
+  const kit = r.pacchettoServizi
+    ? calcolaKitDaPersone(r.adulti, r.bambiniFasce.b3_4, r.bambiniFasce.b5_9, r.bambiniFasce.b10_17)
+    : { bagno: 0, singolo: 0, matrimoniale: 0 };
   const data = {
     alloggio_id: r.alloggioId || '',
     alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
@@ -4655,10 +4674,10 @@ function apriPrenotazioneDaImportRiga(idx) {
   document.getElementById('f-bambini-5-9').value   = r.bambiniFasce.b5_9;
   document.getElementById('f-bambini-10-17').value = r.bambiniFasce.b10_17;
   document.getElementById('f-trattamento').value = r.trattamento;
-  aggiornaKitBiancheriaAuto(); // adulti/bambini impostati sopra: kit dalle persone
   setCheck('f-spiaggia', false);
   setCheck('f-animali', r.animali);
   setCheck('f-pacchetto-servizi', !!r.pacchettoServizi);
+  aggiornaKitBiancheriaAuto(); // pacchetto impostato sopra: kit dalle persone solo se è spuntato
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
   impostaNote((r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []));
   impostaConto(null);
