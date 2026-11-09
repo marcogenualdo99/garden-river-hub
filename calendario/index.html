@@ -1948,7 +1948,7 @@ let hubSession = null, hubPermessi = {}, currentOperatore = null, allowedSection
 let alloggiList  = [];   // [{id, categoria, categoriaLabel, numero, nome, stato}] — SOLA LETTURA
 let prenotazioni = [];   // [{id, alloggio_id, alloggio_nome, nome, checkin, checkout, ...}]
 let prenotazioniEliminate = []; // copie di prenotazioni cancellate (collezione 'prenotazioni_eliminate'), solo per lo Storico ospite — MAI usate nel planning
-let viewStart    = isoToday(0);
+let viewStart    = vistaIniziale();
 let editingId    = null;
 let datiPrenotazionePrecedenti = null; // istantanea dei dati salvati, per calcolare il diff da scrivere nel log modifiche
 
@@ -1960,6 +1960,18 @@ function waitForFirebase() {
 }
 
 // ── UTILITY DATE ─────────────────────────────────────────────────────────
+// Fuori stagione (ott-mag) il lavoro si concentra su giu-set: all'apertura
+// della pagina si parte dal giorno corrente se siamo già in stagione,
+// altrimenti dal 1° giugno più vicino (quest'anno se siamo prima di giugno,
+// il prossimo se siamo già oltre settembre). Il pulsante "Oggi" (goToday)
+// non usa questa funzione: torna sempre al giorno reale.
+function vistaIniziale() {
+  const oggi = new Date();
+  const mese = oggi.getMonth() + 1; // 1-12
+  if (mese >= 6 && mese <= 9) return isoToday(0);
+  const annoGiugno = mese > 9 ? oggi.getFullYear() + 1 : oggi.getFullYear();
+  return `${annoGiugno}-06-01`;
+}
 function isoToday(offset) {
   const d = new Date(); d.setDate(d.getDate() + (offset||0));
   return d.toISOString().slice(0,10);
@@ -4178,6 +4190,36 @@ function trovaPrenotazioneEsistentePerAgenziaId(agenziaId) {
   return prenotazioni.find(p => p.agenzia_id === agenziaId);
 }
 // ── IMPORT SCIDOO (export CSV prenotazioni dal gestionale ufficiale) ───────
+// Scidoo esporta CSV con numeri in formato italiano ("1436,00"): letto con
+// XLSX.js (pensato per fogli Excel) la virgola viene scambiata per un
+// separatore delle migliaia e "1436,00" diventa il numero 143600, cento
+// volte più grande — bug scoperto il 09/11/2026 su dati reali. Per questo
+// Scidoo NON passa da XLSX: leggiamo il CSV noi stessi, campo per campo,
+// tenendo tutto come testo così parseNumeroIt riceve la stringa originale.
+function parseCsvScidoo(testo) {
+  const righe = [];
+  let riga = [], campo = '', inQuote = false;
+  for (let i = 0; i < testo.length; i++) {
+    const c = testo[i];
+    if (inQuote) {
+      if (c === '"') { if (testo[i+1] === '"') { campo += '"'; i++; } else inQuote = false; }
+      else campo += c;
+    } else if (c === '"') inQuote = true;
+    else if (c === ';') { riga.push(campo); campo = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && testo[i+1] === '\n') i++;
+      riga.push(campo); campo = '';
+      righe.push(riga); riga = [];
+    } else campo += c;
+  }
+  if (campo !== '' || riga.length) { riga.push(campo); righe.push(riga); }
+  const header = righe.shift() || [];
+  return righe.filter(r => r.some(v => v !== '')).map(r => {
+    const obj = {};
+    header.forEach((h, idx) => { obj[h] = r[idx] !== undefined ? r[idx] : ''; });
+    return obj;
+  });
+}
 // Le intestazioni del CSV hanno maiuscole e talvolta spazi extra (es.
 // "Ragazzi 11-17 ") diversi da come li scriviamo qui: leggiamo per nome
 // normalizzato invece che per chiave esatta, così un header con uno spazio
@@ -4364,7 +4406,7 @@ function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
 // apertura scheda, conferma in blocco) resta identico e non va toccato.
 const SORGENTI_IMPORT = {
   agenzia_standard: { nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard },
-  scidoo: { nome: 'SCIDOO', elaboraRiga: elaboraRigaImportazioneScidoo },
+  scidoo: { nome: 'SCIDOO', elaboraRiga: elaboraRigaImportazioneScidoo, leggiRighe: async (file) => parseCsvScidoo(await file.text()) },
 };
 let sorgenteImportSelezionata = 'agenzia_standard';
 function popolaSelectSorgenteImport() {
@@ -4388,14 +4430,19 @@ async function analizzaFileImportazione(inputEl) {
   if (!file) return;
   wrap.innerHTML = '<p class="section-hint">Lettura del file…</p>';
   try {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-    const foglio = wb.Sheets[wb.SheetNames[0]];
-    const righeGrezze = XLSX.utils.sheet_to_json(foglio, { defval: '' });
+    const sorgente = SORGENTI_IMPORT[sorgenteImportSelezionata];
+    let righeGrezze;
+    if (sorgente.leggiRighe) {
+      righeGrezze = await sorgente.leggiRighe(file);
+    } else {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const foglio = wb.Sheets[wb.SheetNames[0]];
+      righeGrezze = XLSX.utils.sheet_to_json(foglio, { defval: '' });
+    }
     if (!righeGrezze.length) { wrap.innerHTML = '<p class="section-hint">Il file non contiene righe leggibili.</p>'; return; }
     const riservatePerCategoria = {};
-    const elaboraRiga = SORGENTI_IMPORT[sorgenteImportSelezionata].elaboraRiga;
-    _importRighe = righeGrezze.map(r => elaboraRiga(r, riservatePerCategoria));
+    _importRighe = righeGrezze.map(r => sorgente.elaboraRiga(r, riservatePerCategoria));
     renderRisultatiImportazione();
   } catch(e) {
     console.error('Errore lettura file importazione:', e);
