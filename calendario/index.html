@@ -874,7 +874,7 @@
         <div class="f-row">
           <div>
             <label class="f-label">Adulti</label>
-            <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
+            <input class="f-input" id="f-adulti" type="number" min="0" value="2" oninput="aggiornaKitBiancheriaAuto(); aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">Trattamento ristorazione</label>
@@ -889,19 +889,19 @@
         <div class="f-row">
           <div>
             <label class="f-label">0-2 anni</label>
-            <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-0-2" type="number" min="0" value="0" oninput="aggiornaKitBiancheriaAuto(); aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">3-4 anni</label>
-            <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-3-4" type="number" min="0" value="0" oninput="aggiornaKitBiancheriaAuto(); aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">5-9 anni</label>
-            <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-5-9" type="number" min="0" value="0" oninput="aggiornaKitBiancheriaAuto(); aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
           <div>
             <label class="f-label">10-17 anni</label>
-            <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
+            <input class="f-input" id="f-bambini-10-17" type="number" min="0" value="0" oninput="aggiornaKitBiancheriaAuto(); aggiornaPreventivo({preservaAlloggio:true}); sincronizzaNumeroOspiti(); aggiornaTassaSoggiorno(); scheduleAutosave()">
           </div>
         </div>
 
@@ -987,7 +987,7 @@
           <div class="f-check-row">
             <label class="f-check" id="chk-spiaggia-wrap"><input type="checkbox" id="f-spiaggia" onchange="toggleServizioConPrezzo()"> Spiaggia</label>
             <label class="f-check" id="chk-animali-wrap"><input type="checkbox" id="f-animali" onchange="syncCheckGemello('f-animali')"> Animali al seguito</label>
-            <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
+            <label class="f-check" id="chk-pacchetto-servizi-wrap" title="Forfait unico alternativo ai kit biancheria e alla spiaggia a la carte — non selezionare entrambi"><input type="checkbox" id="f-pacchetto-servizi" onchange="aggiornaKitBiancheriaAuto(); toggleServizioConPrezzo()"> Pacchetto biancheria + spiaggia</label>
           </div>
 
           <div class="servizi-sub-divider">
@@ -2998,6 +2998,39 @@ function setQty(id, val) {
   const gemello = document.getElementById(idGemello(id));
   if (gemello) gemello.value = val || 0;
 }
+// Kit biancheria in base alle persone — confermato con l'utente il
+// 09/11/2026: gli alloggi hanno di norma un letto matrimoniale (i primi 2
+// posti) + letti singoli per il resto degli ospiti, senza tetto massimo
+// (oltre la capienza "di serie" si aggiunge un letto singolo in più, non
+// si ferma il conteggio). I neonati 0-2 NON contano come persona (niente
+// letto/kit proprio). Un kit bagno per persona. Usata sia dal form
+// manuale (v. aggiornaKitBiancheriaAuto) sia da entrambi gli import
+// (costruisciDatiImportRiga).
+function calcolaKitDaPersone(adulti, b3_4, b5_9, b10_17) {
+  const persone = (adulti||0) + (b3_4||0) + (b5_9||0) + (b10_17||0);
+  return {
+    bagno: persone,
+    matrimoniale: persone > 0 ? 1 : 0,
+    singolo: Math.max(0, persone - 2),
+  };
+}
+// Ricalcola e scrive i 3 campi kit dalle persone attualmente nel form.
+// Va richiamata esplicitamente da un'azione dell'operatore (cambio
+// adulti/bambini, spunta pacchetto) — MAI da aggiornaPreventivo() in
+// generale, altrimenti il solo aprire una prenotazione già salvata (che
+// carica i kit salvati nei campi prima di chiamare aggiornaPreventivo)
+// sovrascriverebbe in silenzio un kit eventualmente diverso da quello
+// ricalcolato.
+function aggiornaKitBiancheriaAuto() {
+  const adulti = parseInt(document.getElementById('f-adulti').value, 10) || 0;
+  const b3_4   = parseInt(document.getElementById('f-bambini-3-4').value, 10) || 0;
+  const b5_9   = parseInt(document.getElementById('f-bambini-5-9').value, 10) || 0;
+  const b10_17 = parseInt(document.getElementById('f-bambini-10-17').value, 10) || 0;
+  const kit = calcolaKitDaPersone(adulti, b3_4, b5_9, b10_17);
+  setQty('f-kit-bagno', kit.bagno);
+  setQty('f-kit-singolo', kit.singolo);
+  setQty('f-kit-matrimoniale', kit.matrimoniale);
+}
 function adjustQty(id, delta) {
   const el = document.getElementById(id);
   const nuovoValore = Math.max(0, (parseInt(el.value, 10) || 0) + delta);
@@ -3429,9 +3462,7 @@ function openNuovaPrenotazione(alloggioId, checkinIso) {
   document.getElementById('f-bambini-5-9').value   = 0;
   document.getElementById('f-bambini-10-17').value = 0;
   document.getElementById('f-trattamento').value = 'no';
-  setQty('f-kit-bagno', 0);
-  setQty('f-kit-singolo', 0);
-  setQty('f-kit-matrimoniale', 0);
+  aggiornaKitBiancheriaAuto(); // kit dalle persone di default (2 adulti) appena impostate sopra
   setCheck('f-spiaggia', false);
   setCheck('f-animali', false);
   setCheck('f-pacchetto-servizi', false);
@@ -4500,6 +4531,7 @@ function costruisciDatiImportRiga(r) {
   // "note" pronto; l'altra sorgente passa solo testo libero da incapsulare.
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
   const note = (r.note && r.note.length) ? r.note : (noteTesto ? [{ categoria: 'Generali', testo: noteTesto }] : []);
+  const kit = calcolaKitDaPersone(r.adulti, r.bambiniFasce.b3_4, r.bambiniFasce.b5_9, r.bambiniFasce.b10_17);
   const data = {
     alloggio_id: r.alloggioId || '',
     alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
@@ -4508,7 +4540,7 @@ function costruisciDatiImportRiga(r) {
     adulti: r.adulti, bambini: bambiniTotale,
     bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
     trattamento_ristorazione: r.trattamento,
-    biancheria_kit_bagno: 0, biancheria_kit_singolo: 0, biancheria_kit_matrimoniale: 0,
+    biancheria_kit_bagno: kit.bagno, biancheria_kit_singolo: kit.singolo, biancheria_kit_matrimoniale: kit.matrimoniale,
     bici: false, spiaggia: false, animali: r.animali, pacchetto_servizi: !!r.pacchettoServizi,
     preventivo_stimato: null,
     note,
@@ -4623,9 +4655,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   document.getElementById('f-bambini-5-9').value   = r.bambiniFasce.b5_9;
   document.getElementById('f-bambini-10-17').value = r.bambiniFasce.b10_17;
   document.getElementById('f-trattamento').value = r.trattamento;
-  setQty('f-kit-bagno', 0);
-  setQty('f-kit-singolo', 0);
-  setQty('f-kit-matrimoniale', 0);
+  aggiornaKitBiancheriaAuto(); // adulti/bambini impostati sopra: kit dalle persone
   setCheck('f-spiaggia', false);
   setCheck('f-animali', r.animali);
   setCheck('f-pacchetto-servizi', !!r.pacchettoServizi);
