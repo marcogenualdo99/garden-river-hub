@@ -254,6 +254,12 @@
 .listino-table th.row-label, .listino-table td.row-label { position: sticky; left: 0; text-align: left; font-weight: 700; z-index: 1; }
 .listino-table td.row-label { background: var(--white); }
 .listino-table th.row-label { background: var(--gray-50); z-index: 2; }
+.elenco-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.elenco-table th, .elenco-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--gray-100); }
+.elenco-table th { background: var(--gray-50); font-weight: 700; color: var(--gray-700); cursor: pointer; user-select: none; white-space: nowrap; }
+.elenco-table th:hover { color: var(--green-700); }
+.elenco-table tbody tr { cursor: pointer; }
+.elenco-table tbody tr:hover { background: var(--green-bg); }
 .listino-input { width: 66px; height: 28px; text-align: center; border: 1px solid var(--gray-200); border-radius: 6px; font-family: var(--font); font-size: 12px; color: var(--gray-900); }
 .listino-input:focus { border-color: var(--green-400); outline: none; }
 .listino-extra-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-bottom: 16px; }
@@ -725,6 +731,7 @@
       <button class="cal-today-btn" onclick="goToday()">Oggi</button>
       <button class="cal-today-btn" onclick="apriImportModal()">Importa arrivi</button>
       <button class="cal-today-btn" onclick="apriExportModal()">Esporta documenti</button>
+      <button class="cal-today-btn" onclick="openElencoPrenotazioni()">Elenco prenotazioni</button>
       <button class="cal-add-btn" onclick="openNuovaPrenotazione()">+ Nuova prenotazione</button>
     </div>
   </div>
@@ -763,6 +770,53 @@
   <div id="listino-campeggio-panel" class="hidden"></div>
   <div id="listino-generali-panel" class="hidden"></div>
   <div id="listino-fiscalizzazione-panel" class="hidden"></div>
+</main>
+
+<!-- ══ ELENCO PRENOTAZIONI (tutte insieme, fuori dalla griglia) ═══════════ -->
+<main id="elenco-view" class="hidden">
+  <div class="back-header">
+    <button class="back-btn" onclick="closeElencoPrenotazioni()">&#8592;</button>
+    <div>
+      <div class="back-eyebrow">Calendario</div>
+      <div class="back-title">Elenco prenotazioni</div>
+    </div>
+  </div>
+  <div class="listino-card">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:200px">
+        <label class="f-label">Cerca</label>
+        <input class="f-input" type="text" id="elenco-ricerca" placeholder="Nome, telefono, targa, codice…" oninput="aggiornaFiltriElenco()">
+      </div>
+      <div>
+        <label class="f-label">Categoria</label>
+        <select class="f-select" id="elenco-categoria" onchange="aggiornaFiltriElenco()"></select>
+      </div>
+      <div>
+        <label class="f-label">Dal</label>
+        <input class="f-input" type="date" id="elenco-data-da" onchange="aggiornaFiltriElenco()">
+      </div>
+      <div>
+        <label class="f-label">Al</label>
+        <input class="f-input" type="date" id="elenco-data-a" onchange="aggiornaFiltriElenco()">
+      </div>
+      <button type="button" class="listino-save-btn" style="background:var(--gray-200);color:var(--gray-800);height:38px" onclick="pulisciFiltriElenco()">Pulisci filtri</button>
+    </div>
+    <p class="subtitle" style="margin-top:10px" id="elenco-count"></p>
+  </div>
+  <div class="listino-card">
+    <div class="listino-scroll"><table class="elenco-table">
+      <thead><tr>
+        <th onclick="elencoOrdinaPer('nome')">Ospite</th>
+        <th onclick="elencoOrdinaPer('alloggio_nome')">Alloggio</th>
+        <th onclick="elencoOrdinaPer('checkin')">Check-in</th>
+        <th onclick="elencoOrdinaPer('checkout')">Check-out</th>
+        <th onclick="elencoOrdinaPer('persone')">Persone</th>
+        <th onclick="elencoOrdinaPer('stato')">Stato</th>
+        <th onclick="elencoOrdinaPer('provenienza')">Provenienza</th>
+      </tr></thead>
+      <tbody id="elenco-tbody"></tbody>
+    </table></div>
+  </div>
 </main>
 
 </div>
@@ -2088,6 +2142,7 @@ async function startRealtimeSync() {
       setSyncStatus('live');
       renderGrid();
       if (editingId) { renderStatoBox(); sincronizzaContoEsternoAperto(); }
+      if (!document.getElementById('elenco-view').classList.contains('hidden')) renderElencoPrenotazioni();
       _dataReady = true;
       maybeHideLoading();
       maybeApriPrenotazioneDaLink();
@@ -6449,6 +6504,90 @@ function calcolaOrfaniAlloggi() {
   orfaniAlloggi = (alloggiList || []).filter(a => !attesi.has(a.id));
 }
 
+// ── ELENCO PRENOTAZIONI (tutte insieme, non solo quelle visibili nella
+// settimana corrente della griglia) — vista a tutto schermo con ricerca,
+// filtro categoria/alloggio e intervallo date, righe ordinabili cliccando
+// l'intestazione. Mostra solo le prenotazioni attive (prenotazioni è già
+// la sola collezione live, le eliminate non ci sono).
+let elencoFiltri = { testo: '', categoria: '', dataDa: '', dataA: '' };
+let elencoOrdine = { campo: 'checkin', dir: 1 };
+function openElencoPrenotazioni() {
+  document.getElementById('main-view').classList.add('hidden');
+  document.getElementById('elenco-view').classList.remove('hidden');
+  const sel = document.getElementById('elenco-categoria');
+  sel.innerHTML = '<option value="">Tutte le categorie</option>' + categorieAlloggi.map(c => `<option value="${esc(c.key)}">${esc(c.label)}</option>`).join('');
+  sel.value = elencoFiltri.categoria;
+  document.getElementById('elenco-ricerca').value = elencoFiltri.testo;
+  document.getElementById('elenco-data-da').value = elencoFiltri.dataDa;
+  document.getElementById('elenco-data-a').value = elencoFiltri.dataA;
+  renderElencoPrenotazioni();
+}
+function closeElencoPrenotazioni() {
+  document.getElementById('elenco-view').classList.add('hidden');
+  document.getElementById('main-view').classList.remove('hidden');
+}
+function pulisciFiltriElenco() {
+  elencoFiltri = { testo: '', categoria: '', dataDa: '', dataA: '' };
+  document.getElementById('elenco-ricerca').value = '';
+  document.getElementById('elenco-categoria').value = '';
+  document.getElementById('elenco-data-da').value = '';
+  document.getElementById('elenco-data-a').value = '';
+  renderElencoPrenotazioni();
+}
+function aggiornaFiltriElenco() {
+  elencoFiltri = {
+    testo: document.getElementById('elenco-ricerca').value.trim().toLowerCase(),
+    categoria: document.getElementById('elenco-categoria').value,
+    dataDa: document.getElementById('elenco-data-da').value,
+    dataA: document.getElementById('elenco-data-a').value,
+  };
+  renderElencoPrenotazioni();
+}
+function elencoOrdinaPer(campo) {
+  if (elencoOrdine.campo === campo) elencoOrdine.dir *= -1;
+  else { elencoOrdine.campo = campo; elencoOrdine.dir = 1; }
+  renderElencoPrenotazioni();
+}
+function renderElencoPrenotazioni() {
+  const tbody = document.getElementById('elenco-tbody');
+  if (!tbody) return;
+  let righe = prenotazioni.slice();
+  if (elencoFiltri.testo) righe = righe.filter(p => prenotazioneCorrispondeRicerca(p, elencoFiltri.testo));
+  if (elencoFiltri.categoria) {
+    righe = righe.filter(p => {
+      const a = alloggiList.find(a => a.id === p.alloggio_id);
+      return a && a.categoria === elencoFiltri.categoria;
+    });
+  }
+  // Intervallo date: tiene i soggiorni che si sovrappongono al periodo
+  // scelto (non solo quelli che iniziano dentro), coerente con la griglia.
+  if (elencoFiltri.dataDa) righe = righe.filter(p => (p.checkout || '9999-99-99') >= elencoFiltri.dataDa);
+  if (elencoFiltri.dataA)  righe = righe.filter(p => (p.checkin  || '0000-00-00') <= elencoFiltri.dataA);
+  const campo = elencoOrdine.campo;
+  righe.sort((a, b) => {
+    let va, vb;
+    if (campo === 'persone') { va = (a.adulti||0)+(a.bambini||0); vb = (b.adulti||0)+(b.bambini||0); }
+    else if (campo === 'stato') { va = statoPrenotazione(a).label; vb = statoPrenotazione(b).label; }
+    else { va = (a[campo] || '').toString().toLowerCase(); vb = (b[campo] || '').toString().toLowerCase(); }
+    if (va < vb) return -1 * elencoOrdine.dir;
+    if (va > vb) return 1 * elencoOrdine.dir;
+    return 0;
+  });
+  document.getElementById('elenco-count').textContent = `${righe.length} prenotazion${righe.length===1?'e':'i'}`;
+  tbody.innerHTML = righe.length ? righe.map(p => {
+    const persone = (p.adulti||0) + (p.bambini||0);
+    const st = statoPrenotazione(p);
+    return `<tr onclick="apriModificaPrenotazione('${esc(p.id)}')">
+      <td>${esc(p.nome || '—')}</td>
+      <td>${esc(p.alloggio_nome || 'Da assegnare')}</td>
+      <td>${esc(fmtDataIt(p.checkin))}</td>
+      <td>${esc(fmtDataIt(p.checkout))}</td>
+      <td>${persone}</td>
+      <td><span class="stato-badge ${st.cls}">${esc(st.label.split(' · ')[0])}</span></td>
+      <td>${esc(p.provenienza || '')}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:20px">Nessuna prenotazione trovata.</td></tr>`;
+}
 function openSettingsListini() {
   if (!isAdmin()) return;
   catAllDraft = null; // riparti sempre dallo stato salvato
