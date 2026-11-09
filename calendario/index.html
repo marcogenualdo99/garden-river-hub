@@ -81,7 +81,10 @@
 /* ══ TOOLBAR ══════════════════════════════════════════════════════════════ */
 .cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .cal-nav { display: flex; align-items: center; gap: 6px; }
-.cal-range-label { font-size: 13px; font-weight: 800; color: var(--gray-900); min-width: 170px; text-align: center; }
+.cal-range-label-wrap { position: relative; }
+.cal-range-label { font-size: 13px; font-weight: 800; color: var(--gray-900); min-width: 170px; text-align: center; border: none; background: none; cursor: pointer; font-family: var(--font); border-radius: var(--radius-xs); padding: 6px 4px; }
+.cal-range-label:hover { background: var(--gray-100); }
+.cal-date-picker-hidden { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: none; cursor: pointer; padding: 0; }
 .cal-nav-btn { width: 34px; height: 34px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: var(--radius-xs); cursor: pointer; font-size: 16px; font-weight: 700; color: var(--gray-700); display: flex; align-items: center; justify-content: center; font-family: var(--font); }
 .cal-nav-btn:hover { border-color: var(--green-400); color: var(--green-500); }
 .cal-today-btn { height: 34px; padding: 0 12px; border: 1.5px solid var(--gray-200); background: var(--white); border-radius: 20px; font-size: 12px; font-weight: 700; color: var(--gray-700); cursor: pointer; font-family: var(--font); }
@@ -714,25 +717,30 @@
     </button>
     <div class="cal-filtri-panel hidden" id="cal-filtri-panel"></div>
   </div>
-  <div class="page-head">
-    <div class="page-eyebrow">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
-      <span>Calendario</span>
+  <div class="page-head" style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap">
+    <div>
+      <div class="page-eyebrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 3v4M16 3v4"/></svg>
+        <span>Calendario</span>
+      </div>
+      <div class="page-title">Planning prenotazioni</div>
     </div>
-    <div class="page-title">Planning prenotazioni</div>
+    <button class="cal-add-btn" onclick="openNuovaPrenotazione()" style="flex-shrink:0">+ Nuova prenotazione</button>
   </div>
   <div class="cal-toolbar">
     <div class="cal-nav">
+      <button class="cal-today-btn" onclick="goToday()">Oggi</button>
       <button class="cal-nav-btn" onclick="navWeek(-1)" title="Settimana precedente">&#8592;</button>
-      <div class="cal-range-label" id="range-label"></div>
+      <div class="cal-range-label-wrap">
+        <button type="button" class="cal-range-label" id="range-label" title="Vai a una data" onclick="document.getElementById('cal-date-picker').showPicker && document.getElementById('cal-date-picker').showPicker()"></button>
+        <input type="date" id="cal-date-picker" class="cal-date-picker-hidden" onchange="vaiAData(this.value)" title="Vai a una data">
+      </div>
       <button class="cal-nav-btn" onclick="navWeek(1)" title="Settimana successiva">&#8594;</button>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="cal-today-btn" onclick="goToday()">Oggi</button>
       <button class="cal-today-btn" onclick="apriImportModal()">Importa arrivi</button>
       <button class="cal-today-btn" onclick="apriExportModal()">Esporta documenti</button>
       <button class="cal-today-btn" onclick="openElencoPrenotazioni()">Elenco prenotazioni</button>
-      <button class="cal-add-btn" onclick="openNuovaPrenotazione()">+ Nuova prenotazione</button>
     </div>
   </div>
   <div class="cal-import-banner hidden" id="cal-import-banner" onclick="apriElencoNonAssegnate()"></div>
@@ -2464,6 +2472,14 @@ function prenotazioneContoNonSaldato(p) {
 // ── NAVIGAZIONE TIMELINE ─────────────────────────────────────────────────
 function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); }
 function goToday()    { viewStart = isoToday(0); renderGrid(); }
+// Click sull'etichetta del periodo (ora un selettore data nativo invisibile
+// sovrapposto): salta direttamente a qualunque data invece di scorrere a
+// settimane con le frecce.
+function vaiAData(iso) {
+  if (!iso) return;
+  viewStart = iso;
+  renderGrid();
+}
 
 // ── RENDER GRIGLIA ────────────────────────────────────────────────────────
 // Stato pulizia/occupazione dell'alloggio: stesso campo "stato" (+ "log")
@@ -2582,6 +2598,8 @@ function renderGrid() {
   VIEW_DAYS = calcolaViewDays();
   const days = Array.from({length: VIEW_DAYS}, (_,i) => addDaysIso(viewStart, i));
   document.getElementById('range-label').textContent = fmtRangeLabel(viewStart, days[days.length-1]);
+  const datePicker = document.getElementById('cal-date-picker');
+  if (datePicker) datePicker.value = viewStart;
 
   const trackWidth = VIEW_DAYS * DAY_W;
   const today = isoToday(0);
