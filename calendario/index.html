@@ -6349,7 +6349,12 @@ function startCategorieAlloggiSync() {
       const raw = snap.exists() ? (snap.data() || {}) : null;
       const listaOk = raw && Array.isArray(raw.lista) && raw.lista.length
         && raw.lista.every(c => c && c.key && c.label && Array.isArray(c.numeri));
-      if (!listaOk) { seedCategorieAlloggi(raw); return; } // manca o schema vecchio → semina
+      // Schema valido ma tutte le liste vuote mentre esistono davvero degli
+      // alloggi in collezione: è un'anomalia (es. doc di config perso in un
+      // consolidamento), non una configurazione legittima — "array vuoto"
+      // da solo non bastava a distinguerle (bug scoperto il 09/11/2026).
+      const tuttoVuoto = listaOk && raw.lista.every(c => !c.numeri.length);
+      if (!listaOk || tuttoVuoto) { seedCategorieAlloggi(raw); return; } // manca, schema vecchio o svuotato → semina dai dati reali
       categorieAlloggi = raw.lista.map(c => ({
         key: String(c.key), label: String(c.label), numeri: normNumeri(c.numeri),
       }));
