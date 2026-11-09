@@ -542,8 +542,9 @@ let _lastSedeFiltro = 'tutte';
 // scarichi con "Esporta Excel"): sede per sede, quali sedi e quali ordini
 // scolastici di ciascuna includere, più se mettere o no i dati contabili
 // nel foglio RIEPILOGO (che invece c'è sempre, solo i pasti o anche i soldi).
-let excelOptions = { sedi: {}, ordini: {}, contabile: true };
+let excelOptions = { sedi: {}, ordini: {}, categorie: {}, contabile: true };
 function ensureExcelOptionsDefaults() {
+  categorieAttive().forEach(c => { if (excelOptions.categorie[c.id] === undefined) excelOptions.categorie[c.id] = true; });
   sediList.filter(s => s.attiva !== false).forEach(sede => {
     if (excelOptions.sedi[sede.id] === undefined) excelOptions.sedi[sede.id] = true;
     if (!excelOptions.ordini[sede.id]) excelOptions.ordini[sede.id] = {};
@@ -559,6 +560,13 @@ function toggleExcelSede(sedeId, checked) {
 function toggleExcelOrdine(sedeId, ordineId, checked) {
   if (!excelOptions.ordini[sedeId]) excelOptions.ordini[sedeId] = {};
   excelOptions.ordini[sedeId][ordineId] = checked;
+}
+function toggleExcelCategoria(catId, checked) { excelOptions.categorie[catId] = checked; }
+function excelCategorieHtml() {
+  ensureExcelOptionsDefaults();
+  return categorieAttive().map(c => `<label class="chk-pill">
+      <input type="checkbox" ${excelOptions.categorie[c.id]!==false?'checked':''} onchange="toggleExcelCategoria('${c.id}', this.checked)"> ${escHtml(c.nome)}
+    </label>`).join('');
 }
 function toggleExcelContabile() {
   excelOptions.contabile = !excelOptions.contabile;
@@ -696,6 +704,20 @@ function prezzoVigente(sede, dataStr) {
   if (!tariffe.length) return { prezzo: 0, iva_pct: 4 };
   const t = tariffe[tariffe.length - 1];
   return { prezzo: Number(t.prezzo) || 0, iva_pct: t.iva_pct != null ? Number(t.iva_pct) : 4 };
+}
+// Categorie attive per una sede: quelle attive a livello globale meno quelle
+// che la sede ha disattivato (sede.categorie_off). Una categoria nuova è
+// quindi attiva ovunque finché non la si spegne per una sede.
+function categorieAttiveSede(sede) {
+  const off = (sede && sede.categorie_off) || [];
+  return categorieAttive().filter(c => !off.includes(c.id));
+}
+// Come totalePasti ma conta solo ordini e categorie attivi per la sede
+// (i valori di categorie spente restano salvati ma non entrano nei totali).
+function totalePastiSede(righe, sede) {
+  let tot = 0;
+  ordiniAttiviSede(sede).forEach(o => categorieAttiveSede(sede).forEach(c => { tot += Number(righe?.[o.id]?.[c.id]) || 0; }));
+  return tot;
 }
 function totalePasti(righe) {
   let tot = 0;
@@ -939,7 +961,7 @@ function renderWeekStrip(sede, monday) {
     let status = 'mancante';
     if (!service) status = 'no-service';
     else if (doc && doc.chiuso) status = 'chiuso';
-    else if (doc && totalePasti(doc.righe) > 0) status = 'inserito';
+    else if (doc && totalePastiSede(doc.righe, sede) > 0) status = 'inserito';
     const label = GIORNI_LABEL[GIORNI_KEYS[i]];
     const num = new Date(d + 'T12:00:00').getDate();
     const sel = d === selData ? ' sel' : '';
@@ -963,7 +985,7 @@ async function loadGiornoCorrente(sede) {
   draftRighe = {};
   ordiniAttiviSede(sede).forEach(o => {
     draftRighe[o.id] = {};
-    categorieAttive().forEach(c => { draftRighe[o.id][c.id] = (doc && doc.righe && doc.righe[o.id] && doc.righe[o.id][c.id]) || 0; });
+    categorieAttiveSede(sede).forEach(c => { draftRighe[o.id][c.id] = (doc && doc.righe && doc.righe[o.id] && doc.righe[o.id][c.id]) || 0; });
   });
   draftMeta = {
     chiuso: !!(doc && doc.chiuso),
@@ -994,7 +1016,7 @@ function renderOrdiniPresenzeBody() {
   const sede = sediList.find(s => s.id === selSedeId);
   if (!sede) { wrap.innerHTML = ''; return; }
   const ordini = ordiniAttiviSede(sede);
-  const cats = categorieAttive();
+  const cats = categorieAttiveSede(sede);
 
   let html = '';
 
@@ -1152,7 +1174,7 @@ async function salvaPresenza() {
   if (!draftMeta.chiuso) {
     ordiniAttiviSede(sede).forEach(o => {
       righe[o.id] = {};
-      categorieAttive().forEach(c => { righe[o.id][c.id] = draftRighe[o.id] ? (draftRighe[o.id][c.id]||0) : 0; });
+      categorieAttiveSede(sede).forEach(c => { righe[o.id][c.id] = draftRighe[o.id] ? (draftRighe[o.id][c.id]||0) : 0; });
     });
   }
   const totale = draftMeta.chiuso ? 0 : totalePasti(righe);
@@ -1165,7 +1187,7 @@ async function salvaPresenza() {
   if ((oldDoc?.note||'') !== note) modifiche.push({ campo: 'note', da: oldDoc?.note||'', a: note });
   if (!draftMeta.chiuso) {
     ordiniAttiviSede(sede).forEach(o => {
-      categorieAttive().forEach(c => {
+      categorieAttiveSede(sede).forEach(c => {
         const da = (oldDoc?.righe && oldDoc.righe[o.id] && oldDoc.righe[o.id][c.id]) || 0;
         const a = righe[o.id][c.id] || 0;
         if (da !== a) modifiche.push({ campo: `${o.nome} · ${c.nome}`, da, a });
@@ -1306,10 +1328,10 @@ function calcolaKpiReport(sediInGioco, dal, al) {
       if (!isServiceDay(sede, d)) return;
       giorniServizioTot++;
       const doc = righeSede.find(r => r.data === d);
-      if (doc && (doc.chiuso || totalePasti(doc.righe) > 0)) {
+      if (doc && (doc.chiuso || totalePastiSede(doc.righe, sede) > 0)) {
         giorniInseritiTot++;
         if (!doc.chiuso) {
-          const pasti = totalePasti(doc.righe);
+          const pasti = totalePastiSede(doc.righe, sede);
           pastiTot += pasti;
           importoTot += pasti * prezzoVigente(sede, d).prezzo;
         }
@@ -1333,7 +1355,7 @@ function buildTabelleReportHtml(sediInGioco, dal, al) {
   sediInGioco.forEach(sede => {
     const righeSede = reportRows.filter(r => r.sedeId === sede.id);
     const ordini = ordiniAttiviSede(sede);
-    const cats = categorieAttive();
+    const cats = categorieAttiveSede(sede);
     if (sediInGioco.length > 1) html += `<div class="rpt-sede-title">${escHtml(sede.nome)}</div>`;
     if (!ordini.length) { html += `<p class="perm-hint">Nessun ordine attivo per questa sede.</p>`; return; }
     ordini.forEach(o => {
@@ -1396,6 +1418,10 @@ function renderReport(sedeFiltro) {
     <h3 style="margin-bottom:4px">Cosa esportare in Excel</h3>
     <p class="subtitle">Sedi e ordini scolastici da includere — indipendente da quello che stai guardando qui sopra.</p>
     <div id="excel-sedi-ordini">${excelSediOrdiniHtml()}</div>
+    <div style="padding:10px 0;border-top:1px solid var(--gray-100)">
+      <div class="field-label" style="margin-bottom:8px">Categorie da esportare</div>
+      <div class="chk-grid" id="excel-categorie">${excelCategorieHtml()}</div>
+    </div>
     <div class="toggle-row">
       <div class="toggle-label-wrap">
         <div class="toggle-label">Dati contabili nel riepilogo</div>
@@ -1520,7 +1546,9 @@ async function esportaExcelReport() {
   try {
     await loadExcelJS();
     const { dal, al } = datesOfPeriod();
-    const cats = categorieAttive();
+    // Categorie scelte per l'export; poi, per ogni sede, solo quelle attive lì.
+    const catsExport = sede => categorieAttiveSede(sede).filter(c => excelOptions.categorie[c.id] !== false);
+    if (!categorieAttive().some(c => excelOptions.categorie[c.id] !== false)) { showToast('Seleziona almeno una categoria da esportare'); if (btn) btn.disabled = false; return; }
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'Garden River — Mense scolastiche';
@@ -1534,6 +1562,8 @@ async function esportaExcelReport() {
       const righeSede = reportRows.filter(r => r.sedeId === sede.id);
       const ordini = ordiniAttiviSede(sede).filter(o => excelOptions.ordini[sede.id]?.[o.id] !== false);
       const dates = allDatesInRange(dal, al);
+      const cats = catsExport(sede);
+      if (!cats.length) return;
 
       ordini.forEach(o => {
         nessunOrdineScelto = false;
@@ -1543,7 +1573,7 @@ async function esportaExcelReport() {
         ws.getCell('A1').font = { bold: true, size: 13 };
         ws.getCell('C1').value = o.nome.toUpperCase();
         ws.getCell('C1').font = { bold: true };
-        ws.mergeCells(`C1:${String.fromCharCode(67+cats.length-1)}1`);
+        if (cats.length > 1) ws.mergeCells(`C1:${String.fromCharCode(67+cats.length-1)}1`);
 
         const header = ['Giorno', ...cats.map(c => c.nome.toUpperCase())];
         ws.addRow(header);
@@ -1591,7 +1621,7 @@ async function esportaExcelReport() {
           if (!isServiceDay(sede, d)) return;
           const doc = righeSede.find(r2 => r2.data === d);
           if (doc && !doc.chiuso) {
-            const p = totalePasti({ [o.id]: doc.righe?.[o.id] || {} });
+            const p = catsExport(sede).reduce((a, c) => a + (Number(doc.righe?.[o.id]?.[c.id]) || 0), 0);
             pastiOrdine += p;
             importoOrdine += p * prezzoVigente(sede, d).prezzo;
           }
@@ -1658,7 +1688,7 @@ let _sedeEditDraft = null;
 
 function apriNuovaSedeForm() {
   _sedeEditId = null;
-  _sedeEditDraft = { nome:'', ente:'', indirizzo:'', ordini: ORDINI.filter(o=>o.attivo!==false).map(o=>o.id), giorni_servizio: {...GIORNI_SERVIZIO_DEFAULT}, operatori: [], tariffe: [], chiusure: [], attiva: true };
+  _sedeEditDraft = { nome:'', ente:'', indirizzo:'', ordini: ORDINI.filter(o=>o.attivo!==false).map(o=>o.id), giorni_servizio: {...GIORNI_SERVIZIO_DEFAULT}, operatori: [], categorie_off: [], tariffe: [], chiusure: [], attiva: true };
   renderSedeEditCard();
 }
 function apriSedeForm(id) {
@@ -1670,6 +1700,7 @@ function apriSedeForm(id) {
     ordini: s.ordini ? [...s.ordini] : ORDINI.map(o=>o.id),
     giorni_servizio: { ...GIORNI_SERVIZIO_DEFAULT, ...(s.giorni_servizio||{}) },
     operatori: s.operatori ? [...s.operatori] : [],
+    categorie_off: s.categorie_off ? [...s.categorie_off] : [],
     tariffe: s.tariffe ? s.tariffe.map(t=>({...t})) : [],
     chiusure: s.chiusure ? s.chiusure.map(c=>({...c})) : [],
     attiva: s.attiva !== false,
@@ -1705,6 +1736,14 @@ function renderSedeEditCard() {
       <div class="chk-grid">${ORDINI.filter(o=>o.attivo!==false).map(o => `
         <label class="chk-pill${d.ordini.includes(o.id)?'':' off'}">
           <input type="checkbox" ${d.ordini.includes(o.id)?'checked':''} onchange="sfToggleOrdine('${o.id}',this.checked)"> ${escHtml(o.nome)}
+        </label>`).join('')}</div>
+    </div>
+
+    <div class="field-group" style="margin-bottom:10px">
+      <label class="field-label">Categorie attive in questa sede</label>
+      <div class="chk-grid">${categorieAttive().map(c => `
+        <label class="chk-pill${d.categorie_off.includes(c.id)?' off':''}">
+          <input type="checkbox" ${d.categorie_off.includes(c.id)?'':'checked'} onchange="sfToggleCategoria('${c.id}',this.checked)"> ${escHtml(c.nome)}
         </label>`).join('')}</div>
     </div>
 
@@ -1785,6 +1824,11 @@ function sfToggleOrdine(id, checked) {
   const d = _sedeEditDraft;
   if (checked && !d.ordini.includes(id)) d.ordini.push(id);
   if (!checked) d.ordini = d.ordini.filter(x => x !== id);
+}
+function sfToggleCategoria(id, checked) {
+  const d = _sedeEditDraft;
+  d.categorie_off = d.categorie_off.filter(x => x !== id);
+  if (!checked) d.categorie_off.push(id);
 }
 function sfToggleGiorno(k, checked) { _sedeEditDraft.giorni_servizio[k] = checked; }
 function sfToggleOperatore(nome, checked) {
