@@ -3577,16 +3577,21 @@ function switchPrenTab(tab) {
   // prossimo giro dell'auto-recovery.
   else if (tab === 'conto') sincronizzaContoPrimaDiSalvare();
 }
-// La scheda Spiaggia ha senso solo se in conto c'è davvero un servizio
-// spiaggia: va richiamata ogni volta che il conto si aggiorna. Il servizio
-// spiaggia arriva anche dal Pacchetto biancheria + spiaggia (riga diversa
-// da "Spiaggia · N notti" dell'a la carte) — bug scoperto il 09/11/2026:
-// con solo il pacchetto attivo la scheda restava nascosta.
+// La scheda Spiaggia ha senso solo se la prenotazione ha davvero un
+// servizio spiaggia: va richiamata ogni volta che il conto si aggiorna.
+// Guarda le spunte Spiaggia/Pacchetto direttamente, non il testo del
+// conto — per le prenotazioni importate il conto resta un unico totale
+// "Soggiorno (agenzia)" e non contiene mai una riga "Pacchetto"/"Spiaggia
+// ·" anche col pacchetto spuntato, quindi cercarle nel conto non bastava
+// (bug scoperto il 09/11/2026, ancora presente dopo un primo tentativo di
+// correzione basato sulle etichette del conto).
 function aggiornaVisibilitaTabSpiaggia() {
   const tab = document.getElementById('pren-tab-spiaggia');
   if (!tab) return;
   const cera = !tab.classList.contains('hidden');
-  const cDeveEssere = contoCorrente.some(r => r.label.startsWith('Spiaggia ·') || r.label === 'Pacchetto biancheria + spiaggia');
+  const fSpiaggia = document.getElementById('f-spiaggia');
+  const fPacchetto = document.getElementById('f-pacchetto-servizi');
+  const cDeveEssere = !!(fSpiaggia && fSpiaggia.checked) || !!(fPacchetto && fPacchetto.checked);
   tab.classList.toggle('hidden', !cDeveEssere);
   if (cera && !cDeveEssere && tab.classList.contains('active')) switchPrenTab('dettagli');
 }
