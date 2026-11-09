@@ -4214,9 +4214,12 @@ function parseCsvScidoo(testo) {
   }
   if (campo !== '' || riga.length) { riga.push(campo); righe.push(riga); }
   const header = righe.shift() || [];
+  // Il file ha due colonne chiamate "Provenienza" (la prima è il canale di
+  // acquisizione che ci interessa, la seconda è sempre vuota): con nomi
+  // duplicati in testata teniamo la PRIMA occorrenza, non l'ultima.
   return righe.filter(r => r.some(v => v !== '')).map(r => {
     const obj = {};
-    header.forEach((h, idx) => { obj[h] = r[idx] !== undefined ? r[idx] : ''; });
+    header.forEach((h, idx) => { if (!(h in obj)) obj[h] = r[idx] !== undefined ? r[idx] : ''; });
     return obj;
   });
 }
@@ -4274,6 +4277,14 @@ function pacchettoServiziScidoo(retta) {
 function parseNumeroIt(s) {
   return parseFloat(String(s || '0').replace(/\./g, '').replace(',', '.')) || 0;
 }
+// Canale di acquisizione (es. "google.com", "newsletter", "telefonata"):
+// lo prendiamo così com'è dal file, solo capitalizzato — non forziamo un
+// abbinamento con le provenienze già configurate (v. assicuraProvenienzeImportate,
+// che le crea in Impostazioni se mancano).
+function formattaProvenienzaScidoo(s) {
+  const t = String(s || '').trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+}
 const STATI_SCIDOO_NON_IMPORTABILI = ['annullata', 'annullato', 'rifiutata', 'scaduta'];
 function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
   const agenziaId = String(campoScidoo(row, 'ID') || '').trim();
@@ -4293,6 +4304,7 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
     agenziaId, cliente, checkin, checkout,
     tel: String(campoScidoo(row, 'Cellulare') || campoScidoo(row, 'Telefono') || '').trim(),
     email: String(campoScidoo(row, 'Email') || '').trim(),
+    provenienza: formattaProvenienzaScidoo(campoScidoo(row, 'Provenienza')) || 'Agenzia',
     adulti: parseInt(campoScidoo(row, 'Adulti'), 10) || 0,
     bambiniFasce: bucketEtaBambiniScidoo(row),
     animali: false, noteAnimali: '', noteGenerali: '', note,
@@ -4366,6 +4378,7 @@ function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
   const risultato = {
     agenziaId, cliente, checkin, checkout,
     tel: String(row['tel1 cliente'] || '').trim(),
+    provenienza: 'Offerte Villaggi',
     adulti: (parseInt(row['adulti'], 10) || 0) + bucket.adultiExtra,
     bambiniFasce: bucket,
     animali: /^s/i.test(String(row['animali'] || '')),
@@ -4432,6 +4445,22 @@ function cambiaSorgenteImport(valore) {
   document.getElementById('btn-conferma-import').classList.add('hidden');
   _importRighe = [];
 }
+// I canali di acquisizione che arrivano da Scidoo (es. "Google.com",
+// "Newsletter") possono non esistere ancora tra le provenienze configurate
+// in Impostazioni: li aggiungiamo qui, prima di mostrare l'anteprima, così
+// il menu provenienza nella scheda prenotazione li trova già pronti invece
+// di mostrare un valore "orfano" non presente nella lista.
+async function assicuraProvenienzeImportate(righe) {
+  const lista = (impostazioniCalendario && impostazioniCalendario.provenienze) || IMPOSTAZIONI_CALENDARIO_DEFAULT.provenienze;
+  const nuove = [...new Set(righe.map(r => r.provenienza).filter(Boolean))].filter(p => !lista.includes(p));
+  if (!nuove.length) return;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const aggiornate = { ...(impostazioniCalendario || IMPOSTAZIONI_CALENDARIO_DEFAULT), provenienze: [...lista, ...nuove] };
+    await setDoc(doc(db, 'impostazioni', 'calendario'), aggiornate);
+    impostazioniCalendario = aggiornate; // onSnapshot arriverà comunque, ma così è già disponibile subito
+  } catch(e) { console.error('Errore aggiunta provenienze da import:', e); }
+}
 async function analizzaFileImportazione(inputEl) {
   const file = inputEl.files[0];
   const wrap = document.getElementById('import-risultati');
@@ -4452,6 +4481,7 @@ async function analizzaFileImportazione(inputEl) {
     if (!righeGrezze.length) { wrap.innerHTML = '<p class="section-hint">Il file non contiene righe leggibili.</p>'; return; }
     const riservatePerCategoria = {};
     _importRighe = righeGrezze.map(r => sorgente.elaboraRiga(r, riservatePerCategoria));
+    await assicuraProvenienzeImportate(_importRighe);
     renderRisultatiImportazione();
   } catch(e) {
     console.error('Errore lettura file importazione:', e);
@@ -4474,7 +4504,7 @@ function costruisciDatiImportRiga(r) {
     alloggio_id: r.alloggioId || '',
     alloggio_nome: r.alloggioId ? r.alloggioNome : `Da assegnare (${r.tipoAlloggio})`,
     nome: r.cliente, checkin: r.checkin, checkout: r.checkout,
-    tel: r.tel, email: r.email || '', targa: '', provenienza: 'Agenzia',
+    tel: r.tel, email: r.email || '', targa: '', provenienza: r.provenienza || 'Agenzia',
     adulti: r.adulti, bambini: bambiniTotale,
     bambini_0_2: r.bambiniFasce.b0_2, bambini_3_4: r.bambiniFasce.b3_4, bambini_5_9: r.bambiniFasce.b5_9, bambini_10_17: r.bambiniFasce.b10_17,
     trattamento_ristorazione: r.trattamento,
@@ -4584,7 +4614,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   document.getElementById('f-email').value = r.email || '';
   document.getElementById('f-targa').value = '';
   aggiornaBadgeCheckinOnline(null);
-  populateProvenienzaSelect('Agenzia');
+  populateProvenienzaSelect(r.provenienza || 'Agenzia');
   document.getElementById('f-checkin').value  = r.checkin;
   document.getElementById('f-checkout').value = r.checkout;
   document.getElementById('f-adulti').value   = r.adulti;
@@ -6559,13 +6589,20 @@ async function parseListinoVillaggioFile(file) {
   const titolo = String(righe[0][0] || '');
   const annoMatch = titolo.match(/al\s*\d{2}\/\d{2}\/(\d{4})/);
   const anno = annoMatch ? annoMatch[1] : String(new Date().getFullYear());
-  const periodi = righe[0].slice(1).map(cella => {
+  const periodiRaw = righe[0].slice(1).map(cella => {
     const m = String(cella || '').match(/(\d{2})\/(\d{2})\s*-\s*(\d{2})\/(\d{2})/);
     if (!m) return null;
     const [, d1, m1, d2, m2] = m;
     return { da: `${anno}-${m1}-${d1}`, a: `${anno}-${m2}-${d2}`, prezzi: {} };
   });
-  if (periodi.some(p => !p)) throw new Error('Intestazione periodi non riconosciuta (riga 1 del file)');
+  // La dimensione dichiarata dentro il file .xlsx (riga <dimension>) può
+  // eccedere le colonne davvero compilate (es. "fino a Q" quando i periodi
+  // finiscono alla colonna P): sheet_to_json allora aggiunge celle vuote
+  // di margine. Teniamo solo il prefisso di celle riconosciute come
+  // periodo; il resto è margine del foglio, non un errore.
+  const primoVuoto = periodiRaw.findIndex(p => !p);
+  const periodi = primoVuoto === -1 ? periodiRaw : periodiRaw.slice(0, primoVuoto);
+  if (!periodi.length) throw new Error('Intestazione periodi non riconosciuta (riga 1 del file)');
   const persona = {};
   const extra = { postoAggiuntivo: null, animaliPerNotte: null, puliziaFinaleAnimali: null, pacchettoServiziPerMese: {} };
   const categoriePrezzi = {}; // etichetta originale del file → prezzi per periodo
