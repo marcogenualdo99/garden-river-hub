@@ -114,7 +114,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .fam-detail-note{font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:6px;padding:2px 8px;margin-top:4px;display:inline-block}
 .fam-detail-qty{font-size:15px;font-weight:800;color:var(--green-500)}
 /* ── REPORT ALERT ── */
-.report-alert{border-radius:14px;border:1px solid #FCD34D;background:#FFFBEB;overflow:hidden;margin-bottom:16px}
+.report-alert{grid-column:1/-1;border-radius:14px;border:1px solid #FCD34D;background:#FFFBEB;overflow:hidden;margin-bottom:16px}
 .report-alert-head{display:flex;align-items:center;gap:12px;padding:14px 18px 10px}
 .report-alert-icon{width:36px;height:36px;border-radius:50%;background:rgba(217,119,6,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px}
 .report-alert-count{font-size:22px;font-weight:600;color:#B45309;line-height:1}
@@ -125,6 +125,14 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .report-alert-chip:hover{background:rgba(217,119,6,0.08);border-color:#B45309}
 .report-alert-chip-name{color:#111827;font-weight:500}
 .report-alert-chip-unit{color:#6B7280;font-weight:400}
+
+/* ── GRIGLIE RESPONSIVE (Report/Menu) — stesso principio del KDS qui sotto:
+   una colonna su mobile, affiancate da tablet in su, come già fa bici con
+   .bici-cols. Qui niente colonna fissa (il contenuto è una lista di card
+   tutte dello stesso tipo, non form+lista): auto-fill si incarica da solo
+   di quante colonne stanno nella larghezza disponibile. ── */
+#report-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
+#menu-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
@@ -196,7 +204,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .kds-fam-sub{border-top:1px solid var(--gray-100);padding:10px 16px}
 .kds-fam-sub-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kds-fam-sub-nome{font-size:13px;font-weight:800;color:var(--gray-900)}
-.empty-state{text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
+.empty-state{grid-column:1/-1;text-align:center;padding:60px 24px;color:var(--gray-500);font-size:14px;font-weight:600}
 
 /* ── MENU SEZIONE ── */
 .date-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none}
@@ -224,7 +232,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .menu-del:active{opacity:.7}
 .menu-edit{width:30px;height:30px;background:var(--gray-100,#F3F4F6);border:none;border-radius:8px;color:var(--gray-600,#4B5563);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .menu-edit:active{opacity:.7}
-.add-dish-btn{width:100%;height:46px;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);background:transparent;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:8px;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.add-dish-btn{grid-column:1/-1;width:100%;height:46px;border:1.5px dashed var(--gray-300);border-radius:var(--radius-sm);background:transparent;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:8px;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .add-dish-btn:active{border-color:var(--green-400);color:var(--green-700)}
 .add-cat-btn{width:100%;height:46px;border:1.5px dashed var(--green-200);border-radius:var(--radius-sm);background:var(--green-50);color:var(--green-500);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);margin-top:12px}
 
@@ -237,6 +245,17 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .ssub{font-size:11px;color:var(--gray-500);margin-top:1px}
 
 .add-fam-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:16px;margin-bottom:20px}
+/* ── IMPOSTAZIONI A DUE COLONNE — stesso principio di .bici-cols in bici/index.html:
+   form stretto a sinistra, lista larga a destra da tablet in su. ── */
+.settings-cols{display:flex;flex-direction:column;gap:16px}
+.settings-col-left,.settings-col-right{display:flex;flex-direction:column;min-width:0}
+.settings-row2{display:grid;grid-template-columns:1fr;gap:16px;margin-top:4px}
+@media (min-width:768px){
+  .settings-cols{flex-direction:row;align-items:flex-start;gap:20px}
+  .settings-col-left{width:380px;flex-shrink:0}
+  .settings-col-right{flex:1;min-width:0}
+}
+@media (min-width:640px){.settings-row2{grid-template-columns:1fr 1fr}}
 .add-fam-card h3{font-size:13px;font-weight:800;color:var(--gray-900);margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .form-row.solo{grid-template-columns:1fr}
@@ -552,6 +571,8 @@ input[type="date"].finput{font-size:13px}
 <!-- SETTINGS VIEW -->
 <div id="settings-view" class="hidden">
   <main>
+  <div class="settings-cols">
+  <div class="settings-col-left">
     <div class="add-fam-card">
       <h3>Inserisci famiglia</h3>
       <div class="form-row">
@@ -589,7 +610,9 @@ input[type="date"].finput{font-size:13px}
       </div>
       <button class="btn-add" onclick="aggiungiFamiglia()">Aggiungi</button>
     </div>
+  </div><!-- /settings-col-left -->
 
+  <div class="settings-col-right">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="sec-label" style="margin-bottom:0">Famiglie inserite</div>
       <div style="display:flex;gap:8px">
@@ -598,8 +621,11 @@ input[type="date"].finput{font-size:13px}
       </div>
     </div>
     <div id="famiglie-list"></div>
+  </div><!-- /settings-col-right -->
+  </div><!-- /settings-cols -->
 
-    <div class="add-fam-card" style="margin-top:16px">
+  <div class="settings-row2">
+    <div class="add-fam-card" style="margin-top:0">
       <h3>Stampante termica</h3>
       <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px">Indirizzo IP</div>
       <input id="printer-ip-input" type="text" placeholder="es. 192.168.1.5" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:15px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
@@ -615,7 +641,7 @@ input[type="date"].finput{font-size:13px}
       </div>
     </div>
 
-    <div class="add-fam-card" style="margin-top:16px">
+    <div class="add-fam-card" style="margin-top:0">
       <h3>Categorie menu</h3>
       <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Ordine con cui compaiono nel menu (staff e ospiti). Una categoria con piatti assegnati non si può eliminare.</div>
       <div id="cat-menu-list"></div>
@@ -625,6 +651,7 @@ input[type="date"].finput{font-size:13px}
       </div>
       <button onclick="salvaCategorieMenu()" style="width:100%;height:44px;margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva categorie</button>
     </div>
+  </div><!-- /settings-row2 -->
   </main>
 </div>
 
