@@ -58,7 +58,7 @@
 .login-sub{font-size:13px;color:rgba(255,255,255,.6);margin-bottom:32px}
 .login-card{background:#fff;border-radius:var(--radius-lg);padding:24px 20px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center}
 .login-card p{font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px}
-.btn-primary{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.btn-primary{width:100%;height:50px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font)}
 .btn-primary:active{opacity:.85}
 
 /* ── TOP BAR ── */
@@ -243,7 +243,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 input[type="date"].finput{font-size:13px}
 .finput:focus{border-color:var(--green-400)}
 .fselect{height:46px;border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);padding:0 12px;outline:none;width:100%;background:#fff;color:var(--gray-900)}
-.btn-add{width:100%;height:50px;background:var(--green-700);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
+.btn-add{width:100%;height:50px;background:var(--orange);color:#fff;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);margin-top:4px}
 .btn-add:active{opacity:.85}
 .btn-stampa{width:100%;height:48px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-stampa:active{opacity:.8}
@@ -306,7 +306,7 @@ input[type="date"].finput{font-size:13px}
 .mbtns{display:flex;gap:8px}
 .mbtns button{flex:1;height:50px;border:none;border-radius:var(--radius-xl);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font)}
 .mcancel{background:var(--gray-100);color:var(--gray-700)}
-.msave{background:var(--green-700);color:#fff}
+.msave{background:var(--orange);color:#fff}
 .msave:active,.mcancel:active{opacity:.8}
 
 /* ── TOAST ── */
@@ -330,7 +330,7 @@ input[type="date"].finput{font-size:13px}
   <div class="login-card">
     <p>L'accesso è gestito dalla <strong>Hub Garden River</strong>.<br>
     Accedi da lì e seleziona il tuo profilo per entrare automaticamente.</p>
-    <button class="btn-hub" onclick="location.href='../'">Vai alla Hub</button>
+    <button class="btn-primary" onclick="location.href='../'">Vai alla Hub</button>
   </div>
 </div>
 
@@ -498,7 +498,7 @@ input[type="date"].finput{font-size:13px}
       <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
       <div style="display:flex;gap:10px">
         <button onclick="testStampante()" style="flex:1;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Test stampa</button>
-        <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
+        <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
       </div>
     </div>
 
@@ -510,7 +510,7 @@ input[type="date"].finput{font-size:13px}
         <input id="cat-menu-new" type="text" placeholder="Nuova categoria" style="flex:1;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box">
         <button onclick="aggiungiCategoriaMenu()" style="width:44px;height:44px;border:none;background:var(--gray-100);color:var(--green-700);border-radius:10px;font-size:20px;font-weight:700;cursor:pointer">+</button>
       </div>
-      <button onclick="salvaCategorieMenu()" style="width:100%;height:44px;margin-top:12px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva categorie</button>
+      <button onclick="salvaCategorieMenu()" style="width:100%;height:44px;margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva categorie</button>
     </div>
   </main>
 </div>
@@ -640,7 +640,7 @@ input[type="date"].finput{font-size:13px}
           <input id="qr-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
         </div>
       </div>
-      <button onclick="applicaFiltroDateQR()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+      <button onclick="applicaFiltroDateQR()" style="width:100%;height:36px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button onclick="selezionaTutteQR(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
@@ -649,7 +649,7 @@ input[type="date"].finput{font-size:13px}
     <div id="qr-panel-list"></div>
     <div class="mbtns" style="margin-top:16px">
       <button class="mcancel" onclick="document.getElementById('modal-qr-panel').classList.add('hidden')">Annulla</button>
-      <button class="msave" style="background:#fff;color:var(--green-700);border:2px solid var(--green-700)" onclick="scaricaListaLink()">Scarica lista link</button>
+      <button class="msave" style="background:#fff;color:var(--orange);border:2px solid var(--orange)" onclick="scaricaListaLink()">Scarica lista link</button>
       <button class="msave" onclick="scaricaQRSelezionati()">Scarica QR</button>
     </div>
   </div>
@@ -672,7 +672,7 @@ input[type="date"].finput{font-size:13px}
           <input id="rf-al" type="date" style="width:100%;height:38px;border:1.5px solid var(--gray-300);border-radius:8px;font-size:13px;font-family:var(--font);padding:0 10px;outline:none;background:#fff;color:var(--gray-900);box-sizing:border-box">
         </div>
       </div>
-      <button onclick="applicaFiltroDate()" style="width:100%;height:36px;background:var(--green-700);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
+      <button onclick="applicaFiltroDate()" style="width:100%;height:36px;background:var(--orange);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Applica filtro e seleziona</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button onclick="selezionaTutteFamiglie(true)"  style="flex:1;height:36px;background:var(--green-50);color:var(--green-700);border:1px solid var(--green-200);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Seleziona tutti</button>
