@@ -827,6 +827,16 @@ input[type="date"].finput{font-size:13px}
   </div>
 </div>
 
+<!-- MODAL FAMIGLIE PARTITE -->
+<div id="modal-partite" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title">Famiglie partite</div>
+    <input id="partite-search" type="text" placeholder="Cerca per nome o alloggio…" oninput="filtraPartite(this.value)" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
+    <div id="partite-list-full"></div>
+    <button class="mcancel" style="width:100%;height:44px;margin-top:12px;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)" onclick="document.getElementById('modal-partite').classList.add('hidden')">Chiudi</button>
+  </div>
+</div>
+
 <!-- MODAL REPORT FAMIGLIE -->
 <div id="modal-report-fam" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
@@ -2206,11 +2216,61 @@ function renderFamiglie() {
     html += inArrivo.map(([f,idx]) => rigaFam(f, idx, 'arrivo')).join('');
   }
   if (partite.length) {
-    html += `<div class="fam-group-label" style="color:var(--gray-400)">Partite (${partite.length})</div>`;
-    html += partite.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
+    // Più recenti prima (ultima a partire in cima); in pagina solo le ultime 5,
+    // il resto si vede (e si cerca) dal pop-up "Vedi tutte".
+    partite.sort((a,b) => (b[0].checkout||'').localeCompare(a[0].checkout||''));
+    _partiteComplete = partite;
+    const recenti = partite.slice(0, 5);
+    html += `<div class="fam-group-label" style="color:var(--gray-400);justify-content:space-between">
+      <span>Partite (${partite.length})</span>
+      <button onclick="apriPartiteModal()" style="background:none;border:none;color:var(--gray-500);cursor:pointer;display:flex;align-items:center;gap:2px;font-size:11px;font-weight:700;text-transform:none;letter-spacing:0">Vedi tutte <span style="font-size:15px;line-height:1">›</span></button>
+    </div>`;
+    html += recenti.map(([f,idx]) => rigaFam(f, idx, 'partita')).join('');
+  } else {
+    _partiteComplete = [];
   }
 
   el.innerHTML = html;
+}
+
+let _partiteComplete = [];
+function apriPartiteModal() {
+  document.getElementById('partite-search').value = '';
+  renderPartiteModal(_partiteComplete);
+  document.getElementById('modal-partite').classList.remove('hidden');
+}
+function filtraPartite(q) {
+  q = q.trim().toLowerCase();
+  const filtrate = !q ? _partiteComplete : _partiteComplete.filter(([f]) =>
+    (f.nome||'').toLowerCase().includes(q) || (f.unita||'').toLowerCase().includes(q));
+  renderPartiteModal(filtrate);
+}
+function renderPartiteModal(lista) {
+  const el = document.getElementById('partite-list-full');
+  el.innerHTML = lista.length
+    ? lista.map(([f,idx]) => rigaFamiglia_(f, idx)).join('')
+    : '<div class="empty-state" style="padding:24px">Nessuna famiglia trovata</div>';
+}
+// stessa riga di renderFamiglie(), esposta qui perché rigaFam() è locale a quella funzione
+function rigaFamiglia_(f, idx) {
+  const ini = (f.nome||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
+  const dateInfo = [f.checkin ? `in: ${f.checkin.slice(5).replace('-','/')}` : '', f.checkout ? `out: ${f.checkout.slice(5).replace('-','/')}` : ''].filter(Boolean).join(' · ');
+  return `<div class="fam-row">
+    <div class="fam-av partita">${ini}</div>
+    <div class="fam-info">
+      <div class="fam-nome">${esc(f.nome)}</div>
+      <div class="fam-meta">Alloggio ${esc(f.unita||'—')} · ${f.adulti||0} adulti${(f.bambini&&f.bambini.length)?` · ${f.bambini.length} bamb.`:''}  · ${esc(f.trattamento||'')}${dateInfo?' · '+dateInfo:''}</div>
+      <div class="fam-code">Codice: ${esc(f.codice||f.id)}</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button class="fam-edit" onclick="apriEditFamiglia(${idx})" title="Modifica">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
+      </button>
+      <button class="fam-del" onclick="eliminaFamiglia(${idx})" title="Elimina">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="3 6 17 6"/><path d="M8 6V4h4v2"/><rect x="4" y="6" width="12" height="11" rx="2"/></svg>
+      </button>
+    </div>
+  </div>`;
 }
 
 function recuperoPastiLabel(f) {
