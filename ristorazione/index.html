@@ -7,7 +7,8 @@
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css?v=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
@@ -47,25 +48,8 @@
 </script>
 
 <style>
-:root {
-  --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
-  --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
-  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
-  --gray-300:#D1D5DB; --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
-  --orange:#E07B00; --orange-bg:#FFF8F0;
-  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
-  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
-  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
-  --green-ok:#16A34A; --green-bg:#F0FAF4; --green-bd:#BBF7D0;
-  --font:'Inter',-apple-system,sans-serif;
-  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
-  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
-body{font-family:var(--font);background:var(--white);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
-.hidden{display:none!important}
-@keyframes gr-spin{to{transform:rotate(360deg)}}
+/* Variabili e reset di base: in ristorazione/theme.css (pacchetto stile
+   pilota, vedi quel file per i dettagli) */
 
 /* ── LOADING ── */
 #loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s}
@@ -359,7 +343,11 @@ async function caricaMenu(){
   // Carica inizio ciclo
   try {
     const snap=await getDoc(doc(db,'impostazioni','ristorazione'));
-    if(snap.exists()) cicloStart=snap.data().ciclo_start||null;
+    if(snap.exists()){
+      const data=snap.data()||{};
+      cicloStart=data.ciclo_start||null;
+      CAT_ORDER=(Array.isArray(data.categorie)&&data.categorie.length)?data.categorie:[...CAT_ORDER_DEFAULT];
+    }
   } catch(e) { console.error('cicloStart:', e); }
 
   if(!cicloStart){ menuOggi=[]; menuDomani=[]; return; }
@@ -576,7 +564,10 @@ function cambiaPasto(data){
   renderMenu();
 }
 
-const CAT_ORDER=['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
+// Default locale; la versione operativa viene da Firestore "impostazioni/ristorazione"
+// (campo "categorie", modificabile da staff.html → Impostazioni → Categorie menu).
+const CAT_ORDER_DEFAULT=['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
+let CAT_ORDER=[...CAT_ORDER_DEFAULT];
 // Categorie che condividono quota tra loro
 const GRUPPI_CAT={
   'Primi Carne':'Primi','Primi Pesce':'Primi',

@@ -7,7 +7,8 @@
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css?v=1">
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -43,25 +44,8 @@
 </script>
 
 <style>
-:root {
-  --green-900:#0D2B1E; --green-700:#1B4332; --green-500:#2D6A4F;
-  --green-400:#40916C; --green-200:#95D5B2; --green-100:#D8F3DC; --green-50:#F0FAF4;
-  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
-  --gray-300:#D1D5DB; --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
-  --orange:#E07B00; --orange-bg:#FFF8F0;
-  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
-  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
-  --green-ok:#16A34A; --green-bg:#F0FAF4; --green-bd:#BBF7D0;
-  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
-  --font:'Inter',-apple-system,sans-serif;
-  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
-  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
-body{font-family:var(--font);background:var(--white);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased}
-.hidden{display:none!important}
-@keyframes gr-spin{to{transform:rotate(360deg)}}
+/* Variabili e reset di base: in ristorazione/theme.css (pacchetto stile
+   pilota, vedi quel file per i dettagli) */
 
 /* ── LOADING ── */
 #loading-screen{position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center}
@@ -517,6 +501,17 @@ input[type="date"].finput{font-size:13px}
         <button onclick="salvaImpostazioniStampante()" style="flex:1;height:44px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva</button>
       </div>
     </div>
+
+    <div class="add-fam-card" style="margin-top:16px">
+      <h3>Categorie menu</h3>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Ordine con cui compaiono nel menu (staff e ospiti). Una categoria con piatti assegnati non si può eliminare.</div>
+      <div id="cat-menu-list"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="cat-menu-new" type="text" placeholder="Nuova categoria" style="flex:1;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box">
+        <button onclick="aggiungiCategoriaMenu()" style="width:44px;height:44px;border:none;background:var(--gray-100);color:var(--green-700);border-radius:10px;font-size:20px;font-weight:700;cursor:pointer">+</button>
+      </div>
+      <button onclick="salvaCategorieMenu()" style="width:100%;height:44px;margin-top:12px;background:var(--green-700);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva categorie</button>
+    </div>
   </main>
 </div>
 
@@ -696,7 +691,11 @@ input[type="date"].finput{font-size:13px}
 <script>
 // ── COSTANTI ────────────────────────────────────────────────────────────────
 const HUB_URL = '../';
-const CAT_ORDER = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
+// Ordine delle categorie del menu: DEFAULT nel codice, versione operativa su
+// Firestore (doc "impostazioni/ristorazione", campo "categorie"), modificabile
+// da Impostazioni → "Categorie menu". Stesso pattern di TARIFFE_BICI in bici/index.html.
+const CAT_ORDER_DEFAULT = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
+let CAT_ORDER = [...CAT_ORDER_DEFAULT];
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'report';
@@ -1637,21 +1636,89 @@ function setMenuPasto(p) {
   renderMenu();
 }
 
-// ── CICLO BISETTIMANALE ───────────────────────────────────────────────────────
+// ── CICLO BISETTIMANALE + CATEGORIE MENU ─────────────────────────────────────
+// "impostazioni/ristorazione" porta sia ciclo_start (data inizio ciclo menu)
+// sia categorie (ordine delle categorie, CAT_ORDER). Semina "categorie" al
+// primissimo avvio (campo assente), poi resta in ascolto realtime: un
+// salvataggio da Impostazioni → "Categorie menu" si riflette subito.
 async function loadImpostazioni() {
-  const { db, doc, getDoc } = window._fb;
+  const { db, doc, getDoc, setDoc, onSnapshot } = window._fb;
+  const ref = doc(db, 'impostazioni', 'ristorazione');
   try {
-    const snap = await getDoc(doc(db, 'impostazioni', 'ristorazione'));
-    if (snap.exists()) {
-      cicloStart = snap.data().ciclo_start || null;
-      if (cicloStart) {
-        const label = `Attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
-        ['ciclo-start-input','ciclo-start-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.value=cicloStart; });
-        ['ciclo-status','ciclo-status-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=label; });
-        menuGiorno = getGiornoCiclo(isoToday(0));
-      }
+    const snap = await getDoc(ref);
+    if (!snap.exists() || !snap.data() || !snap.data().categorie) {
+      await setDoc(ref, { categorie: CAT_ORDER_DEFAULT }, { merge: true });
     }
-  } catch(e) { console.error('loadImpostazioni:', e); }
+  } catch(e) { console.error('Errore seed categorie menu:', e); }
+  onSnapshot(ref, (snap) => {
+    const data = snap.exists() ? (snap.data() || {}) : {};
+    CAT_ORDER = (Array.isArray(data.categorie) && data.categorie.length) ? data.categorie : [...CAT_ORDER_DEFAULT];
+    cicloStart = data.ciclo_start || null;
+    if (cicloStart) {
+      const label = `Attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
+      ['ciclo-start-input','ciclo-start-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.value=cicloStart; });
+      ['ciclo-status','ciclo-status-menu'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=label; });
+      menuGiorno = getGiornoCiclo(isoToday(0));
+    }
+    if (typeof renderCategorieMenu === 'function') renderCategorieMenu();
+  }, (err) => console.error('Errore listener impostazioni ristorazione:', err));
+}
+
+// ── CATEGORIE MENU (Impostazioni) ────────────────────────────────────────────
+let catMenuDraft = null; // copia di lavoro; riparte da CAT_ORDER ogni volta che si apre il pannello
+
+function renderCategorieMenu() {
+  const cont = document.getElementById('cat-menu-list');
+  if (!cont) return;
+  if (!catMenuDraft) catMenuDraft = [...CAT_ORDER];
+  let html = '';
+  catMenuDraft.forEach((cat, i) => {
+    const inUso = menuDocs.some(m => m.categoria === cat);
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100)">'+
+      '<div style="flex:1;font-size:14px;font-weight:600">'+esc(cat)+(inUso?' <span style="font-size:11px;font-weight:600;color:var(--gray-500)">· in uso</span>':'')+'</div>'+
+      '<button onclick="spostaCategoriaMenu('+i+',-1)" '+(i===0?'disabled':'')+' style="width:30px;height:30px;border:none;background:var(--gray-100);border-radius:8px;cursor:pointer;color:var(--gray-700)">↑</button>'+
+      '<button onclick="spostaCategoriaMenu('+i+',1)" '+(i===catMenuDraft.length-1?'disabled':'')+' style="width:30px;height:30px;border:none;background:var(--gray-100);border-radius:8px;cursor:pointer;color:var(--gray-700)">↓</button>'+
+      '<button onclick="eliminaCategoriaMenu('+i+')" '+(inUso?'disabled':'')+' style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:8px;cursor:pointer">✕</button>'+
+    '</div>';
+  });
+  cont.innerHTML = html || '<div style="font-size:12px;color:var(--gray-500);padding:8px 0">Nessuna categoria</div>';
+}
+
+function spostaCategoriaMenu(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= catMenuDraft.length) return;
+  const t = catMenuDraft[i]; catMenuDraft[i] = catMenuDraft[j]; catMenuDraft[j] = t;
+  renderCategorieMenu();
+}
+
+function aggiungiCategoriaMenu() {
+  const el = document.getElementById('cat-menu-new');
+  const val = (el.value || '').trim();
+  if (!val) return;
+  if (!catMenuDraft) catMenuDraft = [...CAT_ORDER];
+  if (catMenuDraft.includes(val)) { showToast('Categoria già presente'); return; }
+  catMenuDraft.push(val);
+  el.value = '';
+  renderCategorieMenu();
+}
+
+function eliminaCategoriaMenu(i) {
+  const cat = catMenuDraft[i];
+  if (menuDocs.some(m => m.categoria === cat)) { showToast('Categoria con piatti: spostali prima di eliminarla'); return; }
+  catMenuDraft.splice(i, 1);
+  renderCategorieMenu();
+}
+
+async function salvaCategorieMenu() {
+  if (!catMenuDraft || !catMenuDraft.length) { showToast('Serve almeno una categoria'); return; }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'ristorazione'), { categorie: catMenuDraft }, { merge: true });
+    showToast('Categorie salvate');
+  } catch(e) {
+    console.error('Errore salvataggio categorie menu:', e);
+    showToast('Errore durante il salvataggio');
+  }
 }
 
 function getGiornoCiclo(iso) {
@@ -2200,6 +2267,8 @@ function openSettings() {
   document.getElementById('top-bar-main').style.display = 'none';
   document.getElementById('top-bar-settings').style.display = 'block';
   renderFamiglie();
+  catMenuDraft = null;
+  renderCategorieMenu();
   const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
   document.getElementById('printer-ip-input').value = ip;

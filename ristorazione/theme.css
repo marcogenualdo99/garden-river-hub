@@ -1,0 +1,44 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   RISTORAZIONE · PACCHETTO STILE — PILOTA
+   Non è assets/theme.css (quello resta invariato, usato da Hub/Calendario/
+   Bici/Alloggi/Mense/Manutenzione): è un fork locale, con lo stesso schema di
+   variabili, per avvicinare SOLO ristorazione alla vera identità del brand
+   (fonte: "Linee guida motion graphics – Garden River", ricavate dal sito
+   gardenriver.it). Se il risultato piace, questo :root sostituirà quello di
+   assets/theme.css per tutta la Hub — per ora resta qui.
+
+   Verde Garden #095C48 (non il verde interno #1B4332 di assets/theme.css),
+   Arancio Sole #F2702A (non il terracotta #B85C2C), Crema #F9F8EE come
+   sfondo pagina, Figtree come font di base, Dela Gothic One SOLO per il
+   titolo ospite di index.html (mai nell'interfaccia operativa di staff/
+   cucina). Radius, ombre e colori semantici di stato (amber/red/blue/
+   green-ok) restano quelli della Hub: non sono scelte di brand.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --green-900:#053328; --green-700:#095C48; --green-600:#2E7463;
+  --green-500:#5F9588; --green-400:#90B6AD; --green-200:#CEDEDA; --green-100:#EEF4F2; --green-50:#F9F8EE;
+  --gray-900:#111827; --gray-700:#374151; --gray-500:#6B7280; --gray-400:#9CA3AF;
+  --gray-300:#D1D5DB; --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB; --white:#FFFFFF;
+  --cream:#F9F8EE;
+  --orange:#F2702A; --orange-lt:#F5945F; --orange-bg:#FEF1EA;
+  --red:#DC2626; --red-bg:#FEF2F2; --red-bd:#FECACA;
+  --amber:#D97706; --amber-bg:#FFFBEB; --amber-bd:#FDE68A;
+  --green-ok:#16A34A; --green-bg:#F0FAF4; --green-bd:#BBF7D0;
+  --blue:#2563EB; --blue-bg:#EFF6FF; --blue-bd:#BFDBFE;
+  --font:'Figtree',-apple-system,sans-serif;
+  --font-display:'Dela Gothic One',sans-serif;
+  --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
+body{font-family:var(--font);background:var(--cream);color:var(--gray-900);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hidden{display:none!important}
+@keyframes gr-spin{to{transform:rotate(360deg)}}
+
+/* Unico punto di uso di Dela Gothic One: il titolo ospite di index.html.
+   Mai sulle etichette piccole (.cat-name è a 11px: illeggibile in un font
+   geometrico pesante a quella dimensione). */
+.page-title{margin-bottom:20px}
+.page-title h1{font-family:var(--font-display);font-weight:400;font-size:32px;line-height:1.1;letter-spacing:-.01em;color:var(--green-700)}
+@media (min-width:768px){.page-title h1{font-size:38px}}
