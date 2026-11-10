@@ -29,6 +29,8 @@
   --font-display:'Dela Gothic One',sans-serif;
   --radius-sm:12px; --radius:16px; --radius-lg:22px; --radius-xl:32px;
   --shadow-sm:0 2px 10px rgba(0,0,0,0.07); --shadow:0 4px 20px rgba(0,0,0,0.10); --shadow-lg:0 8px 36px rgba(0,0,0,0.14);
+  --grad-forest:linear-gradient(135deg,#053328 0%,#095C48 45%,#5F9588 100%);
+  --grad-sun:linear-gradient(135deg,#F2702A 0%,#F5945F 100%);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
@@ -42,3 +44,74 @@ body{font-family:var(--font);background:var(--white);color:var(--gray-900);min-h
 .page-title{margin-bottom:20px}
 .page-title h1{font-family:var(--font-display);font-weight:400;font-size:32px;line-height:1.1;letter-spacing:-.01em;color:var(--green-700)}
 @media (min-width:768px){.page-title h1{font-size:38px}}
+
+/* ══ NAVIGAZIONE HUB — sidebar desktop, rail tablet, drawer mobile ═══════════
+   Porta dentro ristorazione la stessa navigazione a tre livelli di Hub/
+   Calendario/Bici (qui ricolorata sui nuovi token), così lo staff può
+   spostarsi negli altri moduli senza passare da "Vai alla Hub". Markup e
+   classi uguali a bici/index.html — stesso assets/icons.js, stesse funzioni
+   toggleNavGroup()/toggleDrawer(). Solo staff.html la usa: index.html
+   (ospiti) e cucina.html (monitor fisso in cucina) restano schermate uniche,
+   senza bisogno di spostarsi altrove. */
+.app-shell{position:relative}
+.sidebar{display:none}
+.rail{display:none}
+@media (min-width:1024px){
+  .app-shell{display:flex;align-items:flex-start}
+  .nav-zone{position:relative;width:78px;flex-shrink:0;height:100vh}
+  .rail{display:flex;flex-direction:column;align-items:center;width:78px;height:100vh;position:fixed;top:0;left:0;z-index:40;background:#FBFCF9;border-right:1px solid var(--gray-100);padding:16px 8px;gap:4px;overflow-y:auto}
+  .sidebar{display:flex;flex-direction:column;width:240px;height:100vh;position:fixed;top:0;left:0;z-index:150;background:#FBFCF9;border-right:1px solid var(--gray-100);padding:20px 14px;overflow-y:auto;box-shadow:var(--shadow-lg);transform:translateX(-100%);opacity:0;pointer-events:none;transition:transform .15s ease,opacity .15s ease}
+  .nav-zone:hover .sidebar,.nav-zone:focus-within .sidebar{transform:translateX(0);opacity:1;pointer-events:auto}
+  .hamburger{display:none!important}
+  .main-col{flex:1;min-width:0}
+}
+@media (min-width:768px) and (max-width:1023.98px){
+  .app-shell{display:flex;align-items:flex-start}
+  .nav-zone{width:78px;flex-shrink:0;height:100vh}
+  .rail{display:flex;flex-direction:column;align-items:center;width:78px;height:100vh;position:fixed;top:0;left:0;z-index:40;background:#FBFCF9;border-right:1px solid var(--gray-100);padding:16px 8px;gap:4px;overflow-y:auto}
+  .hamburger{display:none!important}
+  .main-col{flex:1;min-width:0}
+}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px;margin-bottom:8px;border-bottom:1px solid var(--gray-100)}
+.sidebar-brand img{width:32px;height:32px;border-radius:9px;object-fit:cover;flex-shrink:0}
+.sidebar-brand-mark{width:36px;height:36px;border-radius:11px;background:var(--grad-forest);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(9,92,72,.35)}
+.sidebar-brand-mark svg{width:19px;height:19px;color:#fff}
+.sidebar-brand-title{font-size:15px;font-weight:800;color:var(--gray-900);line-height:1.15}
+.sidebar-brand-sub{font-size:10.5px;color:var(--gray-500);font-weight:600;margin-top:1px}
+.nav-group{margin-bottom:4px}
+.nav-group-header{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:9px 10px;cursor:pointer;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--gray-400);text-transform:uppercase;opacity:.85;-webkit-tap-highlight-color:transparent;transition:opacity .15s;font-family:var(--font)}
+.nav-group-header:hover{opacity:1}
+.nav-group-header svg{width:13px;height:13px;flex-shrink:0;transition:transform .2s ease}
+.nav-group-header.collapsed svg{transform:rotate(-90deg)}
+.nav-group-items{display:flex;flex-direction:column;overflow:hidden;max-height:320px;transition:max-height .25s ease}
+.nav-group-items.collapsed{max-height:0}
+.nav-item,.sidebar-item{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:999px;color:var(--gray-500);font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;margin-bottom:2px;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent}
+.nav-item svg,.sidebar-item svg{width:18px;height:18px;flex-shrink:0}
+.nav-item:hover,.sidebar-item:hover{background:var(--gray-50);color:var(--gray-700)}
+.nav-item.active,.sidebar-item.active{background:var(--green-700);color:#fff;font-weight:800;box-shadow:0 4px 14px rgba(9,92,72,.28)}
+.nav-item-exit{margin-top:8px;padding-top:16px;border-top:1px solid var(--gray-100)}
+.sidebar-spacer{flex:1}
+.rail-item{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;padding:9px 4px;border-radius:14px;color:var(--gray-500);cursor:pointer;text-decoration:none;transition:background .15s,color .15s}
+.rail-item svg{width:20px;height:20px}
+.rail-item span{font-size:9px;font-weight:700;text-align:center;line-height:1.1}
+.rail-item:hover{background:var(--gray-50);color:var(--gray-700)}
+.rail-item.active{background:var(--green-700);color:#fff}
+.rail-spacer{flex:1}
+.hamburger{width:38px;height:38px;border-radius:11px;border:none;background:var(--gray-100);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--gray-900)}
+.hamburger svg{width:19px;height:19px}
+.drawer-overlay{position:fixed;inset:0;background:rgba(5,51,40,.55);z-index:900;opacity:0;pointer-events:none;transition:opacity .2s}
+.drawer-overlay.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:78%;max-width:280px;background:#FBFCF9;z-index:901;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);padding:20px 14px;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);overflow-y:auto}
+.drawer.open{transform:translateX(0)}
+body.drawer-open{overflow:hidden}
+body.drawer-open .top-bar{visibility:hidden}
+
+/* ══ TESTATA DI PAGINA (Report / Cucina / Menu) ══════════════════════════════
+   Stesso impianto eyebrow+titolo del resto della Hub, ma SENZA Dela Gothic
+   One: questa resta l'interfaccia operativa dello staff (comande, report),
+   non una schermata editoriale — qui il titolo resta in Figtree. */
+.page-head{margin-bottom:18px}
+.page-eyebrow{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;letter-spacing:.03em;color:var(--orange);margin-bottom:4px}
+.page-eyebrow svg{width:14px;height:14px}
+.page-head-title{font-family:var(--font);font-weight:800;font-size:26px;letter-spacing:-.01em;line-height:1.1;color:var(--gray-900)}
+@media (min-width:768px){.page-head-title{font-size:30px}}
