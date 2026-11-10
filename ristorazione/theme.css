@@ -1,18 +1,18 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   RISTORAZIONE · PACCHETTO STILE — PILOTA
-   Non è assets/theme.css (quello resta invariato, usato da Hub/Calendario/
-   Bici/Alloggi/Mense/Manutenzione): è un fork locale, con lo stesso schema di
-   variabili, per avvicinare SOLO ristorazione alla vera identità del brand
-   (fonte: "Linee guida motion graphics – Garden River", ricavate dal sito
-   gardenriver.it). Se il risultato piace, questo :root sostituirà quello di
-   assets/theme.css per tutta la Hub — per ora resta qui.
+   RISTORAZIONE · PACCHETTO STILE
+   Era il fork pilota con cui si è avvicinata SOLO ristorazione alla vera
+   identità del brand (fonte: "Linee guida motion graphics – Garden River",
+   ricavate dal sito gardenriver.it). Il risultato è piaciuto: lo stesso
+   :root (Verde Garden #095C48, Arancio Sole #F2702A, Figtree/Dela Gothic One)
+   è stato portato anche in assets/theme.css, usato da Hub/Calendario/Bici/
+   Alloggi/Mense/Manutenzione — questo file resta qui per compatibilità con
+   il CSS specifico di ristorazione già scritto contro queste variabili.
 
-   Verde Garden #095C48 (non il verde interno #1B4332 di assets/theme.css),
-   Arancio Sole #F2702A (non il terracotta #B85C2C), Crema #F9F8EE come
-   sfondo pagina, Figtree come font di base, Dela Gothic One SOLO per il
-   titolo ospite di index.html (mai nell'interfaccia operativa di staff/
-   cucina). Radius, ombre e colori semantici di stato (amber/red/blue/
-   green-ok) restano quelli della Hub: non sono scelte di brand.
+   Crema #F9F8EE definita ma non ancora usata come sfondo pagina. Dela Gothic
+   One SOLO per il titolo ospite di index.html (mai nell'interfaccia
+   operativa di staff/cucina). Radius, ombre e colori semantici di stato
+   (amber/red/blue/green-ok) restano quelli della Hub: non sono scelte di
+   brand.
    ══════════════════════════════════════════════════════════════════════════ */
 :root {
   --green-900:#053328; --green-700:#095C48; --green-600:#2E7463;
