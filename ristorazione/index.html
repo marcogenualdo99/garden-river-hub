@@ -68,8 +68,8 @@
    .hero quando arriva). Prova corrente: velatura Arancio Sole — per
    confrontarla con il Verde Garden basta cambiare i due colori qui sotto
    (--grad-sun → --grad-forest, e i due rgba del ::before sui toni verdi). */
-.hero{position:relative;overflow:hidden;min-height:360px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 20px 30px;background:url('hero-ospiti.jpg') center/cover no-repeat, var(--grad-sun);color:#fff}
-@media (min-width:768px){.hero{min-height:420px}}
+.hero{position:relative;overflow:hidden;min-height:300px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 20px 26px;background:url('hero-ospiti.jpg') center/cover no-repeat, var(--grad-sun);color:#fff}
+@media (min-width:768px){.hero{min-height:360px}}
 .hero::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg, rgba(154,56,14,.4) 0%, rgba(120,45,12,.88) 100%)}
 .hero-topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;width:100%;max-width:600px;margin:0 auto 22px}
 .header-left{display:flex;align-items:center;gap:10px}
@@ -482,7 +482,10 @@ function renderApp(){
   document.getElementById('hdr-avatar').textContent=famiglia.nome.slice(0,2).toUpperCase();
   document.getElementById('hdr-nome').textContent=famiglia.nome;
   document.getElementById('hdr-sub').textContent=`${famiglia.max_ospiti} ospiti`;
-  document.getElementById('hero-nome').textContent=(famiglia.nome||'').split(' ')[0]||famiglia.nome;
+  // famiglia.nome è registrato come "Cognome Nome" (convenzione di reception):
+  // il saluto usa l'ultima parola, non la prima.
+  const _parti=(famiglia.nome||'').trim().split(/\s+/);
+  document.getElementById('hero-nome').textContent=_parti[_parti.length-1]||famiglia.nome;
   document.getElementById('set-nome').textContent=famiglia.nome;
   document.getElementById('set-codice').textContent=famiglia.codice;
   document.getElementById('gs-val').textContent=famiglia.max_ospiti;
