@@ -139,7 +139,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 @media(min-width:900px){
   #sec-cucina{margin-left:calc(50% - 50vw + 14px);margin-right:calc(50% - 50vw + 14px)}
   #cucina-body{grid-template-columns:repeat(3,1fr)}
-  #cucina-date-strip,#sec-cucina>.seg-row{padding-left:calc((100vw - 800px) / 2 + 14px);padding-right:calc((100vw - 800px) / 2 + 14px)}
+  #cucina-date-nav,#sec-cucina>.seg-row{padding-left:calc((100vw - 800px) / 2 + 14px);padding-right:calc((100vw - 800px) / 2 + 14px)}
 }
 
 /* ── KDS CARD ── */
@@ -220,6 +220,19 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 .ciclo-pill{min-width:36px;padding:5px 6px}
 .ciclo-pill .date-pill-num{font-size:14px;margin-top:1px}
 .ciclo-pill .date-pill-day{font-size:9px}
+
+/* ── SELETTORE DATA — Report/Cucina (sostituisce la striscia di giorni
+   scorrevole: una riga sola, frecce per il giorno precedente/successivo,
+   il calendario nativo del browser per saltare a una data qualsiasi; sotto,
+   un titolo di contesto con data per esteso + pasto selezionato). ── */
+.date-nav{display:flex;align-items:center;justify-content:center;gap:10px}
+.date-nav-arrow{width:36px;height:36px;border-radius:50%;border:none;background:var(--gray-100);color:var(--gray-700);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:background .15s}
+.date-nav-arrow:active{background:var(--gray-200)}
+.date-nav-btn{position:relative;display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:var(--radius-xl);background:var(--green-50);color:var(--green-700);font-size:14px;font-weight:700;cursor:pointer}
+.date-nav-btn svg{width:15px;height:15px;flex-shrink:0}
+.date-nav-btn input[type=date]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.date-context-title{text-align:center;font-size:13px;font-weight:600;color:var(--gray-500);margin:12px 0 14px}
+.date-context-title strong{color:var(--gray-900);font-weight:800}
 
 .menu-block{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-sm);margin-bottom:10px;overflow:hidden}
 .menu-block-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--gray-100)}
@@ -518,11 +531,19 @@ input[type="date"].finput{font-size:13px}
 
   <!-- REPORT -->
   <div class="sec active" id="sec-report">
-    <div id="report-date-strip" class="date-strip"></div>
-    <div id="seg-pasto-row" class="seg-row" style="margin-top:-4px">
+    <div class="date-nav" id="report-date-nav">
+      <button class="date-nav-arrow" onclick="shiftReportDate(-1)" aria-label="Giorno precedente">‹</button>
+      <div class="date-nav-btn">
+        <span data-icon="CALENDAR"></span><span id="report-date-label"></span>
+        <input type="date" id="report-date-input" oninput="setReportDate(this.value)">
+      </div>
+      <button class="date-nav-arrow" onclick="shiftReportDate(1)" aria-label="Giorno successivo">›</button>
+    </div>
+    <div id="seg-pasto-row" class="seg-row" style="margin-top:10px">
       <button class="seg-btn active" id="seg-pranzo-r" onclick="setReportPasto('pranzo')">Pranzo</button>
       <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
     </div>
+    <div class="date-context-title" id="report-context-title"></div>
     <div id="report-body"></div>
     <div id="report-print-bar" style="display:none;margin-top:16px;gap:10px">
       <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
@@ -532,11 +553,19 @@ input[type="date"].finput{font-size:13px}
 
   <!-- CUCINA -->
   <div class="sec" id="sec-cucina">
-    <div id="cucina-date-strip" class="date-strip"></div>
-    <div class="seg-row" style="margin-top:-4px">
+    <div class="date-nav" id="cucina-date-nav">
+      <button class="date-nav-arrow" onclick="shiftCucinaDate(-1)" aria-label="Giorno precedente">‹</button>
+      <div class="date-nav-btn">
+        <span data-icon="CALENDAR"></span><span id="cucina-date-label"></span>
+        <input type="date" id="cucina-date-input" oninput="setCucinaDate(this.value)">
+      </div>
+      <button class="date-nav-arrow" onclick="shiftCucinaDate(1)" aria-label="Giorno successivo">›</button>
+    </div>
+    <div class="seg-row" style="margin-top:10px">
       <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
       <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
     </div>
+    <div class="date-context-title" id="cucina-context-title"></div>
     <div id="cucina-body"></div>
   </div>
 
@@ -873,6 +902,17 @@ function isoToday(offset) {
   return d.toISOString().split('T')[0];
 }
 
+const GIORNI_LUNGHI = ['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+const MESI_LUNGHI   = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+function fmtDataLunga(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return GIORNI_LUNGHI[d.getDay()] + ' ' + d.getDate() + ' ' + MESI_LUNGHI[d.getMonth()];
+}
+function fmtDataBreve(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return d.getDate() + ' ' + MESI_LUNGHI[d.getMonth()];
+}
+
 // ── FIREBASE ─────────────────────────────────────────────────────────────────
 function waitFB() {
   return new Promise(r => {
@@ -941,37 +981,28 @@ function setSeg(idA, idB, aActive) {
 
 // ── REPORT ────────────────────────────────────────────────────────────────────
 function buildReportDateStrip() {
-  const strip = document.getElementById('report-date-strip');
-  const oggi  = isoToday(0);
-  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
-  let html = '';
-  for (let i = -3; i < 14; i++) {
-    const d   = new Date(); d.setDate(d.getDate() + i);
-    const iso = d.toISOString().split('T')[0];
-    const isT = iso === oggi;
-    const gio = giorni[d.getDay()];
-    const num = d.getDate();
-    html += `<div class="date-pill report-date-pill${isT?' today':''}${iso===reportDate?' active':''}" onclick="setReportDate('${iso}')">
-      <div class="date-pill-day">${gio}</div>
-      <div class="date-pill-num">${num}</div>
-    </div>`;
-  }
-  strip.innerHTML = html;
-  // Scrolla fino alla data attiva
-  const active = strip.querySelector('.active');
-  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+  refreshReportDateUi();
 }
-
+function refreshReportDateUi() {
+  document.getElementById('report-date-input').value = reportDate;
+  document.getElementById('report-date-label').textContent = fmtDataBreve(reportDate);
+  document.getElementById('report-context-title').innerHTML =
+    '<strong>' + fmtDataLunga(reportDate) + '</strong> · ' + (reportPasto === 'pranzo' ? 'Pranzo' : 'Cena');
+}
+function shiftReportDate(delta) {
+  const d = new Date(reportDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  setReportDate(d.toISOString().split('T')[0]);
+}
 function setReportDate(iso) {
   reportDate = iso;
-  document.querySelectorAll('.report-date-pill').forEach(p => {
-    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
-  });
+  refreshReportDateUi();
   renderReport();
 }
 function setReportPasto(p) {
   reportPasto = p;
   setSeg('seg-pranzo-r','seg-cena-r', p==='pranzo');
+  refreshReportDateUi();
   renderReport();
 }
 
@@ -1167,37 +1198,29 @@ window.addEventListener('afterprint', () => {
 
 // ── CUCINA ────────────────────────────────────────────────────────────────────
 function buildCucinaDateStrip() {
-  const strip = document.getElementById('cucina-date-strip');
-  const oggi  = isoToday(0);
-  const giorni = ['Do','Lu','Ma','Me','Gi','Ve','Sa'];
-  let html = '';
-  for (let i = -3; i < 14; i++) {
-    const d   = new Date(); d.setDate(d.getDate() + i);
-    const iso = d.toISOString().split('T')[0];
-    const isT = iso === oggi;
-    const gio = giorni[d.getDay()];
-    const num = d.getDate();
-    html += `<div class="date-pill cucina-date-pill${isT?' today':''}${iso===cucinaDate?' active':''}" onclick="setCucinaDate('${iso}')">
-      <div class="date-pill-day">${gio}</div>
-      <div class="date-pill-num">${num}</div>
-    </div>`;
-  }
-  strip.innerHTML = html;
-  const active = strip.querySelector('.active');
-  if (active) active.scrollIntoView({ inline: 'center', block: 'nearest' });
+  refreshCucinaDateUi();
 }
-
+function refreshCucinaDateUi() {
+  document.getElementById('cucina-date-input').value = cucinaDate;
+  document.getElementById('cucina-date-label').textContent = fmtDataBreve(cucinaDate);
+  document.getElementById('cucina-context-title').innerHTML =
+    '<strong>' + fmtDataLunga(cucinaDate) + '</strong> · ' + (cucinaPasto === 'pranzo' ? 'Pranzo' : 'Cena');
+}
+function shiftCucinaDate(delta) {
+  const d = new Date(cucinaDate + 'T12:00:00');
+  d.setDate(d.getDate() + delta);
+  setCucinaDate(d.toISOString().split('T')[0]);
+}
 function setCucinaDate(iso) {
   cucinaDate = iso;
-  document.querySelectorAll('.cucina-date-pill').forEach(p => {
-    p.classList.toggle('active', p.getAttribute('onclick').includes(iso));
-  });
+  refreshCucinaDateUi();
   startCucina();
 }
 
 function setCucinaPasto(p) {
   cucinaPasto = p;
   setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
+  refreshCucinaDateUi();
   startCucina();
 }
 
