@@ -68,9 +68,10 @@
    .hero quando arriva). Prova corrente: velatura Arancio Sole — per
    confrontarla con il Verde Garden basta cambiare i due colori qui sotto
    (--grad-sun → --grad-forest, e i due rgba del ::before sui toni verdi). */
-.hero{position:relative;overflow:hidden;padding:calc(14px + env(safe-area-inset-top)) 20px 28px;background:url('hero-ospiti.jpg') center/cover no-repeat, var(--grad-sun);color:#fff}
+.hero{position:relative;overflow:hidden;min-height:360px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 20px 30px;background:url('hero-ospiti.jpg') center/cover no-repeat, var(--grad-sun);color:#fff}
+@media (min-width:768px){.hero{min-height:420px}}
 .hero::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg, rgba(154,56,14,.4) 0%, rgba(120,45,12,.88) 100%)}
-.hero-topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto 22px}
+.hero-topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;width:100%;max-width:600px;margin:0 auto 22px}
 .header-left{display:flex;align-items:center;gap:10px}
 .header-avatar{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--orange);flex-shrink:0}
 .header-nome{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
