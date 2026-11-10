@@ -62,12 +62,22 @@
 .error-sub{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6}
 
 /* ── HEADER ── */
-.top-bar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:1px solid var(--gray-100);padding-top:env(safe-area-inset-top)}
-.header-inner{display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;padding:10px 16px}
+/* ── HERO (sostituisce il vecchio top-bar bianco + page-title) ───────────────
+   Foto a tutto schermo + velatura colorata (per ora un gradiente, in attesa
+   della foto reale: stesso effetto, solo "background-image" da aggiungere a
+   .hero quando arriva). Prova corrente: velatura Arancio Sole — per
+   confrontarla con il Verde Garden basta cambiare i due colori qui sotto
+   (--grad-sun → --grad-forest, e i due rgba del ::before sui toni verdi). */
+.hero{position:relative;overflow:hidden;padding:calc(14px + env(safe-area-inset-top)) 20px 28px;background:var(--grad-sun);background-size:cover;background-position:center;color:#fff}
+.hero::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg, rgba(154,56,14,.2) 0%, rgba(120,45,12,.82) 100%)}
+.hero-topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto 22px}
 .header-left{display:flex;align-items:center;gap:10px}
-.header-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-700);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:var(--white);flex-shrink:0}
-.header-nome{font-size:14px;font-weight:800;color:var(--gray-900);line-height:1.2}
-.header-sub{font-size:10px;color:var(--gray-500);margin-top:1px}
+.header-avatar{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--orange);flex-shrink:0}
+.header-nome{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+.header-sub{font-size:11px;color:rgba(255,255,255,.75);margin-top:1px}
+.hero-info-btn{position:relative;z-index:1;width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.hero-title{position:relative;z-index:1;max-width:600px;margin:0 auto;font-family:var(--font-display);font-weight:400;font-size:30px;line-height:1.2;letter-spacing:-.01em;color:#fff}
+@media (min-width:768px){.hero-title{font-size:38px}}
 .hbtn{height:32px;padding:0 12px;border:none;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:opacity .15s;-webkit-tap-highlight-color:transparent}
 .hbtn.icon{width:32px;padding:0;display:flex;align-items:center;justify-content:center}
 .hbtn.ghost{background:var(--gray-100);color:var(--gray-700);border:none}
@@ -189,8 +199,8 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
   <div class="error-sub">Il link non è valido o è scaduto.<br>Contatta lo staff per ricevere un nuovo link.</div>
 </div>
 
-<div class="top-bar hidden" id="app-header">
-  <div class="header-inner">
+<div class="hero hidden" id="app-header">
+  <div class="hero-topbar">
     <div class="header-left">
       <div class="header-avatar" id="hdr-avatar">??</div>
       <div>
@@ -198,16 +208,14 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
         <div class="header-sub"  id="hdr-sub">—</div>
       </div>
     </div>
-    <button class="hbtn icon ghost" onclick="openSettings()" aria-label="Impostazioni">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <button class="hero-info-btn" onclick="openSettings()" aria-label="Impostazioni">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg>
     </button>
   </div>
+  <h1 class="hero-title">Ciao <span id="hero-nome">—</span>,<br>Cosa mangiamo oggi?</h1>
 </div>
 
 <main class="hidden" id="app-main">
-  <div class="page-title">
-    <h1>Cosa<br>Mangiamo oggi?</h1>
-  </div>
   <div id="menu-container"></div>
 </main>
 
@@ -473,6 +481,7 @@ function renderApp(){
   document.getElementById('hdr-avatar').textContent=famiglia.nome.slice(0,2).toUpperCase();
   document.getElementById('hdr-nome').textContent=famiglia.nome;
   document.getElementById('hdr-sub').textContent=`${famiglia.max_ospiti} ospiti`;
+  document.getElementById('hero-nome').textContent=(famiglia.nome||'').split(' ')[0]||famiglia.nome;
   document.getElementById('set-nome').textContent=famiglia.nome;
   document.getElementById('set-codice').textContent=famiglia.codice;
   document.getElementById('gs-val').textContent=famiglia.max_ospiti;
