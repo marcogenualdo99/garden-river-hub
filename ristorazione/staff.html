@@ -268,7 +268,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
   .settings-col-left{width:380px;flex-shrink:0}
   .settings-col-right{flex:1;min-width:0}
 }
-@media (min-width:640px){.settings-row2{grid-template-columns:1fr 1fr}}
+@media (min-width:640px){.settings-row2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}}
 .add-fam-card h3{font-size:13px;font-weight:800;color:var(--gray-900);margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .form-row.solo{grid-template-columns:1fr}
@@ -680,6 +680,17 @@ input[type="date"].finput{font-size:13px}
       </div>
       <button onclick="salvaCategorieMenu()" style="width:100%;height:44px;margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva categorie</button>
     </div>
+
+    <div class="add-fam-card" style="margin-top:0">
+      <h3>Menu bambini</h3>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Sempre disponibile, ogni giorno, in aggiunta al menu del ciclo — l'ospite lo ordina con le quantità come le altre portate.</div>
+      <div id="bambini-menu-list"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="bambini-menu-new" type="text" placeholder="Nuovo piatto" style="flex:1;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box">
+        <button onclick="aggiungiBambinoMenu()" style="width:44px;height:44px;border:none;background:var(--gray-100);color:var(--green-700);border-radius:10px;font-size:20px;font-weight:700;cursor:pointer">+</button>
+      </div>
+      <button onclick="salvaMenuBambini()" style="width:100%;height:44px;margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva menu bambini</button>
+    </div>
   </div><!-- /settings-row2 -->
   </main>
 </div>
@@ -830,7 +841,10 @@ input[type="date"].finput{font-size:13px}
 <!-- MODAL FAMIGLIE PARTITE -->
 <div id="modal-partite" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
-    <div class="modal-title">Famiglie partite</div>
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>Famiglie partite</span>
+      <button onclick="document.getElementById('modal-partite').classList.add('hidden')" aria-label="Chiudi" style="width:28px;height:28px;border:none;border-radius:50%;background:var(--gray-100);color:var(--gray-700);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+    </div>
     <input id="partite-search" type="text" placeholder="Cerca per nome o alloggio…" oninput="filtraPartite(this.value)" style="width:100%;height:44px;border:1.5px solid var(--gray-300);border-radius:10px;font-size:14px;font-family:var(--font);padding:0 12px;outline:none;color:var(--gray-900);box-sizing:border-box;margin-bottom:12px">
     <div id="partite-list-full"></div>
     <button class="mcancel" style="width:100%;height:44px;margin-top:12px;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)" onclick="document.getElementById('modal-partite').classList.add('hidden')">Chiudi</button>
@@ -891,6 +905,24 @@ function toggleDrawer(open) {
 // da Impostazioni → "Categorie menu". Stesso pattern di TARIFFE_BICI in bici/index.html.
 const CAT_ORDER_DEFAULT = ['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
 let CAT_ORDER = [...CAT_ORDER_DEFAULT];
+
+// Menu bambini: lista fissa di piatti sempre disponibili (indipendente dal
+// ciclo menu), ordinabile dall'ospite con quantità come le altre categorie.
+// Stesso doc/pattern di CAT_ORDER (campo "menu_bambini"), modificabile da
+// Impostazioni → "Menu bambini". Gli ordini lo salvano come voci normali con
+// categoria "Menu Bambini", quindi Report/Cucina li mostrano già da soli
+// (raggruppano per categoria, qualunque essa sia).
+const MENU_BAMBINI_DEFAULT = ['Cotoletta','Patatine','Pasta in bianco','Pasta al pomodoro','Pasta al pesto','Hamburger','Wurstel'];
+let MENU_BAMBINI = [...MENU_BAMBINI_DEFAULT];
+const MENU_BAMBINI_CAT = 'Menu Bambini';
+// Pseudo-voci di menu (stesso formato di un doc menu_ristorazione: id/piatto/
+// categoria) per far comparire il menu bambini in Report/stampa/modifica
+// ordine staff, che sono "guidati" dal menu del giorno — non dagli ordini —
+// per mostrare anche le portate a quota 0. Cucina invece legge già l'ordine
+// direttamente, non serve qui.
+function menuItemsBambini() {
+  return MENU_BAMBINI.map(piatto => ({ id: 'bambino_'+piatto, piatto, categoria: MENU_BAMBINI_CAT }));
+}
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'report';
@@ -1038,7 +1070,7 @@ async function renderReport() {
 
   // Menu per questa data+pasto
   const giornoReport = getGiornoCiclo(targetDate);
-  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === reportPasto);
+  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === reportPasto).concat(menuItemsBambini());
 
   if (!menuItems.length) {
     el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
@@ -1602,7 +1634,7 @@ let _mosData = null; // {famId, famNome, data, tipo, selezioni: {menuId: qty}}
 async function apriModificaOrdineStaff(famId, famNome, data, tipo) {
   const { db, collection, query, where, getDocs } = window._fb;
   const ordId = `${famId}_${data}_${tipo}`;
-  const menuItems = menuDocs.filter(m => m.giorno === getGiornoCiclo(data) && m.tipo === tipo);
+  const menuItems = menuDocs.filter(m => m.giorno === getGiornoCiclo(data) && m.tipo === tipo).concat(menuItemsBambini());
   const fam = famiglieDocs.find(f => f.id === famId);
   const max = fam?.max_ospiti || 1;
 
@@ -1836,13 +1868,16 @@ async function loadImpostazioni() {
   const ref = doc(db, 'impostazioni', 'ristorazione');
   try {
     const snap = await getDoc(ref);
-    if (!snap.exists() || !snap.data() || !snap.data().categorie) {
-      await setDoc(ref, { categorie: CAT_ORDER_DEFAULT }, { merge: true });
-    }
-  } catch(e) { console.error('Errore seed categorie menu:', e); }
+    const d = snap.exists() ? (snap.data() || {}) : {};
+    const seed = {};
+    if (!d.categorie) seed.categorie = CAT_ORDER_DEFAULT;
+    if (!d.menu_bambini) seed.menu_bambini = MENU_BAMBINI_DEFAULT;
+    if (Object.keys(seed).length) await setDoc(ref, seed, { merge: true });
+  } catch(e) { console.error('Errore seed impostazioni ristorazione:', e); }
   onSnapshot(ref, (snap) => {
     const data = snap.exists() ? (snap.data() || {}) : {};
     CAT_ORDER = (Array.isArray(data.categorie) && data.categorie.length) ? data.categorie : [...CAT_ORDER_DEFAULT];
+    MENU_BAMBINI = (Array.isArray(data.menu_bambini) && data.menu_bambini.length) ? data.menu_bambini : [...MENU_BAMBINI_DEFAULT];
     cicloStart = data.ciclo_start || null;
     if (cicloStart) {
       const label = `Attivo dal ${new Date(cicloStart+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}`;
@@ -1851,6 +1886,7 @@ async function loadImpostazioni() {
       menuGiorno = getGiornoCiclo(isoToday(0));
     }
     if (typeof renderCategorieMenu === 'function') renderCategorieMenu();
+    if (typeof renderMenuBambini === 'function') renderMenuBambini();
   }, (err) => console.error('Errore listener impostazioni ristorazione:', err));
 }
 
@@ -1907,6 +1943,60 @@ async function salvaCategorieMenu() {
     showToast('Categorie salvate');
   } catch(e) {
     console.error('Errore salvataggio categorie menu:', e);
+    showToast('Errore durante il salvataggio');
+  }
+}
+
+// ── MENU BAMBINI (Impostazioni) ──────────────────────────────────────────────
+let bambiniMenuDraft = null; // copia di lavoro; riparte da MENU_BAMBINI ogni volta che si apre il pannello
+
+function renderMenuBambini() {
+  const cont = document.getElementById('bambini-menu-list');
+  if (!cont) return;
+  if (!bambiniMenuDraft) bambiniMenuDraft = [...MENU_BAMBINI];
+  let html = '';
+  bambiniMenuDraft.forEach((piatto, i) => {
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100)">'+
+      '<div style="flex:1;font-size:14px;font-weight:600">'+esc(piatto)+'</div>'+
+      '<button onclick="spostaBambinoMenu('+i+',-1)" '+(i===0?'disabled':'')+' style="width:30px;height:30px;border:none;background:var(--gray-100);border-radius:8px;cursor:pointer;color:var(--gray-700)">↑</button>'+
+      '<button onclick="spostaBambinoMenu('+i+',1)" '+(i===bambiniMenuDraft.length-1?'disabled':'')+' style="width:30px;height:30px;border:none;background:var(--gray-100);border-radius:8px;cursor:pointer;color:var(--gray-700)">↓</button>'+
+      '<button onclick="eliminaBambinoMenu('+i+')" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:8px;cursor:pointer">✕</button>'+
+    '</div>';
+  });
+  cont.innerHTML = html || '<div style="font-size:12px;color:var(--gray-500);padding:8px 0">Nessun piatto</div>';
+}
+
+function spostaBambinoMenu(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= bambiniMenuDraft.length) return;
+  const t = bambiniMenuDraft[i]; bambiniMenuDraft[i] = bambiniMenuDraft[j]; bambiniMenuDraft[j] = t;
+  renderMenuBambini();
+}
+
+function aggiungiBambinoMenu() {
+  const el = document.getElementById('bambini-menu-new');
+  const val = (el.value || '').trim();
+  if (!val) return;
+  if (!bambiniMenuDraft) bambiniMenuDraft = [...MENU_BAMBINI];
+  if (bambiniMenuDraft.includes(val)) { showToast('Piatto già presente'); return; }
+  bambiniMenuDraft.push(val);
+  el.value = '';
+  renderMenuBambini();
+}
+
+function eliminaBambinoMenu(i) {
+  bambiniMenuDraft.splice(i, 1);
+  renderMenuBambini();
+}
+
+async function salvaMenuBambini() {
+  if (!bambiniMenuDraft || !bambiniMenuDraft.length) { showToast('Serve almeno un piatto'); return; }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'ristorazione'), { menu_bambini: bambiniMenuDraft }, { merge: true });
+    showToast('Menu bambini salvato');
+  } catch(e) {
+    console.error('Errore salvataggio menu bambini:', e);
     showToast('Errore durante il salvataggio');
   }
 }
@@ -2509,6 +2599,8 @@ function openSettings() {
   renderFamiglie();
   catMenuDraft = null;
   renderCategorieMenu();
+  bambiniMenuDraft = null;
+  renderMenuBambini();
   const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
   const dev = localStorage.getItem('epson_printer_dev') || 'local_printer';
   document.getElementById('printer-ip-input').value = ip;

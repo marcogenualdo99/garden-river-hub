@@ -268,13 +268,80 @@ function getGiornoCiclo(iso) {
   return ((diff % 14) + 14) % 14 + 1;
 }
 
-let _bambiniOpen = true;
-function toggleMenuBambini(){
-  _bambiniOpen = !_bambiniOpen;
-  const body = document.getElementById('bambini-body');
-  const arrow = document.getElementById('bambini-arrow');
-  if (body) body.style.display = _bambiniOpen ? 'block' : 'none';
-  if (arrow) arrow.style.transform = _bambiniOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+function jsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+// Sezione "Menu bambini": stesso linguaggio visivo delle altre categorie
+// (piatto-row + stepper), ma piatti fissi (da impostazioni/ristorazione,
+// non dal ciclo menu) e quantità salvate in sel.bambini anziché sel.piatti.
+// Collassata di default, si apre da sola se la famiglia ha già selezionato
+// qualcosa (riaprendo l'ordine, o cambiando pasto).
+const _bambiniOpen = {}; // key -> bool
+function toggleMenuBambini(key){
+  _bambiniOpen[key] = !_bambiniOpen[key];
+  const body = document.getElementById('bambini-body-'+key);
+  const arrow = document.getElementById('bambini-arrow-'+key);
+  if (body) body.style.display = _bambiniOpen[key] ? 'block' : 'none';
+  if (arrow) arrow.style.transform = _bambiniOpen[key] ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+function totBambini(key){
+  const sel=selezioni[key]; if(!sel) return 0;
+  return Object.values(sel.bambini||{}).reduce((s,v)=>s+(v||0),0);
+}
+function buildBambiniSection(key, isLocked){
+  const sel=selezioni[key];
+  const tot=totBambini(key);
+  if (isLocked && !tot) { const empty=document.createElement('div'); return empty; } // niente da mostrare se non ordinato e ormai bloccato
+  if (!(key in _bambiniOpen)) _bambiniOpen[key] = tot>0;
+  const wrap=document.createElement('div');
+  wrap.style.cssText='border-radius:12px;overflow:hidden;margin-top:14px;border:1.5px solid #F3C06B';
+  wrap.innerHTML=`
+    <button ${isLocked?'disabled':''} onclick="toggleMenuBambini('${key}')" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#FFFBF0;border:none;cursor:${isLocked?'default':'pointer'};text-align:left">
+      <div style="display:flex;align-items:center;gap:9px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2h18M3 6h18M3 10h18M3 14h6M3 18h6M15 14l2 2 4-4"/></svg>
+        <span id="bambini-label-${key}" style="font-size:14px;font-weight:700;color:#92400E;letter-spacing:-.01em">Menu bambini${tot?` · ${tot} portat${tot===1?'a':'e'}`:''}</span>
+      </div>
+      ${isLocked?'':`<svg id="bambini-arrow-${key}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;flex-shrink:0;transform:${_bambiniOpen[key]?'rotate(0deg)':'rotate(-90deg)'}" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`}
+    </button>
+    <div id="bambini-body-${key}" style="padding:6px 16px 10px;background:#FFFBF0;border-top:1.5px solid #F3C06B;display:${isLocked||_bambiniOpen[key]?'block':'none'}"></div>`;
+  const body=wrap.querySelector(`#bambini-body-${key}`);
+  MENU_BAMBINI.forEach(piatto=>{
+    const qty=sel.bambini[piatto]||0;
+    if (isLocked){
+      if (!qty) return;
+      const row=document.createElement('div');
+      row.className='piatto-row-locked';
+      row.innerHTML=`<span class="piatto-nome">${esc(piatto)}</span><span class="piatto-qty-locked">${qty}</span>`;
+      body.appendChild(row);
+      return;
+    }
+    const row=document.createElement('div');
+    row.className='piatto-row';
+    const pid='bb-'+key.replace(/[^a-zA-Z0-9]/g,'')+'-'+piatto.replace(/[^a-zA-Z0-9]/g,'');
+    row.innerHTML=`
+      <span class="piatto-nome ${qty===0?'zero':''}" id="pn-${pid}">${esc(piatto)}</span>
+      <div class="stepper">
+        <button class="step-btn" id="sm-${pid}" onclick="stepBambino('${key}','${jsEsc(piatto)}','${pid}',-1)" ${qty===0?'disabled':''}>−</button>
+        <span class="step-val ${qty>0?'active':''}" id="sv-${pid}">${qty}</span>
+        <button class="step-btn" id="sp-${pid}" onclick="stepBambino('${key}','${jsEsc(piatto)}','${pid}',+1)" ${qty>=20?'disabled':''}>+</button>
+      </div>`;
+    body.appendChild(row);
+  });
+  return wrap;
+}
+function stepBambino(key,piatto,pid,delta){
+  const sel=selezioni[key], cur=sel.bambini[piatto]||0;
+  if(delta<0&&cur<=0)return;
+  if(delta>0&&cur>=20)return;
+  sel.bambini[piatto]=cur+delta;
+  const qty=sel.bambini[piatto];
+  const sv=document.getElementById(`sv-${pid}`), sm=document.getElementById(`sm-${pid}`),
+        sp=document.getElementById(`sp-${pid}`), pn=document.getElementById(`pn-${pid}`);
+  if(sv){sv.textContent=qty;sv.className=`step-val ${qty>0?'active':''}`;}
+  if(sm) sm.disabled=qty<=0;
+  if(sp) sp.disabled=qty>=20;
+  if(pn) pn.className=`piatto-nome ${qty===0?'zero':''}`;
+  const head=document.getElementById(`bambini-label-${key}`);
+  if(head){ const tot=totBambini(key); head.textContent = `Menu bambini${tot?` · ${tot} portat${tot===1?'a':'e'}`:''}`; }
 }
 
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
@@ -347,6 +414,7 @@ async function caricaMenu(){
       const data=snap.data()||{};
       cicloStart=data.ciclo_start||null;
       CAT_ORDER=(Array.isArray(data.categorie)&&data.categorie.length)?data.categorie:[...CAT_ORDER_DEFAULT];
+      MENU_BAMBINI=(Array.isArray(data.menu_bambini)&&data.menu_bambini.length)?data.menu_bambini:[...MENU_BAMBINI_DEFAULT];
     }
   } catch(e) { console.error('cicloStart:', e); }
 
@@ -383,11 +451,16 @@ function inizializzaSelezioni(){
   ];
   chiavi.forEach(key=>{
     const e=ordiniEsistenti[key];
-    selezioni[key]={piatti:{},note:e?(e.note||''):''};
+    selezioni[key]={piatti:{},bambini:{},note:e?(e.note||''):''};
     if(e&&e.piatti){
       if(Array.isArray(e.piatti)){
-        // formato array [{menu_id, quantita}]
-        e.piatti.forEach(p=>{ if(p.quantita>0) selezioni[key].piatti[p.menu_id]=p.quantita; });
+        // formato array [{menu_id, quantita, categoria}] — le voci "Menu Bambini"
+        // non hanno un piatto del ciclo dietro: vanno nella mappa a parte.
+        e.piatti.forEach(p=>{
+          if(!(p.quantita>0)) return;
+          if(p.categoria===MENU_BAMBINI_CAT) selezioni[key].bambini[p.piatto]=p.quantita;
+          else selezioni[key].piatti[p.menu_id]=p.quantita;
+        });
       } else {
         // formato mappa legacy {menuId: qty}
         Object.entries(e.piatti).forEach(([mid,qty])=>{ if(qty>0) selezioni[key].piatti[mid]=qty; });
@@ -420,24 +493,6 @@ function renderMenu(){
   const c=document.getElementById('menu-container');
   c.innerHTML='';
 
-  // Banner menu bambini collassabile
-  const bambiniBanner = document.createElement('div');
-  bambiniBanner.style.cssText='border-radius:12px;overflow:hidden;margin-top:20px;margin-bottom:16px;border:1.5px solid #F3C06B';
-  bambiniBanner.innerHTML=`
-    <button onclick="toggleMenuBambini()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#FFFBF0;border:none;cursor:pointer;text-align:left">
-      <div style="display:flex;align-items:center;gap:9px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2h18M3 6h18M3 10h18M3 14h6M3 18h6M15 14l2 2 4-4"/></svg>
-        <span style="font-size:14px;font-weight:700;color:#92400E;letter-spacing:-.01em">Menu bambini sempre disponibile</span>
-      </div>
-      <svg id="bambini-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;flex-shrink:0" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div id="bambini-body" style="padding:12px 16px 14px;background:#FFFBF0;border-top:1.5px solid #F3C06B">
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        ${['Cotoletta','Patatine','Pasta in bianco','Pasta al pomodoro','Pasta al pesto','Hamburger','Wurstel'].map(p=>`<span style="font-size:12px;background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;padding:5px 12px;border-radius:20px;font-weight:500">${p}</span>`).join('')}
-      </div>
-      <p style="font-size:12px;color:#B45309;margin:0;line-height:1.5">Indica nelle <strong>note</strong> dell'ordine i piatti scelti per i bambini.</p>
-    </div>`;
-  c.appendChild(bambiniBanner);
   const rec = recuperoMeals();
   if (rec.length) {
     // Giorno di partenza con recupero pasti: mostra solo i pasti da recuperare
@@ -524,7 +579,7 @@ function scegliPasto(data,tipo){
   if(mpChoice[data]===tipo) return;
   const prev=mpChoice[data];
   if(prev) {
-    selezioni[`${data}_${prev}`]={piatti:{},note:''};
+    selezioni[`${data}_${prev}`]={piatti:{},bambini:{},note:''};
     const prevKey=`${data}_${prev}`;
     if(ordiniEsistenti[prevKey]){
       const backup=ordiniEsistenti[prevKey];
@@ -558,7 +613,7 @@ function cambiaPasto(data){
         showToast('Errore di rete — riprova');
       });
     }
-    selezioni[key]={piatti:{},note:''};
+    selezioni[key]={piatti:{},bambini:{},note:''};
   });
   mpChoice[data]=null;
   renderMenu();
@@ -568,6 +623,9 @@ function cambiaPasto(data){
 // (campo "categorie", modificabile da staff.html → Impostazioni → Categorie menu).
 const CAT_ORDER_DEFAULT=['Antipasti','Primi Carne','Primi Pesce','Secondi Carne','Secondi Pesce','Contorni','Dessert'];
 let CAT_ORDER=[...CAT_ORDER_DEFAULT];
+const MENU_BAMBINI_CAT='Menu Bambini'; // categoria sintetica salvata negli ordini: Report/Cucina la mostrano come una categoria qualsiasi
+const MENU_BAMBINI_DEFAULT=['Cotoletta','Patatine','Pasta in bianco','Pasta al pomodoro','Pasta al pesto','Hamburger','Wurstel'];
+let MENU_BAMBINI=[...MENU_BAMBINI_DEFAULT];
 // Categorie che condividono quota tra loro
 const GRUPPI_CAT={
   'Primi Carne':'Primi','Primi Pesce':'Primi',
@@ -578,7 +636,7 @@ function gruppoLabel(cat){ return GRUPPI_CAT[cat]||null; }
 
 function buildMealCard(data,tipo,piatti){
   const key=`${data}_${tipo}`;
-  if(!selezioni[key]) selezioni[key]={piatti:{},note:''};
+  if(!selezioni[key]) selezioni[key]={piatti:{},bambini:{},note:''};
   const sel=selezioni[key];
   const max=famiglia.max_ospiti;
 
@@ -677,6 +735,9 @@ function buildMealCard(data,tipo,piatti){
     }
     pDiv.appendChild(sec);
   });
+
+  if (MENU_BAMBINI.length) pDiv.appendChild(buildBambiniSection(key, isLocked));
+
   return card;
 }
 
@@ -702,7 +763,7 @@ function totGruppo(key,cat,piatti){
 function totaleKeyPiatti(key){
   const sel=selezioni[key];
   if(!sel) return 0;
-  return Object.values(sel.piatti).reduce((s,v)=>s+(v||0),0);
+  return Object.values(sel.piatti).reduce((s,v)=>s+(v||0),0) + totBambini(key);
 }
 
 function aggiornaMPLock(data){
@@ -778,11 +839,16 @@ function apriConfermaOrdine(data){
     const sel = selezioni[key];
     if (!sel || ordiniEsistenti[key]) return;
     const piatti = Object.entries(sel.piatti).filter(([,q])=>q>0);
-    if (!piatti.length) return;
+    const bambini = Object.entries(sel.bambini||{}).filter(([,q])=>q>0);
+    if (!piatti.length && !bambini.length) return;
     righe += `<div style="font-size:12px;font-weight:700;color:var(--green-700);text-transform:uppercase;letter-spacing:.05em;margin:${righe?'12px':0} 0 6px">${tipiLabel[tipo]}</div>`;
     piatti.forEach(([mid,qty]) => {
       const m = menuCatMap[mid]||{};
       righe += `<div style="display:flex;justify-content:space-between;font-size:14px;color:var(--gray-800);padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>${m.piatto||'—'}</span><span style="font-weight:700">×${qty}</span></div>`;
+      totPiatti += qty;
+    });
+    bambini.forEach(([piatto,qty]) => {
+      righe += `<div style="display:flex;justify-content:space-between;font-size:14px;color:var(--gray-800);padding:3px 0;border-bottom:1px solid var(--gray-100)"><span>${esc(piatto)} <span style="color:#B45309;font-size:11px;font-weight:700">BAMBINI</span></span><span style="font-weight:700">×${qty}</span></div>`;
       totPiatti += qty;
     });
     if (sel.note) righe += `<div style="font-size:12px;color:var(--gray-500);margin-top:6px">Note: ${esc(sel.note)}</div>`;
@@ -838,6 +904,9 @@ async function salvaOrdini(targetData){
       const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
         const m=menuCatMap[mid]||{};
         return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
+      });
+      Object.entries(sel.bambini||{}).filter(([,q])=>q>0).forEach(([piatto,q])=>{
+        piatti.push({menu_id:'bambino_'+piatto,piatto,quantita:q,categoria:MENU_BAMBINI_CAT});
       });
       if(!piatti.length) continue;
       const docId=`${famiglia.id}_${data}_${tipo}`;
