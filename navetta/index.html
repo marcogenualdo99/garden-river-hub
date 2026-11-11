@@ -367,7 +367,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <div class="mod-field"><label>Preavviso minimo per cambiare orario (minuti)</label><input id="set-preavviso-mod" type="number" min="0" step="5"></div>
         <p class="set-hint">Il cliente può spostare la corsa solo se mancano almeno questi minuti.</p>
         <div class="mod-field"><label>Posti di ogni pulmino</label><input id="set-posti" type="number" min="1" step="1"></div>
-        <p class="set-hint">Ogni autista può portare più prenotazioni nello stesso orario finché la somma delle persone non supera questo numero. Un orario risulta occupato per tutti i clienti quando nessun pulmino ha più posti.</p>
+        <p class="set-hint">Ogni autista può portare più prenotazioni nello stesso orario finché la somma delle persone non supera questo numero, purché vadano alla stessa spiaggia. Un orario risulta occupato per tutti i clienti quando nessun pulmino ha più posti.</p>
         <div class="mod-field"><label>Pulmini per orario se non ci sono autisti</label><input id="set-max-orario" type="number" min="1" step="1"></div>
         <p class="set-hint">Vale solo se non hai inserito autisti.</p>
         <div class="set-sec" style="margin-top:6px">Punti di raccolta</div>
@@ -503,6 +503,16 @@ function postiLiberi(orario, autista, escludiId) {
   if (!autista) return postiPulmino - attive.reduce((t, c) => t + _persone(c), 0);
   const suoi = attive.filter(c => c.autista_nome && _nn(c.autista_nome) === _nn(autista)).reduce((t, c) => t + _persone(c), 0);
   return postiPulmino - suoi - senza;
+}
+// Un pulmino fa un solo giro: alla stessa ora le prenotazioni di uno stesso
+// autista devono andare tutte alla stessa spiaggia. Ritorna il nome dell'altra
+// spiaggia se c'e' un conflitto, altrimenti ''.
+function conflittoSpiaggia(orario, autista, spiaggia, escludiId) {
+  const sp = _nn(spiaggia);
+  if (!autista || !sp) return '';
+  const altra = allCorse.find(c => c.id !== escludiId && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata')
+    && c.autista_nome && _nn(c.autista_nome) === _nn(autista) && c.spiaggia_nome && _nn(c.spiaggia_nome) !== sp);
+  return altra ? altra.spiaggia_nome : '';
 }
 function oggiIso() {
   const d = new Date();
@@ -862,6 +872,8 @@ async function salvaModifica() {
   if (!Number.isFinite(persone) || persone < 1 || persone > postiPulmino) { showToast(`Persone: da 1 a ${postiPulmino}`); return; }
   const cm = allCorse.find(x => x.id === _modificaId);
   if (cm && postiLiberi(orario, cm.autista_nome, _modificaId) < persone) { showToast('Su quell\'orario l\'autista non ha abbastanza posti'); return; }
+  const altraSp = cm && conflittoSpiaggia(orario, cm.autista_nome, document.getElementById('mod-spiaggia').value, _modificaId);
+  if (altraSp) { showToast(`${cm.autista_nome} a quell'ora porta già altre persone a ${altraSp}`); return; }
   const patch = {
     persone,
     nome:          document.getElementById('mod-nome').value.trim(),
@@ -1031,6 +1043,8 @@ async function creaNuovaCorsa() {
   if (postiLiberi(orario, autistaNc) < persone) {
     showToast(`${autistaNc || 'Il pulmino'} a quell'ora ha solo ${Math.max(0, postiLiberi(orario, autistaNc))} posti liberi`); return;
   }
+  const altraSp = conflittoSpiaggia(orario, autistaNc, document.getElementById('nc-spiaggia').value);
+  if (altraSp) { showToast(`${autistaNc} a quell'ora porta già altre persone a ${altraSp}`); return; }
   const doc_ = {
     persone,
     nome, telefono,

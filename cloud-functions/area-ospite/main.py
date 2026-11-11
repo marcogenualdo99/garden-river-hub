@@ -438,46 +438,65 @@ def _orari_occupati(attive, cfg):
     return sorted(o for o, corse in per_ora.items() if _max_liberi(corse, cfg) <= 0)
 
 
+def _puo_ospitare(corse_ora, cfg, autista, spiaggia, persone):
+    """Il pulmino di quell'autista puo' prendere questo gruppo a quell'orario?
+    Servono i posti e, se ha gia' altre prenotazioni a quell'ora, devono
+    andare alla STESSA spiaggia (un pulmino fa un solo giro). Una corsa senza
+    spiaggia indicata (vecchie richieste) non pone vincoli."""
+    if _liberi_autista(corse_ora, cfg, autista) < persone:
+        return False
+    if cfg['autisti']:
+        a, sp = _norm_nome(autista), _norm_nome(spiaggia)
+        for x in corse_ora:
+            xs = _norm_nome(x.get('spiaggia_nome'))
+            if sp and xs and xs != sp and _norm_nome(x.get('autista_nome')) == a:
+                return False
+    return True
+
+
 def _posti_occupati(attive, cfg):
-    """{orario: {nome autista: persone gia' a bordo}} (la chiave '' sono le
-    corse senza autista): serve al cliente per sapere se l'autista scelto ha
-    ancora posto per il suo gruppo. Nessun dato personale."""
+    """{orario: {nome autista: {'n': persone gia' a bordo, 'spiagge': [...]}}}
+    (la chiave '' sono le corse senza autista): serve al cliente per sapere se
+    l'autista scelto ha ancora posto per il suo gruppo e va alla sua stessa
+    spiaggia. Nessun dato personale."""
     out = {}
     for _id, x in attive:
         o = x.get('orario')
         if not o:
             continue
-        a = _s(x.get('autista_nome'))
-        riga = out.setdefault(o, {})
-        riga[a] = riga.get(a, 0) + _persone(x)
+        riga = out.setdefault(o, {}).setdefault(_s(x.get('autista_nome')), {'n': 0, 'spiagge': []})
+        riga['n'] += _persone(x)
+        sp = _s(x.get('spiaggia_nome'))
+        if sp and sp not in riga['spiagge']:
+            riga['spiagge'].append(sp)
     return out
 
 
-def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1):
+def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1, spiaggia=''):
     """None se l'orario e' libero per questa persona e per questo gruppo,
     altrimenti il codice d'errore: 'corsa_duplicata' (la stessa persona e'
     gia' in una corsa a quell'ora: stessa prenotazione, telefono o nome);
     'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
-    (l'autista scelto non ha posti per tutto il gruppo ma un collega si);
-    'posti_insufficienti' (nessun pulmino ha posto per tutto il gruppo)."""
+    (l'autista scelto non puo' prendere il gruppo, per posti o perche' va a
+    un'altra spiaggia, ma un collega si); 'posti_insufficienti' (nessun
+    autista puo' prendere il gruppo)."""
     n, t = _norm_nome(nome), _norm_tel(telefono)
     stessa_ora = [x for i, x in attive if i != escludi_id and x.get('orario') == orario]
     for x in stessa_ora:
         if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
             return 'corsa_duplicata'
-    if _liberi_autista(stessa_ora, cfg, autista) >= persone:
+    if _puo_ospitare(stessa_ora, cfg, autista, spiaggia, persone):
         return None
-    massimo = _max_liberi(stessa_ora, cfg)
-    if massimo <= 0:
-        return 'orario_occupato'
-    return 'autista_occupato' if massimo >= persone else 'posti_insufficienti'
+    if any(_puo_ospitare(stessa_ora, cfg, a, spiaggia, persone) for a in cfg['autisti']):
+        return 'autista_occupato'
+    return 'orario_occupato' if _max_liberi(stessa_ora, cfg) <= 0 else 'posti_insufficienti'
 
 
 @firestore.transactional
-def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1):
+def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1, spiaggia=''):
     """Controllo e scrittura nella stessa transazione: due richieste
     contemporanee per l'ultimo posto di un orario non passano entrambe."""
-    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone)
+    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone, spiaggia)
     if err:
         return err
     if escludi_id:
@@ -600,7 +619,7 @@ def _azione_navetta_prenota(db, origin, data):
         'creato_il':     _now_iso(),
     }
     ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone)
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome)
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': ref.id})
@@ -633,7 +652,7 @@ def _azione_navetta_modifica_orario(db, origin, data):
         'orario_precedente': c.get('orario') or '',
         'orario_modificato_il': _now_iso(),
         'aggiornato_il': _now_iso(),
-    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c))
+    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c), spiaggia=_s(c.get('spiaggia_nome')))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': snap.id})

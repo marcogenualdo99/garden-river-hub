@@ -132,6 +132,10 @@
   .riepilogo div { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; font-size: 16px; color: var(--gray-700) }
   .riepilogo div + div { border-top: 1px solid var(--green-200) }
   .riepilogo b { font-size: 20px; color: var(--gray-900) }
+  .sp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px }
+  .sp-btn { min-height: 58px; padding: 8px 10px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: var(--white);
+    color: var(--gray-900); font-size: 18px; font-weight: 800; font-family: var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent; line-height: 1.2 }
+  .sp-btn.selected { background: var(--green-700); border-color: var(--green-700); color: #fff }
   .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
   .num-btn { height: 58px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: var(--white);
     color: var(--gray-900); font-size: 22px; font-weight: 800; font-family: var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent }
@@ -260,6 +264,7 @@ let CFG = null;
 let CONTENUTI = { testi: {}, foto: {} };
 let orarioScelto = null;
 let personeScelte = null;
+let spiaggiaScelta = '';
 let autistaScelto = null;       // null = non ancora scelto; altrimenti il nome dell'autista
 let _servizioAperto = null;
 let _editId = null;             // corsa di cui si sta cambiando l'orario
@@ -494,41 +499,55 @@ const _nn = v => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 // Posti ancora liberi sul pulmino di un autista a una certa ora (le corse di
 // tutti gli ospiti, senza dati personali). Le corse senza autista tolgono posto a tutti.
 function postiPulmino() { return CFG.posti_pulmino || 8; }
+const _riga = ora => (CFG.posti_occupati || {})[ora] || {};
+const _nPers = r => (r && typeof r === 'object') ? (r.n || 0) : (r || 0);
 function postiLiberi(ora, nome) {
-  const riga = (CFG.posti_occupati || {})[ora] || {};
-  const senza = riga[''] || 0;
+  const riga = _riga(ora);
+  const senza = _nPers(riga['']);
   if (!(CFG.autisti || []).length) {
-    return postiPulmino() * (CFG.max_corse_per_orario || 1) - Object.values(riga).reduce((t, n) => t + n, 0);
+    return postiPulmino() * (CFG.max_corse_per_orario || 1) - Object.keys(riga).reduce((t, k) => t + _nPers(riga[k]), 0);
   }
   const n = _nn(nome);
-  const suoi = Object.keys(riga).filter(k => k && _nn(k) === n).reduce((t, k) => t + riga[k], 0);
+  const suoi = Object.keys(riga).filter(k => k && _nn(k) === n).reduce((t, k) => t + _nPers(riga[k]), 0);
   return postiPulmino() - suoi - senza;
 }
-// L'autista non ha posto per tutto il gruppo a quell'ora?
-function autistaPieno(ora, nome, persone) {
-  if (!nome && (CFG.autisti || []).length) return false;
-  return postiLiberi(ora, nome) < (persone || 1);
+// Perche' l'autista non puo' prendere questo gruppo a quell'ora:
+// 'spiaggia' = a quell'ora porta altre persone a un'altra spiaggia (un pulmino
+// fa un solo giro), 'posti' = non ci sono abbastanza posti, null = puo'.
+function motivoAutista(ora, nome, persone, spiaggia) {
+  if (!nome && (CFG.autisti || []).length) return null;
+  if (postiLiberi(ora, nome) < (persone || 1)) return 'posti';
+  const sp = _nn(spiaggia), riga = _riga(ora), n = _nn(nome);
+  if (sp && (CFG.autisti || []).length) {
+    const altre = Object.keys(riga).filter(k => k && _nn(k) === n)
+      .some(k => ((riga[k] && riga[k].spiagge) || []).some(x => _nn(x) !== sp));
+    if (altre) return 'spiaggia';
+  }
+  return null;
 }
-function autistiLiberi(ora, escludiNome, persone) {
-  return (CFG.autisti || []).filter(a => _nn(a.nome) !== _nn(escludiNome) && !autistaPieno(ora, a.nome, persone));
+function autistaPieno(ora, nome, persone, spiaggia) { return !!motivoAutista(ora, nome, persone, spiaggia); }
+function autistiLiberi(ora, escludiNome, persone, spiaggia) {
+  return (CFG.autisti || []).filter(a => _nn(a.nome) !== _nn(escludiNome) && !autistaPieno(ora, a.nome, persone, spiaggia));
 }
 function chiudiSuggerimento() { const b = $('#sugg-autista'); if (b) { b.style.display = 'none'; b.innerHTML = ''; } }
 const _perPers = n => n === 1 ? '1 persona' : `${n} persone`;
-// "Luca alle 16:00 ha solo 3 posti per 4 persone, Anna ha posto: cambi autista?"
+// "Luca alle 16:00 porta già altre persone a un'altra spiaggia, Anna è libera: cambi autista?"
 function proponiCambioAutista(ora, nomeAutista) {
   const box = $('#sugg-autista');
   if (!box) return;
   const nome = nomeAutista || autistaScelto;
   const n = personeScelte || 1;
-  const liberi = autistiLiberi(ora, nome, n);
+  const liberi = autistiLiberi(ora, nome, n, spiaggiaScelta);
   const resto = Math.max(0, postiLiberi(ora, nome));
-  const motivo = resto === 0 ? `<b>${esc(nome)}</b> alle ${esc(ora)} è al completo`
+  const m = motivoAutista(ora, nome, n, spiaggiaScelta);
+  const motivo = m === 'spiaggia' ? `<b>${esc(nome)}</b> alle ${esc(ora)} accompagna già altre persone a un'altra spiaggia`
+    : resto === 0 ? `<b>${esc(nome)}</b> alle ${esc(ora)} è al completo`
     : `<b>${esc(nome)}</b> alle ${esc(ora)} ha ${resto === 1 ? 'solo 1 posto libero' : `solo ${resto} posti liberi`} e voi siete ${_perPers(n)}`;
   if (!liberi.length) {
-    box.innerHTML = `${motivo}. Per ${_perPers(n)} non c'è posto con nessun autista a quell'ora: scegli un altro orario.`;
+    box.innerHTML = `${motivo}, e nessun altro autista può portarvi a quell'ora: scegli un altro orario.`;
   } else {
     const elenco = liberi.map(a => esc(a.nome)).join(' e ');
-    box.innerHTML = `${motivo}, mentre <b>${elenco}</b> ${liberi.length === 1 ? 'ha' : 'hanno'} posto per voi. Vuoi cambiare autista?
+    box.innerHTML = `${motivo}, mentre <b>${elenco}</b> ${liberi.length === 1 ? 'può' : 'possono'} portarvi. Vuoi cambiare autista?
       <div class="btns">${liberi.map(a => `<button type="button" onclick="accettaCambioAutista('${esc(a.id)}','${esc(ora)}')">Scegli ${esc(a.nome)}</button>`).join('')}
       <button type="button" class="alt" onclick="chiudiSuggerimento()">Scelgo un altro orario</button></div>`;
   }
@@ -542,13 +561,13 @@ function accettaCambioAutista(id, ora) {
 // Aggiorna in place gli orari disattivati (senza ridisegnare né perdere la selezione).
 function aggiornaGriglieSlot() {
   const corsaEdit = (CFG.navetta_corse || []).find(c => c.id === _editId);
-  const sets = [['#navetta-form-card .slot-btn', orariOccupati(), autistaScelto, personeScelte, false],
-                ['#edit-slots .slot-btn', orariOccupati(_editId), corsaEdit && corsaEdit.autista_nome, corsaEdit && corsaEdit.persone, true]];
-  sets.forEach(([sel, occ, autista, persone, edit]) => document.querySelectorAll(sel).forEach(el => {
-    const ora = el.dataset.ora, blocca = !slotLibero(ora) || occ.has(ora), perAutista = !blocca && autistaPieno(ora, autista, persone);
+  const sets = [['#navetta-form-card .slot-btn', orariOccupati(), autistaScelto, personeScelte, spiaggiaScelta, false],
+                ['#edit-slots .slot-btn', orariOccupati(_editId), corsaEdit && corsaEdit.autista_nome, corsaEdit && corsaEdit.persone, corsaEdit && corsaEdit.spiaggia_nome, true]];
+  sets.forEach(([sel, occ, autista, persone, spiaggia, edit]) => document.querySelectorAll(sel).forEach(el => {
+    const ora = el.dataset.ora, blocca = !slotLibero(ora) || occ.has(ora), perAutista = !blocca && autistaPieno(ora, autista, persone, spiaggia);
     el.disabled = blocca;
     el.classList.toggle('aut-occ', perAutista);
-    el.title = occ.has(ora) ? 'Orario non disponibile' : perAutista ? `${autista} non ha posto per tutto il gruppo a quest'ora` : '';
+    el.title = occ.has(ora) ? 'Orario non disponibile' : perAutista ? `${autista} non può portare il gruppo a quest'ora` : '';
     if ((blocca || perAutista) && el.classList.contains('selected')) {
       el.classList.remove('selected');
       if (!edit && orarioScelto === ora) { orarioScelto = null; aggiornaBottone(); if (perAutista) proponiCambioAutista(ora); }
@@ -560,12 +579,12 @@ function modificabile(c) {
   return c.data === oggiData() && (c.stato === 'in_attesa' || c.stato === 'accettata') && minutiDaAdesso(c.orario || '00:00') >= preavvisoModifica();
 }
 
-function gridSlotHtml(selezionato, onclickFn, escludiId, autista, persone) {
+function gridSlotHtml(selezionato, onclickFn, escludiId, autista, persone, spiaggia) {
   const occupati = orariOccupati(escludiId);
   return slotsFasce().filter(({ slot }) => slot.some(slotLibero)).map(({ fascia, slot }) => `
     <div class="fascia-title">${esc(fascia.dal)} – ${esc(fascia.al)}</div>
     <div class="slot-grid">${slot.filter(slotLibero).map(ora =>
-      `<button type="button" class="slot-btn${ora === selezionato ? ' selected' : ''}${!occupati.has(ora) && autistaPieno(ora, autista, persone) ? ' aut-occ' : ''}" data-ora="${ora}" ${slotLibero(ora) && !occupati.has(ora) ? '' : 'disabled'} onclick="${onclickFn}('${ora}')">${ora}</button>`).join('')}</div>`).join('');
+      `<button type="button" class="slot-btn${ora === selezionato ? ' selected' : ''}${!occupati.has(ora) && autistaPieno(ora, autista, persone, spiaggia) ? ' aut-occ' : ''}" data-ora="${ora}" ${slotLibero(ora) && !occupati.has(ora) ? '' : 'disabled'} onclick="${onclickFn}('${ora}')">${ora}</button>`).join('')}</div>`).join('');
 }
 
 // Punto di raccolta (impostato dalla struttura nelle impostazioni Navetta): uno
@@ -609,7 +628,7 @@ function statoCardHtml(c, oggi) {
       ${modificabile(c) && !inModifica ? `<button type="button" class="btn-cambia" onclick="apriCambioOrario('${esc(c.id)}')"><span data-icon="CLOCK"></span>Cambia orario</button>` : ''}
       ${inModifica ? `<div class="edit-panel">
         <div class="lbl">Nuovo orario (almeno ${CFG.preavviso_minimo_minuti} minuti da adesso)</div>
-        <div id="edit-slots">${gridSlotHtml(_editOrario, 'scegliOrarioNuovo', _editId, c.autista_nome, c.persone)}</div>
+        <div id="edit-slots">${gridSlotHtml(_editOrario, 'scegliOrarioNuovo', _editId, c.autista_nome, c.persone, c.spiaggia_nome)}</div>
         <div class="err" id="edit-err"></div>
         <div class="row-btns">
           <button type="button" class="ann" onclick="chiudiCambioOrario()">Annulla</button>
@@ -712,14 +731,17 @@ function renderNavetta() {
   const spiagge = CFG.spiagge || [];
   const preavviso = CFG.preavviso_minimo_minuti || 0;
   const nessunoPrenotabile = slotsFasce().every(({ slot }) => slot.every(ora => !slotLibero(ora)));
-  orarioScelto = null; autistaScelto = null; personeScelte = null;
+  orarioScelto = null; autistaScelto = null; personeScelte = null; spiaggiaScelta = '';
 
   // Nome, telefono e alloggio arrivano gia' dalla prenotazione: si chiedono
-  // solo se mancano. La spiaggia solo se non e' gia' assegnata dal Calendario.
+  // solo se mancano. La spiaggia e' il primo passo (obbligatoria: l'autista
+  // deve sapere dove andare e due gruppi condividono il pulmino solo se vanno
+  // alla stessa); se il Calendario l'ha gia' assegnata e' preselezionata.
   const serveTelefono = !(p.telefono || '').trim();
   const spiaggiaNota = (sp && sp.spiaggia_nome) ? sp.spiaggia_nome : '';
-  const opzioniSpiaggia = ['<option value="">— Scegli la spiaggia —</option>']
-    .concat(spiagge.map(s => `<option value="${esc(s.nome)}">${esc(s.nome)}</option>`)).join('');
+  const nomiSpiagge = spiagge.map(x => x.nome);
+  if (spiaggiaNota && !nomiSpiagge.some(n => _nn(n) === _nn(spiaggiaNota))) nomiSpiagge.unshift(spiaggiaNota);
+  const cardSpiagge = nomiSpiagge.map(n => `<button type="button" class="sp-btn" data-sp="${esc(n)}" onclick="scegliSpiaggia(this.dataset.sp)">${esc(n)}</button>`).join('');
 
   const autisti = CFG.autisti || [];
   const cardAutisti = autisti.map(a => cardAutistaHtml(a.id, a.nome, a.foto)).join('');
@@ -733,7 +755,7 @@ function renderNavetta() {
   const nPers = Math.max(1, postiPulmino());
   const numPersone = Array.from({ length: nPers }, (_, i) => i + 1)
     .map(n => `<button type="button" class="num-btn" data-n="${n}" onclick="scegliPersone(${n})">${n}</button>`).join('');
-  const nPassoPers = haAutisti ? 2 : 1, nPassoOra = nPassoPers + 1, nPassoConf = nPassoOra + 1;
+  const nPassoAut = 2, nPassoPers = haAutisti ? 3 : 2, nPassoOra = nPassoPers + 1, nPassoConf = nPassoOra + 1;
   $('#service-content').innerHTML = `
     <div class="card">
       <h2>Servizio navetta</h2>
@@ -741,24 +763,32 @@ function renderNavetta() {
     </div>
     <div id="navetta-stato-richieste"></div>
     <div class="card" id="navetta-form-card">
-      ${haAutisti ? `
-      <div class="passo"><span class="n">1</span><h2>Scegli l'autista</h2></div>
-      <p class="guida">Tocca la foto dell'autista che ti verrà a prendere.</p>
-      <div class="driver-grid" id="driver-grid">${cardAutisti}</div>` : ''}
+      <div class="passo"><span class="n">1</span><h2>Da quale spiaggia?</h2></div>
+      <p class="guida">Tocca la spiaggia dove ti devono venire a prendere.</p>
+      ${sp && sp.spiaggia_nome ? `<div class="chip-spiaggia">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome)} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
+      ${nomiSpiagge.length
+        ? `<div class="sp-grid" id="sp-grid">${cardSpiagge}</div>`
+        : `<div class="field"><input type="text" id="f-spiaggia-testo" placeholder="Nome della spiaggia"></div>
+           <button type="button" class="submit" style="margin-top:12px" onclick="scegliSpiaggia(($('#f-spiaggia-testo').value || '').trim())">Avanti</button>`}
 
-      <div id="persone-box" style="display:${haAutisti ? 'none' : 'block'}">
-        <div class="passo" style="margin-top:${haAutisti ? 30 : 0}px"><span class="n">${nPassoPers}</span><h2>Quante persone siete?</h2></div>
+      ${haAutisti ? `<div id="autista-box" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">${nPassoAut}</span><h2>Scegli l'autista</h2></div>
+        <p class="guida">Tocca la foto dell'autista che ti verrà a prendere.</p>
+        <div class="driver-grid" id="driver-grid">${cardAutisti}</div>
+      </div>` : ''}
+
+      <div id="persone-box" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">${nPassoPers}</span><h2>Quante persone siete?</h2></div>
         <p class="guida">Tocca il numero di persone che tornano con la navetta (compreso te). Il pulmino ha ${nPers} posti.</p>
         <div class="num-grid" id="num-grid">${numPersone}</div>
       </div>
 
       <div class="passo" id="passo-orario" style="margin-top:30px;display:none"><span class="n">${nPassoOra}</span><h2>Seleziona un orario</h2></div>
       <div id="orari-box" style="display:none">
-        ${sp ? `<div class="chip-spiaggia" style="margin-top:8px">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
         <p class="guida">Tocca l'orario in cui vuoi essere riaccompagnato.</p>
         ${nessunoPrenotabile
           ? `<p class="hint">Non ci sono più orari disponibili adesso (servono almeno ${preavviso} minuti di preavviso). Riprova tra poco.</p>`
-          : gridSlotHtml(null, 'scegliOrario', null, null, null)}
+          : gridSlotHtml(null, 'scegliOrario', null, null, null, '')}
         <div class="sugg-autista" id="sugg-autista" style="display:none"></div>
       </div>
 
@@ -767,15 +797,13 @@ function renderNavetta() {
         <div class="riepilogo" id="riepilogo"></div>
         ${serveTelefono ? `<div class="field" style="margin-top:16px"><label>Il tuo numero di telefono, così l'autista può chiamarti</label>
           <input type="tel" id="f-telefono" value=""></div>` : ''}
-        ${!spiaggiaNota ? `<div class="field" style="margin-top:16px"><label>Da quale spiaggia ti deve venire a prendere? (obbligatorio)</label>
-          ${spiagge.length ? `<select id="f-spiaggia">${opzioniSpiaggia}</select>` : `<input type="text" id="f-spiaggia" placeholder="Nome della spiaggia">`}</div>` : ''}
         <div class="errbox" id="errbox"></div>
         <button type="button" class="submit" id="btn-invia" onclick="invia()">Conferma la prenotazione</button>
       </div>
     </div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
-  if (autisti.length === 1) scegliAutista(autisti[0].id);   // un solo autista: nessuna scelta da fare
+  if (spiaggiaNota) scegliSpiaggia(spiaggiaNota, true);   // gia' assegnata dal Calendario: preselezionata
   aggiornaGriglieSlot();
   aggiornaBottone();
   renderStatoRichieste();
@@ -790,47 +818,64 @@ function aggiornaBottone() {
   const btn = $('#btn-invia');
   if (!btn || _invioInCorso) return;
   const haAutisti = (CFG.autisti || []).length > 0;
-  const pronto = !!orarioScelto && !!personeScelte && (!haAutisti || !!autistaScelto);
+  const pronto = !!spiaggiaScelta && !!orarioScelto && !!personeScelte && (!haAutisti || !!autistaScelto);
   const box = $('#passo-conferma');
   const eraNascosto = box.style.display === 'none';
   box.style.display = pronto ? 'block' : 'none';
   if (pronto) {
-    $('#riepilogo').innerHTML = `${autistaScelto ? `<div><span>Autista</span><b>${esc(autistaScelto)}</b></div>` : ''}
+    $('#riepilogo').innerHTML = `<div><span>Ritiro da</span><b>${esc(spiaggiaScelta)}</b></div>
+      ${autistaScelto ? `<div><span>Autista</span><b>${esc(autistaScelto)}</b></div>` : ''}
       <div><span>Persone</span><b>${personeScelte}</b></div>
       <div><span>Rientro alle</span><b>${esc(orarioScelto)}</b></div>`;
     if (eraNascosto) vaiA('#passo-conferma');
   }
 }
 
-function scegliAutista(id) {
+// Dopo ogni scelta si riaggiornano gli orari: quelli che a questo autista, per
+// questo gruppo o per questa spiaggia non vanno bene si spengono; se l'orario
+// gia' scelto non va piu' bene si propone un altro autista.
+function ricontrolla() {
+  chiudiSuggerimento();
+  const oraPrima = orarioScelto;
+  aggiornaGriglieSlot();
+  if (oraPrima && autistaPieno(oraPrima, autistaScelto, personeScelte, spiaggiaScelta)) proponiCambioAutista(oraPrima);
+  aggiornaBottone();
+}
+
+function scegliSpiaggia(nome, silenzioso) {
+  if (!nome) return;
+  spiaggiaScelta = nome;
+  document.querySelectorAll('#sp-grid .sp-btn').forEach(el => el.classList.toggle('selected', _nn(el.dataset.sp) === _nn(nome)));
+  const haAutisti = (CFG.autisti || []).length > 0;
+  const prossimo = haAutisti ? '#autista-box' : '#persone-box';
+  const primaVolta = $(prossimo).style.display === 'none';
+  $(prossimo).style.display = 'block';
+  if (haAutisti && CFG.autisti.length === 1) { scegliAutista(CFG.autisti[0].id, true); return; }   // un solo autista: nessuna scelta
+  ricontrolla();
+  if (primaVolta && !silenzioso) vaiA(prossimo);
+}
+
+function scegliAutista(id, silenzioso) {
   autistaScelto = ((CFG.autisti || []).find(a => a.id === id) || {}).nome || null;
   document.querySelectorAll('#driver-grid .driver-card').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
-  chiudiSuggerimento();
   const primaVolta = $('#persone-box').style.display === 'none';
   $('#persone-box').style.display = 'block';
-  const oraPrima = orarioScelto;
-  aggiornaGriglieSlot();                       // l'autista nuovo puo' avere pochi posti ad altre ore
-  if (oraPrima && autistaPieno(oraPrima, autistaScelto, personeScelte)) proponiCambioAutista(oraPrima);
-  aggiornaBottone();
-  if (primaVolta && (CFG.autisti || []).length > 1) vaiA('#persone-box');
+  ricontrolla();
+  if (primaVolta && !silenzioso && (CFG.autisti || []).length > 1) vaiA('#persone-box');
 }
 
 function scegliPersone(n) {
   personeScelte = n;
   document.querySelectorAll('#num-grid .num-btn').forEach(el => el.classList.toggle('selected', +el.dataset.n === n));
-  chiudiSuggerimento();
   const primaVolta = $('#orari-box').style.display === 'none';
   $('#orari-box').style.display = 'block';
   $('#passo-orario').style.display = 'flex';
-  const oraPrima = orarioScelto;
-  aggiornaGriglieSlot();                       // gli orari senza posto per il gruppo si spengono
-  if (oraPrima && autistaPieno(oraPrima, autistaScelto, personeScelte)) proponiCambioAutista(oraPrima);
-  aggiornaBottone();
+  ricontrolla();
   if (primaVolta) vaiA('#passo-orario');
 }
 
 function scegliOrario(ora) {
-  if (autistaPieno(ora, autistaScelto, personeScelte)) { proponiCambioAutista(ora); return; }
+  if (autistaPieno(ora, autistaScelto, personeScelte, spiaggiaScelta)) { proponiCambioAutista(ora); return; }
   chiudiSuggerimento();
   orarioScelto = ora;
   document.querySelectorAll('#navetta-form-card .slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
@@ -846,7 +891,7 @@ async function invia() {
   const nome = (p.nome || '').trim();
   const telefono = ($('#f-telefono') ? $('#f-telefono').value : p.telefono || '').trim();
   const alloggio = (p.alloggio_nome || '').trim();
-  const spiaggia = (CFG.spiaggia && CFG.spiaggia.spiaggia_nome) || ($('#f-spiaggia') ? $('#f-spiaggia').value.trim() : '');
+  const spiaggia = spiaggiaScelta;
   const autista = autistaScelto || '';
   if (!autista && (CFG.autisti || []).length) {
     box.textContent = 'Scegli l\'autista.';
