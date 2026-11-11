@@ -120,6 +120,15 @@ def _cfg_navetta(db):
                 pass
     except Exception as e:
         print(f'Lettura impostazioni/navetta non riuscita: {e}')
+    # Capacita' di un orario: un autista fa una corsa alla volta, quindi con
+    # gli autisti configurati i posti sono tanti quanti gli autisti; senza
+    # autisti vale il tetto 'max_corse_per_orario' delle impostazioni.
+    try:
+        n_autisti = len(list(db.collection('navetta_autisti').stream()))
+    except Exception as e:
+        print(f'Conteggio autisti non riuscito: {e}')
+        n_autisti = 0
+    cfg['capacita'] = n_autisti if n_autisti > 0 else cfg['max_corse_per_orario']
     return cfg
 
 
@@ -364,29 +373,47 @@ def _orari_occupati(attive, cfg):
     conta = {}
     for _id, x in attive:
         conta[x.get('orario')] = conta.get(x.get('orario'), 0) + 1
-    return sorted(o for o, n in conta.items() if o and n >= cfg['max_corse_per_orario'])
+    return sorted(o for o, n in conta.items() if o and n >= cfg['capacita'])
 
 
-def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None):
+def _orari_autisti(attive, cfg):
+    """{orario: [nomi autisti gia' impegnati]} per gli orari non ancora
+    pieni: serve a proporre all'ospite un autista libero quando quello
+    scelto ha gia' una corsa a quell'ora."""
+    pieni = set(_orari_occupati(attive, cfg))
+    out = {}
+    for _id, x in attive:
+        o, a = x.get('orario'), _s(x.get('autista_nome'))
+        if o and a and o not in pieni:
+            out.setdefault(o, []).append(a)
+    return out
+
+
+def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista=''):
     """None se l'orario e' libero per questa persona, altrimenti il codice
     d'errore: 'corsa_duplicata' (la stessa persona e' gia' in una corsa a
     quell'ora: stessa prenotazione, telefono o nome) oppure 'orario_occupato'
-    (tetto di corse per quell'orario raggiunto da altri ospiti)."""
+    (tutti gli autisti sono gia' impegnati a quell'ora) oppure
+    'autista_occupato' (l'autista scelto ha gia' una corsa a quell'ora ma un
+    collega e' libero)."""
     n, t = _norm_nome(nome), _norm_tel(telefono)
     stessa_ora = [(i, x) for i, x in attive if i != escludi_id and x.get('orario') == orario]
     for _i, x in stessa_ora:
         if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
             return 'corsa_duplicata'
-    if len(stessa_ora) >= cfg['max_corse_per_orario']:
+    if len(stessa_ora) >= cfg['capacita']:
         return 'orario_occupato'
+    a = _norm_nome(autista)
+    if a and any(_norm_nome(x.get('autista_nome')) == a for _i, x in stessa_ora):
+        return 'autista_occupato'
     return None
 
 
 @firestore.transactional
-def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None):
+def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista=''):
     """Controllo e scrittura nella stessa transazione: due richieste
     contemporanee per l'ultimo posto di un orario non passano entrambe."""
-    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id)
+    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista)
     if err:
         return err
     if escludi_id:
@@ -420,6 +447,7 @@ def _azione_carica(db, origin, data):
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
         'orari_occupati': _orari_occupati(_corse_attive_oggi(db), cfg),
+        'orari_autisti': _orari_autisti(_corse_attive_oggi(db), cfg),
         'oggi': _oggi_iso(),
         'fasce': cfg['fasce'],
         'passo_minuti': cfg['passo_minuti'],
@@ -439,10 +467,13 @@ def _azione_navetta_stato(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg_n = _cfg_navetta(db)
+    attive = _corse_attive_oggi(db)
     return _json(origin, {
         'ok': True,
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
-        'orari_occupati': _orari_occupati(_corse_attive_oggi(db), _cfg_navetta(db)),
+        'orari_occupati': _orari_occupati(attive, cfg_n),
+        'orari_autisti': _orari_autisti(attive, cfg_n),
         'oggi': _oggi_iso(),
     })
 
@@ -478,7 +509,7 @@ def _azione_navetta_prenota(db, origin, data):
         'creato_il':     _now_iso(),
     }
     ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono)
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome)
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': ref.id})
@@ -511,7 +542,7 @@ def _azione_navetta_modifica_orario(db, origin, data):
         'orario_precedente': c.get('orario') or '',
         'orario_modificato_il': _now_iso(),
         'aggiornato_il': _now_iso(),
-    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id)
+    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': snap.id})

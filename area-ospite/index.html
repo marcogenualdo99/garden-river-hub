@@ -124,6 +124,11 @@
   .slot-btn { height: 42px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); background: var(--white);
     color: var(--gray-700); font-size: 13.5px; font-weight: 700; font-family: var(--font); cursor: pointer;
     -webkit-tap-highlight-color: transparent; }
+  .slot-btn.aut-occ { border-style: dashed; color: var(--gray-500); background: var(--gray-50) }
+  .sugg-autista { margin-top: 14px; padding: 14px; border-radius: var(--radius); background: var(--amber-bg); color: var(--gray-900); font-size: 13.5px; line-height: 1.5 }
+  .sugg-autista .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
+  .sugg-autista .btns button { height: 40px; padding: 0 16px; border-radius: 999px; font-weight: 800; font-size: 13.5px; font-family: var(--font); cursor: pointer; border: 1.5px solid var(--green-700); background: var(--green-700); color: #fff }
+  .sugg-autista .btns button.alt { background: var(--white); color: var(--green-700) }
   .slot-btn.selected { background: var(--green-700); border-color: var(--green-700); color: #fff }
   .slot-btn:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through }
 
@@ -464,17 +469,52 @@ function orariOccupati(escludiId) {
     .forEach(c => o.add(c.orario));
   return o;
 }
+const _nn = v => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+// L'autista ha gia' una corsa attiva a quell'ora (anche di altri ospiti)?
+function autistaOccupato(ora, nome) {
+  if (!nome) return false;
+  const n = _nn(nome);
+  return ((CFG.orari_autisti || {})[ora] || []).some(a => _nn(a) === n);
+}
+function autistiLiberi(ora, escludiNome) {
+  return (CFG.autisti || []).filter(a => _nn(a.nome) !== _nn(escludiNome) && !autistaOccupato(ora, a.nome));
+}
+function chiudiSuggerimento() { const b = $('#sugg-autista'); if (b) { b.style.display = 'none'; b.innerHTML = ''; } }
+// "Luca ha già una corsa alle 16:00, Anna è libera: cambi autista?"
+function proponiCambioAutista(ora, nomeAutista) {
+  const box = $('#sugg-autista');
+  if (!box) return;
+  const nome = nomeAutista || autistaScelto;
+  const liberi = autistiLiberi(ora, nome);
+  if (!liberi.length) {
+    box.innerHTML = `<b>${esc(nome)}</b> ha già una corsa alle ${esc(ora)}. Scegli un altro orario.`;
+  } else {
+    const elenco = liberi.map(a => esc(a.nome)).join(' e ');
+    box.innerHTML = `<b>${esc(nome)}</b> ha già una corsa alle ${esc(ora)}, mentre <b>${elenco}</b> ${liberi.length === 1 ? 'è disponibile' : 'sono disponibili'} a quell'ora. Vuoi cambiare autista?
+      <div class="btns">${liberi.map(a => `<button type="button" onclick="accettaCambioAutista('${esc(a.id)}','${esc(ora)}')">Scegli ${esc(a.nome)}</button>`).join('')}
+      <button type="button" class="alt" onclick="chiudiSuggerimento()">Scelgo un altro orario</button></div>`;
+  }
+  box.style.display = 'block';
+}
+function accettaCambioAutista(id, ora) {
+  chiudiSuggerimento();
+  scegliAutista(id);
+  scegliOrario(ora);
+}
 // Aggiorna in place gli orari disattivati (senza ridisegnare né perdere la selezione).
 function aggiornaGriglieSlot() {
-  const sets = [['#navetta-form-card .slot-btn', orariOccupati()], ['#edit-slots .slot-btn', orariOccupati(_editId)]];
-  sets.forEach(([sel, occ]) => document.querySelectorAll(sel).forEach(el => {
-    const ora = el.dataset.ora, blocca = !slotLibero(ora) || occ.has(ora);
+  const corsaEdit = (CFG.navetta_corse || []).find(c => c.id === _editId);
+  const sets = [['#navetta-form-card .slot-btn', orariOccupati(), autistaScelto, false],
+                ['#edit-slots .slot-btn', orariOccupati(_editId), corsaEdit && corsaEdit.autista_nome, true]];
+  sets.forEach(([sel, occ, autista, edit]) => document.querySelectorAll(sel).forEach(el => {
+    const ora = el.dataset.ora, blocca = !slotLibero(ora) || occ.has(ora), perAutista = !blocca && autistaOccupato(ora, autista);
     el.disabled = blocca;
-    el.title = occ.has(ora) ? 'Orario già prenotato' : '';
-    if (blocca && el.classList.contains('selected')) {
+    el.classList.toggle('aut-occ', perAutista);
+    el.title = occ.has(ora) ? 'Orario già prenotato' : perAutista ? `${autista} ha già una corsa a quest'ora` : '';
+    if ((blocca || perAutista) && el.classList.contains('selected')) {
       el.classList.remove('selected');
-      if (orarioScelto === ora) orarioScelto = null;
-      if (_editOrario === ora) { _editOrario = null; const cb = $('#edit-conf'); if (cb) cb.disabled = true; }
+      if (!edit && orarioScelto === ora) { orarioScelto = null; if (perAutista) proponiCambioAutista(ora); }
+      if (edit && _editOrario === ora) { _editOrario = null; const cb = $('#edit-conf'); if (cb) cb.disabled = true; }
     }
   }));
 }
@@ -482,12 +522,12 @@ function modificabile(c) {
   return c.data === oggiData() && (c.stato === 'in_attesa' || c.stato === 'accettata') && minutiDaAdesso(c.orario || '00:00') >= preavvisoModifica();
 }
 
-function gridSlotHtml(selezionato, onclickFn, escludiId) {
+function gridSlotHtml(selezionato, onclickFn, escludiId, autista) {
   const occupati = orariOccupati(escludiId);
   return slotsFasce().map(({ fascia, slot }) => `
     <div class="fascia-title">${esc(fascia.dal)} – ${esc(fascia.al)}</div>
     <div class="slot-grid">${slot.map(ora =>
-      `<button type="button" class="slot-btn${ora === selezionato ? ' selected' : ''}" data-ora="${ora}" ${slotLibero(ora) && !occupati.has(ora) ? '' : 'disabled'} onclick="${onclickFn}('${ora}')">${ora}</button>`).join('')}</div>`).join('');
+      `<button type="button" class="slot-btn${ora === selezionato ? ' selected' : ''}${!occupati.has(ora) && autistaOccupato(ora, autista) ? ' aut-occ' : ''}" data-ora="${ora}" ${slotLibero(ora) && !occupati.has(ora) ? '' : 'disabled'} onclick="${onclickFn}('${ora}')">${ora}</button>`).join('')}</div>`).join('');
 }
 
 // Richieste di oggi di questo ospite: card indipendente dal form, tenuta
@@ -510,7 +550,7 @@ function statoCardHtml(c, oggi) {
       ${modificabile(c) && !inModifica ? `<button type="button" class="btn-cambia" onclick="apriCambioOrario('${esc(c.id)}')"><span data-icon="CLOCK"></span>Cambia orario</button>` : ''}
       ${inModifica ? `<div class="edit-panel">
         <div class="lbl">Nuovo orario (almeno ${CFG.preavviso_minimo_minuti} minuti da adesso)</div>
-        <div id="edit-slots">${gridSlotHtml(_editOrario, 'scegliOrarioNuovo', _editId)}</div>
+        <div id="edit-slots">${gridSlotHtml(_editOrario, 'scegliOrarioNuovo', _editId, c.autista_nome)}</div>
         <div class="err" id="edit-err"></div>
         <div class="row-btns">
           <button type="button" class="ann" onclick="chiudiCambioOrario()">Annulla</button>
@@ -551,9 +591,10 @@ async function confermaCambioOrario() {
   try {
     const d = await chiama({ azione: 'navetta_modifica_orario', id: _editId, orario: _editOrario });
     if (d.ok) { _editId = null; _editOrario = null; await aggiornaStato(true); return; }
-    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata') aggiornaStato(false);
+    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata' || d.errore === 'autista_occupato') aggiornaStato(false);
     err.textContent = d.errore === 'troppo_tardi' ? `Non si può più cambiare: mancano meno di ${preavvisoModifica()} minuti alla corsa.`
       : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
+      : d.errore === 'autista_occupato' ? 'Il tuo autista ha già una corsa a quell\'ora. Scegli un altro orario.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta a quell\'orario.'
       : d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
       : d.errore === 'corsa_non_modificabile' ? 'Questa corsa non si può più modificare.'
@@ -576,10 +617,11 @@ async function aggiornaStato(forza) {
     if (!d.ok) return;
     const corse = d.navetta_corse || (d.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
     const occupati = d.orari_occupati || CFG.orari_occupati || [];
-    const firma = JSON.stringify([corse, occupati]);
+    const orariAut = d.orari_autisti || CFG.orari_autisti || {};
+    const firma = JSON.stringify([corse, occupati, orariAut]);
     if (forza || firma !== _ultimoStato) {
       _ultimoStato = firma;
-      CFG.navetta_corse = corse; CFG.orari_occupati = occupati; if (d.oggi) CFG.oggi = d.oggi;
+      CFG.navetta_corse = corse; CFG.orari_occupati = occupati; CFG.orari_autisti = orariAut; if (d.oggi) CFG.oggi = d.oggi;
       aggiornaGriglieSlot();                  // gli orari presi da altri ospiti si spengono subito
       if (_editId && !forza) return;          // non interrompere chi sta scegliendo
       renderStatoRichieste();
@@ -589,7 +631,7 @@ async function aggiornaStato(forza) {
   finally { _inVolo = false; }
 }
 function avviaAggiornamentoStato() {
-  _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || []]);
+  _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || [], CFG.orari_autisti || {}]);
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(() => { if (document.visibilityState === 'visible') aggiornaStato(false); }, 8000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') aggiornaStato(false); });
@@ -655,6 +697,7 @@ function renderNavetta() {
           ? '<p class="hint">Nessun orario disponibile adesso (ci vogliono almeno ' + preavviso + ' minuti di preavviso). Riprova tra poco.</p>'
           : gridSlotHtml(null, 'scegliOrario')}
 
+        <div class="sugg-autista" id="sugg-autista" style="display:none"></div>
         <div class="errbox" id="errbox"></div>
         <button type="button" class="submit" id="btn-invia" onclick="invia()" ${nessunoPrenotabile ? 'disabled' : ''}>Prenota il rientro</button>
       </div>
@@ -668,9 +711,15 @@ function scegliAutista(id) {
   autistaScelto = id === '__chiunque__' ? '' : ((CFG.autisti || []).find(a => a.id === id) || {}).nome || '';
   document.querySelectorAll('#driver-grid .driver-card').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
   $('#navetta-resto-form').style.display = 'block';
+  chiudiSuggerimento();
+  const oraPrima = orarioScelto;
+  aggiornaGriglieSlot();                       // l'autista nuovo puo' essere impegnato ad altre ore
+  if (oraPrima && autistaOccupato(oraPrima, autistaScelto)) proponiCambioAutista(oraPrima);
 }
 
 function scegliOrario(ora) {
+  if (autistaOccupato(ora, autistaScelto)) { proponiCambioAutista(ora); return; }
+  chiudiSuggerimento();
   orarioScelto = ora;
   document.querySelectorAll('#navetta-form-card .slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
 }
@@ -703,6 +752,7 @@ async function invia() {
     return;
   }
   _invioInCorso = true;
+  const orarioTentato = orarioScelto;
   const btn = $('#btn-invia');
   btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
@@ -727,9 +777,10 @@ async function invia() {
       `;
       return;
     }
-    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata') aggiornaStato(true);
+    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata' || d.errore === 'autista_occupato') aggiornaStato(true).then(() => { if (d.errore === 'autista_occupato') proponiCambioAutista(orarioScelto || orarioTentato); });
     box.textContent = d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
       : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
+      : d.errore === 'autista_occupato' ? 'L\'autista scelto è appena stato prenotato a quell\'ora. Controlla la proposta qui sopra.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta attiva a quest\'orario. Scegline un altro oppure cambia quella esistente.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : 'Invio non riuscito. Riprova.';
