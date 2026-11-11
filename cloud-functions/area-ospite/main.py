@@ -15,9 +15,11 @@ Azioni (campo "azione" nel corpo JSON):
   - carica          : { token }
         -> riepilogo sanificato della prenotazione (nome, telefono, alloggio)
            + l'eventuale ombrellone/spiaggia già assegnati dal Calendario
-           + l'elenco delle spiagge configurate e degli autisti in servizio
-           (per i due menu a tendina) + l'eventuale accesso Ristorazione
-           (famiglia/codice, se il trattamento prevede pasti)
+           + l'elenco delle spiagge e degli autisti configurati (per i due
+           menu a tendina) + l'eventuale accesso Ristorazione (famiglia/
+           codice, se il trattamento prevede pasti) + le richieste navetta
+           già fatte oggi da questo stesso ospite (per mostrargliene lo
+           stato)
   - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
                          autista_nome, orario }
         -> valida l'orario (fascia attiva + preavviso minimo, v.
@@ -130,17 +132,15 @@ def _spiagge_disponibili(db):
         return []
 
 
-def _autisti_attivi(db):
-    """Autisti in servizio oggi (collezione navetta_autisti, gestita dalla
-    dashboard Navetta), per il menu a tendina lato ospite. Chi non è segnato
-    attivo non compare: il cliente può sempre lasciare 'chiunque disponibile'."""
+def _autisti_elenco(db):
+    """Autisti configurati (collezione navetta_autisti, gestita dalla
+    dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
+    giorno per giorno. Il cliente può sempre lasciare 'chiunque disponibile'."""
     try:
-        out = []
-        for d in db.collection('navetta_autisti').stream():
-            f = d.to_dict() or {}
-            if f.get('attivo', True):
-                out.append({'id': d.id, 'nome': _s(f.get('nome')) or d.id})
-        return out
+        return [
+            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id}
+            for d in db.collection('navetta_autisti').stream()
+        ]
     except Exception as e:
         print(f'Lettura navetta_autisti non riuscita: {e}')
         return []
@@ -149,16 +149,24 @@ def _autisti_attivi(db):
 def _ristorazione_disponibile(db, pren_id):
     """Famiglia Ristorazione collegata a questa prenotazione (creata in
     automatico dal Calendario quando il trattamento è PC/MP — v.
-    sincronizzaFamigliaRistorazione in calendario/index.html). None se il
-    soggiorno non include pasti."""
+    sincronizzaFamigliaRistorazione in calendario/index.html). Cerca prima
+    per id diretto (convenzione 'cal_<prenId>'), poi per campo (nel caso sia
+    stata collegata a mano con un id diverso). None se il soggiorno non
+    include pasti o la sincronizzazione non è mai scattata."""
     try:
-        q = (db.collection('famiglie_ristorazione')
-               .where('calendario_prenotazione_id', '==', pren_id)
-               .limit(1))
-        docs = list(q.stream())
-        if not docs:
+        f = None
+        diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
+        if diretta.exists:
+            f = diretta.to_dict() or {}
+        else:
+            q = (db.collection('famiglie_ristorazione')
+                   .where('calendario_prenotazione_id', '==', pren_id)
+                   .limit(1))
+            docs = list(q.stream())
+            if docs:
+                f = docs[0].to_dict() or {}
+        if not f:
             return None
-        f = docs[0].to_dict() or {}
         codice = _s(f.get('codice'))
         trattamento = _s(f.get('trattamento'))
         if not codice or trattamento not in ('PC', 'MP'):
@@ -167,6 +175,30 @@ def _ristorazione_disponibile(db, pren_id):
     except Exception as e:
         print(f'Lettura famiglia ristorazione non riuscita: {e}')
         return None
+
+
+def _navetta_oggi_cliente(db, pren_id):
+    """Le richieste navetta di oggi fatte da questo stesso ospite (per
+    mostrargli lo stato della corsa nel suo pannello — l'ospite non ha
+    accesso diretto a Firestore, può vederle solo tramite questa azione)."""
+    try:
+        q = (db.collection('navetta_prenotazioni')
+               .where('prenId', '==', pren_id)
+               .where('data', '==', _oggi_iso()))
+        out = [
+            {
+                'id': d.id,
+                'orario': _s((d.to_dict() or {}).get('orario')),
+                'stato': _s((d.to_dict() or {}).get('stato')) or 'in_attesa',
+                'autista_nome': _s((d.to_dict() or {}).get('autista_nome')),
+            }
+            for d in q.stream()
+        ]
+        out.sort(key=lambda x: x['orario'])
+        return out
+    except Exception as e:
+        print(f'Lettura navetta_prenotazioni cliente non riuscita: {e}')
+        return []
 
 
 def _spiaggia_assegnata(db, pren_id):
@@ -244,8 +276,9 @@ def _azione_carica(db, origin, data):
         },
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id),
         'spiagge': _spiagge_disponibili(db),
-        'autisti': _autisti_attivi(db),
+        'autisti': _autisti_elenco(db),
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
+        'navetta_oggi': _navetta_oggi_cliente(db, pren_ref.id),
         'fasce': [{'dal': a, 'al': b} for a, b in FASCE_NAVETTA],
         'preavviso_minimo_minuti': PREAVVISO_MINIMO_MINUTI,
     })

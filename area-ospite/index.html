@@ -97,6 +97,17 @@
     border: none; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font) }
 
   .footnote { margin-top: 20px; font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5 }
+
+  .stato-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm); padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; gap: 14px }
+  .stato-card .ora { font-size: 20px; font-weight: 800; color: var(--gray-900); flex-shrink: 0 }
+  .stato-card .meta { flex: 1; min-width: 0 }
+  .stato-card .autista { font-size: 12.5px; color: var(--gray-500); margin-top: 3px }
+  .stato-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 10px }
+  .stato-badge.attesa     { background: var(--amber-bg); color: var(--amber) }
+  .stato-badge.accettata  { background: var(--blue-bg);  color: var(--blue) }
+  .stato-badge.completata { background: var(--green-bg); color: var(--green-ok) }
+  .stato-badge.annullata  { background: var(--gray-100); color: var(--gray-500) }
 </style>
 </head>
 <body>
@@ -199,8 +210,9 @@ function render() {
 
 // ── Ristorazione ──────────────────────────────────────────────────────────
 // Il menu vero vive in ristorazione/index.html (app a sé, con il suo Firebase
-// e il suo CSS): qui apriamo solo un rimando col codice famiglia già pronto,
-// creato in automatico dal Calendario quando il trattamento prevede pasti.
+// e il suo CSS): lo incorporiamo qui con un iframe (col codice famiglia già
+// pronto, creato in automatico dal Calendario quando il trattamento prevede
+// pasti) così l'ospite resta nel pannello, senza dover aprire un'altra pagina.
 function renderRistorazione() {
   const r = CFG.ristorazione;
   const panel = $('#panel-ristorazione');
@@ -208,13 +220,8 @@ function renderRistorazione() {
     panel.innerHTML = `<div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Il tuo soggiorno non include pasti in ristorazione.</p></div></div>`;
     return;
   }
-  const label = r.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
-  panel.innerHTML = `
-    <div class="card">
-      <h2>Ristorazione</h2>
-      <p class="hint">Il tuo soggiorno include la ${esc(label).toLowerCase()}. Da qui scegli i piatti e prenoti i pasti dei prossimi giorni.</p>
-      <a class="submit" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:16px" href="../ristorazione/?f=${encodeURIComponent(r.codice)}">Apri il menu e ordina</a>
-    </div>`;
+  panel.innerHTML = `<iframe src="../ristorazione/?f=${encodeURIComponent(r.codice)}" title="Ristorazione"
+    style="width:100%;height:82vh;border:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);background:var(--white)" loading="lazy"></iframe>`;
 }
 
 function selezionaTab(id) {
@@ -238,6 +245,51 @@ function slotsFasce(fasce) {
     out.push(slot);
   });
   return out;
+}
+
+function statoInfo(stato) {
+  const map = {
+    in_attesa:  { cls: 'attesa',     label: 'In attesa' },
+    accettata:  { cls: 'accettata',  label: 'Accettata' },
+    completata: { cls: 'completata', label: 'Completata' },
+    annullata:  { cls: 'annullata',  label: 'Annullata' },
+  };
+  return map[stato] || map.in_attesa;
+}
+
+// Le richieste di oggi di questo stesso ospite — card indipendente dal form,
+// aggiornata da un polling leggero (l'ospite non ha un canale realtime).
+function renderStatoRichieste() {
+  const wrap = $('#navetta-stato-richieste');
+  if (!wrap) return;
+  const lista = CFG.navetta_oggi || [];
+  if (!lista.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = lista.map(c => {
+    const s = statoInfo(c.stato);
+    return `
+    <div class="stato-card">
+      <div class="ora">${esc(c.orario || '—')}</div>
+      <div class="meta">
+        <span class="stato-badge ${s.cls}">${s.label}</span>
+        ${c.autista_nome ? `<div class="autista">Autista: ${esc(c.autista_nome)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let _pollTimer = null;
+async function avviaPollingStato() {
+  if (_pollTimer) clearInterval(_pollTimer);
+  _pollTimer = setInterval(async () => {
+    try {
+      const r = await fetch(AREA_OSPITE_FN_URL, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ azione: 'carica', token }),
+      });
+      const d = await r.json();
+      if (d.ok) { CFG.navetta_oggi = d.navetta_oggi; renderStatoRichieste(); }
+    } catch (e) { /* silenzioso: riprova al giro successivo */ }
+  }, 20000);
 }
 
 function renderNavetta() {
@@ -270,7 +322,8 @@ function renderNavetta() {
     .join('');
 
   const autisti = CFG.autisti || [];
-  const opzioniAutista = ['<option value="">— Chiunque disponibile —</option>']
+  const opzioniAutista = ['<option value="" disabled selected>— Seleziona il tuo autista —</option>',
+    '<option value="__chiunque__">Non lo so / Chiunque disponibile</option>']
     .concat(autisti.map(a => `<option value="${esc(a.nome)}">${esc(a.nome)}</option>`))
     .join('');
 
@@ -279,29 +332,39 @@ function renderNavetta() {
       <h2>Servizio navetta</h2>
       <p class="hint">Prenota il rientro dalla spiaggia. Il servizio è attivo dalle 09:00 alle 13:00 e dalle 15:30 alle 19:00, ogni 15 minuti (con almeno ${preavviso} minuti di preavviso).</p>
     </div>
+    <div id="navetta-stato-richieste"></div>
     <div class="card" id="navetta-form-card">
-      ${sp ? `<div class="chip-spiaggia">☂ ${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
-      <div class="field"><label>Nome e Cognome</label>
-        <input type="text" id="f-nome" value="${esc(p.nome)}"></div>
-      <div class="field"><label>Numero di telefono</label>
-        <input type="tel" id="f-telefono" value="${esc(p.telefono)}"></div>
-      <div class="field"><label>Alloggio</label>
-        <input type="text" id="f-alloggio" value="${esc(p.alloggio_nome)}"></div>
-      <div class="field"><label>Spiaggia</label>
-        <select id="f-spiaggia">${opzioniSpiaggia}</select></div>
       <div class="field"><label>Autista</label>
-        <select id="f-autista">${opzioniAutista}</select></div>
+        <select id="f-autista" onchange="onAutistaScelto()">${opzioniAutista}</select></div>
 
-      <label style="display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px">Orario</label>
-      ${nessunoPrenotabile
-        ? '<p class="hint">Nessun orario disponibile adesso (ci vogliono almeno ' + preavviso + ' minuti di preavviso). Riprova tra poco.</p>'
-        : fasceHtml}
+      <div id="navetta-resto-form" style="display:none">
+        ${sp ? `<div class="chip-spiaggia">☂ ${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
+        <div class="field"><label>Nome e Cognome</label>
+          <input type="text" id="f-nome" value="${esc(p.nome)}"></div>
+        <div class="field"><label>Numero di telefono</label>
+          <input type="tel" id="f-telefono" value="${esc(p.telefono)}"></div>
+        <div class="field"><label>Alloggio</label>
+          <input type="text" id="f-alloggio" value="${esc(p.alloggio_nome)}"></div>
+        <div class="field"><label>Spiaggia</label>
+          <select id="f-spiaggia">${opzioniSpiaggia}</select></div>
 
-      <div class="errbox" id="errbox"></div>
-      <button type="button" class="submit" id="btn-invia" onclick="invia()" ${nessunoPrenotabile ? 'disabled' : ''}>Prenota il rientro</button>
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px">Orario</label>
+        ${nessunoPrenotabile
+          ? '<p class="hint">Nessun orario disponibile adesso (ci vogliono almeno ' + preavviso + ' minuti di preavviso). Riprova tra poco.</p>'
+          : fasceHtml}
+
+        <div class="errbox" id="errbox"></div>
+        <button type="button" class="submit" id="btn-invia" onclick="invia()" ${nessunoPrenotabile ? 'disabled' : ''}>Prenota il rientro</button>
+      </div>
     </div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
+  renderStatoRichieste();
+  avviaPollingStato();
+}
+
+function onAutistaScelto() {
+  $('#navetta-resto-form').style.display = 'block';
 }
 
 function scegliOrario(ora) {
@@ -316,7 +379,8 @@ async function invia() {
   const telefono = $('#f-telefono').value.trim();
   const alloggio = $('#f-alloggio').value.trim();
   const spiaggia = $('#f-spiaggia').value.trim();
-  const autista = $('#f-autista').value.trim();
+  const autistaRaw = $('#f-autista').value.trim();
+  const autista = autistaRaw === '__chiunque__' ? '' : autistaRaw;
 
   if (!nome || !telefono) {
     box.textContent = 'Compila nome e telefono.';
@@ -342,6 +406,10 @@ async function invia() {
     });
     const d = await r.json();
     if (d.ok) {
+      CFG.navetta_oggi = (CFG.navetta_oggi || []).concat([
+        { id: d.id, orario: orarioScelto, stato: 'in_attesa', autista_nome: autista },
+      ]);
+      renderStatoRichieste();
       $('#navetta-form-card').style.display = 'none';
       const conferma = $('#navetta-conferma-card');
       conferma.style.display = 'block';

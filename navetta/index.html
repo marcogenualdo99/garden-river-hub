@@ -111,6 +111,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .btn-pill.primary  { background: var(--green-700); color: #fff; }
 .btn-pill.blue     { background: var(--blue);      color: #fff; }
 .btn-pill.amber    { background: var(--amber);     color: #fff; }
+.btn-pill.red      { background: var(--red);       color: #fff; }
 .btn-pill.ghost    { background: var(--gray-100);   color: var(--gray-700); flex: 0 0 auto; width: 44px; min-width: 0; }
 
 /* ══ EMPTY STATE ═══════════════════════════════════════════════════════════ */
@@ -350,7 +351,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
   <div class="modal-box">
     <div class="modal-title">Autisti in servizio</div>
     <div class="modal-body" style="color:var(--gray-700);white-space:normal">
-      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">Chi è segnato attivo compare nel menu "Autista" che l'ospite vede quando prenota il rientro.</p>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">Tutti gli autisti qui sotto compaiono nel menu "Autista" che l'ospite vede quando prenota il rientro.</p>
       <div id="autisti-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
       <div class="mod-field" style="display:flex;gap:8px;margin-bottom:0">
         <input id="nuovo-autista-nome" placeholder="Nome autista" style="flex:1">
@@ -429,7 +430,7 @@ let currentFilter    = 'tutte';
 let _firstDataLoad   = true;
 let _countdownTimer  = null;
 let spiaggeList      = [];   // [{id, nome}] — da beach_spiagge, sola lettura
-let autistiList       = [];  // [{id, nome, attivo}] — da navetta_autisti
+let autistiList       = [];  // [{id, nome}] — da navetta_autisti, sempre tutti disponibili
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
@@ -681,9 +682,10 @@ function corsaCardHtml(c) {
 
   let azioni = '';
   if (c.stato === 'in_attesa') {
-    azioni = `<button class="btn-pill blue" onclick="cambiaStato('${c.id}','accettata')">Accetta</button>`;
+    azioni = `<button class="btn-pill blue" onclick="cambiaStato('${c.id}','accettata')">Accetta</button>
+      <button class="btn-pill red" onclick="cambiaStato('${c.id}','annullata')">Rifiuta</button>`;
   } else if (c.stato === 'accettata') {
-    azioni = `<button class="btn-pill primary" onclick="cambiaStato('${c.id}','completata')">Conferma</button>`;
+    azioni = `<button class="btn-pill primary" onclick="cambiaStato('${c.id}','completata')">Ritiro effettuato</button>`;
   } else {
     azioni = `<button class="btn-pill amber" onclick="cambiaStato('${c.id}','in_attesa')">Riapri</button>`;
   }
@@ -816,7 +818,6 @@ function renderAutistiModal() {
   wrap.innerHTML = ordinati.map(a => `
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)">
       <span style="flex:1;font-size:14px;font-weight:700;color:var(--gray-900)">${escHtml(a.nome || '')}</span>
-      <button type="button" class="btn-pill ${a.attivo !== false ? 'primary' : 'ghost'}" style="width:auto;flex:none;padding:0 14px;height:34px;font-size:12.5px" onclick="toggleAutistaAttivo('${a.id}', ${a.attivo === false})">${a.attivo !== false ? 'In servizio' : 'Fuori servizio'}</button>
       <button type="button" class="btn-pill ghost" style="width:34px;height:34px" title="Rimuovi" onclick="rimuoviAutista('${a.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -828,15 +829,9 @@ async function aggiungiAutista() {
   if (!nome) { showToast('Scrivi un nome'); return; }
   try {
     const { db, collection, addDoc } = window._fb;
-    await addDoc(collection(db, 'navetta_autisti'), { nome, attivo: true });
+    await addDoc(collection(db, 'navetta_autisti'), { nome });
     input.value = '';
   } catch(e) { console.error('Errore aggiunta autista:', e); showToast('Errore salvataggio'); }
-}
-async function toggleAutistaAttivo(id, nuovoAttivo) {
-  try {
-    const { db, doc, updateDoc } = window._fb;
-    await updateDoc(doc(db, 'navetta_autisti', id), { attivo: nuovoAttivo });
-  } catch(e) { console.error('Errore aggiornamento autista:', e); showToast('Errore salvataggio'); }
 }
 async function rimuoviAutista(id) {
   try {
@@ -854,7 +849,7 @@ function apriNuovaCorsaModal() {
   document.getElementById('nc-telefono').value = '';
   document.getElementById('nc-alloggio').value = '';
   document.getElementById('nc-spiaggia').innerHTML = opzioniSelect(spiaggeList, '— Nessuna —');
-  document.getElementById('nc-autista').innerHTML = opzioniSelect(autistiList.filter(a => a.attivo !== false), '— Chiunque disponibile —');
+  document.getElementById('nc-autista').innerHTML = opzioniSelect(autistiList, '— Chiunque disponibile —');
   document.getElementById('nc-orario').value = '';
   document.getElementById('nuova-corsa-modal-overlay').classList.remove('hidden');
 }
