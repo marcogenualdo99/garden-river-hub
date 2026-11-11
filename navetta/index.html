@@ -393,7 +393,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       <div class="mod-field"><label>Telefono</label><input id="nc-telefono"></div>
       <div class="mod-field"><label>Alloggio</label><input id="nc-alloggio"></div>
       <div class="mod-field"><label>Spiaggia</label><select id="nc-spiaggia"><option value="">—</option></select></div>
-      <div class="mod-field"><label>Autista</label><select id="nc-autista"><option value="">— Chiunque disponibile —</option></select></div>
+      <div class="mod-field"><label>Autista</label><select id="nc-autista"><option value="">— Scegli l'autista —</option></select></div>
       <div class="mod-field"><label>Orario</label><input id="nc-orario" placeholder="HH:MM"></div>
     </div>
     <div class="modal-actions">
@@ -459,8 +459,8 @@ function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
 // ── AUTISTA ↔ OPERATORE ──────────────────────────────────────────────────
 // L'operatore che ha aperto la Navetta e' un autista se il suo nome coincide
 // con uno di navetta_autisti (nome intero, oppure solo il nome di battesimo).
-// Un autista vede solo le corse assegnate a lui o ancora libere ("chiunque
-// disponibile"): cosi' due autisti non vanno per errore dalla stessa famiglia.
+// Un autista vede solo le corse assegnate a lui (e le vecchie corse senza
+// autista): cosi' due autisti non vanno per errore dalla stessa famiglia.
 // Amministratori e operatori che non sono autisti (reception) vedono tutto.
 const _nn = v => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
 function autistaCorrente() {
@@ -959,7 +959,7 @@ function apriNuovaCorsaModal() {
   document.getElementById('nc-telefono').value = '';
   document.getElementById('nc-alloggio').value = '';
   document.getElementById('nc-spiaggia').innerHTML = opzioniSelect(spiaggeList, '— Nessuna —');
-  document.getElementById('nc-autista').innerHTML = opzioniSelect(autistiList, '— Chiunque disponibile —');
+  document.getElementById('nc-autista').innerHTML = opzioniSelect(autistiList, '— Scegli l\'autista —');
   document.getElementById('nc-orario').value = '';
   document.getElementById('nuova-corsa-modal-overlay').classList.remove('hidden');
 }
@@ -971,6 +971,7 @@ async function creaNuovaCorsa() {
   const telefono = document.getElementById('nc-telefono').value.trim();
   const orario = document.getElementById('nc-orario').value.trim();
   if (!nome || !telefono) { showToast('Servono nome e telefono'); return; }
+  if (autistiList.length && !document.getElementById('nc-autista').value) { showToast('Scegli l\'autista'); return; }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(orario)) { showToast('Orario non valido (usa HH:MM)'); return; }
   if (corsaDuplicata(nome, telefono, orario)) {
     showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;

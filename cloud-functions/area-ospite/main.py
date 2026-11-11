@@ -217,7 +217,7 @@ def _spiagge_disponibili(db):
 def _autisti_elenco(db):
     """Autisti configurati (collezione navetta_autisti, gestita dalla
     dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
-    giorno per giorno. Il cliente può sempre lasciare 'chiunque disponibile'."""
+    giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
     try:
         return [
             {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
@@ -492,7 +492,16 @@ def _azione_navetta_prenota(db, origin, data):
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
     alloggio_nome = _s(data.get('alloggio_nome')) or _s(p.get('alloggio_nome'))
     spiaggia_nome = _s(data.get('spiaggia_nome'))
-    autista_nome = _s(data.get('autista_nome'))  # facoltativo: il cliente lo sceglie se lo sa
+    # Ogni corsa ha un autista preciso, scelto dal cliente tra quelli configurati
+    # (nessuna assegnazione 'a caso'). Se non e' stato configurato nessun autista
+    # la corsa resta senza.
+    autisti = [a['nome'] for a in _autisti_elenco(db)]
+    autista_nome = ''
+    if autisti:
+        scelto = _norm_nome(_s(data.get('autista_nome')))
+        autista_nome = next((n for n in autisti if _norm_nome(n) == scelto), '') if scelto else ''
+        if not autista_nome:
+            return _json(origin, {'ok': False, 'errore': 'autista_obbligatorio'}, 400)
     if not nome or not telefono:
         return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
 

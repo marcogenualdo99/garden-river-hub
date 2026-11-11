@@ -111,7 +111,6 @@
   .driver-card .dv-check svg { width: 15px; height: 15px }
   .driver-card.selected { border-color: var(--green-700); background: var(--green-50) }
   .driver-card.selected .dv-check { display: flex }
-  .driver-card.qualsiasi .dv-avatar { background: var(--gray-100); color: var(--gray-500) }
 
   .chip-spiaggia { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-bg); color: var(--blue);
     border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 700; margin-bottom: 10px }
@@ -239,7 +238,7 @@ const FOTO_HOME = 'img/home.jpg';
 let CFG = null;
 let CONTENUTI = { testi: {}, foto: {} };
 let orarioScelto = null;
-let autistaScelto = null;       // null = non scelto; '' = chiunque; altrimenti nome
+let autistaScelto = null;       // null = non ancora scelto; altrimenti il nome dell'autista
 let _servizioAperto = null;
 let _editId = null;             // corsa di cui si sta cambiando l'orario
 let _editOrario = null;
@@ -639,10 +638,9 @@ function avviaAggiornamentoStato() {
   window.addEventListener('online', () => aggiornaStato(false));
 }
 
-function cardAutistaHtml(id, nome, foto, qualsiasi) {
-  const avatar = qualsiasi ? ICONS.USER
-    : foto ? '' : esc(nome.trim().slice(0, 1).toUpperCase());
-  return `<button type="button" class="driver-card${qualsiasi ? ' qualsiasi' : ''}" data-id="${esc(id)}" onclick="scegliAutista('${esc(id)}')">
+function cardAutistaHtml(id, nome, foto) {
+  const avatar = foto ? '' : esc(nome.trim().slice(0, 1).toUpperCase());
+  return `<button type="button" class="driver-card" data-id="${esc(id)}" onclick="scegliAutista('${esc(id)}')">
     <span class="dv-check">${ICONS.CHECK}</span>
     <span class="dv-avatar"${foto ? ` style="background-image:url('${esc(foto)}')"` : ''}>${avatar}</span>
     <span class="dv-nome">${esc(nome)}</span></button>`;
@@ -654,7 +652,7 @@ function renderNavetta() {
   const spiagge = CFG.spiagge || [];
   const preavviso = CFG.preavviso_minimo_minuti || 0;
   const nessunoPrenotabile = slotsFasce().every(({ slot }) => slot.every(ora => !slotLibero(ora)));
-  orarioScelto = null; autistaScelto = '';
+  orarioScelto = null; autistaScelto = null;
 
   // Nome, telefono e alloggio arrivano gia' dalla prenotazione: si chiedono
   // solo se mancano. La spiaggia solo se non e' gia' assegnata dal Calendario.
@@ -663,8 +661,7 @@ function renderNavetta() {
     .concat(spiagge.map(s => `<option value="${esc(s.nome)}">${esc(s.nome)}</option>`)).join('');
 
   const autisti = CFG.autisti || [];
-  const cardAutisti = cardAutistaHtml('__chiunque__', 'Chiunque disponibile', '', true)
-    + autisti.map(a => cardAutistaHtml(a.id, a.nome, a.foto, false)).join('');
+  const cardAutisti = autisti.map(a => cardAutistaHtml(a.id, a.nome, a.foto)).join('');
 
   const fasceTesto = (CFG.fasce || []).map(f => `dalle ${esc(f.dal)} alle ${esc(f.al)}`).join(' e ');
   const introNavetta = CONTENUTI.testi.navetta_testo
@@ -684,9 +681,9 @@ function renderNavetta() {
         ? `<p class="hint" style="margin-top:10px">Non ci sono più orari disponibili adesso (servono almeno ${preavviso} minuti di preavviso). Riprova tra poco.</p>`
         : `<div style="margin-top:6px">${gridSlotHtml(null, 'scegliOrario')}</div>`}
 
-      <h2 style="margin-top:26px">Con quale autista?</h2>
-      <p class="hint" style="margin-bottom:12px">Se non hai preferenze, lascia "Chiunque disponibile".</p>
-      <div class="driver-grid" id="driver-grid">${cardAutisti}</div>
+      ${autisti.length ? `<h2 style="margin-top:26px">Quale autista vuoi?</h2>
+      <p class="hint" style="margin-bottom:12px">Tocca la foto o il nome dell'autista che ti verrà a prendere.</p>
+      <div class="driver-grid" id="driver-grid">${cardAutisti}</div>` : ''}
       <div class="sugg-autista" id="sugg-autista" style="display:none"></div>
 
       ${serveTelefono ? `<div class="field" style="margin-top:20px"><label>Il tuo numero di telefono</label>
@@ -699,7 +696,7 @@ function renderNavetta() {
     </div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
-  scegliAutista('__chiunque__');
+  if (autisti.length === 1) scegliAutista(autisti[0].id);   // un solo autista: nessuna scelta da fare
   aggiornaGriglieSlot();
   aggiornaBottone();
   renderStatoRichieste();
@@ -708,17 +705,21 @@ function renderNavetta() {
 function aggiornaBottone() {
   const btn = $('#btn-invia');
   if (!btn || _invioInCorso) return;
-  btn.disabled = !orarioScelto;
-  btn.textContent = orarioScelto ? `Prenota il rientro alle ${orarioScelto}` : 'Scegli prima un orario';
+  const serveAutista = (CFG.autisti || []).length > 0 && !autistaScelto;
+  btn.disabled = !orarioScelto || serveAutista;
+  btn.textContent = !orarioScelto ? 'Scegli prima un orario'
+    : serveAutista ? 'Scegli l\'autista'
+    : `Prenota il rientro alle ${orarioScelto}`;
 }
 
 function scegliAutista(id) {
-  autistaScelto = id === '__chiunque__' ? '' : ((CFG.autisti || []).find(a => a.id === id) || {}).nome || '';
+  autistaScelto = ((CFG.autisti || []).find(a => a.id === id) || {}).nome || null;
   document.querySelectorAll('#driver-grid .driver-card').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
   chiudiSuggerimento();
   const oraPrima = orarioScelto;
   aggiornaGriglieSlot();                       // l'autista nuovo puo' essere impegnato ad altre ore
   if (oraPrima && autistaOccupato(oraPrima, autistaScelto)) proponiCambioAutista(oraPrima);
+  aggiornaBottone();
 }
 
 function scegliOrario(ora) {
@@ -740,6 +741,11 @@ async function invia() {
   const alloggio = (p.alloggio_nome || '').trim();
   const spiaggia = CFG.spiaggia ? (CFG.spiaggia.spiaggia_nome || '') : ($('#f-spiaggia') ? $('#f-spiaggia').value.trim() : '');
   const autista = autistaScelto || '';
+  if (!autista && (CFG.autisti || []).length) {
+    box.textContent = 'Scegli l\'autista.';
+    box.style.display = 'block';
+    return;
+  }
 
   if (!telefono) {
     box.textContent = 'Scrivi il tuo numero di telefono, così l\'autista può chiamarti.';
@@ -788,6 +794,7 @@ async function invia() {
       : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
       : d.errore === 'autista_occupato' ? 'L\'autista scelto è appena stato prenotato a quell\'ora. Controlla la proposta qui sopra.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta attiva a quest\'orario. Scegline un altro oppure cambia quella esistente.'
+      : d.errore === 'autista_obbligatorio' ? 'Scegli l\'autista.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : 'Invio non riuscito. Riprova.';
     box.style.display = 'block';
