@@ -659,6 +659,27 @@ function renderStatoRichieste() {
   hydrateIcons(wrap);
 }
 
+// Una sola corsa attiva per volta: finche' quella di oggi e' in attesa o
+// confermata il modulo di prenotazione resta nascosto; quando il ritiro e'
+// completato (o la corsa annullata) ricompare, pulito.
+function corsaAttivaOggi() {
+  return (CFG.navetta_corse || []).find(c => c.data === oggiData() && (c.stato === 'in_attesa' || c.stato === 'accettata')) || null;
+}
+let _formNascosto = false;
+function aggiornaFormNavetta() {
+  const form = $('#navetta-form-card');
+  if (!form) return;
+  const blocco = $('#navetta-blocco'), conf = $('#navetta-conferma-card');
+  if (corsaAttivaOggi()) {
+    _formNascosto = true;
+    form.style.display = 'none';
+    blocco.style.display = conf.style.display === 'block' ? 'none' : 'block';
+  } else if (_formNascosto) {
+    _formNascosto = false;
+    renderNavetta();                          // ricomincia da capo
+  }
+}
+
 function apriCambioOrario(id) { _editId = id; _editOrario = null; renderStatoRichieste(); }
 function chiudiCambioOrario() { _editId = null; _editOrario = null; renderStatoRichieste(); }
 function scegliOrarioNuovo(ora) {
@@ -708,6 +729,7 @@ async function aggiornaStato(forza) {
       aggiornaGriglieSlot();                  // gli orari presi da altri ospiti si spengono subito
       if (_editId && !forza) return;          // non interrompere chi sta scegliendo
       renderStatoRichieste();
+      aggiornaFormNavetta();
       if (!_servizioAperto) renderHome();
     }
   } catch (e) { /* silenzioso: riprova al giro successivo */ }
@@ -806,12 +828,15 @@ function renderNavetta() {
         <button type="button" class="submit" id="btn-invia" onclick="invia()">Conferma la prenotazione</button>
       </div>
     </div>
+    <div class="card" id="navetta-blocco" style="display:none"><h2>Hai già una corsa prenotata</h2>
+      <p class="hint" style="font-size:16px;line-height:1.5">Puoi avere una sola prenotazione per volta. Quando il ritiro sarà completato potrai prenotarne un'altra.</p></div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
   if (spiaggiaNota) scegliSpiaggia(spiaggiaNota, true);   // gia' assegnata dal Calendario: preselezionata
   aggiornaGriglieSlot();
   aggiornaBottone();
   renderStatoRichieste();
+  if (corsaAttivaOggi()) { _formNascosto = true; $('#navetta-form-card').style.display = 'none'; $('#navetta-blocco').style.display = 'block'; }
 }
 
 // Percorso guidato: i passi successivi compaiono man mano che si sceglie.
@@ -953,17 +978,18 @@ async function invia() {
           <p style="font-size:16px;line-height:1.5">${autista ? `<b>${esc(autista)}</b> verrà` : 'Un autista verrà'} a prendere ${_perPers(persone)} in spiaggia a quest'ora. Se ti serve, puoi cambiare l'orario fino a ${preavvisoModifica()} minuti prima.</p>
           ${puntoRitiroHtml(spiaggia)}
         </div>
-        <button type="button" class="btn-secondary" onclick="renderNavetta()">Prenota un altro orario</button>
       `;
+      aggiornaFormNavetta();
       return;
     }
-    if (['orario_occupato', 'corsa_duplicata', 'autista_occupato', 'posti_insufficienti'].includes(d.errore)) aggiornaStato(true).then(() => { if (d.errore === 'autista_occupato' || d.errore === 'posti_insufficienti') proponiCambioAutista(orarioScelto || orarioTentato); });
+    if (['orario_occupato', 'corsa_duplicata', 'corsa_attiva', 'autista_occupato', 'posti_insufficienti'].includes(d.errore)) aggiornaStato(true).then(() => { if (d.errore === 'autista_occupato' || d.errore === 'posti_insufficienti') proponiCambioAutista(orarioScelto || orarioTentato); });
     box.textContent = d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
       : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
       : d.errore === 'autista_occupato' || d.errore === 'posti_insufficienti' ? 'Nel frattempo i posti su quell\'orario sono cambiati. Controlla la proposta qui sopra.'
       : d.errore === 'spiaggia_obbligatoria' ? 'Scegli la spiaggia da cui devono venirti a prendere.'
       : d.errore === 'persone_non_valide' ? 'Scegli quante persone siete.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta attiva a quest\'orario. Scegline un altro oppure cambia quella esistente.'
+      : d.errore === 'corsa_attiva' ? 'Hai già una corsa prenotata. Potrai prenotarne un\'altra quando il ritiro sarà completato.'
       : d.errore === 'autista_obbligatorio' ? 'Scegli l\'autista.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : 'Invio non riuscito. Riprova.';

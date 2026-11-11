@@ -476,15 +476,19 @@ def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_i
     """None se l'orario e' libero per questa persona e per questo gruppo,
     altrimenti il codice d'errore: 'corsa_duplicata' (la stessa persona e'
     gia' in una corsa a quell'ora: stessa prenotazione, telefono o nome);
+    'corsa_attiva' (ha gia' una corsa attiva: ne serve una sola per volta);
     'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
     (l'autista scelto non puo' prendere il gruppo, per posti o perche' va a
     un'altra spiaggia, ma un collega si); 'posti_insufficienti' (nessun
     autista puo' prendere il gruppo)."""
     n, t = _norm_nome(nome), _norm_tel(telefono)
     stessa_ora = [x for i, x in attive if i != escludi_id and x.get('orario') == orario]
-    for x in stessa_ora:
-        if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
-            return 'corsa_duplicata'
+    # Un cliente ha una sola corsa attiva per volta (in attesa o confermata):
+    # potra' prenotarne un'altra quando il ritiro risulta completato.
+    sue = [x for i, x in attive if i != escludi_id
+           and (x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n))]
+    if sue:
+        return 'corsa_duplicata' if escludi_id else 'corsa_attiva'
     if _puo_ospitare(stessa_ora, cfg, autista, spiaggia, persone):
         return None
     if any(_puo_ospitare(stessa_ora, cfg, a, spiaggia, persone) for a in cfg['autisti']):
