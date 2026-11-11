@@ -29,6 +29,11 @@
     background: linear-gradient(180deg, rgba(154,56,14,.40) 0%, rgba(120,45,12,.88) 100%); }
   header.top .inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; width: 100% }
   header.top .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px }
+  header.top .info-btn { margin-left: auto; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
+  header.top .info-btn svg { width: 18px; height: 18px }
+  header.top .info-btn:active { background: rgba(255,255,255,.25) }
   header.top .avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--green-700) }
   header.top .brand { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85 }
@@ -81,6 +86,39 @@
   .soon-box .ico { width: 44px; height: 44px; margin: 0 auto 10px; color: var(--green-500) }
   .soon-box h3 { font-size: 15px; font-weight: 800; color: var(--gray-700); margin-bottom: 4px }
   .soon-box p { font-size: 12.5px; color: var(--gray-500) }
+
+  .info-list { display: flex; flex-direction: column }
+  .info-row { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: none;
+    text-align: left; padding: 14px 2px; border-bottom: 1px solid var(--gray-100); cursor: pointer;
+    font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+  .info-row:last-child { border-bottom: none }
+  .info-row:active { background: var(--gray-50) }
+  .info-row .emoji { font-size: 19px; flex-shrink: 0 }
+  .info-row .titolo { flex: 1; font-size: 14.5px; font-weight: 700; color: var(--gray-900) }
+  .info-row svg { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0 }
+  .info-body { font-size: 14px; color: var(--gray-700); line-height: 1.6 }
+  .info-body h3 { font-size: 14px; font-weight: 800; color: var(--gray-900); margin: 18px 0 4px }
+  .info-body h3:first-child { margin-top: 0 }
+  .info-body p { margin: 0 0 8px }
+  .info-body ul { margin: 2px 0 10px; padding-left: 18px }
+  .info-body li { margin-bottom: 6px }
+  .info-body a { color: var(--green-700); font-weight: 700; text-decoration: none }
+
+  .info-kv { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--gray-100); font-size: 14px }
+  .info-kv:last-child { border-bottom: none }
+  .info-kv span { color: var(--gray-500) }
+  .info-kv strong { color: var(--gray-900); font-weight: 700; text-align: right }
+  .conto-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--gray-100); font-size: 13.5px; color: var(--gray-700) }
+  .conto-row:last-child { border-bottom: none }
+  .conto-row em { font-style: normal; color: var(--gray-500); font-size: 12px }
+  .conto-tot { display: flex; justify-content: space-between; align-items: center;
+    padding-top: 10px; margin-top: 8px; border-top: 1.5px solid var(--gray-200);
+    font-size: 14.5px; font-weight: 800; color: var(--gray-900) }
+  .conto-tot.esito { margin-top: 2px; border-top: none; padding-top: 2px }
+  .conto-tot.esito.ok strong { color: var(--green-700) }
+  .conto-tot.esito.warn strong { color: var(--red) }
 
   .field { margin-bottom: 12px }
   .field label, .lbl { display: block; font-size: 15px; font-weight: 700; color: var(--gray-700); margin-bottom: 5px }
@@ -239,6 +277,7 @@
       <div class="topbar">
         <div class="avatar" id="avatar"></div>
         <div class="brand">Garden River</div>
+        <button type="button" class="info-btn" onclick="apriPrenotazioneInfo()" aria-label="I tuoi dati e il conto"><span data-icon="INFO"></span></button>
       </div>
       <h1 id="titolo">Area ospite</h1>
       <div class="sub" id="sottotitolo"></div>
@@ -250,7 +289,7 @@
       <div class="service-grid" id="service-grid"></div>
     </div>
     <div id="service-view" style="display:none">
-      <button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna alla home</button>
+      <button type="button" class="home-back-btn" onclick="handleBack()"><span data-icon="BACK"></span>Torna alla home</button>
       <div id="service-content"></div>
     </div>
 
@@ -279,6 +318,7 @@ let personeScelte = null;
 let spiaggiaScelta = '';
 let autistaScelto = null;       // null = non ancora scelto; altrimenti il nome dell'autista
 let _servizioAperto = null;
+let _infoSub = null;            // sotto-argomento aperto dentro "Info utili"
 let _editId = null;             // corsa di cui si sta cambiando l'orario
 let _editOrario = null;
 let _ultimoStato = '';
@@ -358,7 +398,7 @@ function mostraIntestazioneHome() {
 function haContenuto(id) {
   const t = CONTENUTI.testi;
   if (id === 'animazione') return !!(t.animazione_testo || CONTENUTI.foto.animazione_programma);
-  if (id === 'info') return !!t.info_testo;
+  if (id === 'info') return true;
   if (id === 'assistenza') return !!(t.assistenza_testo || t.assistenza_telefono);
   return true;
 }
@@ -390,6 +430,7 @@ function renderHome() {
 
 function apriServizio(id) {
   _servizioAperto = id;
+  _infoSub = null;
   const s = SERVIZI.find(x => x.id === id) || {};
   $('#home-view').style.display = 'none';
   $('#service-view').style.display = 'block';
@@ -401,12 +442,57 @@ function apriServizio(id) {
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
   if (id === 'animazione') return renderTesto(CONTENUTI.testi.animazione_titolo || 'Programma animazione', CONTENUTI.testi.animazione_testo, CONTENUTI.foto.animazione_programma, s);
-  if (id === 'info') return renderTesto('Informazioni utili', CONTENUTI.testi.info_testo, null, s);
+  if (id === 'info') return renderInfo();
   if (id === 'assistenza') return renderAssistenza(s);
 }
 
+// ── I tuoi dati e il conto (pulsante Info nell'header) ─────────────────────
+function fmtDataItEstesa(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
+}
+function apriPrenotazioneInfo() {
+  _servizioAperto = 'prenotazione';
+  _infoSub = null;
+  $('#home-view').style.display = 'none';
+  $('#service-view').style.display = 'block';
+  $('#titolo').textContent = 'I tuoi dati';
+  $('#sottotitolo').textContent = 'Prenotazione e conto';
+  impostaHero(CONTENUTI.foto.home || FOTO_HOME, true);
+  hydrateIcons($('#service-view'));
+  window.scrollTo(0, 0);
+  renderPrenotazioneInfo();
+}
+function renderPrenotazioneInfo() {
+  const p = CFG.prenotazione || {};
+  const c = CFG.conto || { voci: [], totale: 0, pagato: 0, da_pagare: 0 };
+  const righeHtml = c.voci.length
+    ? c.voci.map(r => `<div class="conto-row"><span>${esc(r.label || '—')}${r.acconto ? ' <em>(acconto)</em>' : ''}${r.pagato ? ' <em>· pagato</em>' : ''}</span><span>€ ${Math.abs(r.importo || 0).toFixed(2)}</span></div>`).join('')
+    : '<p class="hint">Il conto non è ancora disponibile.</p>';
+  const saldato = (c.da_pagare || 0) <= 0.004;
+  $('#service-content').innerHTML = `
+    <div class="card">
+      <h2>La tua prenotazione</h2>
+      <div class="info-kv"><span>Alloggio</span><strong>${esc(p.alloggio_nome || '—')}</strong></div>
+      <div class="info-kv"><span>Check-in</span><strong>${fmtDataItEstesa(p.checkin)}</strong></div>
+      <div class="info-kv"><span>Check-out</span><strong>${fmtDataItEstesa(p.checkout)}</strong></div>
+      <div class="info-kv"><span>Persone</span><strong>${p.persone_totali || '—'}</strong></div>
+    </div>
+    <div class="card">
+      <h2>Il tuo conto</h2>
+      <div class="conto-list" style="margin-top:6px">${righeHtml}</div>
+      ${c.voci.length ? `<div class="conto-tot"><span>Totale soggiorno</span><strong>€ ${c.totale.toFixed(2)}</strong></div>
+      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${saldato ? 'Saldato' : 'Da pagare'}</span><strong>${saldato ? '✓ Nessun residuo' : '€ ' + c.da_pagare.toFixed(2)}</strong></div>` : ''}
+    </div>`;
+}
+
+function handleBack() {
+  if (_servizioAperto === 'info' && _infoSub) { _infoSub = null; renderInfo(); window.scrollTo(0, 0); return; }
+  tornaHome();
+}
+
 function tornaHome() {
-  _servizioAperto = null; _editId = null;
+  _servizioAperto = null; _editId = null; _infoSub = null;
   document.body.classList.remove('risto-aperta');
   const bb = $('#service-view').querySelector('.home-back-btn'); if (bb) bb.style.display = '';
   $('#service-view').style.display = 'none';
@@ -426,6 +512,114 @@ function renderTesto(titolo, testo, immagine, s) {
     ${testo ? `<div class="testo" style="margin-top:8px">${esc(testo)}</div>` : ''}
     ${immagine ? `<img class="testo-img" src="${esc(immagine)}" alt="${esc(titolo)}">` : ''}</div>`;
 }
+// ── Info utili: sotto-argomenti (contenuti fissi, portati dal sito) ────────
+const INFO_TOPICS = [
+  { id: 'orari', emoji: '🕒', title: 'Orari e regole del villaggio', html: `
+    <h3>Check-in e check-out</h3>
+    <p>Check-in dalle 9:00 alle 21:00 (alloggio pronto dalle ore 16:00). Check-out entro le ore 10:00: prima di lasciare l'alloggio telefona in reception per concordare il controllo finale e lascia la biancheria usata in una federa fuori dalla porta.</p>
+    <h3>Orario del silenzio</h3>
+    <p>Dalle 14:00 alle 16:00 e dalle 24:00 alle 7:00.</p>
+    <h3>Wi-Fi</h3>
+    <p>Gratuito nelle aree comuni (Reception, Bar, Piscina, Ristorante, Teatro). Rete <strong>GardenRiver</strong>, password <strong>Altidona24</strong>. Negli alloggi la copertura non è garantita al 100%.</p>
+    <h3>Raccolta differenziata</h3>
+    <p>Rispetta la raccolta differenziata del villaggio. <a href="https://stay.gardenriver.it/source/Guida-raccolta-differenziata.pdf" target="_blank" rel="noopener">Scarica la guida</a>.</p>
+    <h3>Spiagge convenzionate</h3>
+    <ul>
+      <li><strong>Marina di Altidona – Puntarena</strong>: spiaggia di sassi, cani ammessi.</li>
+      <li><strong>Pedaso – Matepaya</strong>: spiaggia di sabbia riportata, cani non ammessi.</li>
+    </ul>
+    <p>Si prenotano in reception: dotazione standard 1 ombrellone e 2 lettini (lettini extra da richiedere e pagare direttamente in spiaggia).</p>
+    <p><a href="https://stay.gardenriver.it/source/regolamento.pdf" target="_blank" rel="noopener">Regolamento del villaggio</a></p>` },
+  { id: 'piscina', emoji: '🏊‍♂️', title: 'Piscina', html: `
+    <p>Due vasche: una per adulti, profonda fino a 180&nbsp;cm, e una per bambini con acquascivoli, alta 90&nbsp;cm. Wi-Fi gratuito in zona piscina.</p>
+    <h3>Orari di apertura</h3>
+    <ul>
+      <li>Mattina: 9:00 – 13:00</li>
+      <li>Pomeriggio: 15:30 – 19:00</li>
+    </ul>
+    <p>Fuori da questi orari l'accesso a vasca e solarium non è consentito.</p>
+    <h3>Chiosco bar a bordo vasca</h3>
+    <p>Aperto per colazione, gelati e cocktail senza allontanarti dall'acqua.</p>` },
+  { id: 'petfriendly', emoji: '🐕', title: 'Pet Friendly', html: `
+    <p>I cani di tutte le taglie sono benvenuti! Molti alloggi hanno verande con cancelletto o recintate. All'arrivo il tuo cane riceve un kit di benvenuto.</p>
+    <h3>Servizi dedicati</h3>
+    <ul>
+      <li><strong>Dog Park</strong>: area sgambamento recintata, il cane può correre libero senza guinzaglio.</li>
+      <li><strong>Dog Wash</strong>: zona lavaggio per rinfrescare il cane dopo spiaggia o parco.</li>
+    </ul>
+    <h3>Regole</h3>
+    <ul>
+      <li>Guinzaglio obbligatorio ovunque tranne nel Dog Park.</li>
+      <li>Cani non ammessi in piscina e nella sala interna del ristorante.</li>
+      <li>Porta sempre i sacchetti igienici e usa i cestini del villaggio.</li>
+    </ul>
+    <h3>Veterinario convenzionato</h3>
+    <p>Clinica Veterinaria Città di Fermo — Via Garda 1, 63813 Monte Urano (FM)<br><a href="tel:+390734224718">0734 224718</a></p>
+    <h3>Shop convenzionato</h3>
+    <p>Zampettando, Pedaso — prodotti, antiparassitari, lettiere e accessori per animali.</p>` },
+  { id: 'market', emoji: '🛒', title: 'Market', html: `
+    <p>Nel Market &amp; Bazar del villaggio trovi alimentari, bevande, prodotti per il mare e generi di prima necessità.</p>
+    <h3>Spesa a domicilio</h3>
+    <p>Ordina online e paga con carta: ti portiamo la spesa direttamente in alloggio, all'orario stabilito.</p>
+    <p><a class="link-btn" href="https://gardenriver.qromo.it/15046/" target="_blank" rel="noopener">Ordina online</a></p>` },
+  { id: 'lavanderia', emoji: '🧺', title: 'Lavanderia', html: `
+    <p>All'interno del villaggio trovi un'area lavanderia con lavatrici e asciugatrici a gettoni.</p>
+    <p>Per la posizione esatta consulta la <a href="https://stay.gardenriver.it/source/mappa.pdf" target="_blank" rel="noopener">mappa del villaggio</a>.</p>` },
+  { id: 'farmacia', emoji: '💊', title: 'Farmacia e Guardia medica', html: `
+    <h3>Farmacia Lunerti</h3>
+    <p>Via Del Molino 10, 63824 Marina di Altidona (FM) — aperta fino alle 20:00<br><a href="tel:+390734932180">0734 932180</a></p>
+    <h3>Farmacia Marconi Dr. Luigi</h3>
+    <p>Via Giacomo Leopardi 19, 63827 Pedaso (FM) — aperta fino alle 20:00<br><a href="tel:+390734931342">0734 931342</a></p>
+    <h3>Ospedale Augusto Murri</h3>
+    <p>Via Augusto Murri 21, 63900 Fermo (FM)</p>` },
+  { id: 'negozi', emoji: '🛍️', title: 'Negozi e servizi vicini', html: `
+    <h3>Salute e benessere</h3>
+    <ul><li><strong>Èlegance</strong> (parrucchiere) — 3 min in auto / 10-15 min a piedi. <a href="https://share.google/xLwZ5ffR23g0y8Sqt" target="_blank" rel="noopener">Indicazioni</a></li></ul>
+    <h3>Sportelli ATM</h3>
+    <ul>
+      <li><strong>Banca BCC</strong> — 3 min in auto. <a href="https://share.google/GiOKDVmffCU7VXFa8" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>BPER Banca</strong> (Pedaso) — 4 min in auto. <a href="https://share.google/5G4qswjxTTxg2fZ3I" target="_blank" rel="noopener">Indicazioni</a></li>
+    </ul>
+    <h3>Carburante e ricarica auto</h3>
+    <ul>
+      <li><strong>Distributore IP</strong> (Altidona) — 2 min in auto. <a href="https://share.google/ctD4IzLSRKKWHCWUY" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>Colonnine Enel X</strong> (Pedaso) — 3 min in auto. <a href="https://share.google/aCuKa0LaOP1A3D9U0" target="_blank" rel="noopener">Indicazioni</a></li>
+    </ul>
+    <h3>Supermercati</h3>
+    <ul>
+      <li><strong>Ditaly Supermercati</strong> (Altidona) — 1-2 min in auto. <a href="https://share.google/ld72DMVVMM6QSXi6B" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>Conad</strong> (Pedaso) — 3 min in auto. <a href="https://share.google/VoxAFn8hgQj5i3GOZ" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>Supermercato Tigre</strong> (Pedaso) — 4 min in auto. <a href="https://share.google/IkK6zeODBTImUp4sP" target="_blank" rel="noopener">Indicazioni</a></li>
+    </ul>
+    <h3>Tabaccheria</h3>
+    <ul>
+      <li><strong>Bar Hotel Caprice</strong> — 9 min a piedi. <a href="https://share.google/bCdmxOYelDcacn0dV" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>Bar Tabaccheria F.lli Antifono</strong> — 5 min in auto. <a href="https://share.google/IBGe3N3BTLTok84tY" target="_blank" rel="noopener">Indicazioni</a></li>
+      <li><strong>Bar Tabaccheria Edicola Aurora</strong> — 5-8 min in auto. <a href="https://share.google/ApAmgdELOV3YVEv20" target="_blank" rel="noopener">Indicazioni</a></li>
+    </ul>` },
+];
+
+function renderInfo() {
+  const panel = $('#service-content');
+  if (_infoSub === 'extra') {
+    panel.innerHTML = `<div class="card"><h2>Dalla reception</h2><div class="testo" style="margin-top:8px">${esc(CONTENUTI.testi.info_testo)}</div></div>`;
+    return;
+  }
+  if (_infoSub) {
+    const t = INFO_TOPICS.find(x => x.id === _infoSub);
+    panel.innerHTML = `<div class="card"><h2>${esc(t.title)}</h2><div class="info-body" style="margin-top:8px">${t.html}</div></div>`;
+    return;
+  }
+  const extra = CONTENUTI.testi.info_testo
+    ? `<button type="button" class="info-row" onclick="apriInfoSub('extra')"><span class="emoji">📌</span><span class="titolo">Dalla reception</span><span data-icon="CHEVRON"></span></button>`
+    : '';
+  panel.innerHTML = `<div class="card"><div class="info-list">${extra}` +
+    INFO_TOPICS.map(t => `<button type="button" class="info-row" onclick="apriInfoSub('${t.id}')"><span class="emoji">${t.emoji}</span><span class="titolo">${esc(t.title)}</span><span data-icon="CHEVRON"></span></button>`).join('') +
+    `</div></div>`;
+  hydrateIcons(panel);
+}
+function apriInfoSub(id) { _infoSub = id; renderInfo(); window.scrollTo(0, 0); }
+
 function renderAssistenza(s) {
   const t = CONTENUTI.testi;
   if (!t.assistenza_testo && !t.assistenza_telefono) { $('#service-content').innerHTML = boxPresto(s); return; }

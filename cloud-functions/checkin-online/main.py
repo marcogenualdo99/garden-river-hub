@@ -7,7 +7,9 @@ Il browser dell'ospite NON tocca mai Firestore o Storage: tutto passa da qui
 Azioni (campo "azione" nel corpo JSON):
   - carica : { token }
         -> riassunto sanificato della prenotazione + testi consenso + schede
-           ospite da compilare
+           ospite da compilare (il numero dell'alloggio e' nascosto fino al
+           giorno dopo il check-in, v. _alloggio_per_ospite: possono esserci
+           cambi fino all'arrivo)
   - invia  : { token, ospiti[], consensi{privacy,regolamento}, foto[] }
         -> valida, carica le foto documento su Storage, scrive `ospiti` e
            `checkin_online` sulla prenotazione, avvisa la reception via email
@@ -193,12 +195,22 @@ def _ospite_pubblico(o):
     return {k: v for k, v in o.items() if k not in fuori}
 
 
+def _alloggio_per_ospite(nome, checkin_iso, oggi_iso):
+    """Nome alloggio mostrato all'ospite: senza il numero finale finché non è
+    passato un giorno dall'arrivo (checkin) — in caso di cambi alloggio
+    dell'ultimo momento. Dal giorno dopo il check-in si vede il nome completo."""
+    if not nome or not checkin_iso or oggi_iso > checkin_iso:
+        return nome
+    return re.sub(r'\s+\S+$', '', nome)
+
+
 def _riassunto(p):
     co = (p.get('checkin_online') or {})
+    checkin = _s(p.get('checkin'))
     return {
         'nome':           _s(p.get('nome')),
-        'alloggio_nome':  _s(p.get('alloggio_nome')),
-        'checkin':        _s(p.get('checkin')),
+        'alloggio_nome':  _alloggio_per_ospite(_s(p.get('alloggio_nome')), checkin, _oggi_iso()),
+        'checkin':        checkin,
         'checkout':       _s(p.get('checkout')),
         'persone_attese': _persone_attese(p),
         'ospiti':         [_ospite_pubblico(o) for o in (p.get('ospiti') or [])],
@@ -352,7 +364,7 @@ def _notifica_reception(p, ospiti, pren_id):
 
 def _costruisci_invito(p, link):
     nome = (_s(p.get('nome')).split() or ['Gentile ospite'])[0]
-    alloggio = _s(p.get('alloggio_nome')) or 'il tuo alloggio'
+    alloggio = _alloggio_per_ospite(_s(p.get('alloggio_nome')), _s(p.get('checkin')), _oggi_iso()) or 'il tuo alloggio'
     ci, co = _fmt_data_it(p.get('checkin')), _fmt_data_it(p.get('checkout'))
     oggetto = 'Check-in online — Garden River'
     corpo = (

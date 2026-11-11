@@ -13,7 +13,12 @@ Firestore.
 
 Azioni (campo "azione" nel corpo JSON):
   - carica          : { token }
-        -> riepilogo sanificato della prenotazione (nome, telefono, alloggio)
+        -> riepilogo sanificato della prenotazione (nome, telefono, alloggio
+           — il numero dell'alloggio e' nascosto fino al giorno dopo il
+           check-in, v. _alloggio_per_ospite: possono esserci cambi fino
+           all'arrivo)
+           + il conto (voci, totale, pagato, residuo da pagare — da
+           prenotazione.conto.righe, scritto dal Calendario)
            + l'eventuale ombrellone/spiaggia già assegnati dal Calendario
            + l'elenco delle spiagge e degli autisti configurati (per i due
            menu a tendina) + l'eventuale accesso Ristorazione (famiglia/
@@ -333,6 +338,50 @@ def _inverti(testo):
     return ''.join(chr(ord('0') + 9 - int(ch)) if ch.isdigit() else ch for ch in (testo or ''))
 
 
+def _alloggio_per_ospite(nome, checkin_iso, oggi_iso):
+    """Nome alloggio mostrato all'ospite: senza il numero finale finché non è
+    passato un giorno dall'arrivo (checkin) — in caso di cambi alloggio
+    dell'ultimo momento. Dal giorno dopo il check-in si vede il nome completo.
+    Usato SOLO per quanto l'ospite legge a schermo: le azioni operative
+    (es. navetta) usano sempre il nome reale letto da Firestore."""
+    if not nome or not checkin_iso or oggi_iso > checkin_iso:
+        return nome
+    return re.sub(r'\s+\S+$', '', nome)
+
+
+def _conto_prenotazione(p):
+    """Riepilogo del conto per l'ospite (stesso calcolo di calcolaSaldoConto
+    in calendario/index.html): voci non-acconto fanno il totale del
+    soggiorno; le voci pagate e gli acconti riducono il residuo da pagare.
+    Il campo `conto.righe` vive sulla prenotazione stessa, scritto dal
+    Calendario — qui solo letto e sanificato, mai modificato."""
+    righe = (p.get('conto') or {}).get('righe') or []
+    totale = pagato_normale = acconti = 0.0
+    voci = []
+    for r in righe:
+        if not isinstance(r, dict):
+            continue
+        try:
+            importo = round(float(r.get('importo') or 0), 2)
+        except (TypeError, ValueError):
+            importo = 0.0
+        acconto = bool(r.get('acconto'))
+        pagato = bool(r.get('pagato'))
+        if acconto:
+            acconti += abs(importo)
+        else:
+            totale += importo
+            if pagato:
+                pagato_normale += importo
+        voci.append({'label': _s(r.get('label'), 160), 'importo': importo, 'pagato': pagato, 'acconto': acconto})
+    return {
+        'voci': voci,
+        'totale': round(totale, 2),
+        'pagato': round(pagato_normale + acconti, 2),
+        'da_pagare': round(totale - pagato_normale - acconti, 2),
+    }
+
+
 def _spiaggia_assegnata(db, pren_id):
     """Ombrellone/spiaggia già posizionati dal Calendario per questa
     prenotazione (collezione beach_prenotazioni, campo
@@ -559,10 +608,11 @@ def _azione_carica(db, origin, data):
             'nome_proprio':  _nome_proprio(p),
             'telefono':      _s(p.get('tel')),
             'persone_totali': _persone_prenotazione(p),
-            'alloggio_nome': _s(p.get('alloggio_nome')),
+            'alloggio_nome': _alloggio_per_ospite(_s(p.get('alloggio_nome')), _s(p.get('checkin'), 10), _oggi_iso()),
             'checkin':       _s(p.get('checkin')),
             'checkout':      _s(p.get('checkout')),
         },
+        'conto': _conto_prenotazione(p),
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id),
         'spiagge': _spiagge_disponibili(db),
         'autisti': _autisti_elenco(db),
@@ -615,7 +665,9 @@ def _azione_navetta_prenota(db, origin, data):
 
     nome = _s(data.get('nome')) or _s(p.get('nome'))
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
-    alloggio_nome = _s(data.get('alloggio_nome')) or _s(p.get('alloggio_nome'))
+    # Nome alloggio reale (mai quello eventualmente mascherato lato ospite):
+    # l'autista deve sapere l'unita' esatta a cui riportare il cliente.
+    alloggio_nome = _s(p.get('alloggio_nome'))
     # La spiaggia e' obbligatoria: l'autista deve sapere dove andare. Se il
     # Calendario ha gia' assegnato l'ombrellone si usa quella.
     assegnata = _spiaggia_assegnata(db, pren_ref.id)
