@@ -533,7 +533,18 @@ let weekDocsCache = {};     // 'sedeId|mese' -> array di doc presenze del mese
 let draftRighe  = {};       // { ordineId: { catId: n } }
 let draftMeta   = { chiuso:false, motivo:'', note:'', operatore:null, aggiornato_il:null, _exists:false };
 let dayLog      = [];
-let _savingPresenza = false;
+// Stato di salvataggio/lettura del giorno a schermo (v. sezione AUTOSAVE).
+let _dirty = false;          // ci sono modifiche non ancora scritte sul DB
+let _saveRunning = null;     // promise del salvataggio in corso
+let _saveAgain = false;
+let _version = 0;            // +1 a ogni modifica: capisce se ne arrivano durante un salvataggio
+let _renderSeq = 0;          // scarta i caricamenti superati da una navigazione più recente
+let _loadedKey = null;       // 'sedeId|data' del giorno letto correttamente dal DB
+let _loadError = false;      // la lettura del giorno è fallita: niente scritture
+let _renderedFirma = null;   // configurazione della sede con cui è disegnato il form
+let baselineRighe = {};      // cosa c'è sul DB (letto o scritto da noi) — base del confronto
+let baselineMeta  = { chiuso:false, motivo:'', note:'' };
+let _autosaveTimer = null, _retryTimer = null;
 
 // ── Stato scheda Report ────────────────────────────────────────────────────
 let reportView  = 'mese'; // 'mese' | 'anno'
@@ -770,7 +781,11 @@ function loadSedi() {
     populateSedeSelects();
     renderSediList();
     if (!selSedeId && sediList.length) { selSedeId = sediList.find(s=>s.attiva!==false)?.id || sediList[0].id; }
-    renderPresenzeTab();
+    // Ridisegna il giorno solo se serve (primo caricamento o cambia la configurazione
+    // della sede): un aggiornamento qualunque delle sedi non deve più toccare ciò che
+    // l'operatore sta scrivendo.
+    const sedeSel = sediList.find(s => s.id === selSedeId);
+    if (!sedeSel || _loadedKey !== sedeSel.id + '|' + selData || _renderedFirma !== firmaSede(sedeSel)) renderPresenzeTab();
   }, (err) => console.error('Errore sedi mensa:', err));
 }
 
@@ -891,30 +906,44 @@ function switchTab(id) {
 }
 
 // ── PRESENZE: selezione sede/giorno ──────────────────────────────────────
+// Ogni cambio di sede/giorno prima scrive le modifiche in sospeso (flush): prima
+// il timer di autosave partiva DOPO il cambio e salvava il giorno sbagliato,
+// oppure le modifiche venivano buttate via dal ricaricamento.
+async function navigaPresenze(mutate, rollback) {
+  await flushAutosave();
+  if (_dirty) {
+    showToast(draftMeta.chiuso && !(draftMeta.motivo||'').trim()
+      ? 'Indica il motivo della chiusura prima di cambiare giorno'
+      : 'Modifiche non ancora salvate: resto su questo giorno');
+    if (rollback) rollback();
+    return;
+  }
+  mutate();
+  await renderPresenzeTab();
+}
 function onSedeChange() {
-  selSedeId = document.getElementById('sel-sede-presenze').value;
-  weekDocsCache = {};
-  renderPresenzeTab();
+  const sel = document.getElementById('sel-sede-presenze');
+  const nuova = sel.value;
+  navigaPresenze(() => { selSedeId = nuova; weekDocsCache = {}; }, () => { sel.value = selSedeId; });
 }
 function onDateChange() {
-  const v = document.getElementById('inp-data-presenze').value;
-  if (v) selData = v;
-  renderPresenzeTab();
+  const inp = document.getElementById('inp-data-presenze');
+  const v = inp.value;
+  if (!v) return;
+  navigaPresenze(() => { selData = v; }, () => { inp.value = selData; });
 }
-function shiftGiorno(delta) {
-  selData = addDays(selData, delta);
-  renderPresenzeTab();
-}
-function shiftSettimana(delta) {
-  selData = addDays(selData, delta * 7);
-  renderPresenzeTab();
-}
-function vaiOggi() {
-  selData = todayStr();
-  renderPresenzeTab();
+function shiftGiorno(delta) { return navigaPresenze(() => { selData = addDays(selData, delta); }); }
+function shiftSettimana(delta) { return navigaPresenze(() => { selData = addDays(selData, delta * 7); }); }
+function vaiOggi() { return navigaPresenze(() => { selData = todayStr(); }); }
+
+function mostraErroreCaricamento() {
+  _loadError = true; _loadedKey = null;
+  document.getElementById('week-strip').innerHTML = '';
+  document.getElementById('presenze-body').innerHTML = `<div class="closed-banner">Non riesco a leggere i dati di questo giorno dal database. Per non rischiare di sovrascrivere quello che c'è già, la modifica è bloccata finché la lettura non riesce.<br><button class="rpt-btn primary" style="margin-top:12px" onclick="renderPresenzeTab()">Riprova</button></div>`;
 }
 
 async function renderPresenzeTab() {
+  const my = ++_renderSeq;
   const sel = document.getElementById('sel-sede-presenze');
   if (!selSedeId && sel.value) selSedeId = sel.value;
   if (sel.value !== selSedeId) sel.value = selSedeId || '';
@@ -930,12 +959,18 @@ async function renderPresenzeTab() {
   // I mesi coinvolti (giorno selezionato + inizio/fine della settimana mostrata)
   // sono al massimo 3: li carica tutti in parallelo invece che uno alla volta.
   const mesiNecessari = new Set([meseOf(selData), meseOf(monday), meseOf(addDays(monday, 6))]);
-  await Promise.all([...mesiNecessari].map(m => loadMeseDocs(selSedeId, m)));
+  const letture = await Promise.all([...mesiNecessari].map(m => loadMeseDocs(selSedeId, m)));
+  if (my !== _renderSeq) return;            // nel frattempo è partita un'altra navigazione
+  if (letture.some(l => l === null)) { mostraErroreCaricamento(); return; }
+  _loadError = false;
 
   renderWeekStrip(sede, monday);
-  await loadGiornoCorrente(sede);
+  await loadGiornoCorrente(sede, my);
 }
 
+// Se la lettura fallisce NON si mette in cache un mese vuoto (prima lo faceva:
+// il giorno compariva a zero anche se sul DB c'erano dati, e il salvataggio
+// successivo li sovrascriveva). Ritorna null = lettura fallita.
 async function loadMeseDocs(sedeId, mese) {
   const key = sedeId + '|' + mese;
   if (weekDocsCache[key]) return weekDocsCache[key];
@@ -945,7 +980,7 @@ async function loadMeseDocs(sedeId, mese) {
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     weekDocsCache[key] = docs;
     return docs;
-  } catch(e) { console.error('Errore caricamento presenze mese:', e); weekDocsCache[key] = []; return []; }
+  } catch(e) { console.error('Errore caricamento presenze mese:', e); return null; }
 }
 
 function findPresenzaDoc(sedeId, data) {
@@ -978,27 +1013,55 @@ function renderWeekStrip(sede, monday) {
   }
   wrap.innerHTML = html;
 }
-function selectGiorno(d) {
-  selData = d;
-  renderPresenzeTab();
-}
+function selectGiorno(d) { return navigaPresenze(() => { selData = d; }); }
 
-async function loadGiornoCorrente(sede) {
+function firmaSede(sede) {
+  return JSON.stringify([sede.ordini, sede.categorie_off, sede.giorni_servizio, sede.chiusure,
+    ORDINI.map(o => [o.id, o.nome, o.attivo]), CATEGORIE.map(c => [c.id, c.nome, c.attivo])]);
+}
+const _clone = o => JSON.parse(JSON.stringify(o));
+
+async function loadGiornoCorrente(sede, my) {
+  const key = sede.id + '|' + selData;
   const doc = findPresenzaDoc(sede.id, selData);
-  draftRighe = {};
+  const righe = {};
   ordiniAttiviSede(sede).forEach(o => {
-    draftRighe[o.id] = {};
-    categorieAttiveSede(sede).forEach(c => { draftRighe[o.id][c.id] = (doc && doc.righe && doc.righe[o.id] && doc.righe[o.id][c.id]) || 0; });
+    righe[o.id] = {};
+    categorieAttiveSede(sede).forEach(c => { righe[o.id][c.id] = Number(doc?.righe?.[o.id]?.[c.id]) || 0; });
   });
-  draftMeta = {
-    chiuso: !!(doc && doc.chiuso),
-    motivo: (doc && doc.motivo) || '',
-    note: (doc && doc.note) || '',
-    operatore: doc ? doc.operatore : null,
-    aggiornato_il: doc ? doc.aggiornato_il : null,
-    _exists: !!doc,
-  };
-  await loadDayLog(sede.id, selData);
+  const meta = { chiuso: !!doc?.chiuso, motivo: doc?.motivo || '', note: doc?.note || '' };
+  const log = await loadDayLog(sede.id, selData);
+  if (my !== _renderSeq) return;
+  dayLog = log;
+
+  if (_loadedKey === key) {
+    // Stesso giorno già a schermo. Se l'operatore sta modificando (o un salvataggio
+    // è in corso) la sua bozza NON va sovrascritta dai dati del server: prima ogni
+    // ricarico (focus finestra, watchdog, aggiornamento sedi) cancellava quello che
+    // stava scrivendo. Si aggiungono solo le celle che la bozza non ha ancora.
+    if (_dirty || _saveRunning) {
+      Object.keys(righe).forEach(o => Object.keys(righe[o]).forEach(c => {
+        if (draftRighe[o]?.[c] === undefined) { (draftRighe[o] ||= {})[c] = righe[o][c]; (baselineRighe[o] ||= {})[c] = righe[o][c]; }
+      }));
+      if (_renderedFirma !== firmaSede(sede)) renderOrdiniPresenzeBody();
+      else { const w = document.getElementById('day-log-wrap'); if (w) w.innerHTML = dayLogSectionHtml(); }
+      return;
+    }
+    // Nessuna novità rispetto a quanto già mostrato: non ricostruisco il form
+    // (niente sfarfallio, non si perde il cursore in un campo).
+    if (JSON.stringify(righe) === JSON.stringify(baselineRighe) && meta.chiuso === baselineMeta.chiuso &&
+        meta.motivo === baselineMeta.motivo && meta.note === baselineMeta.note && _renderedFirma === firmaSede(sede)) {
+      const w = document.getElementById('day-log-wrap'); if (w) w.innerHTML = dayLogSectionHtml();
+      return;
+    }
+  }
+
+  draftRighe = _clone(righe);
+  baselineRighe = _clone(righe);
+  baselineMeta = { ...meta };
+  draftMeta = { ...meta, operatore: doc ? doc.operatore : null, aggiornato_il: doc ? doc.aggiornato_il : null, _exists: !!doc };
+  _loadedKey = key;
+  _dirty = false;
   renderOrdiniPresenzeBody();
 }
 
@@ -1006,18 +1069,23 @@ async function loadDayLog(sedeId, data) {
   const { db, collection, query, where, getDocs } = window._fb;
   try {
     const snap = await getDocs(query(collection(db, 'mense_log'), where('sedeId','==',sedeId), where('data','==',data)));
-    dayLog = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => {
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => {
       const ta = a.quando && a.quando.toMillis ? a.quando.toMillis() : 0;
       const tb = b.quando && b.quando.toMillis ? b.quando.toMillis() : 0;
       return tb - ta;
     });
-  } catch(e) { console.error('Errore log giorno:', e); dayLog = []; }
+  } catch(e) { console.error('Errore log giorno:', e); return []; }
 }
 
 function renderOrdiniPresenzeBody() {
   const wrap = document.getElementById('presenze-body');
   const sede = sediList.find(s => s.id === selSedeId);
   if (!sede) { wrap.innerHTML = ''; return; }
+  if (_loadError) return;
+  // Finché il giorno non è stato letto dal DB il form non si mostra: scrivere
+  // in un form "vuoto" e poi veder arrivare i dati veri cancellava quanto digitato.
+  if (_loadedKey !== sede.id + '|' + selData) { wrap.innerHTML = '<p class="perm-hint">Caricamento…</p>'; return; }
+  _renderedFirma = firmaSede(sede);
   const ordini = ordiniAttiviSede(sede);
   const cats = categorieAttiveSede(sede);
 
@@ -1058,7 +1126,7 @@ function renderOrdiniPresenzeBody() {
           <div class="cat-name">${escHtml(c.nome)}</div>
           <div class="cat-counter">
             <button class="cnt-btn" id="minus-${o.id}-${c.id}" onclick="incCounter('${o.id}','${c.id}',-1)" ${v<=0?'disabled':''} aria-label="Diminuisci ${escHtml(c.nome)}">−</button>
-            <input type="number" inputmode="numeric" min="0" class="cnt-input" id="val-${o.id}-${c.id}" value="${v}" onfocus="this.select()" onchange="setCounterValue('${o.id}','${c.id}', this.value)" aria-label="${escHtml(c.nome)}">
+            <input type="number" inputmode="numeric" min="0" class="cnt-input" id="val-${o.id}-${c.id}" value="${v}" onfocus="this.select()" oninput="onCounterInput('${o.id}','${c.id}', this)" onchange="setCounterValue('${o.id}','${c.id}', this.value)" aria-label="${escHtml(c.nome)}">
             <button class="cnt-btn" onclick="incCounter('${o.id}','${c.id}',1)" aria-label="Aumenta ${escHtml(c.nome)}">+</button>
           </div>
         </div>`;
@@ -1078,7 +1146,7 @@ function renderOrdiniPresenzeBody() {
 
   wrap.innerHTML = html;
   ordini.forEach(o => updateSubtotale(o.id));
-  setSaveStatus(draftMeta._exists ? 'exists' : 'new');
+  setSaveStatus(_dirty ? 'pending' : (draftMeta._exists ? 'exists' : 'new'));
 }
 
 function dayLogSectionHtml() {
@@ -1121,6 +1189,20 @@ function setCounterValue(ordineId, catId, value) {
   updateDayTotal();
   scheduleAutosave();
 }
+// Mentre si digita da tastiera il valore entra subito nella bozza (e quindi
+// nell'autosave): prima contava solo all'uscita dal campo, quindi un numero
+// scritto e poi perso il focus/ricaricata la pagina spariva.
+function onCounterInput(ordineId, catId, el) {
+  if (el.value === '') return;               // sta ancora scrivendo
+  const v = Math.max(0, parseInt(el.value, 10) || 0);
+  if (!draftRighe[ordineId]) draftRighe[ordineId] = {};
+  draftRighe[ordineId][catId] = v;
+  const minusBtn = document.getElementById(`minus-${ordineId}-${catId}`);
+  if (minusBtn) minusBtn.disabled = v <= 0;
+  updateSubtotale(ordineId);
+  updateDayTotal();
+  scheduleAutosave();
+}
 function incCounter(ordineId, catId, delta) {
   const cur = (draftRighe[ordineId] && draftRighe[ordineId][catId]) || 0;
   setCounterValue(ordineId, catId, Math.max(0, cur + delta));
@@ -1139,11 +1221,20 @@ function onNoteInput(v) { draftMeta.note = v; scheduleAutosave(); }
 // un debounce breve evita una scrittura Firestore per ogni singolo click,
 // ma non serve mai premere un pulsante "Salva" — lo stato si vede nella
 // riga sotto i contatori (save-status).
-let _autosaveTimer = null;
 function scheduleAutosave() {
+  // Mai scrivere se il giorno non è stato letto bene: si rischierebbe di
+  // sovrascrivere dati esistenti partendo da una base sbagliata.
+  if (_loadError || _loadedKey !== selSedeId + '|' + selData) return;
+  _dirty = true; _version++;
   setSaveStatus('pending');
-  clearTimeout(_autosaveTimer);
+  clearTimeout(_autosaveTimer); clearTimeout(_retryTimer);
   _autosaveTimer = setTimeout(() => { salvaPresenza(); }, 600);
+}
+// Scrive subito le modifiche in sospeso (usata prima di cambiare giorno/sede,
+// ricaricare, o quando la scheda va in background).
+async function flushAutosave() {
+  clearTimeout(_autosaveTimer);
+  if (_dirty || _saveRunning) await salvaPresenza();
 }
 function nowHHMM() { return new Date().toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' }); }
 function setSaveStatus(state) {
@@ -1160,92 +1251,120 @@ function setSaveStatus(state) {
   else text.textContent = 'Non ancora salvato';
 }
 
-async function salvaPresenza() {
-  if (_savingPresenza) return;
+// Un solo salvataggio alla volta; se arrivano altre modifiche mentre uno è in
+// corso ne parte subito un altro (prima venivano scartate e restavano non salvate).
+function salvaPresenza() {
+  if (_saveRunning) { _saveAgain = true; return _saveRunning; }
+  _saveRunning = (async () => {
+    try {
+      let ok;
+      do { _saveAgain = false; ok = await eseguiSalvataggio(); } while (ok && (_saveAgain || _dirty));
+    } finally { _saveRunning = null; }
+  })();
+  return _saveRunning;
+}
+
+function deepMergeRighe(base, patch) {
+  const out = _clone(base || {});
+  Object.keys(patch || {}).forEach(o => { out[o] = { ...(out[o] || {}), ...patch[o] }; });
+  return out;
+}
+function upsertCacheDoc(sedeId, data, patch) {
+  const arr = weekDocsCache[sedeId + '|' + meseOf(data)];
+  if (!arr) return;                         // mese non in cache: non invento un mese "parziale"
+  const i = arr.findIndex(d => d.data === data);
+  const prev = i >= 0 ? arr[i] : { id: presId(sedeId, data) };
+  const merged = { ...prev, ...patch, righe: deepMergeRighe(prev.righe, patch.righe) };
+  if (i >= 0) arr[i] = merged; else arr.push(merged);
+}
+
+// Ritorna true se ha scritto (o non c'era niente da scrivere), false se bloccato/fallito.
+async function eseguiSalvataggio() {
   const sede = sediList.find(s => s.id === selSedeId);
-  if (!sede) return;
+  const key = selSedeId + '|' + selData;
+  if (!sede || _loadError || _loadedKey !== key) return false;
 
   const motivo = (draftMeta.motivo || '').trim();
   const note = (draftMeta.note || '').trim();
-  if (draftMeta.chiuso && !motivo) { setSaveStatus('needs-motivo'); return; }
+  if (draftMeta.chiuso && !motivo) { setSaveStatus('needs-motivo'); return false; }
 
-  _savingPresenza = true;
+  const vStart = _version, data = selData, chiuso = draftMeta.chiuso;
+  const motivoEff = chiuso ? motivo : '';
+
+  // Si scrivono SOLO le celle cambiate rispetto a quanto letto/scritto l'ultima
+  // volta (merge): prima ogni salvataggio riscriveva l'intero giorno, quindi una
+  // vista non aggiornata (o un giorno "Nessun servizio") azzerava le altre celle.
+  const cambiate = {}, snapshot = {}, modifiche = [];
+  ordiniAttiviSede(sede).forEach(o => {
+    snapshot[o.id] = {};
+    categorieAttiveSede(sede).forEach(c => {
+      const a = Number(draftRighe[o.id]?.[c.id]) || 0;
+      const da = Number(baselineRighe[o.id]?.[c.id]) || 0;
+      snapshot[o.id][c.id] = a;
+      if (a !== da) { (cambiate[o.id] ||= {})[c.id] = a; modifiche.push({ campo: `${o.nome} · ${c.nome}`, da, a }); }
+    });
+  });
+  if (chiuso !== baselineMeta.chiuso) modifiche.push({ campo: 'chiuso', da: baselineMeta.chiuso, a: chiuso });
+  if (motivoEff !== baselineMeta.motivo) modifiche.push({ campo: 'motivo', da: baselineMeta.motivo, a: motivoEff });
+  if (note !== baselineMeta.note) modifiche.push({ campo: 'note', da: baselineMeta.note, a: note });
+
+  if (!modifiche.length) {
+    _dirty = (_version !== vStart);
+    setSaveStatus(_dirty ? 'pending' : (draftMeta._exists ? 'exists' : 'new'));
+    return true;
+  }
+
   setSaveStatus('saving');
   setSyncStatus('saving');
-
-  const righe = {};
-  if (!draftMeta.chiuso) {
-    ordiniAttiviSede(sede).forEach(o => {
-      righe[o.id] = {};
-      categorieAttiveSede(sede).forEach(c => { righe[o.id][c.id] = draftRighe[o.id] ? (draftRighe[o.id][c.id]||0) : 0; });
-    });
-  }
-  const totale = draftMeta.chiuso ? 0 : totalePasti(righe);
-  const oldDoc = findPresenzaDoc(sede.id, selData);
-
-  // Diff per il log
-  const modifiche = [];
-  if (!!oldDoc?.chiuso !== draftMeta.chiuso) modifiche.push({ campo: 'chiuso', da: !!oldDoc?.chiuso, a: draftMeta.chiuso });
-  if ((oldDoc?.motivo||'') !== motivo) modifiche.push({ campo: 'motivo', da: oldDoc?.motivo||'', a: motivo });
-  if ((oldDoc?.note||'') !== note) modifiche.push({ campo: 'note', da: oldDoc?.note||'', a: note });
-  if (!draftMeta.chiuso) {
-    ordiniAttiviSede(sede).forEach(o => {
-      categorieAttiveSede(sede).forEach(c => {
-        const da = (oldDoc?.righe && oldDoc.righe[o.id] && oldDoc.righe[o.id][c.id]) || 0;
-        const a = righe[o.id][c.id] || 0;
-        if (da !== a) modifiche.push({ campo: `${o.nome} · ${c.nome}`, da, a });
-      });
-    });
-  }
-
-  // Nessuna modifica reale rispetto all'ultimo salvataggio: niente scrittura.
-  if (oldDoc && !modifiche.length) { _savingPresenza = false; setSaveStatus('exists'); return; }
-
-  const savedForData = selData, savedForSede = sede.id;
+  const totale = chiuso ? 0 : totalePasti(snapshot);
+  const esisteva = draftMeta._exists;
   try {
     const { db, doc, writeBatch, serverTimestamp, collection } = window._fb;
     const batch = writeBatch(db);
-    const presRef = doc(db, 'mense_presenze', presId(sede.id, selData));
-    batch.set(presRef, {
-      sedeId: sede.id, data: selData, mese: meseOf(selData),
-      righe, totale, chiuso: draftMeta.chiuso, motivo: draftMeta.chiuso ? motivo : '', note,
+    const presRef = doc(db, 'mense_presenze', presId(sede.id, data));
+    const payload = {
+      sedeId: sede.id, data, mese: meseOf(data),
+      chiuso, motivo: motivoEff, note, totale,
       operatore: currentOperatore, aggiornato_il: serverTimestamp(),
+    };
+    if (Object.keys(cambiate).length) payload.righe = cambiate;
+    batch.set(presRef, payload, { merge: true });
+    const logRef = doc(collection(db, 'mense_log'));
+    batch.set(logRef, {
+      tipo: 'presenza', azione: esisteva ? 'modifica' : 'inserimento',
+      sedeId: sede.id, data, mese: meseOf(data), rif: presRef.id,
+      operatore: currentOperatore, quando: serverTimestamp(), modifiche,
     });
-    if (modifiche.length) {
-      const logRef = doc(collection(db, 'mense_log'));
-      batch.set(logRef, {
-        tipo: 'presenza', azione: oldDoc ? 'modifica' : 'inserimento',
-        sedeId: sede.id, data: selData, mese: meseOf(selData), rif: presRef.id,
-        operatore: currentOperatore, quando: serverTimestamp(), modifiche,
+    await batch.commit();
+
+    // La base del confronto diventa ciò che abbiamo appena scritto (non la bozza
+    // attuale, che può essere già cambiata mentre il salvataggio era in corso).
+    baselineRighe = deepMergeRighe(baselineRighe, snapshot);
+    baselineMeta = { chiuso, motivo: motivoEff, note };
+    upsertCacheDoc(sede.id, data, { sedeId: sede.id, data, mese: meseOf(data), righe: snapshot, chiuso, motivo: motivoEff, note, totale, operatore: currentOperatore, aggiornato_il: new Date() });
+    _dirty = (_version !== vStart);
+    setSyncStatus('live');
+
+    if (selSedeId + '|' + selData === key) {
+      draftMeta._exists = true; draftMeta.operatore = currentOperatore; draftMeta.aggiornato_il = new Date();
+      setSaveStatus(_dirty ? 'pending' : 'saved');
+      renderWeekStrip(sede, mondayOfWeek(selData));
+      loadDayLog(sede.id, data).then(l => {
+        if (selSedeId + '|' + selData !== key) return;
+        dayLog = l;
+        const w = document.getElementById('day-log-wrap'); if (w) w.innerHTML = dayLogSectionHtml();
       });
     }
-    await batch.commit();
-    setSyncStatus('live');
-    draftMeta._exists = true;
-    draftMeta.operatore = currentOperatore;
-    // Se nel frattempo l'operatore è passato a un altro giorno/sede, non
-    // tocca la UI corrente — aggiorna solo lo stato se siamo ancora lì.
-    if (selData === savedForData && sede.id === savedForSede) setSaveStatus('saved');
-    await refreshAfterSave(sede);
+    return true;
   } catch(e) {
     console.error('Errore salvataggio presenze:', e);
-    if (selData === savedForData && sede.id === savedForSede) setSaveStatus('error');
     setSyncStatus('error');
-  } finally {
-    _savingPresenza = false;
+    if (selSedeId + '|' + selData === key) setSaveStatus('error');
+    // Le modifiche restano in bozza (_dirty): ritenta da sola tra poco.
+    clearTimeout(_retryTimer);
+    _retryTimer = setTimeout(() => { if (_dirty) salvaPresenza(); }, 4000);
+    return false;
   }
-}
-
-// Dopo un salvataggio aggiorna solo striscia settimana e storico modifiche
-// (non l'intero form: così non si perde il focus se l'operatore sta ancora
-// scrivendo in un altro campo).
-async function refreshAfterSave(sede) {
-  delete weekDocsCache[sede.id + '|' + meseOf(selData)];
-  await loadMeseDocs(sede.id, meseOf(selData));
-  renderWeekStrip(sede, mondayOfWeek(selData));
-  await loadDayLog(sede.id, selData);
-  const logWrap = document.getElementById('day-log-wrap');
-  if (logWrap) logWrap.innerHTML = dayLogSectionHtml();
 }
 
 function shakeField(id) {
@@ -1691,8 +1810,8 @@ let _sedeEditDraft = null;
 
 function apriNuovaSedeForm() {
   _sedeEditId = null;
-  _sedeEditDraft = { nome:'', ente:'', indirizzo:'', ordini: ORDINI.filter(o=>o.attivo!==false).map(o=>o.id), giorni_servizio: {...GIORNI_SERVIZIO_DEFAULT}, operatori: [], categorie_off: [], tariffe: [], chiusure: [], attiva: true };
-  renderSedeEditCard();
+  _sedeEditDraft = { nome:'', ente:'', indirizzo:'', ordini: ORDINI.filter(o=>o.attivo!==false).map(o=>o.id), giorni_servizio: {...GIORNI_SERVIZIO_DEFAULT}, operatori: [], categorie_off: [], tariffe: [], chiusure: [], attiva: true, _ui: null };
+  renderSedeEditCard(true);
 }
 function apriSedeForm(id) {
   const s = sediList.find(x => x.id === id);
@@ -1707,17 +1826,34 @@ function apriSedeForm(id) {
     tariffe: s.tariffe ? s.tariffe.map(t=>({...t})) : [],
     chiusure: s.chiusure ? s.chiusure.map(c=>({...c})) : [],
     attiva: s.attiva !== false,
+    _ui: null,
   };
-  renderSedeEditCard();
+  renderSedeEditCard(true);
 }
 function chiudiSedeForm() {
   _sedeEditId = null; _sedeEditDraft = null;
   document.getElementById('sede-edit-card').style.display = 'none';
 }
 
-function renderSedeEditCard() {
+// Ogni azione nel form (interruttori, + Aggiungi, rimuovi) ridisegna la scheda:
+// prima di farlo si salva nella bozza quello che l'utente ha già digitato nei
+// campi di testo, altrimenti sparivano (nome, ente, indirizzo, prezzo, nuova
+// tariffa/chiusura in compilazione).
+function captureSedeForm() {
+  const d = _sedeEditDraft;
+  if (!d || !document.getElementById('sf-nome')) return;
+  const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  d.nome = v('sf-nome'); d.ente = v('sf-ente'); d.indirizzo = v('sf-indirizzo');
+  d._ui = { prezzo: v('sf-prezzo-attuale'), iva: v('sf-iva-attuale'),
+            tarDal: v('sf-tar-dal'), tarPrezzo: v('sf-tar-prezzo'), tarIva: v('sf-tar-iva'),
+            chDal: v('sf-ch-dal'), chAl: v('sf-ch-al'), chMotivo: v('sf-ch-motivo') };
+}
+function renderSedeEditCard(fresh) {
+  if (!fresh) captureSedeForm();
   const card = document.getElementById('sede-edit-card');
   const d = _sedeEditDraft;
+  const ui = d._ui || {};
+  const uiv = (k, def) => escHtml(ui[k] !== undefined ? ui[k] : def);
   card.style.display = '';
   card.innerHTML = `
     <h3>${_sedeEditId ? 'Modifica sede' : 'Nuova sede'}</h3>
@@ -1769,9 +1905,9 @@ function renderSedeEditCard() {
     <div class="field-group" style="margin-bottom:10px">
       <label class="field-label">Prezzo a pasto attuale (IVA esclusa)</label>
       <div class="mini-row" style="margin-top:0">
-        <input type="number" step="0.01" min="0" class="mini-input" id="sf-prezzo-attuale" placeholder="Prezzo €" value="${prezzoAttualeDraft().prezzo || ''}" style="width:120px;height:46px">
+        <input type="number" step="0.01" min="0" class="mini-input" id="sf-prezzo-attuale" placeholder="Prezzo €" value="${uiv('prezzo', prezzoAttualeDraft().prezzo || '')}" style="width:120px;height:46px">
         <span style="font-size:13px;color:var(--gray-500)">IVA</span>
-        <input type="number" step="0.1" min="0" class="mini-input" id="sf-iva-attuale" placeholder="IVA %" value="${prezzoAttualeDraft().iva_pct}" style="width:80px;height:46px">
+        <input type="number" step="0.1" min="0" class="mini-input" id="sf-iva-attuale" placeholder="IVA %" value="${uiv('iva', prezzoAttualeDraft().iva_pct)}" style="width:80px;height:46px">
         <span style="font-size:13px;color:var(--gray-500)">%</span>
       </div>
       <div class="toggle-sub" style="margin-top:2px">Si salva insieme al resto della sede, con "Salva sede" qui sotto — vale da oggi.</div>
@@ -1782,9 +1918,9 @@ function renderSedeEditCard() {
       <div id="sf-tariffe">${renderTariffeRows()}</div>
       <div class="toggle-sub" style="margin:2px 0 6px">Per programmare in anticipo un cambio prezzo da una data futura (o per correggere un prezzo passato):</div>
       <div class="mini-row">
-        <input type="date" class="mini-input" id="sf-tar-dal">
-        <input type="number" step="0.01" class="mini-input" id="sf-tar-prezzo" placeholder="Prezzo €" style="width:100px">
-        <input type="number" step="0.1" class="mini-input" id="sf-tar-iva" placeholder="IVA %" value="4" style="width:80px">
+        <input type="date" class="mini-input" id="sf-tar-dal" value="${uiv('tarDal', '')}">
+        <input type="number" step="0.01" class="mini-input" id="sf-tar-prezzo" placeholder="Prezzo €" value="${uiv('tarPrezzo', '')}" style="width:100px">
+        <input type="number" step="0.1" class="mini-input" id="sf-tar-iva" placeholder="IVA %" value="${uiv('tarIva', '4')}" style="width:80px">
         <button class="op-btn reset" onclick="sfAggiungiTariffa()">+ Aggiungi</button>
       </div>
     </div>
@@ -1793,9 +1929,9 @@ function renderSedeEditCard() {
       <label class="field-label">Periodi di chiusura</label>
       <div id="sf-chiusure">${renderChiusureRows()}</div>
       <div class="mini-row">
-        <input type="date" class="mini-input" id="sf-ch-dal">
-        <input type="date" class="mini-input" id="sf-ch-al">
-        <input class="mini-input" id="sf-ch-motivo" placeholder="Motivo">
+        <input type="date" class="mini-input" id="sf-ch-dal" value="${uiv('chDal', '')}">
+        <input type="date" class="mini-input" id="sf-ch-al" value="${uiv('chAl', '')}">
+        <input class="mini-input" id="sf-ch-motivo" placeholder="Motivo" value="${uiv('chMotivo', '')}">
         <button class="op-btn reset" onclick="sfAggiungiChiusura()">+ Aggiungi</button>
       </div>
     </div>
@@ -1849,6 +1985,7 @@ function sfAggiungiTariffa() {
   const iva = parseFloat(document.getElementById('sf-tar-iva').value) || 4;
   if (!dal || isNaN(prezzo)) { showToast('Indica data e prezzo'); return; }
   _sedeEditDraft.tariffe.push({ dal, prezzo, iva_pct: iva });
+  document.getElementById('sf-tar-dal').value = ''; document.getElementById('sf-tar-prezzo').value = ''; document.getElementById('sf-tar-iva').value = '4';
   renderSedeEditCard();
 }
 function sfRimuoviTariffa(i) { _sedeEditDraft.tariffe.splice(i,1); renderSedeEditCard(); }
@@ -1858,6 +1995,7 @@ function sfAggiungiChiusura() {
   const motivo = document.getElementById('sf-ch-motivo').value.trim();
   if (!dal || !al) { showToast('Indica dal e al'); return; }
   _sedeEditDraft.chiusure.push({ dal, al, motivo });
+  document.getElementById('sf-ch-dal').value = ''; document.getElementById('sf-ch-al').value = ''; document.getElementById('sf-ch-motivo').value = '';
   renderSedeEditCard();
 }
 function sfRimuoviChiusura(i) { _sedeEditDraft.chiusure.splice(i,1); renderSedeEditCard(); }
@@ -1881,6 +2019,20 @@ async function salvaSede() {
   d.indirizzo = document.getElementById('sf-indirizzo').value.trim();
   if (!d.nome) { showToast('Indica il nome della scuola'); shakeField('sf-nome'); return; }
 
+  // Una nuova tariffa o chiusura scritta nei campi ma non "aggiunta" veniva
+  // ignorata in silenzio: ora si aggiunge da sola se completa, altrimenti si avvisa.
+  const gv = id => (document.getElementById(id)?.value || '').trim();
+  const tDal = gv('sf-tar-dal'), tPrezzoRaw = gv('sf-tar-prezzo'), tPrezzo = parseFloat(tPrezzoRaw);
+  if (tDal || tPrezzoRaw) {
+    if (!tDal || isNaN(tPrezzo)) { showToast('Nuova tariffa incompleta: indica data e prezzo, oppure svuota i campi'); return; }
+    d.tariffe.push({ dal: tDal, prezzo: tPrezzo, iva_pct: parseFloat(gv('sf-tar-iva')) || 4 });
+  }
+  const cDal = gv('sf-ch-dal'), cAl = gv('sf-ch-al'), cMotivo = gv('sf-ch-motivo');
+  if (cDal || cAl || cMotivo) {
+    if (!cDal || !cAl) { showToast('Nuova chiusura incompleta: indica dal e al, oppure svuota i campi'); return; }
+    d.chiusure.push({ dal: cDal, al: cAl, motivo: cMotivo });
+  }
+
   // Prezzo attuale: campo diretto, sempre visibile — va scritto in tariffe[]
   // come voce "dal oggi" (aggiornando quella di oggi se già c'è, altrimenti
   // creandone una nuova) PRIMA di salvare, altrimenti si perde silenziosamente
@@ -1899,10 +2051,11 @@ async function salvaSede() {
 
   try {
     const { db, doc, collection, addDoc, setDoc, serverTimestamp } = window._fb;
+    const { _ui, ...dati } = d;            // _ui è solo stato del form, non va nel DB
     if (_sedeEditId) {
-      await setDoc(doc(db, 'mense_sedi', _sedeEditId), { ...d, aggiornato_il: serverTimestamp() }, { merge: true });
+      await setDoc(doc(db, 'mense_sedi', _sedeEditId), { ...dati, aggiornato_il: serverTimestamp() }, { merge: true });
     } else {
-      await addDoc(collection(db, 'mense_sedi'), { ...d, creato_il: serverTimestamp(), aggiornato_il: serverTimestamp() });
+      await addDoc(collection(db, 'mense_sedi'), { ...dati, creato_il: serverTimestamp(), aggiornato_il: serverTimestamp() });
     }
     showToast('✓ Sede salvata');
     chiudiSedeForm();
@@ -2052,7 +2205,8 @@ setInterval(checkConnessione, 30000);
 
 async function forceRefresh(manual) {
   await waitForFirebase();
-  weekDocsCache = {};
+  await flushAutosave();                    // prima scrivo ciò che è in sospeso, poi ricarico
+  if (!_dirty) weekDocsCache = {};          // se resta una modifica non scritta, non tocco cache né bozza
   await renderPresenzeTab();
   if (allowedSections.has('report') && document.getElementById('sec-report').classList.contains('active')) await loadReport();
   setSyncStatus('live');
@@ -2063,6 +2217,10 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('online', () => forceRefresh(false));
 window.addEventListener('focus',  () => forceRefresh(false));
+// Se si chiude/ricarica la pagina con modifiche non ancora scritte il browser avvisa;
+// quando la scheda passa in background si scrive subito senza attendere il debounce.
+window.addEventListener('beforeunload', (e) => { if (_dirty || _saveRunning) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAutosave(); });
 
 // ── START ──────────────────────────────────────────────────────────────────
 async function start() {
