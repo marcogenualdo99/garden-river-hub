@@ -38,7 +38,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import firebase_admin
-from firebase_admin import firestore
+from firebase_admin import auth as fb_auth, firestore
 import functions_framework
 
 if not firebase_admin._apps:
@@ -66,6 +66,11 @@ NAVETTA_DEFAULT = {
 SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza')
 
 MAX_TESTO = 120
+
+# Una corsa ancora 'in attesa/confermata' ma con l'orario passato da piu' di
+# questi minuti non conta piu' come attiva (l'autista si e' dimenticato di
+# chiuderla): non blocca il cliente ne' occupa posti.
+SCADENZA_CORSA_MINUTI = 60
 
 
 # ── CORS / risposta ────────────────────────────────────────────────────────
@@ -175,6 +180,17 @@ def _contenuti(db):
         except Exception as e:
             print(f'Lettura foto {k} non riuscita: {e}')
     return out
+
+
+def _persone_prenotazione(p):
+    """Persone totali della prenotazione (adulti + bambini); 0 se non note."""
+    try:
+        n = sum(int(p.get(k) or 0) for k in ('adulti', 'bambini_0_2', 'bambini_3_4', 'bambini_5_9', 'bambini_10_17'))
+    except (TypeError, ValueError):
+        n = 0
+    if n <= 0:
+        n = len([o for o in (p.get('ospiti') or []) if o])
+    return n
 
 
 def _nome_proprio(p):
@@ -388,7 +404,15 @@ def _corse_attive_oggi(db, transaction=None):
     q = db.collection('navetta_prenotazioni').where('data', '==', _oggi_iso())
     docs = q.stream(transaction=transaction) if transaction is not None else q.stream()
     return [(d.id, d.to_dict() or {}) for d in docs
-            if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata')]
+            if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata') and not _scaduta(d.to_dict() or {})]
+
+
+def _scaduta(x):
+    """Corsa di oggi con l'orario passato da oltre SCADENZA_CORSA_MINUTI."""
+    try:
+        return _minuti_da_ora(x.get('orario') or '23:59') < -SCADENZA_CORSA_MINUTI
+    except Exception:
+        return False
 
 
 def _persone(x):
@@ -472,23 +496,32 @@ def _posti_occupati(attive, cfg):
     return out
 
 
-def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1, spiaggia=''):
-    """None se l'orario e' libero per questa persona e per questo gruppo,
-    altrimenti il codice d'errore: 'corsa_duplicata' (la stessa persona e'
-    gia' in una corsa a quell'ora: stessa prenotazione, telefono o nome);
-    'corsa_attiva' (ha gia' una corsa attiva: ne serve una sola per volta);
+def _stessa_persona(x, pren_id, tel):
+    """La corsa x e' dello stesso cliente? Per prenotazione (prenId); le corse
+    create dallo staff non hanno prenId e si riconoscono dal telefono. Il solo
+    nome non basta: troppi omonimi / cognomi uguali."""
+    if pren_id and x.get('prenId') == pren_id:
+        return True
+    return bool(tel) and _norm_tel(x.get('telefono')) == tel and (not pren_id or not x.get('prenId'))
+
+
+def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
+    """None se l'orario e' libero per questo cliente e per questo gruppo,
+    altrimenti il codice d'errore: 'corsa_duplicata' (il cliente ha gia' una
+    corsa a quell'ora); 'persone_esaurite' (con questa corsa le persone in
+    corse attive supererebbero quelle della prenotazione, `totale`);
     'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
     (l'autista scelto non puo' prendere il gruppo, per posti o perche' va a
     un'altra spiaggia, ma un collega si); 'posti_insufficienti' (nessun
     autista puo' prendere il gruppo)."""
-    n, t = _norm_nome(nome), _norm_tel(telefono)
-    stessa_ora = [x for i, x in attive if i != escludi_id and x.get('orario') == orario]
-    # Un cliente ha una sola corsa attiva per volta (in attesa o confermata):
-    # potra' prenotarne un'altra quando il ritiro risulta completato.
-    sue = [x for i, x in attive if i != escludi_id
-           and (x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n))]
-    if sue:
-        return 'corsa_duplicata' if escludi_id else 'corsa_attiva'
+    t = _norm_tel(telefono)
+    altre = [x for i, x in attive if i != escludi_id]
+    sue = [x for x in altre if _stessa_persona(x, pren_id, t)]
+    if any(x.get('orario') == orario for x in sue):
+        return 'corsa_duplicata'
+    if totale and pren_id and sum(_persone(x) for x in sue) + persone > totale:
+        return 'persone_esaurite'
+    stessa_ora = [x for x in altre if x.get('orario') == orario]
     if _puo_ospitare(stessa_ora, cfg, autista, spiaggia, persone):
         return None
     if any(_puo_ospitare(stessa_ora, cfg, a, spiaggia, persone) for a in cfg['autisti']):
@@ -497,10 +530,10 @@ def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_i
 
 
 @firestore.transactional
-def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1, spiaggia=''):
+def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
     """Controllo e scrittura nella stessa transazione: due richieste
     contemporanee per l'ultimo posto di un orario non passano entrambe."""
-    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone, spiaggia)
+    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone, spiaggia, totale)
     if err:
         return err
     if escludi_id:
@@ -525,6 +558,7 @@ def _azione_carica(db, origin, data):
             'nome':          _s(p.get('nome')),
             'nome_proprio':  _nome_proprio(p),
             'telefono':      _s(p.get('tel')),
+            'persone_totali': _persone_prenotazione(p),
             'alloggio_nome': _s(p.get('alloggio_nome')),
             'checkin':       _s(p.get('checkin')),
             'checkout':      _s(p.get('checkout')),
@@ -623,7 +657,7 @@ def _azione_navetta_prenota(db, origin, data):
         'creato_il':     _now_iso(),
     }
     ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome)
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome, totale=_persone_prenotazione(p))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': ref.id})
@@ -656,7 +690,160 @@ def _azione_navetta_modifica_orario(db, origin, data):
         'orario_precedente': c.get('orario') or '',
         'orario_modificato_il': _now_iso(),
         'aggiornato_il': _now_iso(),
-    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c), spiaggia=_s(c.get('spiaggia_nome')))
+    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c), spiaggia=_s(c.get('spiaggia_nome')), totale=_persone_prenotazione(p))
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 409)
+    return _json(origin, {'ok': True, 'id': snap.id})
+
+
+def _azione_navetta_annulla(db, origin, data):
+    """L'ospite annulla una sua corsa di oggi (stesso preavviso del cambio
+    orario): cosi' puo' correggere un errore e prenotare di nuovo."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg = _cfg_navetta(db)
+    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+    snap = ref.get()
+    c = snap.to_dict() if snap.exists else None
+    if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+    if c.get('stato') not in ('in_attesa', 'accettata'):
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
+    if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
+        return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
+    ref.update({'stato': 'annullata', 'annullata_il': _now_iso(), 'annullata_da': 'ospite', 'aggiornato_il': _now_iso()})
+    return _json(origin, {'ok': True, 'id': snap.id})
+
+
+# ── azioni dello staff (dashboard Navetta) ─────────────────────────────────
+# Stesse regole della prenotazione dell'ospite (posti, spiaggia, orari validi,
+# transazione): la dashboard non scrive piu' direttamente le corse. Autenticate
+# col token di Firebase Auth del dispositivo (lo stesso che le regole Firestore
+# richiedono gia' per scrivere).
+
+def _staff_autenticato(data):
+    try:
+        return bool(fb_auth.verify_id_token(_s(data.get('id_token'), 4000)))
+    except Exception as e:
+        print(f'Token staff non valido: {e}')
+        return False
+
+
+def _orario_staff_valido(orario, cfg):
+    """Orario di una fascia/passo configurati; lo staff puo' prenotare anche con
+    poco preavviso, ma non nel passato."""
+    return bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) and orario in _slot_validi(cfg) and _minuti_da_ora(orario) >= -10
+
+
+def _campi_corsa_staff(db, cfg, data):
+    """Valida e normalizza i campi di una corsa dello staff. Ritorna
+    (campi, errore)."""
+    nome, telefono = _s(data.get('nome')), _s(data.get('telefono'))
+    if not nome or not telefono:
+        return None, 'dati_incompleti'
+    spiaggia = _s(data.get('spiaggia_nome'))
+    if not spiaggia:
+        return None, 'spiaggia_obbligatoria'
+    try:
+        persone = int(data.get('persone'))
+    except (TypeError, ValueError):
+        persone = 0
+    if persone < 1 or persone > cfg['posti_pulmino']:
+        return None, 'persone_non_valide'
+    autista = ''
+    if cfg['autisti']:
+        scelto = _norm_nome(_s(data.get('autista_nome')))
+        autista = next((n for n in cfg['autisti'] if _norm_nome(n) == scelto), '') if scelto else ''
+        if not autista:
+            return None, 'autista_obbligatorio'
+    return {'nome': nome, 'telefono': telefono, 'alloggio_nome': _s(data.get('alloggio_nome')),
+            'spiaggia_nome': spiaggia, 'persone': persone, 'autista_nome': autista or None}, None
+
+
+def _azione_staff_crea(db, origin, data):
+    if not _staff_autenticato(data):
+        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+    cfg = _cfg_navetta(db)
+    campi, err = _campi_corsa_staff(db, cfg, data)
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 400)
+    orario = _s(data.get('orario'), 5)
+    if not _orario_staff_valido(orario, cfg):
+        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+    doc = {**campi, 'data': _oggi_iso(), 'orario': orario, 'stato': 'accettata', 'accettata_il': _now_iso(),
+           'creato_il': _now_iso(), 'creato_da': _s(data.get('operatore'), 60), 'creata_da_staff': True}
+    ref = db.collection('navetta_prenotazioni').document()
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, None, orario, campi['nome'], campi['telefono'],
+                            autista=campi['autista_nome'] or '', persone=campi['persone'], spiaggia=campi['spiaggia_nome'])
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 409)
+    return _json(origin, {'ok': True, 'id': ref.id})
+
+
+def _carica_corsa_oggi(db, data):
+    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+    snap = ref.get()
+    return ref, snap, (snap.to_dict() if snap.exists else None)
+
+
+def _totale_della_corsa(db, c):
+    """Persone della prenotazione a cui e' collegata la corsa (None se creata dallo staff)."""
+    if not c.get('prenId'):
+        return None
+    try:
+        pren = db.collection('prenotazioni').document(c['prenId']).get()
+        return _persone_prenotazione(pren.to_dict() or {}) or None if pren.exists else None
+    except Exception:
+        return None
+
+
+def _azione_staff_modifica(db, origin, data):
+    if not _staff_autenticato(data):
+        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+    cfg = _cfg_navetta(db)
+    ref, snap, c = _carica_corsa_oggi(db, data)
+    if not c:
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+    campi, err = _campi_corsa_staff(db, cfg, data)
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 400)
+    orario = _s(data.get('orario'), 5) or c.get('orario') or ''
+    cambia_ora = orario != c.get('orario')
+    if cambia_ora and not _orario_staff_valido(orario, cfg):
+        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+    scrittura = {**campi, 'orario': orario, 'aggiornato_il': _now_iso(), 'modificato_da': _s(data.get('operatore'), 60)}
+    if cambia_ora:
+        scrittura['orario_precedente'] = c.get('orario') or ''
+        scrittura['orario_modificato_il'] = _now_iso()
+    if c.get('stato') not in ('in_attesa', 'accettata'):
+        ref.update(scrittura)          # corsa chiusa: non occupa posti, nessun controllo
+        return _json(origin, {'ok': True, 'id': snap.id})
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, scrittura, c.get('prenId'), orario, campi['nome'], campi['telefono'],
+                            escludi_id=snap.id, autista=campi['autista_nome'] or '', persone=campi['persone'],
+                            spiaggia=campi['spiaggia_nome'], totale=_totale_della_corsa(db, c))
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 409)
+    return _json(origin, {'ok': True, 'id': snap.id})
+
+
+def _azione_staff_riapri(db, origin, data):
+    """Riapre una corsa completata/annullata: solo se posti, spiaggia e
+    persone della prenotazione lo permettono ancora."""
+    if not _staff_autenticato(data):
+        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+    cfg = _cfg_navetta(db)
+    ref, snap, c = _carica_corsa_oggi(db, data)
+    if not c:
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+    if c.get('stato') in ('in_attesa', 'accettata'):
+        return _json(origin, {'ok': True, 'id': snap.id})
+    autista = _s(c.get('autista_nome'))
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref,
+                            {'stato': 'accettata' if autista else 'in_attesa', 'riaperta_il': _now_iso(), 'aggiornato_il': _now_iso()},
+                            c.get('prenId'), c.get('orario') or '', c.get('nome'), c.get('telefono'),
+                            escludi_id=snap.id, autista=autista, persone=_persone(c),
+                            spiaggia=_s(c.get('spiaggia_nome')), totale=_totale_della_corsa(db, c))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': snap.id})
@@ -668,6 +855,10 @@ AZIONI = {
     'navetta_stato':           _azione_navetta_stato,
     'navetta_prenota':         _azione_navetta_prenota,
     'navetta_modifica_orario': _azione_navetta_modifica_orario,
+    'navetta_annulla':         _azione_navetta_annulla,
+    'staff_crea':              _azione_staff_crea,
+    'staff_modifica':          _azione_staff_modifica,
+    'staff_riapri':            _azione_staff_riapri,
 }
 
 
