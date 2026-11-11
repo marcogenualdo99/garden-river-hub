@@ -56,8 +56,11 @@ NAVETTA_DEFAULT = {
     'preavviso_minimo_minuti': 25,
     # Il cliente puo' spostare una corsa solo se mancano almeno cosi' tanti minuti.
     'preavviso_modifica_minuti': 25,
-    # Quante corse attive al massimo per lo stesso orario (tutti gli ospiti
-    # insieme): raggiunto il tetto, l'orario risulta occupato per tutti.
+    # Posti di ogni pulmino: un autista porta piu' prenotazioni nello stesso
+    # orario finche' la somma delle persone non supera questo numero.
+    'posti_pulmino': 8,
+    # Usato solo se non ci sono autisti configurati: quanti pulmini
+    # partono contemporaneamente (ognuno con 'posti_pulmino' posti).
     'max_corse_per_orario': 1,
 }
 SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza')
@@ -111,25 +114,44 @@ def _cfg_navetta(db):
                 fasce.append({'dal': dal, 'al': al})
         if fasce:
             cfg['fasce'] = fasce
-        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti', 'max_corse_per_orario'):
+        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti', 'max_corse_per_orario', 'posti_pulmino'):
             try:
                 v = int(d.get(k))
-                if v >= (5 if k == 'passo_minuti' else 1 if k == 'max_corse_per_orario' else 0):
+                if v >= (5 if k == 'passo_minuti' else 1 if k in ('max_corse_per_orario', 'posti_pulmino') else 0):
                     cfg[k] = v
             except (TypeError, ValueError):
                 pass
+        cfg['punti_ritiro'] = _punti_ritiro(d.get('punti_ritiro'))
     except Exception as e:
         print(f'Lettura impostazioni/navetta non riuscita: {e}')
-    # Capacita' di un orario: un autista fa una corsa alla volta, quindi con
-    # gli autisti configurati i posti sono tanti quanti gli autisti; senza
-    # autisti vale il tetto 'max_corse_per_orario' delle impostazioni.
-    try:
-        n_autisti = len(list(db.collection('navetta_autisti').stream()))
-    except Exception as e:
-        print(f'Conteggio autisti non riuscito: {e}')
-        n_autisti = 0
-    cfg['capacita'] = n_autisti if n_autisti > 0 else cfg['max_corse_per_orario']
+    cfg.setdefault('punti_ritiro', [])
+    # Ogni autista ha un pulmino da 'posti_pulmino' posti: i posti di un orario
+    # si contano per autista. Senza autisti configurati vale un unico gruppo di
+    # 'max_corse_per_orario' pulmini.
+    cfg['autisti'] = [a['nome'] for a in _autisti_elenco(db, con_foto=False)]
     return cfg
+
+
+def _punti_ritiro(grezzi):
+    """Punti di raccolta dalle impostazioni: [{spiaggia, nome, indicazioni,
+    lat, lng, link}]. 'posizione' puo' essere 'lat, lng', un link di Google
+    Maps con le coordinate, oppure un qualsiasi link http(s)."""
+    out = []
+    for r in grezzi or []:
+        if not isinstance(r, dict):
+            continue
+        nome, indic = _s(r.get('nome'), 120), _s(r.get('indicazioni'), 400)
+        pos = _s(r.get('posizione'), 400)
+        lat = lng = None
+        m = re.search(r'(-?\d{1,2}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})', pos)
+        if m and -90 <= float(m.group(1)) <= 90 and -180 <= float(m.group(2)) <= 180:
+            lat, lng = float(m.group(1)), float(m.group(2))
+        link = pos if re.match(r'https?://', pos, re.I) else ''
+        if not (nome or indic or lat is not None or link):
+            continue
+        out.append({'spiaggia': _s(r.get('spiaggia'), 80), 'nome': nome, 'indicazioni': indic,
+                    'lat': lat, 'lng': lng, 'link': link})
+    return out
 
 
 def _contenuti(db):
@@ -214,14 +236,14 @@ def _spiagge_disponibili(db):
         return []
 
 
-def _autisti_elenco(db):
+def _autisti_elenco(db, con_foto=True):
     """Autisti configurati (collezione navetta_autisti, gestita dalla
     dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
     giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
     try:
         return [
             {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
-             'foto': _s((d.to_dict() or {}).get('foto'), 300000)}
+             'foto': _s((d.to_dict() or {}).get('foto'), 300000) if con_foto else ''}
             for d in db.collection('navetta_autisti').stream()
         ]
     except Exception as e:
@@ -277,6 +299,8 @@ def _navetta_corse_cliente(db, pren_id):
                 'orario': _s(x.get('orario')),
                 'stato': _s(x.get('stato')) or 'in_attesa',
                 'autista_nome': _s(x.get('autista_nome')),
+                'persone': _persone(x),
+                'spiaggia_nome': _s(x.get('spiaggia_nome')),
                 'orario_precedente': _s(x.get('orario_precedente')),
             })
         oggi = _oggi_iso()
@@ -367,64 +391,93 @@ def _corse_attive_oggi(db, transaction=None):
             if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata')]
 
 
-def _posti_liberi(corse_ora, cfg):
-    """Quanti autisti sono ancora liberi a un orario, date le corse attive di
-    quell'ora. Conta gli autisti DISTINTI impegnati (due corse dello stesso
-    autista valgono un solo autista occupato) piu' le corse senza autista,
-    che occupano ciascuna un posto."""
-    occupati = {_norm_nome(x.get('autista_nome')) for x in corse_ora if _norm_nome(x.get('autista_nome'))}
-    senza = sum(1 for x in corse_ora if not _norm_nome(x.get('autista_nome')))
-    return cfg['capacita'] - len(occupati) - senza
+def _persone(x):
+    """Persone di una corsa (le vecchie corse senza il campo valgono 1)."""
+    try:
+        return max(1, int(x.get('persone') or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _occupazione(corse_ora):
+    """({autista normalizzato: persone}, persone senza autista) di un orario."""
+    per_aut, senza = {}, 0
+    for x in corse_ora:
+        a = _norm_nome(x.get('autista_nome'))
+        if a:
+            per_aut[a] = per_aut.get(a, 0) + _persone(x)
+        else:
+            senza += _persone(x)
+    return per_aut, senza
+
+
+def _liberi_autista(corse_ora, cfg, autista):
+    """Posti ancora liberi sul pulmino di quell'autista a quell'orario. Le corse
+    ancora senza autista tolgono posti a tutti (per prudenza). Senza autisti
+    configurati c'e' un unico gruppo di pulmini."""
+    per_aut, senza = _occupazione(corse_ora)
+    if not cfg['autisti']:
+        return cfg['posti_pulmino'] * cfg['max_corse_per_orario'] - sum(per_aut.values()) - senza
+    return cfg['posti_pulmino'] - per_aut.get(_norm_nome(autista), 0) - senza
+
+
+def _max_liberi(corse_ora, cfg):
+    """Il maggior numero di posti liberi su un singolo pulmino a quell'orario."""
+    if not cfg['autisti']:
+        return _liberi_autista(corse_ora, cfg, '')
+    return max(_liberi_autista(corse_ora, cfg, a) for a in cfg['autisti'])
 
 
 def _orari_occupati(attive, cfg):
-    """Orari in cui nessun autista e' piu' libero (uguale per tutti gli
-    ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
+    """Orari in cui nessun pulmino ha piu' un posto libero (uguale per tutti
+    gli ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
     per_ora = {}
     for _id, x in attive:
         if x.get('orario'):
             per_ora.setdefault(x['orario'], []).append(x)
-    return sorted(o for o, corse in per_ora.items() if _posti_liberi(corse, cfg) <= 0)
+    return sorted(o for o, corse in per_ora.items() if _max_liberi(corse, cfg) <= 0)
 
 
-def _orari_autisti(attive, cfg):
-    """{orario: [nomi autisti gia' impegnati]} per gli orari non ancora
-    pieni: serve a proporre all'ospite un autista libero quando quello
-    scelto ha gia' una corsa a quell'ora."""
-    pieni = set(_orari_occupati(attive, cfg))
+def _posti_occupati(attive, cfg):
+    """{orario: {nome autista: persone gia' a bordo}} (la chiave '' sono le
+    corse senza autista): serve al cliente per sapere se l'autista scelto ha
+    ancora posto per il suo gruppo. Nessun dato personale."""
     out = {}
     for _id, x in attive:
-        o, a = x.get('orario'), _s(x.get('autista_nome'))
-        if o and a and o not in pieni:
-            out.setdefault(o, []).append(a)
+        o = x.get('orario')
+        if not o:
+            continue
+        a = _s(x.get('autista_nome'))
+        riga = out.setdefault(o, {})
+        riga[a] = riga.get(a, 0) + _persone(x)
     return out
 
 
-def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista=''):
-    """None se l'orario e' libero per questa persona, altrimenti il codice
-    d'errore: 'corsa_duplicata' (la stessa persona e' gia' in una corsa a
-    quell'ora: stessa prenotazione, telefono o nome) oppure 'orario_occupato'
-    (tutti gli autisti sono gia' impegnati a quell'ora) oppure
-    'autista_occupato' (l'autista scelto ha gia' una corsa a quell'ora ma un
-    collega e' libero)."""
+def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1):
+    """None se l'orario e' libero per questa persona e per questo gruppo,
+    altrimenti il codice d'errore: 'corsa_duplicata' (la stessa persona e'
+    gia' in una corsa a quell'ora: stessa prenotazione, telefono o nome);
+    'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
+    (l'autista scelto non ha posti per tutto il gruppo ma un collega si);
+    'posti_insufficienti' (nessun pulmino ha posto per tutto il gruppo)."""
     n, t = _norm_nome(nome), _norm_tel(telefono)
-    stessa_ora = [(i, x) for i, x in attive if i != escludi_id and x.get('orario') == orario]
-    for _i, x in stessa_ora:
+    stessa_ora = [x for i, x in attive if i != escludi_id and x.get('orario') == orario]
+    for x in stessa_ora:
         if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
             return 'corsa_duplicata'
-    if _posti_liberi([x for _i, x in stessa_ora], cfg) <= 0:
+    if _liberi_autista(stessa_ora, cfg, autista) >= persone:
+        return None
+    massimo = _max_liberi(stessa_ora, cfg)
+    if massimo <= 0:
         return 'orario_occupato'
-    a = _norm_nome(autista)
-    if a and any(_norm_nome(x.get('autista_nome')) == a for _i, x in stessa_ora):
-        return 'autista_occupato'
-    return None
+    return 'autista_occupato' if massimo >= persone else 'posti_insufficienti'
 
 
 @firestore.transactional
-def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista=''):
+def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1):
     """Controllo e scrittura nella stessa transazione: due richieste
     contemporanee per l'ultimo posto di un orario non passano entrambe."""
-    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista)
+    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone)
     if err:
         return err
     if escludi_id:
@@ -441,6 +494,7 @@ def _azione_carica(db, origin, data):
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
     cfg = _cfg_navetta(db)
+    attive = _corse_attive_oggi(db)
 
     return _json(origin, {
         'ok': True,
@@ -457,8 +511,11 @@ def _azione_carica(db, origin, data):
         'autisti': _autisti_elenco(db),
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
-        'orari_occupati': _orari_occupati(_corse_attive_oggi(db), cfg),
-        'orari_autisti': _orari_autisti(_corse_attive_oggi(db), cfg),
+        'orari_occupati': _orari_occupati(attive, cfg),
+        'posti_occupati': _posti_occupati(attive, cfg),
+        'posti_pulmino': cfg['posti_pulmino'],
+        'max_corse_per_orario': cfg['max_corse_per_orario'],
+        'punti_ritiro': cfg['punti_ritiro'],
         'oggi': _oggi_iso(),
         'fasce': cfg['fasce'],
         'passo_minuti': cfg['passo_minuti'],
@@ -484,7 +541,7 @@ def _azione_navetta_stato(db, origin, data):
         'ok': True,
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
         'orari_occupati': _orari_occupati(attive, cfg_n),
-        'orari_autisti': _orari_autisti(attive, cfg_n),
+        'posti_occupati': _posti_occupati(attive, cfg_n),
         'oggi': _oggi_iso(),
     })
 
@@ -502,7 +559,18 @@ def _azione_navetta_prenota(db, origin, data):
     nome = _s(data.get('nome')) or _s(p.get('nome'))
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
     alloggio_nome = _s(data.get('alloggio_nome')) or _s(p.get('alloggio_nome'))
-    spiaggia_nome = _s(data.get('spiaggia_nome'))
+    # La spiaggia e' obbligatoria: l'autista deve sapere dove andare. Se il
+    # Calendario ha gia' assegnato l'ombrellone si usa quella.
+    assegnata = _spiaggia_assegnata(db, pren_ref.id)
+    spiaggia_nome = _s(data.get('spiaggia_nome')) or (assegnata or {}).get('spiaggia_nome') or ''
+    if not spiaggia_nome:
+        return _json(origin, {'ok': False, 'errore': 'spiaggia_obbligatoria'}, 400)
+    try:
+        persone = int(data.get('persone'))
+    except (TypeError, ValueError):
+        persone = 0
+    if persone < 1 or persone > cfg['posti_pulmino']:
+        return _json(origin, {'ok': False, 'errore': 'persone_non_valide'}, 400)
     # Ogni corsa ha un autista preciso, scelto dal cliente tra quelli configurati
     # (nessuna assegnazione 'a caso'). Se non e' stato configurato nessun autista
     # la corsa resta senza.
@@ -522,14 +590,17 @@ def _azione_navetta_prenota(db, origin, data):
         'nome':          nome,
         'telefono':      telefono,
         'spiaggia_nome': spiaggia_nome,
+        'persone':       persone,
         'data':          _oggi_iso(),
         'orario':        orario,
-        'stato':         'in_attesa',
+        # La richiesta e' subito confermata: l'autista non deve accettarla.
+        'stato':         'accettata',
+        'accettata_il':  _now_iso(),
         'autista_nome':  autista_nome or None,
         'creato_il':     _now_iso(),
     }
     ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome)
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone)
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': ref.id})
@@ -562,7 +633,7 @@ def _azione_navetta_modifica_orario(db, origin, data):
         'orario_precedente': c.get('orario') or '',
         'orario_modificato_il': _now_iso(),
         'aggiornato_il': _now_iso(),
-    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')))
+    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': snap.id})

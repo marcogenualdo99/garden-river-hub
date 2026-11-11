@@ -366,8 +366,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <div class="mod-field"><label>Preavviso minimo per prenotare (minuti)</label><input id="set-preavviso" type="number" min="0" step="5"></div>
         <div class="mod-field"><label>Preavviso minimo per cambiare orario (minuti)</label><input id="set-preavviso-mod" type="number" min="0" step="5"></div>
         <p class="set-hint">Il cliente può spostare la corsa solo se mancano almeno questi minuti.</p>
-        <div class="mod-field"><label>Corse per orario se non ci sono autisti</label><input id="set-max-orario" type="number" min="1" step="1"></div>
-        <p class="set-hint">Vale solo se non hai inserito autisti. Con gli autisti inseriti, ogni autista fa una corsa alla volta: un orario risulta occupato per tutti i clienti quando tutti gli autisti sono impegnati.</p>
+        <div class="mod-field"><label>Posti di ogni pulmino</label><input id="set-posti" type="number" min="1" step="1"></div>
+        <p class="set-hint">Ogni autista può portare più prenotazioni nello stesso orario finché la somma delle persone non supera questo numero. Un orario risulta occupato per tutti i clienti quando nessun pulmino ha più posti.</p>
+        <div class="mod-field"><label>Pulmini per orario se non ci sono autisti</label><input id="set-max-orario" type="number" min="1" step="1"></div>
+        <p class="set-hint">Vale solo se non hai inserito autisti.</p>
+        <div class="set-sec" style="margin-top:6px">Punti di raccolta</div>
+        <p class="set-hint" style="margin-top:0">Dopo la conferma il cliente vede dove farsi trovare, con la mappa. Puoi indicarne uno per ogni spiaggia, oppure uno solo per tutte.</p>
+        <div id="set-punti"></div>
+        <button type="button" class="btn-pill ghost" style="width:auto;padding:0 14px;height:34px;margin-bottom:14px" onclick="aggiungiPuntoRitiro()">+ Aggiungi punto di raccolta</button>
         <div class="mod-field"><label>Elimina corse completate/annullate dopo (giorni)</label><input id="set-pulizia" type="number" min="1" step="1"></div>
         <button type="button" class="btn-pill primary" style="width:100%;flex:none;margin-bottom:18px" onclick="salvaImpostazioniNavetta()">Salva impostazioni</button>
       </div>
@@ -392,7 +398,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       <div class="mod-field"><label>Nome e Cognome</label><input id="nc-nome"></div>
       <div class="mod-field"><label>Telefono</label><input id="nc-telefono"></div>
       <div class="mod-field"><label>Alloggio</label><input id="nc-alloggio"></div>
-      <div class="mod-field"><label>Spiaggia</label><select id="nc-spiaggia"><option value="">—</option></select></div>
+      <div class="mod-field"><label>Spiaggia (obbligatoria)</label><select id="nc-spiaggia"><option value="">—</option></select></div>
+      <div class="mod-field"><label>Numero di persone</label><input id="nc-persone" type="number" min="1" step="1" value="1"></div>
       <div class="mod-field"><label>Autista</label><select id="nc-autista"><option value="">— Scegli l'autista —</option></select></div>
       <div class="mod-field"><label>Orario</label><input id="nc-orario" placeholder="HH:MM"></div>
     </div>
@@ -411,6 +418,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
       <div class="mod-field"><label>Telefono</label><input id="mod-telefono"></div>
       <div class="mod-field"><label>Alloggio</label><input id="mod-alloggio"></div>
       <div class="mod-field"><label>Spiaggia</label><input id="mod-spiaggia"></div>
+      <div class="mod-field"><label>Numero di persone</label><input id="mod-persone" type="number" min="1" step="1"></div>
       <div class="mod-field"><label>Orario</label><input id="mod-orario" placeholder="HH:MM"></div>
     </div>
     <div class="modal-actions">
@@ -485,6 +493,17 @@ function corsaDuplicata(nome, telefono, orario, escludiId) {
     && ((n && _nn(c.nome) === n) || (t && _tel(c.telefono) === t)));
 }
 
+// Posti: ogni autista ha un pulmino da `postiPulmino` posti; piu' corse dello
+// stesso autista alla stessa ora stanno insieme finche' le persone bastano.
+let postiPulmino = 8;
+const _persone = c => Math.max(1, parseInt(c.persone, 10) || 1);
+function postiLiberi(orario, autista, escludiId) {
+  const attive = allCorse.filter(c => c.id !== escludiId && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata'));
+  const senza = attive.filter(c => !c.autista_nome).reduce((t, c) => t + _persone(c), 0);
+  if (!autista) return postiPulmino - attive.reduce((t, c) => t + _persone(c), 0);
+  const suoi = attive.filter(c => c.autista_nome && _nn(c.autista_nome) === _nn(autista)).reduce((t, c) => t + _persone(c), 0);
+  return postiPulmino - suoi - senza;
+}
 function oggiIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -534,6 +553,10 @@ function loadSpiaggeEAutisti() {
   onSnapshot(collection(db, 'beach_spiagge'), (snap) => {
     spiaggeList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }, (err) => console.error('Errore lettura beach_spiagge:', err));
+  window._fb.getDoc(window._fb.doc(db, 'impostazioni', 'navetta')).then(snap => {
+    const n = snap.exists() ? parseInt(snap.data().posti_pulmino, 10) : NaN;
+    if (Number.isFinite(n) && n >= 1) postiPulmino = n;
+  }).catch(() => {});
   onSnapshot(collection(db, 'navetta_autisti'), (snap) => {
     autistiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderAutistiModal();
@@ -762,6 +785,7 @@ function corsaCardHtml(c) {
       <div class="corsa-bottom">
         <span class="corsa-tag alloggio">${escHtml(c.alloggio_nome || 'Alloggio non indicato')}</span>
         ${c.spiaggia_nome ? `<span class="corsa-tag spiaggia">${escHtml(c.spiaggia_nome)}</span>` : ''}
+        <span class="corsa-tag autista">${_persone(c)} ${_persone(c) === 1 ? 'persona' : 'persone'}</span>
         ${c.autista_nome ? `<span class="corsa-tag autista">${escHtml(c.autista_nome)}</span>` : ''}
         ${c.orario_precedente ? `<span class="corsa-tag cambiata">orario cambiato (era ${escHtml(c.orario_precedente)})</span>` : ''}
         ${c.telefono ? `<a href="tel:${escHtml(c.telefono)}">${escHtml(c.telefono)}</a>` : ''}
@@ -820,6 +844,7 @@ function apriModificaModal(id) {
   document.getElementById('mod-alloggio').value = c.alloggio_nome || '';
   document.getElementById('mod-spiaggia').value = c.spiaggia_nome || '';
   document.getElementById('mod-orario').value = c.orario || '';
+  document.getElementById('mod-persone').value = _persone(c);
   document.getElementById('modifica-modal-overlay').classList.remove('hidden');
 }
 function chiudiModificaModal() {
@@ -833,7 +858,12 @@ async function salvaModifica() {
   if (corsaDuplicata(document.getElementById('mod-nome').value, document.getElementById('mod-telefono').value, orario, _modificaId)) {
     showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;
   }
+  const persone = parseInt(document.getElementById('mod-persone').value, 10);
+  if (!Number.isFinite(persone) || persone < 1 || persone > postiPulmino) { showToast(`Persone: da 1 a ${postiPulmino}`); return; }
+  const cm = allCorse.find(x => x.id === _modificaId);
+  if (cm && postiLiberi(orario, cm.autista_nome, _modificaId) < persone) { showToast('Su quell\'orario l\'autista non ha abbastanza posti'); return; }
   const patch = {
+    persone,
     nome:          document.getElementById('mod-nome').value.trim(),
     telefono:      document.getElementById('mod-telefono').value.trim(),
     alloggio_nome: document.getElementById('mod-alloggio').value.trim(),
@@ -909,8 +939,9 @@ async function rimuoviAutista(id) {
 // e preavvisi lato ospite) e da 'navetta-pulizia' (giorni di conservazione).
 const IMPOSTAZIONI_DEFAULT = {
   fasce: [{ dal: '09:00', al: '13:00' }, { dal: '15:30', al: '19:00' }],
-  passo_minuti: 15, preavviso_minimo_minuti: 25, preavviso_modifica_minuti: 25, max_corse_per_orario: 1, pulizia_giorni: 3,
+  passo_minuti: 15, preavviso_minimo_minuti: 25, preavviso_modifica_minuti: 25, max_corse_per_orario: 1, posti_pulmino: 8, pulizia_giorni: 3,
 };
+let _setPunti = [];
 let _setFasce = [];
 async function caricaImpostazioniNavetta() {
   let d = {};
@@ -925,6 +956,9 @@ async function caricaImpostazioniNavetta() {
   document.getElementById('set-preavviso').value = v.preavviso_minimo_minuti;
   document.getElementById('set-preavviso-mod').value = v.preavviso_modifica_minuti;
   document.getElementById('set-max-orario').value = v.max_corse_per_orario;
+  document.getElementById('set-posti').value = v.posti_pulmino;
+  _setPunti = (Array.isArray(d.punti_ritiro) ? d.punti_ritiro : []).map(p => ({ spiaggia: p.spiaggia || '', nome: p.nome || '', indicazioni: p.indicazioni || '', posizione: p.posizione || '' }));
+  renderPuntiRitiro();
   document.getElementById('set-pulizia').value = v.pulizia_giorni;
   renderFasceImpostazioni();
 }
@@ -934,16 +968,29 @@ function renderFasceImpostazioni() {
       <span>alle</span><input type="time" value="${escHtml(f.al)}" onchange="_setFasce[${i}].al=this.value">
       <button type="button" class="btn-pill ghost" style="width:34px;height:34px" title="Rimuovi" onclick="_setFasce.splice(${i},1);renderFasceImpostazioni()">&times;</button></div>`).join('');
 }
+function renderPuntiRitiro() {
+  const opz = (sel) => `<option value="">Tutte le spiagge</option>` + spiaggeList.map(x => `<option value="${escHtml(x.nome)}"${x.nome === sel ? ' selected' : ''}>${escHtml(x.nome)}</option>`).join('');
+  document.getElementById('set-punti').innerHTML = _setPunti.map((p, i) => `
+    <div style="border:1px solid var(--gray-200);border-radius:10px;padding:10px;margin-bottom:10px">
+      <div class="mod-field"><label>Per la spiaggia</label><select onchange="_setPunti[${i}].spiaggia=this.value">${opz(p.spiaggia)}</select></div>
+      <div class="mod-field"><label>Nome del punto</label><input value="${escHtml(p.nome)}" placeholder="Es. Ingresso spiaggia, cancello blu" oninput="_setPunti[${i}].nome=this.value"></div>
+      <div class="mod-field"><label>Come raggiungerlo</label><input value="${escHtml(p.indicazioni)}" placeholder="Es. Davanti al bar, vicino al parcheggio" oninput="_setPunti[${i}].indicazioni=this.value"></div>
+      <div class="mod-field"><label>Posizione (coordinate o link di Google Maps)</label><input value="${escHtml(p.posizione)}" placeholder="Es. 43.7654, 11.2543" oninput="_setPunti[${i}].posizione=this.value"></div>
+      <button type="button" class="btn-pill ghost" style="width:auto;padding:0 14px;height:32px" onclick="_setPunti.splice(${i},1);renderPuntiRitiro()">Rimuovi</button>
+    </div>`).join('');
+}
+function aggiungiPuntoRitiro() { _setPunti.push({ spiaggia: '', nome: '', indicazioni: '', posizione: '' }); renderPuntiRitiro(); }
 function aggiungiFasciaImpostazioni() { _setFasce.push({ dal: '09:00', al: '13:00' }); renderFasceImpostazioni(); }
 async function salvaImpostazioniNavetta() {
   const num = (id, min) => { const n = parseInt(document.getElementById(id).value, 10); return Number.isFinite(n) && n >= min ? n : null; };
   const fasce = _setFasce.filter(f => f.dal && f.al && f.dal <= f.al);
-  const passo = num('set-passo', 5), pre = num('set-preavviso', 0), preMod = num('set-preavviso-mod', 0), pul = num('set-pulizia', 1), maxO = num('set-max-orario', 1);
-  if (!fasce.length || passo == null || pre == null || preMod == null || pul == null || maxO == null) { showToast('Controlla i valori inseriti'); return; }
+  const passo = num('set-passo', 5), pre = num('set-preavviso', 0), preMod = num('set-preavviso-mod', 0), pul = num('set-pulizia', 1), maxO = num('set-max-orario', 1), posti = num('set-posti', 1);
+  if (!fasce.length || passo == null || pre == null || preMod == null || pul == null || maxO == null || posti == null) { showToast('Controlla i valori inseriti'); return; }
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'navetta'), {
-      fasce, passo_minuti: passo, preavviso_minimo_minuti: pre, preavviso_modifica_minuti: preMod, max_corse_per_orario: maxO, pulizia_giorni: pul,
+      fasce, passo_minuti: passo, preavviso_minimo_minuti: pre, preavviso_modifica_minuti: preMod, max_corse_per_orario: maxO, posti_pulmino: posti, pulizia_giorni: pul,
+      punti_ritiro: _setPunti.filter(p => p.nome.trim() || p.indicazioni.trim() || p.posizione.trim()).map(p => ({ spiaggia: p.spiaggia, nome: p.nome.trim(), indicazioni: p.indicazioni.trim(), posizione: p.posizione.trim() })),
       aggiornato_il: new Date().toISOString(), aggiornato_da: currentOperatore || '',
     }, { merge: true });
     showToast('Impostazioni salvate');
@@ -958,9 +1005,10 @@ function apriNuovaCorsaModal() {
   document.getElementById('nc-nome').value = '';
   document.getElementById('nc-telefono').value = '';
   document.getElementById('nc-alloggio').value = '';
-  document.getElementById('nc-spiaggia').innerHTML = opzioniSelect(spiaggeList, '— Nessuna —');
+  document.getElementById('nc-spiaggia').innerHTML = opzioniSelect(spiaggeList, '— Scegli la spiaggia —');
   document.getElementById('nc-autista').innerHTML = opzioniSelect(autistiList, '— Scegli l\'autista —');
   document.getElementById('nc-orario').value = '';
+  document.getElementById('nc-persone').value = 1;
   document.getElementById('nuova-corsa-modal-overlay').classList.remove('hidden');
 }
 function chiudiNuovaCorsaModal() {
@@ -973,15 +1021,23 @@ async function creaNuovaCorsa() {
   if (!nome || !telefono) { showToast('Servono nome e telefono'); return; }
   if (autistiList.length && !document.getElementById('nc-autista').value) { showToast('Scegli l\'autista'); return; }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(orario)) { showToast('Orario non valido (usa HH:MM)'); return; }
+  if (!document.getElementById('nc-spiaggia').value) { showToast('Scegli la spiaggia: serve all\'autista'); return; }
+  const persone = parseInt(document.getElementById('nc-persone').value, 10);
+  if (!Number.isFinite(persone) || persone < 1 || persone > postiPulmino) { showToast(`Persone: da 1 a ${postiPulmino}`); return; }
   if (corsaDuplicata(nome, telefono, orario)) {
     showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;
   }
+  const autistaNc = document.getElementById('nc-autista').value;
+  if (postiLiberi(orario, autistaNc) < persone) {
+    showToast(`${autistaNc || 'Il pulmino'} a quell'ora ha solo ${Math.max(0, postiLiberi(orario, autistaNc))} posti liberi`); return;
+  }
   const doc_ = {
+    persone,
     nome, telefono,
     alloggio_nome: document.getElementById('nc-alloggio').value.trim(),
     spiaggia_nome: document.getElementById('nc-spiaggia').value,
     autista_nome:  document.getElementById('nc-autista').value || null,
-    orario, data: oggiIso(), stato: 'in_attesa',
+    orario, data: oggiIso(), stato: 'accettata', accettata_il: new Date().toISOString(),
     creato_il: new Date().toISOString(), creato_da: currentOperatore || '',
   };
   try {
