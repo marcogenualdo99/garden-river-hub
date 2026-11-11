@@ -123,6 +123,15 @@
   .slot-btn { height: 54px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: var(--white);
     color: var(--gray-900); font-size: 18px; font-weight: 700; font-family: var(--font); cursor: pointer;
     -webkit-tap-highlight-color: transparent; }
+  .passo { display: flex; align-items: center; gap: 12px }
+  .passo .n { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--green-700); color: #fff;
+    font-weight: 800; font-size: 18px; display: flex; align-items: center; justify-content: center }
+  .passo h2 { margin: 0 }
+  .guida { font-size: 16px; line-height: 1.45; color: var(--gray-700); margin: 8px 0 14px }
+  .riepilogo { margin-top: 14px; padding: 4px 16px; border-radius: var(--radius); background: var(--green-50); border: 1px solid var(--green-200) }
+  .riepilogo div { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; font-size: 16px; color: var(--gray-700) }
+  .riepilogo div + div { border-top: 1px solid var(--green-200) }
+  .riepilogo b { font-size: 20px; color: var(--gray-900) }
   .slot-btn.aut-occ { border-style: dashed; color: var(--gray-500); background: var(--gray-50) }
   .sugg-autista { margin-top: 14px; padding: 16px; border-radius: var(--radius); background: var(--amber-bg); color: var(--gray-900); font-size: 16px; line-height: 1.5 }
   .sugg-autista .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
@@ -668,6 +677,7 @@ function renderNavetta() {
     ? esc(CONTENUTI.testi.navetta_testo)
     : `Prenota il rientro dalla spiaggia. Il servizio è attivo ${fasceTesto}.`;
 
+  const haAutisti = autisti.length > 0;
   $('#service-content').innerHTML = `
     <div class="card">
       <h2>Servizio navetta</h2>
@@ -675,24 +685,32 @@ function renderNavetta() {
     </div>
     <div id="navetta-stato-richieste"></div>
     <div class="card" id="navetta-form-card">
-      <h2>A che ora vuoi tornare?</h2>
-      ${sp ? `<div class="chip-spiaggia" style="margin-top:8px">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
-      ${nessunoPrenotabile
-        ? `<p class="hint" style="margin-top:10px">Non ci sono più orari disponibili adesso (servono almeno ${preavviso} minuti di preavviso). Riprova tra poco.</p>`
-        : `<div style="margin-top:6px">${gridSlotHtml(null, 'scegliOrario')}</div>`}
-
-      ${autisti.length ? `<h2 style="margin-top:26px">Quale autista vuoi?</h2>
-      <p class="hint" style="margin-bottom:12px">Tocca la foto o il nome dell'autista che ti verrà a prendere.</p>
+      ${haAutisti ? `
+      <div class="passo"><span class="n">1</span><h2>Scegli l'autista</h2></div>
+      <p class="guida">Tocca la foto dell'autista che ti verrà a prendere.</p>
       <div class="driver-grid" id="driver-grid">${cardAutisti}</div>` : ''}
-      <div class="sugg-autista" id="sugg-autista" style="display:none"></div>
 
-      ${serveTelefono ? `<div class="field" style="margin-top:20px"><label>Il tuo numero di telefono</label>
-        <input type="tel" id="f-telefono" value=""></div>` : ''}
-      ${!sp && spiagge.length ? `<div class="field" style="margin-top:20px"><label>Da quale spiaggia? (facoltativo)</label>
-        <select id="f-spiaggia">${opzioniSpiaggia}</select></div>` : ''}
+      <div class="passo" style="margin-top:${haAutisti ? 30 : 0}px"><span class="n">${haAutisti ? 2 : 1}</span><h2>Seleziona un orario</h2></div>
+      ${sp ? `<div class="chip-spiaggia" style="margin-top:8px">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
+      <p class="guida" id="orari-lock" style="display:${haAutisti ? 'block' : 'none'}">Prima scegli l'autista qui sopra: poi vedrai gli orari disponibili.</p>
+      <div id="orari-box" style="display:${haAutisti ? 'none' : 'block'}">
+        <p class="guida">Tocca l'orario in cui vuoi essere riaccompagnato.</p>
+        ${nessunoPrenotabile
+          ? `<p class="hint">Non ci sono più orari disponibili adesso (servono almeno ${preavviso} minuti di preavviso). Riprova tra poco.</p>`
+          : gridSlotHtml(null, 'scegliOrario')}
+        <div class="sugg-autista" id="sugg-autista" style="display:none"></div>
+      </div>
 
-      <div class="errbox" id="errbox"></div>
-      <button type="button" class="submit" id="btn-invia" onclick="invia()" disabled>Scegli prima un orario</button>
+      <div id="passo-conferma" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">${haAutisti ? 3 : 2}</span><h2>Conferma</h2></div>
+        <div class="riepilogo" id="riepilogo"></div>
+        ${serveTelefono ? `<div class="field" style="margin-top:16px"><label>Il tuo numero di telefono, così l'autista può chiamarti</label>
+          <input type="tel" id="f-telefono" value=""></div>` : ''}
+        ${!sp && spiagge.length ? `<div class="field" style="margin-top:16px"><label>Da quale spiaggia? (facoltativo)</label>
+          <select id="f-spiaggia">${opzioniSpiaggia}</select></div>` : ''}
+        <div class="errbox" id="errbox"></div>
+        <button type="button" class="submit" id="btn-invia" onclick="invia()">Conferma la prenotazione</button>
+      </div>
     </div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
@@ -702,24 +720,38 @@ function renderNavetta() {
   renderStatoRichieste();
 }
 
+// Percorso guidato: i passi successivi compaiono man mano che si sceglie.
+function vaiA(sel) {
+  const el = $(sel);
+  if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+}
 function aggiornaBottone() {
   const btn = $('#btn-invia');
   if (!btn || _invioInCorso) return;
-  const serveAutista = (CFG.autisti || []).length > 0 && !autistaScelto;
-  btn.disabled = !orarioScelto || serveAutista;
-  btn.textContent = !orarioScelto ? 'Scegli prima un orario'
-    : serveAutista ? 'Scegli l\'autista'
-    : `Prenota il rientro alle ${orarioScelto}`;
+  const haAutisti = (CFG.autisti || []).length > 0;
+  const pronto = !!orarioScelto && (!haAutisti || !!autistaScelto);
+  const box = $('#passo-conferma');
+  const eraNascosto = box.style.display === 'none';
+  box.style.display = pronto ? 'block' : 'none';
+  if (pronto) {
+    $('#riepilogo').innerHTML = `${autistaScelto ? `<div><span>Autista</span><b>${esc(autistaScelto)}</b></div>` : ''}
+      <div><span>Rientro alle</span><b>${esc(orarioScelto)}</b></div>`;
+    if (eraNascosto) vaiA('#passo-conferma');
+  }
 }
 
 function scegliAutista(id) {
   autistaScelto = ((CFG.autisti || []).find(a => a.id === id) || {}).nome || null;
   document.querySelectorAll('#driver-grid .driver-card').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
   chiudiSuggerimento();
+  const primaVolta = $('#orari-box').style.display === 'none';
+  $('#orari-box').style.display = 'block';
+  $('#orari-lock').style.display = 'none';
   const oraPrima = orarioScelto;
   aggiornaGriglieSlot();                       // l'autista nuovo puo' essere impegnato ad altre ore
   if (oraPrima && autistaOccupato(oraPrima, autistaScelto)) proponiCambioAutista(oraPrima);
   aggiornaBottone();
+  if (primaVolta && (CFG.autisti || []).length > 1) vaiA('#orari-box');
 }
 
 function scegliOrario(ora) {
@@ -783,7 +815,7 @@ async function invia() {
         <div class="conferma-box">
           <div class="ok">${ICONS.CHECK}Richiesta inviata</div>
           <div class="big">${esc(orario)}</div>
-          <p style="font-size:16px;line-height:1.5">Un autista verrà a prenderti in spiaggia a quest'ora. Se ti serve, puoi cambiare l'orario fino a ${preavvisoModifica()} minuti prima.</p>
+          <p style="font-size:16px;line-height:1.5">${autista ? `<b>${esc(autista)}</b> verrà` : 'Un autista verrà'} a prenderti in spiaggia a quest'ora. Se ti serve, puoi cambiare l'orario fino a ${preavvisoModifica()} minuti prima.</p>
         </div>
         <button type="button" class="btn-secondary" onclick="renderNavetta()">Prenota un altro orario</button>
       `;
@@ -803,7 +835,7 @@ async function invia() {
     box.style.display = 'block';
   } finally {
     _invioInCorso = false;
-    aggiornaBottone();
+    btn.disabled = false; btn.textContent = 'Conferma la prenotazione';
   }
 }
 
