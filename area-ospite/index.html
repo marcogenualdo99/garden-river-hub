@@ -15,12 +15,16 @@
   .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 48px; }
 
   header.top {
-    background: var(--grad-forest); color: #fff; padding: 26px 16px 20px;
-    padding-top: calc(24px + env(safe-area-inset-top));
+    background: var(--grad-forest); color: #fff; padding: 20px 16px 22px; position: relative;
+    padding-top: calc(18px + env(safe-area-inset-top));
   }
   header.top .inner { max-width: 560px; margin: 0 auto }
-  header.top .brand { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .75 }
-  header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 8px 0 0; letter-spacing: -.01em }
+  header.top .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px }
+  header.top .avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--green-700) }
+  header.top .brand { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .75 }
+  header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 30px; margin: 2px 0 0; letter-spacing: -.01em }
+  @media (min-width: 560px) { header.top h1 { font-size: 36px } }
   header.top .sub { margin-top: 10px; font-size: 13.5px; opacity: .92; line-height: 1.45 }
   header.top .sub b { font-weight: 800 }
 
@@ -46,12 +50,16 @@
 
   .field { margin-bottom: 12px }
   .field label { display: block; font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 5px }
-  input[type=text], input[type=tel] {
+  input[type=text], input[type=tel], select {
     width: 100%; height: 46px; padding: 0 13px; border: 1.5px solid var(--gray-300);
     border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900);
     background: var(--white); outline: none; -webkit-appearance: none; appearance: none;
   }
-  input:focus { border-color: var(--green-700) }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 34px;
+  }
+  input:focus, select:focus { border-color: var(--green-700) }
 
   .chip-spiaggia { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-bg); color: var(--blue);
     border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 700; margin-bottom: 10px }
@@ -107,7 +115,10 @@
 <div id="app" style="display:none">
   <header class="top">
     <div class="inner">
-      <div class="brand">Garden River</div>
+      <div class="topbar">
+        <div class="avatar" id="avatar"></div>
+        <div class="brand">Garden River</div>
+      </div>
       <h1>Area ospite</h1>
       <div class="sub" id="riepilogo"></div>
       <div class="tabs" id="tabs"></div>
@@ -116,7 +127,7 @@
 
   <div class="wrap">
     <div class="panel active" data-panel="navetta" id="panel-navetta"></div>
-    <div class="panel" data-panel="ristorazione"><div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Disponibile a breve.</p></div></div></div>
+    <div class="panel" data-panel="ristorazione" id="panel-ristorazione"></div>
     <div class="panel" data-panel="animazione"><div class="card"><div class="soon"><div class="icon">🎉</div><h3>Programma animazione</h3><p>Disponibile a breve.</p></div></div></div>
     <div class="panel" data-panel="info"><div class="card"><div class="soon"><div class="icon">ℹ️</div><h3>Info utili</h3><p>Disponibile a breve.</p></div></div></div>
     <div class="panel" data-panel="assistenza"><div class="card"><div class="soon"><div class="icon">💬</div><h3>Richiesta assistenza</h3><p>Disponibile a breve.</p></div></div></div>
@@ -173,15 +184,37 @@ function mostraErrore(titolo, testo) {
 function render() {
   const p = CFG.prenotazione;
   $('#riepilogo').innerHTML = `<b>${esc(p.nome || 'Ospite')}</b> · ${esc(p.alloggio_nome || 'Garden River')}`;
+  $('#avatar').textContent = (p.nome || '?').trim().slice(0, 2).toUpperCase();
 
   $('#tabs').innerHTML = TABS.map(t =>
     `<button type="button" class="tab${t.id === 'navetta' ? ' active' : ''}" data-tab="${t.id}" onclick="selezionaTab('${t.id}')">${t.label}</button>`
   ).join('');
 
   renderNavetta();
+  renderRistorazione();
 
   $('#stato-caricamento').style.display = 'none';
   $('#app').style.display = 'block';
+}
+
+// ── Ristorazione ──────────────────────────────────────────────────────────
+// Il menu vero vive in ristorazione/index.html (app a sé, con il suo Firebase
+// e il suo CSS): qui apriamo solo un rimando col codice famiglia già pronto,
+// creato in automatico dal Calendario quando il trattamento prevede pasti.
+function renderRistorazione() {
+  const r = CFG.ristorazione;
+  const panel = $('#panel-ristorazione');
+  if (!r) {
+    panel.innerHTML = `<div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Il tuo soggiorno non include pasti in ristorazione.</p></div></div>`;
+    return;
+  }
+  const label = r.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
+  panel.innerHTML = `
+    <div class="card">
+      <h2>Ristorazione</h2>
+      <p class="hint">Il tuo soggiorno include la ${esc(label).toLowerCase()}. Da qui scegli i piatti e prenoti i pasti dei prossimi giorni.</p>
+      <a class="submit" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:16px" href="../ristorazione/?f=${encodeURIComponent(r.codice)}">Apri il menu e ordina</a>
+    </div>`;
 }
 
 function selezionaTab(id) {
@@ -210,29 +243,41 @@ function slotsFasce(fasce) {
 function renderNavetta() {
   const p = CFG.prenotazione;
   const sp = CFG.spiaggia;
+  const spiagge = CFG.spiagge || [];
+  const preavviso = CFG.preavviso_minimo_minuti || 25;
   const fasceSlot = slotsFasce(CFG.fasce || []);
   const adesso = new Date();
-  const minutiAdesso = adesso.getHours() * 60 + adesso.getMinutes();
+  const sogliaMinuti = adesso.getHours() * 60 + adesso.getMinutes() + preavviso;
 
   const fasceHtml = fasceSlot.map((slot, i) => {
     const f = (CFG.fasce || [])[i] || {};
     const bottoni = slot.map(ora => {
       const [h, m] = ora.split(':').map(Number);
-      const passato = (h * 60 + m) < minutiAdesso;
-      return `<button type="button" class="slot-btn" data-ora="${ora}" ${passato ? 'disabled' : ''} onclick="scegliOrario('${ora}')">${ora}</button>`;
+      const nonPrenotabile = (h * 60 + m) < sogliaMinuti;
+      return `<button type="button" class="slot-btn" data-ora="${ora}" ${nonPrenotabile ? 'disabled' : ''} onclick="scegliOrario('${ora}')">${ora}</button>`;
     }).join('');
     return `<div class="fascia-title">${esc(f.dal || '')} – ${esc(f.al || '')}</div><div class="slot-grid">${bottoni}</div>`;
   }).join('');
 
-  const tuttiPassati = fasceSlot.every(slot => slot.every(ora => {
+  const nessunoPrenotabile = fasceSlot.every(slot => slot.every(ora => {
     const [h, m] = ora.split(':').map(Number);
-    return (h * 60 + m) < minutiAdesso;
+    return (h * 60 + m) < sogliaMinuti;
   }));
+
+  const spiaggiaSelezionataId = sp ? (spiagge.find(s => s.nome === sp.spiaggia_nome) || {}).id : '';
+  const opzioniSpiaggia = ['<option value="">— Nessuna —</option>']
+    .concat(spiagge.map(s => `<option value="${esc(s.nome)}" ${s.id === spiaggiaSelezionataId ? 'selected' : ''}>${esc(s.nome)}</option>`))
+    .join('');
+
+  const autisti = CFG.autisti || [];
+  const opzioniAutista = ['<option value="">— Chiunque disponibile —</option>']
+    .concat(autisti.map(a => `<option value="${esc(a.nome)}">${esc(a.nome)}</option>`))
+    .join('');
 
   $('#panel-navetta').innerHTML = `
     <div class="card">
       <h2>Servizio navetta</h2>
-      <p class="hint">Prenota il rientro dalla spiaggia. Il servizio è attivo dalle 09:00 alle 13:00 e dalle 15:30 alle 19:00, ogni 15 minuti.</p>
+      <p class="hint">Prenota il rientro dalla spiaggia. Il servizio è attivo dalle 09:00 alle 13:00 e dalle 15:30 alle 19:00, ogni 15 minuti (con almeno ${preavviso} minuti di preavviso).</p>
     </div>
     <div class="card" id="navetta-form-card">
       ${sp ? `<div class="chip-spiaggia">☂ ${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
@@ -243,15 +288,17 @@ function renderNavetta() {
       <div class="field"><label>Alloggio</label>
         <input type="text" id="f-alloggio" value="${esc(p.alloggio_nome)}"></div>
       <div class="field"><label>Spiaggia</label>
-        <input type="text" id="f-spiaggia" value="${esc(sp ? sp.spiaggia_nome : '')}" placeholder="Es. Spiaggia 1"></div>
+        <select id="f-spiaggia">${opzioniSpiaggia}</select></div>
+      <div class="field"><label>Autista</label>
+        <select id="f-autista">${opzioniAutista}</select></div>
 
       <label style="display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px">Orario</label>
-      ${tuttiPassati
-        ? '<p class="hint">Il servizio navetta è chiuso per oggi. Riprova domani.</p>'
+      ${nessunoPrenotabile
+        ? '<p class="hint">Nessun orario disponibile adesso (ci vogliono almeno ' + preavviso + ' minuti di preavviso). Riprova tra poco.</p>'
         : fasceHtml}
 
       <div class="errbox" id="errbox"></div>
-      <button type="button" class="submit" id="btn-invia" onclick="invia()" ${tuttiPassati ? 'disabled' : ''}>Prenota il rientro</button>
+      <button type="button" class="submit" id="btn-invia" onclick="invia()" ${nessunoPrenotabile ? 'disabled' : ''}>Prenota il rientro</button>
     </div>
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
@@ -269,6 +316,7 @@ async function invia() {
   const telefono = $('#f-telefono').value.trim();
   const alloggio = $('#f-alloggio').value.trim();
   const spiaggia = $('#f-spiaggia').value.trim();
+  const autista = $('#f-autista').value.trim();
 
   if (!nome || !telefono) {
     box.textContent = 'Compila nome e telefono.';
@@ -289,7 +337,7 @@ async function invia() {
       body: JSON.stringify({
         azione: 'navetta_prenota', token,
         nome, telefono, alloggio_nome: alloggio, spiaggia_nome: spiaggia,
-        orario: orarioScelto,
+        autista_nome: autista, orario: orarioScelto,
       }),
     });
     const d = await r.json();

@@ -164,6 +164,12 @@ service cloud.firestore {
     match /navetta_prenotazioni/{id} {
       allow read, write: if request.auth != null;
     }
+    // Elenco autisti in servizio, gestito dalla dashboard Navetta. Letto
+    // anche dalla Cloud Function 'area-ospite' (Admin SDK) per il menu a
+    // tendina "Autista" nel form di prenotazione del cliente.
+    match /navetta_autisti/{id} {
+      allow read, write: if request.auth != null;
+    }
 
     // ── Notifiche push ───────────────────────────────────────────────────
     match /staffTokens/{id} {

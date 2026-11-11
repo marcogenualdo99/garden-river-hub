@@ -15,10 +15,15 @@ Azioni (campo "azione" nel corpo JSON):
   - carica          : { token }
         -> riepilogo sanificato della prenotazione (nome, telefono, alloggio)
            + l'eventuale ombrellone/spiaggia già assegnati dal Calendario
+           + l'elenco delle spiagge configurate e degli autisti in servizio
+           (per i due menu a tendina) + l'eventuale accesso Ristorazione
+           (famiglia/codice, se il trattamento prevede pasti)
   - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
-                         orario }
-        -> valida l'orario contro le fasce attive e scrive la richiesta in
-           `navetta_prenotazioni` (data = oggi, stato "in_attesa")
+                         autista_nome, orario }
+        -> valida l'orario (fascia attiva + preavviso minimo, v.
+           PREAVVISO_MINIMO_MINUTI) e scrive la richiesta in
+           `navetta_prenotazioni` (data = oggi, stato "in_attesa",
+           autista_nome assegnato in seguito dalla dashboard autisti)
 """
 
 import json
@@ -41,6 +46,9 @@ TZ_ROMA = ZoneInfo('Europe/Rome')
 # spiaggia (spiaggia/index.html): 09:00–13:00 e 15:30–19:00, ogni 15'.
 FASCE_NAVETTA = (('09:00', '13:00'), ('15:30', '19:00'))
 PASSO_MINUTI = 15
+# Preavviso minimo richiesto: un orario è prenotabile solo se dista almeno
+# così tanti minuti da adesso (dà tempo all'autista di organizzarsi).
+PREAVVISO_MINIMO_MINUTI = 25
 
 MAX_TESTO = 120
 
@@ -109,6 +117,58 @@ def _risolvi_token(db, token):
     return pren_ref, (pren.to_dict() or {})
 
 
+def _spiagge_disponibili(db):
+    """Elenco spiagge configurate nel modulo Spiaggia (beach_spiagge), per il
+    menu a tendina lato ospite — niente più campo libero."""
+    try:
+        return [
+            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id}
+            for d in db.collection('beach_spiagge').stream()
+        ]
+    except Exception as e:
+        print(f'Lettura beach_spiagge non riuscita: {e}')
+        return []
+
+
+def _autisti_attivi(db):
+    """Autisti in servizio oggi (collezione navetta_autisti, gestita dalla
+    dashboard Navetta), per il menu a tendina lato ospite. Chi non è segnato
+    attivo non compare: il cliente può sempre lasciare 'chiunque disponibile'."""
+    try:
+        out = []
+        for d in db.collection('navetta_autisti').stream():
+            f = d.to_dict() or {}
+            if f.get('attivo', True):
+                out.append({'id': d.id, 'nome': _s(f.get('nome')) or d.id})
+        return out
+    except Exception as e:
+        print(f'Lettura navetta_autisti non riuscita: {e}')
+        return []
+
+
+def _ristorazione_disponibile(db, pren_id):
+    """Famiglia Ristorazione collegata a questa prenotazione (creata in
+    automatico dal Calendario quando il trattamento è PC/MP — v.
+    sincronizzaFamigliaRistorazione in calendario/index.html). None se il
+    soggiorno non include pasti."""
+    try:
+        q = (db.collection('famiglie_ristorazione')
+               .where('calendario_prenotazione_id', '==', pren_id)
+               .limit(1))
+        docs = list(q.stream())
+        if not docs:
+            return None
+        f = docs[0].to_dict() or {}
+        codice = _s(f.get('codice'))
+        trattamento = _s(f.get('trattamento'))
+        if not codice or trattamento not in ('PC', 'MP'):
+            return None
+        return {'codice': codice, 'trattamento': trattamento}
+    except Exception as e:
+        print(f'Lettura famiglia ristorazione non riuscita: {e}')
+        return None
+
+
 def _spiaggia_assegnata(db, pren_id):
     """Ombrellone/spiaggia già posizionati dal Calendario per questa
     prenotazione (collezione beach_prenotazioni, campo
@@ -152,8 +212,18 @@ def _slot_validi():
     return out
 
 
+def _minuti_da_ora(orario):
+    """Minuti tra adesso (ora di Roma) e l'orario 'HH:MM' passato, oggi."""
+    h, m = map(int, orario.split(':'))
+    ora = datetime.now(TZ_ROMA)
+    target = ora.replace(hour=h, minute=m, second=0, microsecond=0)
+    return (target - ora).total_seconds() / 60
+
+
 def _orario_valido(orario):
-    return bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) and orario in _slot_validi()
+    if not bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) or orario not in _slot_validi():
+        return False
+    return _minuti_da_ora(orario) >= PREAVVISO_MINIMO_MINUTI
 
 
 # ── azioni ─────────────────────────────────────────────────────────────────
@@ -173,7 +243,11 @@ def _azione_carica(db, origin, data):
             'checkout':      _s(p.get('checkout')),
         },
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id),
+        'spiagge': _spiagge_disponibili(db),
+        'autisti': _autisti_attivi(db),
+        'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
         'fasce': [{'dal': a, 'al': b} for a, b in FASCE_NAVETTA],
+        'preavviso_minimo_minuti': PREAVVISO_MINIMO_MINUTI,
     })
 
 
@@ -190,6 +264,7 @@ def _azione_navetta_prenota(db, origin, data):
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
     alloggio_nome = _s(data.get('alloggio_nome')) or _s(p.get('alloggio_nome'))
     spiaggia_nome = _s(data.get('spiaggia_nome'))
+    autista_nome = _s(data.get('autista_nome'))  # facoltativo: il cliente lo sceglie se lo sa
     if not nome or not telefono:
         return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
 
@@ -202,6 +277,7 @@ def _azione_navetta_prenota(db, origin, data):
         'data':          _oggi_iso(),
         'orario':        orario,
         'stato':         'in_attesa',
+        'autista_nome':  autista_nome or None,
         'creato_il':     _now_iso(),
     }
     ref = db.collection('navetta_prenotazioni').document()
