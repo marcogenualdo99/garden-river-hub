@@ -454,6 +454,35 @@ let autistiList       = [];  // [{id, nome}] — da navetta_autisti, sempre tutt
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
 
+// ── AUTISTA ↔ OPERATORE ──────────────────────────────────────────────────
+// L'operatore che ha aperto la Navetta e' un autista se il suo nome coincide
+// con uno di navetta_autisti (nome intero, oppure solo il nome di battesimo).
+// Un autista vede solo le corse assegnate a lui o ancora libere ("chiunque
+// disponibile"): cosi' due autisti non vanno per errore dalla stessa famiglia.
+// Amministratori e operatori che non sono autisti (reception) vedono tutto.
+const _nn = v => (v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+function autistaCorrente() {
+  if (isAdmin() || !currentOperatore) return null;
+  const op = _nn(currentOperatore);
+  const opNome = op.split(' ')[0];
+  return autistiList.find(a => _nn(a.nome) === op)
+      || autistiList.find(a => _nn(a.nome).split(' ')[0] === opNome && opNome)
+      || null;
+}
+function corsaVisibile(c) {
+  const me = autistaCorrente();
+  if (!me || !c.autista_nome) return true;
+  const a = _nn(c.autista_nome), mio = _nn(me.nome);
+  return a === mio || a === _nn(currentOperatore) || a.split(' ')[0] === mio.split(' ')[0];
+}
+// Stessa persona alla stessa ora (corse attive): per nome o telefono.
+const _tel = v => { const d = (v || '').replace(/\D/g, ''); return d.length >= 7 ? d.slice(-9) : ''; };
+function corsaDuplicata(nome, telefono, orario, escludiId) {
+  const n = _nn(nome), t = _tel(telefono);
+  return allCorse.some(c => c.id !== escludiId && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata')
+    && ((n && _nn(c.nome) === n) || (t && _tel(c.telefono) === t)));
+}
+
 function oggiIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -506,6 +535,7 @@ function loadSpiaggeEAutisti() {
   onSnapshot(collection(db, 'navetta_autisti'), (snap) => {
     autistiList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderAutistiModal();
+    if (!_firstDataLoad) renderCorse();
   }, (err) => console.error('Errore lettura navetta_autisti:', err));
 }
 
@@ -655,10 +685,11 @@ function countdownHtml(c) {
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function renderCorse() {
-  const attesa     = allCorse.filter(c => c.stato === 'in_attesa');
-  const accettata  = allCorse.filter(c => c.stato === 'accettata');
-  const completata = allCorse.filter(c => c.stato === 'completata');
-  const annullata  = allCorse.filter(c => c.stato === 'annullata');
+  const mie        = allCorse.filter(corsaVisibile);
+  const attesa     = mie.filter(c => c.stato === 'in_attesa');
+  const accettata  = mie.filter(c => c.stato === 'accettata');
+  const completata = mie.filter(c => c.stato === 'completata');
+  const annullata  = mie.filter(c => c.stato === 'annullata');
   // "Tutte" mostra solo le corse ancora da gestire: completate e annullate
   // hanno le loro schede e non devono confondere la lista di lavoro.
   const tutte      = [...attesa, ...accettata];
@@ -681,7 +712,7 @@ function renderCorse() {
     wrap.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon"><span data-icon="NAVETTA"></span></div>
-        <h3>${allCorse.length === 0 ? 'Nessuna richiesta oggi' : tutte.length === 0 && currentFilter === 'tutte' ? 'Nessuna corsa da gestire' : 'Nessuna corsa in questo filtro'}</h3>
+        <h3>${mie.length === 0 ? 'Nessuna richiesta oggi' : tutte.length === 0 && currentFilter === 'tutte' ? 'Nessuna corsa da gestire' : 'Nessuna corsa in questo filtro'}</h3>
         <p>Le richieste arrivano dagli ospiti dal loro link personale — appena ne arriva una, la vedi qui in tempo reale.</p>
       </div>`;
     hydrateIcons(wrap);
@@ -761,8 +792,12 @@ async function cambiaStato(id, nuovoStato) {
   try {
     const { db, doc, updateDoc } = window._fb;
     const c = allCorse.find(x => x.id === id);
+    if (c && !corsaVisibile(c)) { showToast('Questa corsa è assegnata a un altro autista'); return; }
     const patch = { stato: nuovoStato, aggiornato_il: new Date().toISOString() };
-    if (nuovoStato === 'accettata') patch.autista_nome = currentOperatore || '';
+    if (nuovoStato === 'accettata') {
+      const me = autistaCorrente();
+      patch.autista_nome = (me && me.nome) || currentOperatore || '';
+    }
     if (c) { Object.assign(c, patch); renderCorse(); }
     await updateDoc(doc(db, 'navetta_prenotazioni', id), patch);
   } catch(e) {
@@ -793,6 +828,9 @@ async function salvaModifica() {
   if (!_modificaId) return;
   const orario = document.getElementById('mod-orario').value.trim();
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(orario)) { showToast('Orario non valido (usa HH:MM)'); return; }
+  if (corsaDuplicata(document.getElementById('mod-nome').value, document.getElementById('mod-telefono').value, orario, _modificaId)) {
+    showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;
+  }
   const patch = {
     nome:          document.getElementById('mod-nome').value.trim(),
     telefono:      document.getElementById('mod-telefono').value.trim(),
@@ -931,7 +969,7 @@ async function creaNuovaCorsa() {
   const orario = document.getElementById('nc-orario').value.trim();
   if (!nome || !telefono) { showToast('Servono nome e telefono'); return; }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(orario)) { showToast('Orario non valido (usa HH:MM)'); return; }
-  if (allCorse.some(c => c.nome === nome && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata'))) {
+  if (corsaDuplicata(nome, telefono, orario)) {
     showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;
   }
   const doc_ = {
