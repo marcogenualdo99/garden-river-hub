@@ -145,6 +145,7 @@
   .punto-ritiro .pr-tit svg { width: 18px; height: 18px }
   .punto-ritiro .pr-nome { font-size: 20px; font-weight: 800; color: var(--gray-900); margin-top: 6px }
   .punto-ritiro .pr-ind { font-size: 16px; line-height: 1.45; color: var(--gray-700); margin-top: 6px; white-space: pre-line }
+  .punto-ritiro iframe { width: 100%; height: 220px; border: 1px solid var(--green-200); border-radius: var(--radius-sm); margin-top: 12px; display: block; background: var(--gray-100) }
   .punto-ritiro a.pr-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 54px; margin-top: 12px;
     border-radius: 999px; background: var(--green-700); color: #fff; font-weight: 800; font-size: 17px; text-decoration: none }
   .punto-ritiro a.pr-btn svg { width: 20px; height: 20px }
@@ -599,10 +600,14 @@ function puntoRitiroHtml(spiaggia) {
   if (!p) return '';
   const haCoord = typeof p.lat === 'number' && typeof p.lng === 'number';
   const url = p.link || (haCoord ? `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking` : '');
+  const d = 0.0025;   // ~280 m attorno al punto
+  const mappa = haCoord
+    ? `<iframe title="Mappa del punto di raccolta" src="https://www.openstreetmap.org/export/embed.html?bbox=${p.lng - d},${p.lat - d},${p.lng + d},${p.lat + d}&layer=mapnik&marker=${p.lat},${p.lng}"></iframe>` : '';
   return `<div class="punto-ritiro">
     <div class="pr-tit">${PIN}Dove farti trovare</div>
     ${p.nome ? `<div class="pr-nome">${esc(p.nome)}</div>` : ''}
     ${p.indicazioni ? `<div class="pr-ind">${esc(p.indicazioni)}</div>` : ''}
+    ${mappa}
     ${url ? `<a class="pr-btn" href="${esc(url)}" target="_blank" rel="noopener">${PIN}Apri la mappa e raggiungi il punto</a>` : ''}
   </div>`;
 }
