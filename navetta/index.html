@@ -135,9 +135,6 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .set-row input { flex: 1; text-align: center; }
 .set-row span { font-size: 13px; color: var(--gray-500); }
 .set-hint { font-size: 11.5px; color: var(--gray-500); margin: -6px 0 12px; line-height: 1.4; }
-.corsa-sugg { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--amber-bg); color: var(--gray-900); font-size: 13px; line-height: 1.45; }
-.corsa-sugg .btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-.corsa-sugg .btns button { height: 34px; padding: 0 14px; border-radius: 999px; border: none; background: var(--green-700); color: #fff; font-weight: 800; font-size: 12.5px; font-family: inherit; cursor: pointer; }
 .corsa-tag.cambiata  { background: var(--gray-100); color: var(--gray-500); }
 .mod-annulla-link { display: block; text-align: center; font-size: 13px; font-weight: 700; color: var(--red); background: none; border: none; cursor: pointer; font-family: var(--font); margin-top: 4px; padding: 8px; width: 100%; }
 
@@ -480,28 +477,6 @@ function corsaVisibile(c) {
   const a = _nn(c.autista_nome), mio = _nn(me.nome);
   return a === mio || a === _nn(currentOperatore) || a.split(' ')[0] === mio.split(' ')[0];
 }
-// Autista A ha gia' un'altra corsa attiva a quell'ora ma un collega e' libero:
-// restituisce i colleghi liberi da proporre (vuoto se non serve).
-const _stessoAutista = (a, b) => !!a && !!b && (_nn(a) === _nn(b) || _nn(a).split(' ')[0] === _nn(b).split(' ')[0]);
-function autistaImpegnato(nome, orario, escludiId) {
-  return allCorse.some(c => c.id !== escludiId && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata') && _stessoAutista(c.autista_nome, nome));
-}
-function colleghiLiberi(c) {
-  if (!c.autista_nome || c.stato !== 'in_attesa') return [];   // solo sulle richieste ancora da accettare
-  if (!autistaImpegnato(c.autista_nome, c.orario, c.id)) return [];
-  return autistiList.filter(a => !_stessoAutista(a.nome, c.autista_nome) && !autistaImpegnato(a.nome, c.orario, c.id));
-}
-async function cambiaAutista(id, nome) {
-  try {
-    const { db, doc, updateDoc } = window._fb;
-    const patch = { autista_nome: nome, aggiornato_il: new Date().toISOString() };
-    const c = allCorse.find(x => x.id === id);
-    if (c) { Object.assign(c, patch); renderCorse(); }
-    await updateDoc(doc(db, 'navetta_prenotazioni', id), patch);
-    showToast(`Corsa passata a ${nome}`);
-  } catch(e) { console.error('Errore cambio autista:', e); showToast('Errore cambio autista'); forceRefresh(false); }
-}
-
 // Stessa persona alla stessa ora (corse attive): per nome o telefono.
 const _tel = v => { const d = (v || '').replace(/\D/g, ''); return d.length >= 7 ? d.slice(-9) : ''; };
 function corsaDuplicata(nome, telefono, orario, escludiId) {
@@ -750,13 +725,6 @@ function renderCorse() {
   startCountdownTimer();
 }
 
-function suggerimentoAutistaHtml(c) {
-  const liberi = colleghiLiberi(c);
-  if (!liberi.length) return '';
-  return `<div class="corsa-sugg"><b>${escHtml(c.autista_nome)}</b> ha già un'altra corsa alle ${escHtml(c.orario)}. ${liberi.length === 1 ? `<b>${escHtml(liberi[0].nome)}</b> è disponibile` : 'Sono disponibili: ' + liberi.map(a => `<b>${escHtml(a.nome)}</b>`).join(', ')}: vuoi passargliela?
-    <div class="btns">${liberi.map(a => `<button type="button" onclick="cambiaAutista('${c.id}','${escHtml(a.nome).replace(/'/g, "\\'")}')">Passa a ${escHtml(a.nome)}</button>`).join('')}</div></div>`;
-}
-
 function corsaCardHtml(c) {
   const statusMap = {
     in_attesa:  ['attesa', 'In attesa'],
@@ -800,7 +768,6 @@ function corsaCardHtml(c) {
       </div>
     </div>
   </div>
-  ${suggerimentoAutistaHtml(c)}
   <div class="corsa-actions">${azioni}</div>
 </div>`;
 }
@@ -832,8 +799,6 @@ async function cambiaStato(id, nuovoStato) {
     if (nuovoStato === 'accettata') {
       const me = autistaCorrente();
       patch.autista_nome = (me && me.nome) || currentOperatore || '';
-      if (c && autistaImpegnato(patch.autista_nome, c.orario, c.id) &&
-          !confirm(`Hai già un'altra corsa alle ${c.orario}. Accetti comunque anche questa?`)) return;
     }
     if (c) { Object.assign(c, patch); renderCorse(); }
     await updateDoc(doc(db, 'navetta_prenotazioni', id), patch);
