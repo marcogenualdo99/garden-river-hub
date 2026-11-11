@@ -367,13 +367,24 @@ def _corse_attive_oggi(db, transaction=None):
             if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata')]
 
 
+def _posti_liberi(corse_ora, cfg):
+    """Quanti autisti sono ancora liberi a un orario, date le corse attive di
+    quell'ora. Conta gli autisti DISTINTI impegnati (due corse dello stesso
+    autista valgono un solo autista occupato) piu' le corse senza autista,
+    che occupano ciascuna un posto."""
+    occupati = {_norm_nome(x.get('autista_nome')) for x in corse_ora if _norm_nome(x.get('autista_nome'))}
+    senza = sum(1 for x in corse_ora if not _norm_nome(x.get('autista_nome')))
+    return cfg['capacita'] - len(occupati) - senza
+
+
 def _orari_occupati(attive, cfg):
-    """Orari che hanno raggiunto il tetto di corse (uguale per tutti gli
+    """Orari in cui nessun autista e' piu' libero (uguale per tutti gli
     ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
-    conta = {}
+    per_ora = {}
     for _id, x in attive:
-        conta[x.get('orario')] = conta.get(x.get('orario'), 0) + 1
-    return sorted(o for o, n in conta.items() if o and n >= cfg['capacita'])
+        if x.get('orario'):
+            per_ora.setdefault(x['orario'], []).append(x)
+    return sorted(o for o, corse in per_ora.items() if _posti_liberi(corse, cfg) <= 0)
 
 
 def _orari_autisti(attive, cfg):
@@ -401,7 +412,7 @@ def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_i
     for _i, x in stessa_ora:
         if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
             return 'corsa_duplicata'
-    if len(stessa_ora) >= cfg['capacita']:
+    if _posti_liberi([x for _i, x in stessa_ora], cfg) <= 0:
         return 'orario_occupato'
     a = _norm_nome(autista)
     if a and any(_norm_nome(x.get('autista_nome')) == a for _i, x in stessa_ora):
