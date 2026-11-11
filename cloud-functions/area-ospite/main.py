@@ -38,7 +38,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import firebase_admin
-from google.api_core.exceptions import AlreadyExists
 from firebase_admin import firestore
 import functions_framework
 
@@ -57,6 +56,9 @@ NAVETTA_DEFAULT = {
     'preavviso_minimo_minuti': 25,
     # Il cliente puo' spostare una corsa solo se mancano almeno cosi' tanti minuti.
     'preavviso_modifica_minuti': 25,
+    # Quante corse attive al massimo per lo stesso orario (tutti gli ospiti
+    # insieme): raggiunto il tetto, l'orario risulta occupato per tutti.
+    'max_corse_per_orario': 1,
 }
 SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza')
 
@@ -109,10 +111,10 @@ def _cfg_navetta(db):
                 fasce.append({'dal': dal, 'al': al})
         if fasce:
             cfg['fasce'] = fasce
-        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti'):
+        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti', 'max_corse_per_orario'):
             try:
                 v = int(d.get(k))
-                if v >= (5 if k == 'passo_minuti' else 0):
+                if v >= (5 if k == 'passo_minuti' else 1 if k == 'max_corse_per_orario' else 0):
                     cfg[k] = v
             except (TypeError, ValueError):
                 pass
@@ -348,25 +350,50 @@ def _norm_tel(v):
     return cifre[-9:] if len(cifre) >= 7 else ''
 
 
-def _corsa_attiva_duplicata(db, pren_id, orario, nome='', telefono='', escludi_id=None):
-    """True se la stessa persona ha gia' una corsa ancora attiva allo stesso
-    orario oggi. La persona si riconosce dalla prenotazione, dal telefono o dal
-    nome: nella realta' una stessa persona non puo' essere in due corse alla
-    stessa ora, nemmeno se qualcuno la inserisce a nome di un'altra
-    prenotazione dello stesso gruppo."""
-    n, t = _norm_nome(nome), _norm_tel(telefono)
+def _corse_attive_oggi(db, transaction=None):
+    """[(id, dict)] delle corse ancora attive oggi, di tutti gli ospiti."""
     q = db.collection('navetta_prenotazioni').where('data', '==', _oggi_iso())
-    for d in q.stream():
-        x = d.to_dict() or {}
-        if d.id == escludi_id or x.get('orario') != orario or x.get('stato') not in ('in_attesa', 'accettata'):
-            continue
-        if x.get('prenId') == pren_id:
-            return True
-        if t and _norm_tel(x.get('telefono')) == t:
-            return True
-        if n and _norm_nome(x.get('nome')) == n:
-            return True
-    return False
+    docs = q.stream(transaction=transaction) if transaction is not None else q.stream()
+    return [(d.id, d.to_dict() or {}) for d in docs
+            if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata')]
+
+
+def _orari_occupati(attive, cfg):
+    """Orari che hanno raggiunto il tetto di corse (uguale per tutti gli
+    ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
+    conta = {}
+    for _id, x in attive:
+        conta[x.get('orario')] = conta.get(x.get('orario'), 0) + 1
+    return sorted(o for o, n in conta.items() if o and n >= cfg['max_corse_per_orario'])
+
+
+def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None):
+    """None se l'orario e' libero per questa persona, altrimenti il codice
+    d'errore: 'corsa_duplicata' (la stessa persona e' gia' in una corsa a
+    quell'ora: stessa prenotazione, telefono o nome) oppure 'orario_occupato'
+    (tetto di corse per quell'orario raggiunto da altri ospiti)."""
+    n, t = _norm_nome(nome), _norm_tel(telefono)
+    stessa_ora = [(i, x) for i, x in attive if i != escludi_id and x.get('orario') == orario]
+    for _i, x in stessa_ora:
+        if x.get('prenId') == pren_id or (t and _norm_tel(x.get('telefono')) == t) or (n and _norm_nome(x.get('nome')) == n):
+            return 'corsa_duplicata'
+    if len(stessa_ora) >= cfg['max_corse_per_orario']:
+        return 'orario_occupato'
+    return None
+
+
+@firestore.transactional
+def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None):
+    """Controllo e scrittura nella stessa transazione: due richieste
+    contemporanee per l'ultimo posto di un orario non passano entrambe."""
+    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id)
+    if err:
+        return err
+    if escludi_id:
+        transaction.update(ref, scrittura)
+    else:
+        transaction.set(ref, scrittura)
+    return None
 
 
 # ── azioni ─────────────────────────────────────────────────────────────────
@@ -392,6 +419,7 @@ def _azione_carica(db, origin, data):
         'autisti': _autisti_elenco(db),
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
+        'orari_occupati': _orari_occupati(_corse_attive_oggi(db), cfg),
         'oggi': _oggi_iso(),
         'fasce': cfg['fasce'],
         'passo_minuti': cfg['passo_minuti'],
@@ -411,7 +439,12 @@ def _azione_navetta_stato(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    return _json(origin, {'ok': True, 'navetta_corse': _navetta_corse_cliente(db, pren_ref.id), 'oggi': _oggi_iso()})
+    return _json(origin, {
+        'ok': True,
+        'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
+        'orari_occupati': _orari_occupati(_corse_attive_oggi(db), _cfg_navetta(db)),
+        'oggi': _oggi_iso(),
+    })
 
 
 def _azione_navetta_prenota(db, origin, data):
@@ -426,8 +459,6 @@ def _azione_navetta_prenota(db, origin, data):
 
     nome = _s(data.get('nome')) or _s(p.get('nome'))
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
-    if _corsa_attiva_duplicata(db, pren_ref.id, orario, nome, telefono):
-        return _json(origin, {'ok': False, 'errore': 'corsa_duplicata'}, 409)
     alloggio_nome = _s(data.get('alloggio_nome')) or _s(p.get('alloggio_nome'))
     spiaggia_nome = _s(data.get('spiaggia_nome'))
     autista_nome = _s(data.get('autista_nome'))  # facoltativo: il cliente lo sceglie se lo sa
@@ -446,20 +477,10 @@ def _azione_navetta_prenota(db, origin, data):
         'autista_nome':  autista_nome or None,
         'creato_il':     _now_iso(),
     }
-    # Id deterministico (prenotazione + giorno + orario) e create() atomica:
-    # due richieste identiche inviate insieme (doppio tap, due dispositivi)
-    # non possono generare due corse.
-    col = db.collection('navetta_prenotazioni')
-    ref = col.document(f"{pren_ref.id}_{_oggi_iso()}_{orario.replace(':', '')}")
-    try:
-        ref.create(doc)
-    except AlreadyExists:
-        esistente = (ref.get().to_dict() or {})
-        if esistente.get('orario') == orario and esistente.get('stato') in ('in_attesa', 'accettata'):
-            return _json(origin, {'ok': False, 'errore': 'corsa_duplicata'}, 409)
-        # id occupato da una corsa chiusa o spostata: nuovo documento a id libero
-        ref = col.document()
-        ref.set(doc)
+    ref = db.collection('navetta_prenotazioni').document()
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono)
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': ref.id})
 
 
@@ -485,15 +506,14 @@ def _azione_navetta_modifica_orario(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
     if orario == c.get('orario'):
         return _json(origin, {'ok': True, 'id': snap.id})
-    if _corsa_attiva_duplicata(db, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id):
-        return _json(origin, {'ok': False, 'errore': 'corsa_duplicata'}, 409)
-
-    ref.update({
+    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, {
         'orario': orario,
         'orario_precedente': c.get('orario') or '',
         'orario_modificato_il': _now_iso(),
         'aggiornato_il': _now_iso(),
-    })
+    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id)
+    if err:
+        return _json(origin, {'ok': False, 'errore': err}, 409)
     return _json(origin, {'ok': True, 'id': snap.id})
 
 

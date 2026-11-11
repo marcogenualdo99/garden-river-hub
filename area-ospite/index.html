@@ -458,9 +458,25 @@ function dataBreve(iso) {
 // Orari di oggi gia' occupati da una richiesta attiva di questo ospite
 // (si disattivano nella griglia: non si puo' prenotare due volte la stessa ora).
 function orariOccupati(escludiId) {
-  return new Set((CFG.navetta_corse || [])
+  const o = new Set(CFG.orari_occupati || []);   // tetto raggiunto da qualsiasi ospite
+  (CFG.navetta_corse || [])
     .filter(c => c.data === oggiData() && c.id !== escludiId && (c.stato === 'in_attesa' || c.stato === 'accettata'))
-    .map(c => c.orario));
+    .forEach(c => o.add(c.orario));
+  return o;
+}
+// Aggiorna in place gli orari disattivati (senza ridisegnare né perdere la selezione).
+function aggiornaGriglieSlot() {
+  const sets = [['#navetta-form-card .slot-btn', orariOccupati()], ['#edit-slots .slot-btn', orariOccupati(_editId)]];
+  sets.forEach(([sel, occ]) => document.querySelectorAll(sel).forEach(el => {
+    const ora = el.dataset.ora, blocca = !slotLibero(ora) || occ.has(ora);
+    el.disabled = blocca;
+    el.title = occ.has(ora) ? 'Orario già prenotato' : '';
+    if (blocca && el.classList.contains('selected')) {
+      el.classList.remove('selected');
+      if (orarioScelto === ora) orarioScelto = null;
+      if (_editOrario === ora) { _editOrario = null; const cb = $('#edit-conf'); if (cb) cb.disabled = true; }
+    }
+  }));
 }
 function modificabile(c) {
   return c.data === oggiData() && (c.stato === 'in_attesa' || c.stato === 'accettata') && minutiDaAdesso(c.orario || '00:00') >= preavvisoModifica();
@@ -535,7 +551,9 @@ async function confermaCambioOrario() {
   try {
     const d = await chiama({ azione: 'navetta_modifica_orario', id: _editId, orario: _editOrario });
     if (d.ok) { _editId = null; _editOrario = null; await aggiornaStato(true); return; }
+    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata') aggiornaStato(false);
     err.textContent = d.errore === 'troppo_tardi' ? `Non si può più cambiare: mancano meno di ${preavvisoModifica()} minuti alla corsa.`
+      : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta a quell\'orario.'
       : d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
       : d.errore === 'corsa_non_modificabile' ? 'Questa corsa non si può più modificare.'
@@ -557,10 +575,12 @@ async function aggiornaStato(forza) {
     const d = await chiama({ azione: 'navetta_stato' });
     if (!d.ok) return;
     const corse = d.navetta_corse || (d.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
-    const firma = JSON.stringify(corse);
+    const occupati = d.orari_occupati || CFG.orari_occupati || [];
+    const firma = JSON.stringify([corse, occupati]);
     if (forza || firma !== _ultimoStato) {
       _ultimoStato = firma;
-      CFG.navetta_corse = corse; if (d.oggi) CFG.oggi = d.oggi;
+      CFG.navetta_corse = corse; CFG.orari_occupati = occupati; if (d.oggi) CFG.oggi = d.oggi;
+      aggiornaGriglieSlot();                  // gli orari presi da altri ospiti si spengono subito
       if (_editId && !forza) return;          // non interrompere chi sta scegliendo
       renderStatoRichieste();
       if (!_servizioAperto) renderHome();
@@ -569,7 +589,7 @@ async function aggiornaStato(forza) {
   finally { _inVolo = false; }
 }
 function avviaAggiornamentoStato() {
-  _ultimoStato = JSON.stringify(CFG.navetta_corse || []);
+  _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || []]);
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(() => { if (document.visibilityState === 'visible') aggiornaStato(false); }, 8000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') aggiornaStato(false); });
@@ -707,7 +727,9 @@ async function invia() {
       `;
       return;
     }
+    if (d.errore === 'orario_occupato' || d.errore === 'corsa_duplicata') aggiornaStato(true);
     box.textContent = d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
+      : d.errore === 'orario_occupato' ? 'Questo orario è appena stato prenotato da un altro ospite. Scegline un altro.'
       : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta attiva a quest\'orario. Scegline un altro oppure cambia quella esistente.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : 'Invio non riuscito. Riprova.';

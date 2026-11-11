@@ -366,6 +366,8 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <div class="mod-field"><label>Preavviso minimo per prenotare (minuti)</label><input id="set-preavviso" type="number" min="0" step="5"></div>
         <div class="mod-field"><label>Preavviso minimo per cambiare orario (minuti)</label><input id="set-preavviso-mod" type="number" min="0" step="5"></div>
         <p class="set-hint">Il cliente può spostare la corsa solo se mancano almeno questi minuti.</p>
+        <div class="mod-field"><label>Corse al massimo per lo stesso orario (tutti gli ospiti)</label><input id="set-max-orario" type="number" min="1" step="1"></div>
+        <p class="set-hint">Raggiunto questo numero, quell'orario risulta occupato per tutti i clienti con un link. Metti 1 se c'è un solo mezzo, 2 se ce ne sono due, e così via.</p>
         <div class="mod-field"><label>Elimina corse completate/annullate dopo (giorni)</label><input id="set-pulizia" type="number" min="1" step="1"></div>
         <button type="button" class="btn-pill primary" style="width:100%;flex:none;margin-bottom:18px" onclick="salvaImpostazioniNavetta()">Salva impostazioni</button>
       </div>
@@ -907,7 +909,7 @@ async function rimuoviAutista(id) {
 // e preavvisi lato ospite) e da 'navetta-pulizia' (giorni di conservazione).
 const IMPOSTAZIONI_DEFAULT = {
   fasce: [{ dal: '09:00', al: '13:00' }, { dal: '15:30', al: '19:00' }],
-  passo_minuti: 15, preavviso_minimo_minuti: 25, preavviso_modifica_minuti: 25, pulizia_giorni: 3,
+  passo_minuti: 15, preavviso_minimo_minuti: 25, preavviso_modifica_minuti: 25, max_corse_per_orario: 1, pulizia_giorni: 3,
 };
 let _setFasce = [];
 async function caricaImpostazioniNavetta() {
@@ -922,6 +924,7 @@ async function caricaImpostazioniNavetta() {
   document.getElementById('set-passo').value = v.passo_minuti;
   document.getElementById('set-preavviso').value = v.preavviso_minimo_minuti;
   document.getElementById('set-preavviso-mod').value = v.preavviso_modifica_minuti;
+  document.getElementById('set-max-orario').value = v.max_corse_per_orario;
   document.getElementById('set-pulizia').value = v.pulizia_giorni;
   renderFasceImpostazioni();
 }
@@ -935,12 +938,12 @@ function aggiungiFasciaImpostazioni() { _setFasce.push({ dal: '09:00', al: '13:0
 async function salvaImpostazioniNavetta() {
   const num = (id, min) => { const n = parseInt(document.getElementById(id).value, 10); return Number.isFinite(n) && n >= min ? n : null; };
   const fasce = _setFasce.filter(f => f.dal && f.al && f.dal <= f.al);
-  const passo = num('set-passo', 5), pre = num('set-preavviso', 0), preMod = num('set-preavviso-mod', 0), pul = num('set-pulizia', 1);
-  if (!fasce.length || passo == null || pre == null || preMod == null || pul == null) { showToast('Controlla i valori inseriti'); return; }
+  const passo = num('set-passo', 5), pre = num('set-preavviso', 0), preMod = num('set-preavviso-mod', 0), pul = num('set-pulizia', 1), maxO = num('set-max-orario', 1);
+  if (!fasce.length || passo == null || pre == null || preMod == null || pul == null || maxO == null) { showToast('Controlla i valori inseriti'); return; }
   try {
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'navetta'), {
-      fasce, passo_minuti: passo, preavviso_minimo_minuti: pre, preavviso_modifica_minuti: preMod, pulizia_giorni: pul,
+      fasce, passo_minuti: passo, preavviso_minimo_minuti: pre, preavviso_modifica_minuti: preMod, max_corse_per_orario: maxO, pulizia_giorni: pul,
       aggiornato_il: new Date().toISOString(), aggiornato_da: currentOperatore || '',
     }, { merge: true });
     showToast('Impostazioni salvate');
