@@ -220,7 +220,7 @@ function renderRistorazione() {
     panel.innerHTML = `<div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Il tuo soggiorno non include pasti in ristorazione.</p></div></div>`;
     return;
   }
-  panel.innerHTML = `<iframe src="../ristorazione/?f=${encodeURIComponent(r.codice)}" title="Ristorazione"
+  panel.innerHTML = `<iframe src="../ristorazione/?f=${encodeURIComponent(r.codice)}&embed=1" title="Ristorazione"
     style="width:100%;height:82vh;border:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);background:var(--white)" loading="lazy"></iframe>`;
 }
 

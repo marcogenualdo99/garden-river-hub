@@ -86,6 +86,9 @@
 
 /* ── MAIN ── */
 main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
+/* Incorporata in area-ospite (v. EMBED_MODE sopra): niente hero, un po' di
+   respiro in cima al posto suo. */
+body.embed-mode main{padding-top:20px}
 .day-label{font-size:13px;font-weight:800;color:var(--gray-900);text-transform:uppercase;letter-spacing:.05em;margin:28px 0 12px;display:flex;align-items:center;gap:10px}
 .day-label:first-child{margin-top:8px}
 .day-label::before{content:'';flex:none;display:block;width:4px;height:18px;background:var(--green-700);border-radius:2px}
@@ -269,6 +272,10 @@ main{max-width:600px;margin:0 auto;padding:16px 14px 100px}
 
 <script>
 const HUB_URL = '../';
+// Incorporata nel pannello Area ospite (area-ospite/?..., tab Ristorazione)
+// via iframe con ?...&embed=1: niente hero/foto/saluto, che lì sarebbero
+// una pagina dentro la pagina — solo il menu, che resta l'unica interfaccia.
+const EMBED_MODE = new URLSearchParams(location.search).get('embed') === '1';
 let famiglia = null;
 let menuOggi = [], menuDomani = [];
 let ordiniEsistenti = {};
@@ -973,7 +980,8 @@ function resetAccesso(){ if(!confirm('Disconnettere questo dispositivo?'))return
 function nascondiLoading(){
   const el=document.getElementById('loading-screen');
   el.style.opacity='0'; setTimeout(()=>el.style.display='none',250);
-  document.getElementById('app-header').classList.remove('hidden');
+  if (EMBED_MODE) document.body.classList.add('embed-mode');
+  else document.getElementById('app-header').classList.remove('hidden');
   document.getElementById('app-main').classList.remove('hidden');
 }
 function mostraErrore(){ document.getElementById('loading-screen').style.display='none'; document.getElementById('error-screen').classList.remove('hidden'); }
