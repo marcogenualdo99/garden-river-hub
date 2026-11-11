@@ -17,7 +17,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, addDoc, getDocs, getDoc, setDoc, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -35,7 +35,7 @@
   const db       = getFirestore(fbApp);
   const auth     = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, addDoc, getDocs, getDoc, setDoc, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
   window._fbReady = false;
 
   function segnalaPronto() {
@@ -129,6 +129,13 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
   font-size: 14.5px; font-family: var(--font); color: var(--gray-900); background: var(--white); outline: none;
 }
 .mod-field input:focus, .mod-field select:focus { border-color: var(--green-400); }
+.modal-box.wide { max-width: 460px; max-height: calc(100vh - 48px); overflow-y: auto; }
+.set-sec { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--green-700); margin: 4px 0 10px; }
+.set-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.set-row input { flex: 1; text-align: center; }
+.set-row span { font-size: 13px; color: var(--gray-500); }
+.set-hint { font-size: 11.5px; color: var(--gray-500); margin: -6px 0 12px; line-height: 1.4; }
+.corsa-tag.cambiata  { background: var(--gray-100); color: var(--gray-500); }
 .mod-annulla-link { display: block; text-align: center; font-size: 13px; font-weight: 700; color: var(--red); background: none; border: none; cursor: pointer; font-family: var(--font); margin-top: 4px; padding: 8px; width: 100%; }
 
 /* ══ SHIMMER ════════════════════════════════════════════════════════════════ */
@@ -300,7 +307,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     </div>
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
-      <button class="hbtn ghost icon" onclick="apriAutistiModal()" title="Autisti in servizio">
+      <button class="hbtn ghost icon" onclick="apriAutistiModal()" title="Impostazioni navetta">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
@@ -348,10 +355,22 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 </div>
 
 <div class="modal-overlay hidden" id="autisti-modal-overlay">
-  <div class="modal-box">
-    <div class="modal-title">Autisti in servizio</div>
+  <div class="modal-box wide">
+    <div class="modal-title">Impostazioni navetta</div>
     <div class="modal-body" style="color:var(--gray-700);white-space:normal">
-      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">Tutti gli autisti qui sotto compaiono nel menu "Autista" che l'ospite vede quando prenota il rientro.</p>
+      <div id="impostazioni-admin">
+        <div class="set-sec">Orari del servizio</div>
+        <div id="set-fasce"></div>
+        <button type="button" class="btn-pill ghost" style="width:auto;padding:0 14px;height:34px;margin-bottom:14px" onclick="aggiungiFasciaImpostazioni()">+ Aggiungi fascia</button>
+        <div class="mod-field"><label>Passo tra un orario e l'altro (minuti)</label><input id="set-passo" type="number" min="5" step="5"></div>
+        <div class="mod-field"><label>Preavviso minimo per prenotare (minuti)</label><input id="set-preavviso" type="number" min="0" step="5"></div>
+        <div class="mod-field"><label>Preavviso minimo per cambiare orario (minuti)</label><input id="set-preavviso-mod" type="number" min="0" step="5"></div>
+        <p class="set-hint">Il cliente può spostare la corsa solo se mancano almeno questi minuti.</p>
+        <div class="mod-field"><label>Elimina corse completate/annullate dopo (giorni)</label><input id="set-pulizia" type="number" min="1" step="1"></div>
+        <button type="button" class="btn-pill primary" style="width:100%;flex:none;margin-bottom:18px" onclick="salvaImpostazioniNavetta()">Salva impostazioni</button>
+      </div>
+      <div class="set-sec">Autisti</div>
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px">Gli autisti qui sotto compaiono come card nella scelta "Chi ti ha accompagnato?" che l'ospite vede quando prenota il rientro.</p>
       <div id="autisti-lista" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
       <div class="mod-field" style="display:flex;gap:8px;margin-bottom:0">
         <input id="nuovo-autista-nome" placeholder="Nome autista" style="flex:1">
@@ -636,11 +655,13 @@ function countdownHtml(c) {
 
 // ── RENDER ─────────────────────────────────────────────────────────────────
 function renderCorse() {
-  const tutte      = allCorse;
-  const attesa     = tutte.filter(c => c.stato === 'in_attesa');
-  const accettata  = tutte.filter(c => c.stato === 'accettata');
-  const completata = tutte.filter(c => c.stato === 'completata');
-  const annullata  = tutte.filter(c => c.stato === 'annullata');
+  const attesa     = allCorse.filter(c => c.stato === 'in_attesa');
+  const accettata  = allCorse.filter(c => c.stato === 'accettata');
+  const completata = allCorse.filter(c => c.stato === 'completata');
+  const annullata  = allCorse.filter(c => c.stato === 'annullata');
+  // "Tutte" mostra solo le corse ancora da gestire: completate e annullate
+  // hanno le loro schede e non devono confondere la lista di lavoro.
+  const tutte      = [...attesa, ...accettata];
   document.getElementById('cnt-tutte').textContent      = tutte.length;
   document.getElementById('cnt-attesa').textContent     = attesa.length;
   document.getElementById('cnt-accettata').textContent  = accettata.length;
@@ -660,7 +681,7 @@ function renderCorse() {
     wrap.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon"><span data-icon="NAVETTA"></span></div>
-        <h3>${tutte.length === 0 ? 'Nessuna richiesta oggi' : 'Nessuna corsa in questo filtro'}</h3>
+        <h3>${allCorse.length === 0 ? 'Nessuna richiesta oggi' : tutte.length === 0 && currentFilter === 'tutte' ? 'Nessuna corsa da gestire' : 'Nessuna corsa in questo filtro'}</h3>
         <p>Le richieste arrivano dagli ospiti dal loro link personale — appena ne arriva una, la vedi qui in tempo reale.</p>
       </div>`;
     hydrateIcons(wrap);
@@ -709,6 +730,7 @@ function corsaCardHtml(c) {
         <span class="corsa-tag alloggio">${escHtml(c.alloggio_nome || 'Alloggio non indicato')}</span>
         ${c.spiaggia_nome ? `<span class="corsa-tag spiaggia">${escHtml(c.spiaggia_nome)}</span>` : ''}
         ${c.autista_nome ? `<span class="corsa-tag autista">${escHtml(c.autista_nome)}</span>` : ''}
+        ${c.orario_precedente ? `<span class="corsa-tag cambiata">orario cambiato (era ${escHtml(c.orario_precedente)})</span>` : ''}
         ${c.telefono ? `<a href="tel:${escHtml(c.telefono)}">${escHtml(c.telefono)}</a>` : ''}
       </div>
     </div>
@@ -802,6 +824,8 @@ async function annullaCorsaDaModifica() {
 // ── AUTISTI (impostazioni) ─────────────────────────────────────────────────
 function apriAutistiModal() {
   renderAutistiModal();
+  document.getElementById('impostazioni-admin').style.display = isAdmin() ? '' : 'none';
+  if (isAdmin()) caricaImpostazioniNavetta();
   document.getElementById('autisti-modal-overlay').classList.remove('hidden');
 }
 function chiudiAutistiModal() {
@@ -840,6 +864,51 @@ async function rimuoviAutista(id) {
   } catch(e) { console.error('Errore rimozione autista:', e); showToast('Errore rimozione'); }
 }
 
+// ── IMPOSTAZIONI NAVETTA (solo admin) ─────────────────────────────────────
+// Doc `impostazioni/navetta`: letto dalla Cloud Function 'area-ospite' (orari
+// e preavvisi lato ospite) e da 'navetta-pulizia' (giorni di conservazione).
+const IMPOSTAZIONI_DEFAULT = {
+  fasce: [{ dal: '09:00', al: '13:00' }, { dal: '15:30', al: '19:00' }],
+  passo_minuti: 15, preavviso_minimo_minuti: 25, preavviso_modifica_minuti: 25, pulizia_giorni: 3,
+};
+let _setFasce = [];
+async function caricaImpostazioniNavetta() {
+  let d = {};
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'impostazioni', 'navetta'));
+    if (snap.exists()) d = snap.data();
+  } catch(e) { console.error('Errore lettura impostazioni navetta:', e); }
+  const v = { ...IMPOSTAZIONI_DEFAULT, ...d };
+  _setFasce = (v.fasce && v.fasce.length ? v.fasce : IMPOSTAZIONI_DEFAULT.fasce).map(f => ({ dal: f.dal, al: f.al }));
+  document.getElementById('set-passo').value = v.passo_minuti;
+  document.getElementById('set-preavviso').value = v.preavviso_minimo_minuti;
+  document.getElementById('set-preavviso-mod').value = v.preavviso_modifica_minuti;
+  document.getElementById('set-pulizia').value = v.pulizia_giorni;
+  renderFasceImpostazioni();
+}
+function renderFasceImpostazioni() {
+  document.getElementById('set-fasce').innerHTML = _setFasce.map((f, i) => `
+    <div class="set-row"><span>dalle</span><input type="time" value="${escHtml(f.dal)}" onchange="_setFasce[${i}].dal=this.value">
+      <span>alle</span><input type="time" value="${escHtml(f.al)}" onchange="_setFasce[${i}].al=this.value">
+      <button type="button" class="btn-pill ghost" style="width:34px;height:34px" title="Rimuovi" onclick="_setFasce.splice(${i},1);renderFasceImpostazioni()">&times;</button></div>`).join('');
+}
+function aggiungiFasciaImpostazioni() { _setFasce.push({ dal: '09:00', al: '13:00' }); renderFasceImpostazioni(); }
+async function salvaImpostazioniNavetta() {
+  const num = (id, min) => { const n = parseInt(document.getElementById(id).value, 10); return Number.isFinite(n) && n >= min ? n : null; };
+  const fasce = _setFasce.filter(f => f.dal && f.al && f.dal <= f.al);
+  const passo = num('set-passo', 5), pre = num('set-preavviso', 0), preMod = num('set-preavviso-mod', 0), pul = num('set-pulizia', 1);
+  if (!fasce.length || passo == null || pre == null || preMod == null || pul == null) { showToast('Controlla i valori inseriti'); return; }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'navetta'), {
+      fasce, passo_minuti: passo, preavviso_minimo_minuti: pre, preavviso_modifica_minuti: preMod, pulizia_giorni: pul,
+      aggiornato_il: new Date().toISOString(), aggiornato_da: currentOperatore || '',
+    }, { merge: true });
+    showToast('Impostazioni salvate');
+  } catch(e) { console.error('Errore salvataggio impostazioni navetta:', e); showToast('Errore salvataggio'); }
+}
+
 // ── NUOVA CORSA (creata direttamente dallo staff) ──────────────────────────
 function opzioniSelect(lista, placeholder) {
   return `<option value="">${placeholder}</option>` + lista.map(x => `<option value="${escHtml(x.nome)}">${escHtml(x.nome)}</option>`).join('');
@@ -862,6 +931,9 @@ async function creaNuovaCorsa() {
   const orario = document.getElementById('nc-orario').value.trim();
   if (!nome || !telefono) { showToast('Servono nome e telefono'); return; }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(orario)) { showToast('Orario non valido (usa HH:MM)'); return; }
+  if (allCorse.some(c => c.nome === nome && c.orario === orario && (c.stato === 'in_attesa' || c.stato === 'accettata'))) {
+    showToast('Esiste già una corsa attiva per questa persona a quell\'orario'); return;
+  }
   const doc_ = {
     nome, telefono,
     alloggio_nome: document.getElementById('nc-alloggio').value.trim(),

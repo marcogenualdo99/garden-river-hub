@@ -20,10 +20,13 @@ Azioni (campo "azione" nel corpo JSON):
            codice, se il trattamento prevede pasti) + le richieste navetta
            già fatte oggi da questo stesso ospite (per mostrargliene lo
            stato)
+  - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
+  - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
+  - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
   - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
                          autista_nome, orario }
         -> valida l'orario (fascia attiva + preavviso minimo, v.
-           PREAVVISO_MINIMO_MINUTI) e scrive la richiesta in
+           preavviso minimo da impostazioni/navetta) e scrive la richiesta in
            `navetta_prenotazioni` (data = oggi, stato "in_attesa",
            autista_nome assegnato in seguito dalla dashboard autisti)
 """
@@ -44,13 +47,17 @@ if not firebase_admin._apps:
 ALLOWED_ORIGINS = {'https://gardenhub.it', 'https://www.gardenhub.it'}
 TZ_ROMA = ZoneInfo('Europe/Rome')
 
-# Fasce attive e passo degli orari — stessi orari già stampati sul ticket
-# spiaggia (spiaggia/index.html): 09:00–13:00 e 15:30–19:00, ogni 15'.
-FASCE_NAVETTA = (('09:00', '13:00'), ('15:30', '19:00'))
-PASSO_MINUTI = 15
-# Preavviso minimo richiesto: un orario è prenotabile solo se dista almeno
-# così tanti minuti da adesso (dà tempo all'autista di organizzarsi).
-PREAVVISO_MINIMO_MINUTI = 25
+# Valori di default della navetta: si cambiano da Hub > Navetta > Impostazioni
+# (doc Firestore `impostazioni/navetta`). Fasce = stesse del ticket spiaggia.
+NAVETTA_DEFAULT = {
+    'fasce': [{'dal': '09:00', 'al': '13:00'}, {'dal': '15:30', 'al': '19:00'}],
+    'passo_minuti': 15,
+    # Un orario e' prenotabile solo se dista almeno cosi' tanti minuti da adesso.
+    'preavviso_minimo_minuti': 25,
+    # Il cliente puo' spostare una corsa solo se mancano almeno cosi' tanti minuti.
+    'preavviso_modifica_minuti': 25,
+}
+SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza')
 
 MAX_TESTO = 120
 
@@ -85,6 +92,69 @@ def _oggi_iso():
 
 def _s(v, max_len=MAX_TESTO):
     return str(v).strip()[:max_len] if v is not None else ''
+
+
+# ── configurazione (Firestore `impostazioni/...`, scritta dall'Hub) ──────────
+
+def _cfg_navetta(db):
+    cfg = dict(NAVETTA_DEFAULT)
+    try:
+        snap = db.collection('impostazioni').document('navetta').get()
+        d = snap.to_dict() or {} if snap.exists else {}
+        fasce = []
+        for f in d.get('fasce') or []:
+            dal, al = _s(f.get('dal'), 5), _s(f.get('al'), 5)
+            if re.fullmatch(r'[0-2]\d:[0-5]\d', dal) and re.fullmatch(r'[0-2]\d:[0-5]\d', al) and dal <= al:
+                fasce.append({'dal': dal, 'al': al})
+        if fasce:
+            cfg['fasce'] = fasce
+        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti'):
+            try:
+                v = int(d.get(k))
+                if v >= (5 if k == 'passo_minuti' else 0):
+                    cfg[k] = v
+            except (TypeError, ValueError):
+                pass
+    except Exception as e:
+        print(f'Lettura impostazioni/navetta non riuscita: {e}')
+    return cfg
+
+
+def _contenuti(db):
+    """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
+    salvate in `impostazioni/area_ospite_foto_<servizio>`."""
+    out = {'testi': {}, 'foto': {}}
+    try:
+        snap = db.collection('impostazioni').document('area_ospite').get()
+        d = snap.to_dict() or {} if snap.exists else {}
+        for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
+                  'assistenza_telefono', 'navetta_testo'):
+            out['testi'][k] = _s(d.get(k), 4000)
+    except Exception as e:
+        print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
+    for k in SERVIZI_FOTO + ('animazione_programma',):
+        try:
+            snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()
+            url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''
+            if url.startswith('data:image/'):
+                out['foto'][k] = url
+        except Exception as e:
+            print(f'Lettura foto {k} non riuscita: {e}')
+    return out
+
+
+def _nome_proprio(p):
+    """Nome di battesimo del capofamiglia. Preferisce l'anagrafica ospiti
+    (campi nome/cognome separati); altrimenti la prima parola di `nome`."""
+    try:
+        for o in (p.get('ospiti') or [])[:1]:
+            n = _s((o or {}).get('nome'))
+            if n:
+                return n.split()[0].capitalize()
+    except Exception:
+        pass
+    parole = _s(p.get('nome')).split()
+    return parole[0].capitalize() if parole else ''
 
 
 # ── token / prenotazione ───────────────────────────────────────────────────
@@ -138,7 +208,8 @@ def _autisti_elenco(db):
     giorno per giorno. Il cliente può sempre lasciare 'chiunque disponibile'."""
     try:
         return [
-            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id}
+            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
+             'foto': _s((d.to_dict() or {}).get('foto'), 300000)}
             for d in db.collection('navetta_autisti').stream()
         ]
     except Exception as e:
@@ -191,6 +262,7 @@ def _navetta_oggi_cliente(db, pren_id):
                 'orario': _s((d.to_dict() or {}).get('orario')),
                 'stato': _s((d.to_dict() or {}).get('stato')) or 'in_attesa',
                 'autista_nome': _s((d.to_dict() or {}).get('autista_nome')),
+                'orario_precedente': _s((d.to_dict() or {}).get('orario_precedente')),
             }
             for d in q.stream()
         ]
@@ -230,17 +302,17 @@ def _spiaggia_assegnata(db, pren_id):
 
 # ── orari navetta ──────────────────────────────────────────────────────────
 
-def _slot_validi():
-    """Elenco 'HH:MM' di tutte le fasce, passo PASSO_MINUTI (bordo incluso)."""
+def _slot_validi(cfg):
+    """Elenco 'HH:MM' di tutte le fasce, passo configurato (bordo incluso)."""
     out = []
-    for inizio, fine in FASCE_NAVETTA:
-        h0, m0 = map(int, inizio.split(':'))
-        h1, m1 = map(int, fine.split(':'))
+    for f in cfg['fasce']:
+        h0, m0 = map(int, f['dal'].split(':'))
+        h1, m1 = map(int, f['al'].split(':'))
         t = h0 * 60 + m0
         tf = h1 * 60 + m1
         while t <= tf:
             out.append(f'{t // 60:02d}:{t % 60:02d}')
-            t += PASSO_MINUTI
+            t += cfg['passo_minuti']
     return out
 
 
@@ -252,10 +324,23 @@ def _minuti_da_ora(orario):
     return (target - ora).total_seconds() / 60
 
 
-def _orario_valido(orario):
-    if not bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) or orario not in _slot_validi():
+def _orario_valido(orario, cfg):
+    if not bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) or orario not in _slot_validi(cfg):
         return False
-    return _minuti_da_ora(orario) >= PREAVVISO_MINIMO_MINUTI
+    return _minuti_da_ora(orario) >= cfg['preavviso_minimo_minuti']
+
+
+def _corsa_attiva_duplicata(db, pren_id, orario, escludi_id=None):
+    """True se questo ospite ha gia' una corsa ancora attiva allo stesso
+    orario oggi (evita doppioni da doppio tap o da richieste ripetute)."""
+    q = (db.collection('navetta_prenotazioni')
+           .where('prenId', '==', pren_id)
+           .where('data', '==', _oggi_iso()))
+    for d in q.stream():
+        x = d.to_dict() or {}
+        if d.id != escludi_id and x.get('orario') == orario and x.get('stato') in ('in_attesa', 'accettata'):
+            return True
+    return False
 
 
 # ── azioni ─────────────────────────────────────────────────────────────────
@@ -264,11 +349,13 @@ def _azione_carica(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg = _cfg_navetta(db)
 
     return _json(origin, {
         'ok': True,
         'prenotazione': {
             'nome':          _s(p.get('nome')),
+            'nome_proprio':  _nome_proprio(p),
             'telefono':      _s(p.get('tel')),
             'alloggio_nome': _s(p.get('alloggio_nome')),
             'checkin':       _s(p.get('checkin')),
@@ -279,19 +366,38 @@ def _azione_carica(db, origin, data):
         'autisti': _autisti_elenco(db),
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
         'navetta_oggi': _navetta_oggi_cliente(db, pren_ref.id),
-        'fasce': [{'dal': a, 'al': b} for a, b in FASCE_NAVETTA],
-        'preavviso_minimo_minuti': PREAVVISO_MINIMO_MINUTI,
+        'fasce': cfg['fasce'],
+        'passo_minuti': cfg['passo_minuti'],
+        'preavviso_minimo_minuti': cfg['preavviso_minimo_minuti'],
+        'preavviso_modifica_minuti': cfg['preavviso_modifica_minuti'],
     })
+
+
+def _azione_contenuti(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    return _json(origin, {'ok': True, **_contenuti(db)})
+
+
+def _azione_navetta_stato(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    return _json(origin, {'ok': True, 'navetta_oggi': _navetta_oggi_cliente(db, pren_ref.id)})
 
 
 def _azione_navetta_prenota(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg = _cfg_navetta(db)
 
     orario = _s(data.get('orario'), 5)
-    if not _orario_valido(orario):
+    if not _orario_valido(orario, cfg):
         return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+    if _corsa_attiva_duplicata(db, pren_ref.id, orario):
+        return _json(origin, {'ok': False, 'errore': 'corsa_duplicata'}, 409)
 
     nome = _s(data.get('nome')) or _s(p.get('nome'))
     telefono = _s(data.get('telefono')) or _s(p.get('tel'))
@@ -318,9 +424,46 @@ def _azione_navetta_prenota(db, origin, data):
     return _json(origin, {'ok': True, 'id': ref.id})
 
 
+def _azione_navetta_modifica_orario(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg = _cfg_navetta(db)
+
+    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+    snap = ref.get()
+    c = snap.to_dict() if snap.exists else None
+    if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+    if c.get('stato') not in ('in_attesa', 'accettata'):
+        return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
+    # Si puo' spostare solo finche' mancano abbastanza minuti alla corsa attuale.
+    if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
+        return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
+
+    orario = _s(data.get('orario'), 5)
+    if not _orario_valido(orario, cfg):
+        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+    if orario == c.get('orario'):
+        return _json(origin, {'ok': True, 'id': snap.id})
+    if _corsa_attiva_duplicata(db, pren_ref.id, orario, escludi_id=snap.id):
+        return _json(origin, {'ok': False, 'errore': 'corsa_duplicata'}, 409)
+
+    ref.update({
+        'orario': orario,
+        'orario_precedente': c.get('orario') or '',
+        'orario_modificato_il': _now_iso(),
+        'aggiornato_il': _now_iso(),
+    })
+    return _json(origin, {'ok': True, 'id': snap.id})
+
+
 AZIONI = {
-    'carica':          _azione_carica,
-    'navetta_prenota': _azione_navetta_prenota,
+    'carica':                  _azione_carica,
+    'contenuti':               _azione_contenuti,
+    'navetta_stato':           _azione_navetta_stato,
+    'navetta_prenota':         _azione_navetta_prenota,
+    'navetta_modifica_orario': _azione_navetta_modifica_orario,
 }
 
 

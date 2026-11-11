@@ -10,59 +10,70 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css">
+<script src="../assets/icons.js"></script>
 <style>
   body { background: var(--gray-50); padding: 0 0 env(safe-area-inset-bottom); }
   .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 48px; }
+  svg { display: block }
 
   header.top {
-    background: url('../ristorazione/hero-ospiti.jpg') center/cover no-repeat, var(--grad-forest);
+    background: var(--grad-forest) center/cover no-repeat;
     color: #fff; padding: 20px 16px 24px; position: relative; overflow: hidden;
-    min-height: 200px; display: flex; flex-direction: column; justify-content: flex-end;
+    min-height: 230px; display: flex; flex-direction: column; justify-content: flex-end;
     padding-top: calc(18px + env(safe-area-inset-top));
+    transition: background-image .25s;
   }
-  @media (min-width: 560px) { header.top { min-height: 240px } }
+  header.top.servizio { min-height: 200px }
+  @media (min-width: 560px) { header.top { min-height: 280px } header.top.servizio { min-height: 240px } }
   header.top::before { content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(5,51,40,.35) 0%, rgba(5,51,40,.88) 100%); }
+    background: linear-gradient(180deg, rgba(5,51,40,.30) 0%, rgba(5,51,40,.86) 100%); }
   header.top .inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; width: 100% }
   header.top .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px }
   header.top .avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--green-700) }
-  header.top .brand { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .75 }
+  header.top .brand { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85 }
   header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; margin: 2px 0 0; letter-spacing: -.01em }
   @media (min-width: 560px) { header.top h1 { font-size: 34px } }
-  header.top .sub { margin-top: 10px; font-size: 13.5px; opacity: .92; line-height: 1.45 }
-  header.top .sub b { font-weight: 800 }
+  header.top .sub { margin-top: 10px; font-size: 13.5px; opacity: .95; line-height: 1.45 }
 
   .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
-  .service-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm); padding: 18px 14px; text-align: left; cursor: pointer;
-    -webkit-tap-highlight-color: transparent; transition: transform .1s; }
+  .service-card { position: relative; overflow: hidden; border-radius: var(--radius-lg); min-height: 164px;
+    background: var(--green-700) center/cover no-repeat; color: #fff; cursor: pointer;
+    box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 14px; -webkit-tap-highlight-color: transparent; transition: transform .1s; }
+  .service-card::before { content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(5,51,40,0) 25%, rgba(5,51,40,.88) 100%); }
   .service-card:active { transform: scale(.97); }
-  .service-card.soon { opacity: .6; }
-  .service-card .icon-wrap { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center;
-    justify-content: center; margin-bottom: 10px; font-size: 19px; }
-  .service-card h3 { font-size: 14px; font-weight: 800; color: var(--gray-900); margin: 0 0 3px; }
-  .service-card p { font-size: 11.5px; color: var(--gray-500); line-height: 1.4; margin: 0; }
+  .service-card > * { position: relative }
+  .service-card h3 { font-size: 15.5px; font-weight: 800; margin: 0 0 3px; }
+  .service-card p { font-size: 11.5px; opacity: .92; line-height: 1.35; margin: 0; }
+  .service-card .pill-soon { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,.92);
+    color: var(--green-700); font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px }
 
-  /* Nome diverso da .back-btn: quella classe esiste già in assets/theme.css
-     (bottone rotondo 40×40 per un altro pattern) e avrebbe vinto sulle
-     proprietà che non ridichiaro qui (width/height/border-radius/background). */
-  .home-back-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; color: var(--green-700);
-    font-weight: 700; font-size: 13.5px; font-family: var(--font); cursor: pointer; padding: 4px 0 14px; width: auto; height: auto;
-    -webkit-tap-highlight-color: transparent; }
+  .home-back-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--white);
+    border: 1.5px solid var(--green-200); color: var(--green-700); font-weight: 800; font-size: 14px;
+    font-family: var(--font); cursor: pointer; height: 44px; padding: 0 18px 0 12px; border-radius: 999px;
+    margin: 20px 0 6px; box-shadow: var(--shadow-sm); -webkit-tap-highlight-color: transparent; }
+  .home-back-btn svg { width: 18px; height: 18px }
+  .home-back-btn:active { background: var(--green-50) }
 
   .card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm); padding: 18px 16px; margin-top: 14px; }
   .card h2 { font-size: 15px; font-weight: 800; margin: 0 0 4px; color: var(--gray-900) }
   .card p.hint { font-size: 12.5px; color: var(--gray-500); margin: 0; line-height: 1.5 }
+  .testo { font-size: 14px; color: var(--gray-700); line-height: 1.6; white-space: pre-line }
+  .testo-img { width: 100%; border-radius: var(--radius); margin-top: 12px; display: block }
+  .link-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; height: 46px; padding: 0 20px;
+    background: var(--green-700); color: #fff; border-radius: 999px; font-weight: 800; font-size: 14px; text-decoration: none }
+  .link-btn svg { width: 18px; height: 18px }
 
-  .soon { text-align: center; padding: 36px 16px; }
-  .soon .icon { font-size: 30px; margin-bottom: 10px; opacity: .6 }
-  .soon h3 { font-size: 15px; font-weight: 800; color: var(--gray-700); margin-bottom: 4px }
-  .soon p { font-size: 12.5px; color: var(--gray-500) }
+  .soon-box { text-align: center; padding: 30px 16px; }
+  .soon-box .ico { width: 44px; height: 44px; margin: 0 auto 10px; color: var(--green-500) }
+  .soon-box h3 { font-size: 15px; font-weight: 800; color: var(--gray-700); margin-bottom: 4px }
+  .soon-box p { font-size: 12.5px; color: var(--gray-500) }
 
   .field { margin-bottom: 12px }
-  .field label { display: block; font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 5px }
+  .field label, .lbl { display: block; font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 5px }
   input[type=text], input[type=tel], select {
     width: 100%; height: 46px; padding: 0 13px; border: 1.5px solid var(--gray-300);
     border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900);
@@ -74,8 +85,27 @@
   }
   input:focus, select:focus { border-color: var(--green-700) }
 
+  .driver-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+  .driver-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; min-height: 132px; padding: 16px 10px; background: var(--white); border: 2px solid var(--gray-100);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); cursor: pointer; text-align: center;
+    font-family: var(--font); -webkit-tap-highlight-color: transparent; transition: border-color .12s, background .12s, transform .1s }
+  .driver-card:active { transform: scale(.97) }
+  .driver-card .dv-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--green-100); color: var(--green-700);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800;
+    background-size: cover; background-position: center; overflow: hidden }
+  .driver-card .dv-avatar svg { width: 30px; height: 30px }
+  .driver-card .dv-nome { font-size: 15px; font-weight: 800; color: var(--gray-900); line-height: 1.2 }
+  .driver-card .dv-check { position: absolute; top: 9px; right: 9px; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--green-700); color: #fff; display: none; align-items: center; justify-content: center }
+  .driver-card .dv-check svg { width: 15px; height: 15px }
+  .driver-card.selected { border-color: var(--green-700); background: var(--green-50) }
+  .driver-card.selected .dv-check { display: flex }
+  .driver-card.qualsiasi .dv-avatar { background: var(--gray-100); color: var(--gray-500) }
+
   .chip-spiaggia { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-bg); color: var(--blue);
     border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 700; margin-bottom: 10px }
+  .chip-spiaggia svg { width: 14px; height: 14px }
 
   .fascia-title { font-size: 12px; font-weight: 800; color: var(--gray-500); text-transform: uppercase;
     letter-spacing: .04em; margin: 16px 0 8px }
@@ -95,7 +125,7 @@
   .submit:disabled { opacity: .5; cursor: not-allowed }
 
   .center-state { max-width: 460px; margin: 0 auto; padding: 64px 24px; text-align: center }
-  .center-state .icon { font-size: 34px; margin-bottom: 12px }
+  .center-state .ico { width: 44px; height: 44px; margin: 0 auto 12px; color: var(--green-700) }
   .center-state h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0 0 8px }
   .center-state p { font-size: 13.5px; color: var(--gray-500); line-height: 1.55; margin: 0 }
   .spinner { width: 30px; height: 30px; border: 3px solid var(--gray-300); border-top-color: var(--green-700);
@@ -104,6 +134,8 @@
 
   .conferma-box { background: var(--green-bg); border: 1px solid var(--green-bd); border-radius: var(--radius-lg);
     padding: 22px 18px; text-align: center; margin-top: 14px }
+  .conferma-box .ok { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--green-700) }
+  .conferma-box .ok svg { width: 20px; height: 20px }
   .conferma-box .big { font-size: 26px; font-weight: 800; color: var(--green-700); margin: 6px 0 }
   .conferma-box p { font-size: 13px; color: var(--gray-700); line-height: 1.5 }
   .btn-secondary { width: 100%; height: 46px; margin-top: 14px; background: var(--gray-100); color: var(--gray-700);
@@ -112,15 +144,29 @@
   .footnote { margin-top: 20px; font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5 }
 
   .stato-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm); padding: 14px 16px; margin-top: 14px; display: flex; align-items: center; gap: 14px }
-  .stato-card .ora { font-size: 20px; font-weight: 800; color: var(--gray-900); flex-shrink: 0 }
+    box-shadow: var(--shadow-sm); padding: 14px 16px; margin-top: 14px }
+  .stato-card .riga { display: flex; align-items: center; gap: 14px }
+  .stato-card .ora { font-size: 22px; font-weight: 800; color: var(--gray-900); flex-shrink: 0 }
   .stato-card .meta { flex: 1; min-width: 0 }
   .stato-card .autista { font-size: 12.5px; color: var(--gray-500); margin-top: 3px }
+  .stato-card .modificata { font-size: 11.5px; color: var(--gray-400); margin-top: 3px }
+  .stato-card.chiusa { opacity: .6 }
   .stato-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 10px }
   .stato-badge.attesa     { background: var(--amber-bg); color: var(--amber) }
   .stato-badge.accettata  { background: var(--blue-bg);  color: var(--blue) }
   .stato-badge.completata { background: var(--green-bg); color: var(--green-ok) }
   .stato-badge.annullata  { background: var(--gray-100); color: var(--gray-500) }
+  .btn-cambia { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 16px;
+    border-radius: 999px; border: 1.5px solid var(--green-700); background: var(--white); color: var(--green-700);
+    font-weight: 800; font-size: 13px; font-family: var(--font); cursor: pointer }
+  .btn-cambia svg { width: 16px; height: 16px }
+  .edit-panel { margin-top: 12px; border-top: 1px solid var(--gray-100); padding-top: 12px }
+  .edit-panel .row-btns { display: flex; gap: 8px; margin-top: 14px }
+  .edit-panel .row-btns button { flex: 1; height: 44px; border-radius: 999px; font-weight: 800; font-size: 14px; font-family: var(--font); cursor: pointer; border: none }
+  .edit-panel .conf { background: var(--green-700); color: #fff }
+  .edit-panel .conf:disabled { opacity: .5 }
+  .edit-panel .ann { background: var(--gray-100); color: var(--gray-700) }
+  .edit-panel .err { color: #991B1B; font-size: 12.5px; margin-top: 10px; display: none }
 </style>
 </head>
 <body>
@@ -131,20 +177,20 @@
 </div>
 
 <div id="stato-errore" class="center-state" style="display:none">
-  <div class="icon">🔒</div>
+  <div class="ico" data-icon="LOCK"></div>
   <h2 id="err-titolo">Link non valido</h2>
   <p id="err-testo">Questo link non è valido o è scaduto. Contatta la struttura per riceverne uno nuovo.</p>
 </div>
 
 <div id="app" style="display:none">
-  <header class="top">
+  <header class="top" id="hero">
     <div class="inner">
       <div class="topbar">
         <div class="avatar" id="avatar"></div>
         <div class="brand">Garden River</div>
       </div>
-      <h1 id="saluto">Area ospite</h1>
-      <div class="sub" id="riepilogo"></div>
+      <h1 id="titolo">Area ospite</h1>
+      <div class="sub" id="sottotitolo"></div>
     </div>
   </header>
 
@@ -153,7 +199,7 @@
       <div class="service-grid" id="service-grid"></div>
     </div>
     <div id="service-view" style="display:none">
-      <button type="button" class="home-back-btn" onclick="tornaHome()">← Torna alla home</button>
+      <button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna alla home</button>
       <div id="service-content"></div>
     </div>
 
@@ -164,35 +210,54 @@
 <script>
 const AREA_OSPITE_FN_URL = 'https://area-ospite-113994721180.europe-west1.run.app';
 
+// Foto di default per servizio (file nel repository); l'Hub può sostituirle
+// con una foto caricata (CONTENUTI.foto[id], data URL).
 const SERVIZI = [
-  { id: 'navetta',      icon: '🚐', title: 'Navetta',              bg: 'var(--green-bg)' },
-  { id: 'ristorazione', icon: '🍽️', title: 'Ristorazione',         bg: 'var(--orange-bg)' },
-  { id: 'animazione',   icon: '🎉', title: 'Animazione',           bg: 'var(--blue-bg)',  soon: true },
-  { id: 'info',         icon: 'ℹ️', title: 'Info utili',           bg: 'var(--gray-100)', soon: true },
-  { id: 'assistenza',   icon: '💬', title: 'Richiesta assistenza', bg: 'var(--gray-100)', soon: true },
+  { id: 'navetta',      icon: 'NAVETTA',      title: 'Navetta',              foto: 'img/navetta.jpg' },
+  { id: 'ristorazione', icon: 'RISTORAZIONE', title: 'Ristorazione',         foto: 'img/ristorazione.jpg' },
+  { id: 'animazione',   icon: 'ANIMAZIONE',   title: 'Animazione',           foto: 'img/animazione.jpg' },
+  { id: 'info',         icon: 'INFO',         title: 'Info utili',           foto: 'img/info.jpg' },
+  { id: 'assistenza',   icon: 'CHAT',         title: 'Richiesta assistenza', foto: 'img/assistenza.jpg' },
 ];
+const FOTO_HOME = 'img/home.jpg';
 
 let CFG = null;
+let CONTENUTI = { testi: {}, foto: {} };
 let orarioScelto = null;
+let autistaScelto = null;       // null = non scelto; '' = chiunque; altrimenti nome
+let _servizioAperto = null;
+let _editId = null;             // corsa di cui si sta cambiando l'orario
+let _editOrario = null;
+let _ultimoStato = '';
 
 const $ = sel => document.querySelector(sel);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const token = new URLSearchParams(location.search).get('t') || '';
 
+async function chiama(body) {
+  const r = await fetch(AREA_OSPITE_FN_URL, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ token, ...body }),
+  });
+  return r.json();
+}
+
 async function carica() {
+  hydrateIcons();
   if (!token) return mostraErrore('Link non valido', 'Manca il codice nel link. Usa il link completo che ti ha dato la struttura.');
   try {
-    const r = await fetch(AREA_OSPITE_FN_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ azione: 'carica', token }),
-    });
-    const d = await r.json();
+    const [d, c] = await Promise.all([
+      chiama({ azione: 'carica' }),
+      chiama({ azione: 'contenuti' }).catch(() => null),
+    ]);
     if (!d.ok) {
       if (d.errore === 'link_non_valido') return mostraErrore('Link non valido o scaduto', 'Questo link non è più attivo. Contatta la struttura per riceverne uno nuovo.');
       return mostraErrore('Qualcosa non va', 'Riprova tra poco. Se il problema resta, contatta la struttura.');
     }
     CFG = d;
+    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {} };
     render();
+    avviaAggiornamentoStato();
   } catch (e) {
     mostraErrore('Connessione assente', 'Controlla la connessione e ricarica la pagina.');
   }
@@ -204,22 +269,46 @@ function mostraErrore(titolo, testo) {
   $('#err-titolo').textContent = titolo;
   $('#err-testo').textContent = testo;
   $('#stato-errore').style.display = 'block';
+  hydrateIcons($('#stato-errore'));
+}
+
+function fotoServizio(id) {
+  const s = SERVIZI.find(x => x.id === id);
+  return CONTENUTI.foto[id] || (s ? s.foto : FOTO_HOME);
+}
+function impostaHero(foto, servizio) {
+  const h = $('#hero');
+  h.style.backgroundImage = `url("${foto}")`;
+  h.classList.toggle('servizio', !!servizio);
 }
 
 function render() {
   const p = CFG.prenotazione;
-  const nome = (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
-  $('#saluto').textContent = `Ciao ${nome}`;
-  $('#riepilogo').innerHTML = `${esc(p.alloggio_nome || 'Garden River')}`;
-  $('#avatar').textContent = (p.nome || '?').trim().slice(0, 2).toUpperCase();
-
+  const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
+  $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
+  mostraIntestazioneHome();
   renderHome();
-
   $('#stato-caricamento').style.display = 'none';
   $('#app').style.display = 'block';
 }
 
+function mostraIntestazioneHome() {
+  const p = CFG.prenotazione;
+  const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
+  $('#titolo').textContent = `Ciao ${nome}`;
+  $('#sottotitolo').textContent = p.alloggio_nome || 'Garden River';
+  impostaHero(CONTENUTI.foto.home || FOTO_HOME, false);
+}
+
 // ── Home (card dei servizi) ─────────────────────────────────────────────────
+function haContenuto(id) {
+  const t = CONTENUTI.testi;
+  if (id === 'animazione') return !!(t.animazione_testo || CONTENUTI.foto.animazione_programma);
+  if (id === 'info') return !!t.info_testo;
+  if (id === 'assistenza') return !!(t.assistenza_testo || t.assistenza_telefono);
+  return true;
+}
+
 function sottotitoloServizio(id) {
   if (id === 'navetta') {
     const attive = (CFG.navetta_oggi || []).filter(c => c.stato === 'in_attesa' || c.stato === 'accettata').length;
@@ -230,69 +319,100 @@ function sottotitoloServizio(id) {
     if (!r) return 'Non incluso nel soggiorno';
     return r.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
   }
-  return 'Disponibile a breve';
+  if (id === 'animazione') return haContenuto(id) ? 'Il programma della settimana' : 'Disponibile a breve';
+  if (id === 'info') return haContenuto(id) ? 'Orari e informazioni' : 'Disponibile a breve';
+  if (id === 'assistenza') return haContenuto(id) ? 'Chiedi aiuto alla reception' : 'Disponibile a breve';
+  return '';
 }
 
 function renderHome() {
   $('#service-grid').innerHTML = SERVIZI.map(s => `
-    <div class="service-card${s.soon ? ' soon' : ''}" onclick="apriServizio('${s.id}')">
-      <div class="icon-wrap" style="background:${s.bg}">${s.icon}</div>
+    <div class="service-card" style="background-image:url('${esc(fotoServizio(s.id))}')" onclick="apriServizio('${s.id}')">
+      ${haContenuto(s.id) ? '' : '<span class="pill-soon">A breve</span>'}
       <h3>${esc(s.title)}</h3>
       <p>${esc(sottotitoloServizio(s.id))}</p>
     </div>`).join('');
 }
 
 function apriServizio(id) {
+  _servizioAperto = id;
+  const s = SERVIZI.find(x => x.id === id) || {};
   $('#home-view').style.display = 'none';
   $('#service-view').style.display = 'block';
+  $('#titolo').textContent = s.title || '';
+  $('#sottotitolo').textContent = sottotitoloServizio(id);
+  impostaHero(fotoServizio(id), true);
+  hydrateIcons($('#service-view'));
   window.scrollTo(0, 0);
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
-  const s = SERVIZI.find(x => x.id === id) || {};
-  $('#service-content').innerHTML = `<div class="card"><div class="soon"><div class="icon">${s.icon || ''}</div><h3>${esc(s.title || '')}</h3><p>Disponibile a breve.</p></div></div>`;
+  if (id === 'animazione') return renderTesto(CONTENUTI.testi.animazione_titolo || 'Programma animazione', CONTENUTI.testi.animazione_testo, CONTENUTI.foto.animazione_programma, s);
+  if (id === 'info') return renderTesto('Informazioni utili', CONTENUTI.testi.info_testo, null, s);
+  if (id === 'assistenza') return renderAssistenza(s);
 }
 
 function tornaHome() {
-  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+  _servizioAperto = null; _editId = null;
   $('#service-view').style.display = 'none';
   $('#home-view').style.display = 'block';
+  mostraIntestazioneHome();
   renderHome();
   window.scrollTo(0, 0);
 }
 
+// ── Pagine di contenuto (Animazione, Info, Assistenza) ─────────────────────
+function boxPresto(s) {
+  return `<div class="card"><div class="soon-box"><div class="ico">${ICONS[s.icon] || ''}</div><h3>${esc(s.title || '')}</h3><p>Disponibile a breve.</p></div></div>`;
+}
+function renderTesto(titolo, testo, immagine, s) {
+  if (!testo && !immagine) { $('#service-content').innerHTML = boxPresto(s); return; }
+  $('#service-content').innerHTML = `<div class="card"><h2>${esc(titolo)}</h2>
+    ${testo ? `<div class="testo" style="margin-top:8px">${esc(testo)}</div>` : ''}
+    ${immagine ? `<img class="testo-img" src="${esc(immagine)}" alt="${esc(titolo)}">` : ''}</div>`;
+}
+function renderAssistenza(s) {
+  const t = CONTENUTI.testi;
+  if (!t.assistenza_testo && !t.assistenza_telefono) { $('#service-content').innerHTML = boxPresto(s); return; }
+  const tel = (t.assistenza_telefono || '').replace(/[^\d+]/g, '');
+  $('#service-content').innerHTML = `<div class="card"><h2>Richiesta assistenza</h2>
+    ${t.assistenza_testo ? `<div class="testo" style="margin-top:8px">${esc(t.assistenza_testo)}</div>` : ''}
+    ${tel ? `<a class="link-btn" href="tel:${esc(tel)}"><span data-icon="PHONE"></span>Chiama la reception</a>` : ''}</div>`;
+  hydrateIcons($('#service-content'));
+}
+
 // ── Ristorazione ──────────────────────────────────────────────────────────
-// Il menu vero vive in ristorazione/index.html (app a sé, con il suo Firebase
-// e il suo CSS): lo incorporiamo qui con un iframe (col codice famiglia già
-// pronto, creato in automatico dal Calendario quando il trattamento prevede
-// pasti) così l'ospite resta nel pannello, senza dover aprire un'altra pagina.
+// Il menu vero vive in ristorazione/index.html (app a sé): lo incorporiamo
+// con un iframe, col codice famiglia creato in automatico dal Calendario.
 function renderRistorazione() {
   const r = CFG.ristorazione;
   const panel = $('#service-content');
   if (!r) {
-    panel.innerHTML = `<div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Il tuo soggiorno non include pasti in ristorazione.</p></div></div>`;
+    panel.innerHTML = boxPresto({ icon: 'RISTORAZIONE', title: 'Ristorazione' }).replace('Disponibile a breve.', 'Il tuo soggiorno non include pasti in ristorazione.');
     return;
   }
   panel.innerHTML = `<iframe src="../ristorazione/?f=${encodeURIComponent(r.codice)}&embed=1" title="Ristorazione"
-    style="width:100%;height:82vh;border:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);background:var(--white)" loading="lazy"></iframe>`;
+    style="width:100%;height:82vh;border:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);background:var(--white);margin-top:14px" loading="lazy"></iframe>`;
 }
 
 // ── Navetta ───────────────────────────────────────────────────────────────
-function slotsFasce(fasce) {
-  const out = [];
-  fasce.forEach(f => {
+const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+function slotsFasce() {
+  const passo = CFG.passo_minuti || 15;
+  return (CFG.fasce || []).map(f => {
     const [h0, m0] = f.dal.split(':').map(Number);
     const [h1, m1] = f.al.split(':').map(Number);
     const slot = [];
-    let t = h0 * 60 + m0;
-    const tf = h1 * 60 + m1;
-    while (t <= tf) {
-      slot.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
-      t += 15;
-    }
-    out.push(slot);
+    for (let t = h0 * 60 + m0; t <= h1 * 60 + m1; t += passo) slot.push(hhmm(t));
+    return { fascia: f, slot };
   });
-  return out;
 }
+function minutiDaAdesso(ora) {
+  const [h, m] = ora.split(':').map(Number);
+  const a = new Date();
+  return h * 60 + m - (a.getHours() * 60 + a.getMinutes());
+}
+function slotLibero(ora) { return minutiDaAdesso(ora) >= (CFG.preavviso_minimo_minuti || 0); }
 
 function statoInfo(stato) {
   const map = {
@@ -304,7 +424,21 @@ function statoInfo(stato) {
   return map[stato] || map.in_attesa;
 }
 
-// Le richieste di oggi di questo stesso ospite — card indipendente dal form,
+function preavvisoModifica() {
+  return CFG.preavviso_modifica_minuti != null ? CFG.preavviso_modifica_minuti : 25;
+}
+function modificabile(c) {
+  return (c.stato === 'in_attesa' || c.stato === 'accettata') && minutiDaAdesso(c.orario || '00:00') >= preavvisoModifica();
+}
+
+function gridSlotHtml(selezionato, onclickFn) {
+  return slotsFasce().map(({ fascia, slot }) => `
+    <div class="fascia-title">${esc(fascia.dal)} – ${esc(fascia.al)}</div>
+    <div class="slot-grid">${slot.map(ora =>
+      `<button type="button" class="slot-btn${ora === selezionato ? ' selected' : ''}" data-ora="${ora}" ${slotLibero(ora) ? '' : 'disabled'} onclick="${onclickFn}('${ora}')">${ora}</button>`).join('')}</div>`).join('');
+}
+
+// Richieste di oggi di questo ospite: card indipendente dal form, tenuta
 // aggiornata da un polling leggero (l'ospite non ha un canale realtime).
 function renderStatoRichieste() {
   const wrap = $('#navetta-stato-richieste');
@@ -313,55 +447,104 @@ function renderStatoRichieste() {
   if (!lista.length) { wrap.innerHTML = ''; return; }
   wrap.innerHTML = lista.map(c => {
     const s = statoInfo(c.stato);
+    const chiusa = c.stato === 'completata' || c.stato === 'annullata';
+    const inModifica = _editId === c.id;
     return `
-    <div class="stato-card">
-      <div class="ora">${esc(c.orario || '—')}</div>
-      <div class="meta">
-        <span class="stato-badge ${s.cls}">${s.label}</span>
-        ${c.autista_nome ? `<div class="autista">Autista: ${esc(c.autista_nome)}</div>` : ''}
+    <div class="stato-card${chiusa ? ' chiusa' : ''}">
+      <div class="riga">
+        <div class="ora">${esc(c.orario || '—')}</div>
+        <div class="meta">
+          <span class="stato-badge ${s.cls}">${s.label}</span>
+          ${c.autista_nome ? `<div class="autista">Autista: ${esc(c.autista_nome)}</div>` : ''}
+          ${c.orario_precedente ? `<div class="modificata">Orario cambiato (era ${esc(c.orario_precedente)})</div>` : ''}
+        </div>
       </div>
+      ${modificabile(c) && !inModifica ? `<button type="button" class="btn-cambia" onclick="apriCambioOrario('${esc(c.id)}')"><span data-icon="CLOCK"></span>Cambia orario</button>` : ''}
+      ${inModifica ? `<div class="edit-panel">
+        <div class="lbl">Nuovo orario (almeno ${CFG.preavviso_minimo_minuti} minuti da adesso)</div>
+        <div id="edit-slots">${gridSlotHtml(_editOrario, 'scegliOrarioNuovo')}</div>
+        <div class="err" id="edit-err"></div>
+        <div class="row-btns">
+          <button type="button" class="ann" onclick="chiudiCambioOrario()">Annulla</button>
+          <button type="button" class="conf" id="edit-conf" onclick="confermaCambioOrario()" ${_editOrario ? '' : 'disabled'}>Conferma</button>
+        </div></div>` : ''}
     </div>`;
   }).join('');
+  hydrateIcons(wrap);
 }
 
-let _pollTimer = null;
-async function avviaPollingStato() {
+function apriCambioOrario(id) { _editId = id; _editOrario = null; renderStatoRichieste(); }
+function chiudiCambioOrario() { _editId = null; _editOrario = null; renderStatoRichieste(); }
+function scegliOrarioNuovo(ora) {
+  _editOrario = ora;
+  document.querySelectorAll('#edit-slots .slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
+  $('#edit-conf').disabled = false;
+}
+async function confermaCambioOrario() {
+  if (!_editId || !_editOrario) return;
+  const btn = $('#edit-conf'), err = $('#edit-err');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Salvataggio…';
+  try {
+    const d = await chiama({ azione: 'navetta_modifica_orario', id: _editId, orario: _editOrario });
+    if (d.ok) { _editId = null; _editOrario = null; await aggiornaStato(true); return; }
+    err.textContent = d.errore === 'troppo_tardi' ? `Non si può più cambiare: mancano meno di ${preavvisoModifica()} minuti alla corsa.`
+      : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta a quell\'orario.'
+      : d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
+      : d.errore === 'corsa_non_modificabile' ? 'Questa corsa non si può più modificare.'
+      : 'Modifica non riuscita. Riprova.';
+  } catch (e) {
+    err.textContent = 'Connessione assente. Controlla la rete e riprova.';
+  }
+  err.style.display = 'block';
+  btn.disabled = false; btn.textContent = 'Conferma';
+}
+
+// Aggiornamento stato richieste: ogni 8s, e subito quando la pagina torna
+// visibile / a fuoco / online (i browser mobili fermano i timer in background).
+let _pollTimer = null, _inVolo = false;
+async function aggiornaStato(forza) {
+  if (_inVolo || !CFG) return;
+  _inVolo = true;
+  try {
+    const d = await chiama({ azione: 'navetta_stato' });
+    if (!d.ok) return;
+    const firma = JSON.stringify(d.navetta_oggi);
+    if (forza || firma !== _ultimoStato) {
+      _ultimoStato = firma;
+      CFG.navetta_oggi = d.navetta_oggi;
+      if (_editId && !forza) return;          // non interrompere chi sta scegliendo
+      renderStatoRichieste();
+      if (!_servizioAperto) renderHome();
+    }
+  } catch (e) { /* silenzioso: riprova al giro successivo */ }
+  finally { _inVolo = false; }
+}
+function avviaAggiornamentoStato() {
+  _ultimoStato = JSON.stringify(CFG.navetta_oggi || []);
   if (_pollTimer) clearInterval(_pollTimer);
-  _pollTimer = setInterval(async () => {
-    try {
-      const r = await fetch(AREA_OSPITE_FN_URL, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ azione: 'carica', token }),
-      });
-      const d = await r.json();
-      if (d.ok) { CFG.navetta_oggi = d.navetta_oggi; renderStatoRichieste(); }
-    } catch (e) { /* silenzioso: riprova al giro successivo */ }
-  }, 20000);
+  _pollTimer = setInterval(() => { if (document.visibilityState === 'visible') aggiornaStato(false); }, 8000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') aggiornaStato(false); });
+  window.addEventListener('focus', () => aggiornaStato(false));
+  window.addEventListener('online', () => aggiornaStato(false));
+}
+
+function cardAutistaHtml(id, nome, foto, qualsiasi) {
+  const avatar = qualsiasi ? ICONS.USER
+    : foto ? '' : esc(nome.trim().slice(0, 1).toUpperCase());
+  return `<button type="button" class="driver-card${qualsiasi ? ' qualsiasi' : ''}" data-id="${esc(id)}" onclick="scegliAutista('${esc(id)}')">
+    <span class="dv-check">${ICONS.CHECK}</span>
+    <span class="dv-avatar"${foto ? ` style="background-image:url('${esc(foto)}')"` : ''}>${avatar}</span>
+    <span class="dv-nome">${esc(nome)}</span></button>`;
 }
 
 function renderNavetta() {
   const p = CFG.prenotazione;
   const sp = CFG.spiaggia;
   const spiagge = CFG.spiagge || [];
-  const preavviso = CFG.preavviso_minimo_minuti || 25;
-  const fasceSlot = slotsFasce(CFG.fasce || []);
-  const adesso = new Date();
-  const sogliaMinuti = adesso.getHours() * 60 + adesso.getMinutes() + preavviso;
-
-  const fasceHtml = fasceSlot.map((slot, i) => {
-    const f = (CFG.fasce || [])[i] || {};
-    const bottoni = slot.map(ora => {
-      const [h, m] = ora.split(':').map(Number);
-      const nonPrenotabile = (h * 60 + m) < sogliaMinuti;
-      return `<button type="button" class="slot-btn" data-ora="${ora}" ${nonPrenotabile ? 'disabled' : ''} onclick="scegliOrario('${ora}')">${ora}</button>`;
-    }).join('');
-    return `<div class="fascia-title">${esc(f.dal || '')} – ${esc(f.al || '')}</div><div class="slot-grid">${bottoni}</div>`;
-  }).join('');
-
-  const nessunoPrenotabile = fasceSlot.every(slot => slot.every(ora => {
-    const [h, m] = ora.split(':').map(Number);
-    return (h * 60 + m) < sogliaMinuti;
-  }));
+  const preavviso = CFG.preavviso_minimo_minuti || 0;
+  const nessunoPrenotabile = slotsFasce().every(({ slot }) => slot.every(ora => !slotLibero(ora)));
+  orarioScelto = null; autistaScelto = null;
 
   const spiaggiaSelezionataId = sp ? (spiagge.find(s => s.nome === sp.spiaggia_nome) || {}).id : '';
   const opzioniSpiaggia = ['<option value="">— Nessuna —</option>']
@@ -369,23 +552,27 @@ function renderNavetta() {
     .join('');
 
   const autisti = CFG.autisti || [];
-  const opzioniAutista = ['<option value="" disabled selected>— Seleziona il tuo autista —</option>',
-    '<option value="__chiunque__">Non lo so / Chiunque disponibile</option>']
-    .concat(autisti.map(a => `<option value="${esc(a.nome)}">${esc(a.nome)}</option>`))
-    .join('');
+  const cardAutisti = autisti.map(a => cardAutistaHtml(a.id, a.nome, a.foto, false)).join('')
+    + cardAutistaHtml('__chiunque__', 'Chiunque disponibile', '', true);
+
+  const fasceTesto = (CFG.fasce || []).map(f => `dalle ${esc(f.dal)} alle ${esc(f.al)}`).join(' e ');
+  const introNavetta = CONTENUTI.testi.navetta_testo
+    ? esc(CONTENUTI.testi.navetta_testo)
+    : `Prenota il rientro dalla spiaggia. Il servizio è attivo ${fasceTesto}, ogni ${CFG.passo_minuti || 15} minuti (con almeno ${preavviso} minuti di preavviso).`;
 
   $('#service-content').innerHTML = `
     <div class="card">
       <h2>Servizio navetta</h2>
-      <p class="hint">Prenota il rientro dalla spiaggia. Il servizio è attivo dalle 09:00 alle 13:00 e dalle 15:30 alle 19:00, ogni 15 minuti (con almeno ${preavviso} minuti di preavviso).</p>
+      <p class="hint" style="white-space:pre-line">${introNavetta}</p>
     </div>
     <div id="navetta-stato-richieste"></div>
     <div class="card" id="navetta-form-card">
-      <div class="field"><label>Autista</label>
-        <select id="f-autista" onchange="onAutistaScelto()">${opzioniAutista}</select></div>
+      <div class="lbl" style="font-size:13px">Chi ti ha accompagnato?</div>
+      <p class="hint" style="margin-bottom:12px">Scegli l'autista che conosci, oppure lascia scegliere a noi.</p>
+      <div class="driver-grid" id="driver-grid">${cardAutisti}</div>
 
-      <div id="navetta-resto-form" style="display:none">
-        ${sp ? `<div class="chip-spiaggia">☂ ${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
+      <div id="navetta-resto-form" style="display:none;margin-top:18px">
+        ${sp ? `<div class="chip-spiaggia">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
         <div class="field"><label>Nome e Cognome</label>
           <input type="text" id="f-nome" value="${esc(p.nome)}"></div>
         <div class="field"><label>Numero di telefono</label>
@@ -395,10 +582,10 @@ function renderNavetta() {
         <div class="field"><label>Spiaggia</label>
           <select id="f-spiaggia">${opzioniSpiaggia}</select></div>
 
-        <label style="display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px">Orario</label>
+        <label class="lbl">Orario</label>
         ${nessunoPrenotabile
           ? '<p class="hint">Nessun orario disponibile adesso (ci vogliono almeno ' + preavviso + ' minuti di preavviso). Riprova tra poco.</p>'
-          : fasceHtml}
+          : gridSlotHtml(null, 'scegliOrario')}
 
         <div class="errbox" id="errbox"></div>
         <button type="button" class="submit" id="btn-invia" onclick="invia()" ${nessunoPrenotabile ? 'disabled' : ''}>Prenota il rientro</button>
@@ -407,16 +594,17 @@ function renderNavetta() {
     <div class="card" id="navetta-conferma-card" style="display:none"></div>
   `;
   renderStatoRichieste();
-  avviaPollingStato();
 }
 
-function onAutistaScelto() {
+function scegliAutista(id) {
+  autistaScelto = id === '__chiunque__' ? '' : ((CFG.autisti || []).find(a => a.id === id) || {}).nome || '';
+  document.querySelectorAll('#driver-grid .driver-card').forEach(el => el.classList.toggle('selected', el.dataset.id === id));
   $('#navetta-resto-form').style.display = 'block';
 }
 
 function scegliOrario(ora) {
   orarioScelto = ora;
-  document.querySelectorAll('.slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
+  document.querySelectorAll('#navetta-form-card .slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
 }
 
 async function invia() {
@@ -426,8 +614,7 @@ async function invia() {
   const telefono = $('#f-telefono').value.trim();
   const alloggio = $('#f-alloggio').value.trim();
   const spiaggia = $('#f-spiaggia').value.trim();
-  const autistaRaw = $('#f-autista').value.trim();
-  const autista = autistaRaw === '__chiunque__' ? '' : autistaRaw;
+  const autista = autistaScelto || '';
 
   if (!nome || !telefono) {
     box.textContent = 'Compila nome e telefono.';
@@ -443,34 +630,29 @@ async function invia() {
   const btn = $('#btn-invia');
   btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
-    const r = await fetch(AREA_OSPITE_FN_URL, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        azione: 'navetta_prenota', token,
-        nome, telefono, alloggio_nome: alloggio, spiaggia_nome: spiaggia,
-        autista_nome: autista, orario: orarioScelto,
-      }),
+    const d = await chiama({
+      azione: 'navetta_prenota',
+      nome, telefono, alloggio_nome: alloggio, spiaggia_nome: spiaggia,
+      autista_nome: autista, orario: orarioScelto,
     });
-    const d = await r.json();
     if (d.ok) {
-      CFG.navetta_oggi = (CFG.navetta_oggi || []).concat([
-        { id: d.id, orario: orarioScelto, stato: 'in_attesa', autista_nome: autista },
-      ]);
-      renderStatoRichieste();
+      const orario = orarioScelto;
+      await aggiornaStato(true);
       $('#navetta-form-card').style.display = 'none';
       const conferma = $('#navetta-conferma-card');
       conferma.style.display = 'block';
       conferma.innerHTML = `
         <div class="conferma-box">
-          <div>✅ Richiesta inviata</div>
-          <div class="big">${esc(orarioScelto)}</div>
-          <p>Un autista verrà a prenderti in spiaggia a quest'ora. Se qualcosa cambia, chiedi in reception.</p>
+          <div class="ok">${ICONS.CHECK}Richiesta inviata</div>
+          <div class="big">${esc(orario)}</div>
+          <p>Un autista verrà a prenderti in spiaggia a quest'ora. Se ti serve, puoi cambiare l'orario fino a ${preavvisoModifica()} minuti prima.</p>
         </div>
         <button type="button" class="btn-secondary" onclick="renderNavetta()">Prenota un altro orario</button>
       `;
       return;
     }
     box.textContent = d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
+      : d.errore === 'corsa_duplicata' ? 'Hai già una richiesta attiva a quest\'orario. Scegline un altro oppure cambia quella esistente.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : 'Invio non riuscito. Riprova.';
     box.style.display = 'block';

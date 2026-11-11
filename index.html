@@ -784,6 +784,7 @@ const ICON_SPIAGGIA      = ICONS.SPIAGGIA;
 const ICON_CALENDAR      = ICONS.CALENDAR;
 const ICON_MENSE         = ICONS.MENSE;
 const ICON_NAVETTA       = ICONS.NAVETTA;
+const ICON_AREA_OSPITE   = ICONS.ANIMAZIONE;
 
 hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 
@@ -839,6 +840,17 @@ const MODULES = [
     tile: 'orange',
     sezioni: [
       { id: 'navetta', nome: 'Rientri dalla spiaggia' },
+    ],
+  },
+  {
+    id: 'area-ospite',
+    nome: 'Gestione Area Ospite',
+    titolo: 'Area ospite',
+    url: 'area-ospite/gestione.html',
+    icon: ICON_AREA_OSPITE,
+    tile: 'orange',
+    sezioni: [
+      { id: 'gestione', nome: 'Foto e contenuti', defaultOff: true },
     ],
   },
   {
