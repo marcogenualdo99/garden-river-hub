@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Navetta · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css">
+<script src="../assets/icons.js"></script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Navetta">
+<meta name="mobile-web-app-capable" content="yes">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp    = initializeApp(firebaseConfig);
+  const db       = getFirestore(fbApp);
+  const auth     = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
+  window._fbReady = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  signInAnonymously(auth).catch(() => { window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); });
+  setTimeout(segnalaPronto, 8000);
+</script>
+
+<style>
+/* Colori, raggi, ombre e font condivisi vengono da assets/theme.css (stessi
+   di Hub, Calendario, Bici, Pulizie e Manutenzione) — qui solo il layout
+   specifico di questa pagina. */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
+@media (min-width: 768px) { main { max-width: none; margin: 0; padding: 20px 24px 56px; } }
+@media (min-width: 1024px) { main { padding: 24px 32px 60px; } }
+.page-head { margin-bottom: 8px; }
+
+/* ══ FILTER PILLS ═══════════════════════════════════════════════════════════ */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-pill { flex-shrink: 0; height: 36px; padding: 0 16px; border: 1.5px solid var(--gray-300); border-radius: 18px; background: var(--white); font-size: 13px; font-weight: 600; color: var(--gray-700); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: all .15s; -webkit-tap-highlight-color: transparent; }
+.filter-pill .pill-count { background: var(--gray-100); color: var(--gray-500); font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; min-width: 22px; text-align: center; }
+.filter-pill.active { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+.filter-pill.active .pill-count { background: rgba(255,255,255,.2); color: var(--white); }
+.filter-pill:active { opacity: .8; }
+
+/* ══ CORSE LIST ═════════════════════════════════════════════════════════════ */
+.corse-wrap { display: flex; flex-direction: column; gap: 12px; }
+
+.corsa-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-100); padding: 16px; display: flex; gap: 14px; align-items: flex-start; }
+.corsa-ora { flex-shrink: 0; width: 64px; text-align: center; }
+.corsa-ora .hhmm { font-size: 19px; font-weight: 800; color: var(--gray-900); line-height: 1.1; }
+.corsa-ora .countdown { display: inline-block; margin-top: 4px; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 8px; white-space: nowrap; }
+.countdown.ok     { background: var(--green-bg); color: var(--green-ok); }
+.countdown.presto { background: var(--amber-bg); color: var(--amber); }
+.countdown.ritardo{ background: var(--red-bg);   color: var(--red); }
+.countdown.fine    { background: var(--gray-100); color: var(--gray-500); }
+
+.corsa-meta { flex: 1; min-width: 0; }
+.corsa-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.corsa-nome { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; flex-shrink: 0; white-space: nowrap; }
+.status-badge.attesa     { background: var(--amber-bg); color: var(--amber); }
+.status-badge.completata { background: var(--green-bg); color: var(--green-ok); }
+.status-badge.annullata  { background: var(--gray-100); color: var(--gray-500); }
+
+.corsa-bottom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--gray-700); }
+.corsa-bottom a { color: var(--blue); text-decoration: none; font-weight: 700; }
+.corsa-tag { background: var(--blue-bg); color: var(--blue); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
+
+.corsa-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.btn-icon { width: 38px; height: 38px; border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; transition: opacity .15s; }
+.btn-icon:active { opacity: .8; }
+.btn-icon svg { width: 17px; height: 17px; }
+.btn-icon.green { background: var(--green-bg); color: var(--green-ok); }
+.btn-icon.red   { background: var(--red-bg);   color: var(--red); }
+.btn-icon.amber { background: var(--amber-bg); color: var(--amber); }
+
+/* ══ EMPTY STATE ═══════════════════════════════════════════════════════════ */
+.empty-state { text-align: center; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.empty-state-icon { width: 72px; height: 72px; border-radius: 22px; background: var(--green-50); display: flex; align-items: center; justify-content: center; }
+.empty-state-icon svg { width: 36px; height: 36px; color: var(--green-200); }
+.empty-state h3 { font-size: 17px; font-weight: 800; color: var(--gray-900); }
+.empty-state p  { font-size: 14px; color: var(--gray-500); line-height: 1.6; max-width: 280px; }
+
+/* ══ SHIMMER ════════════════════════════════════════════════════════════════ */
+.shimmer-card { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 16px; display: flex; gap: 12px; }
+.shimmer-box { background: var(--gray-100); border-radius: 8px; animation: shimmer 1.4s ease-in-out infinite; }
+@keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:1} }
+</style>
+</head>
+<body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Navetta</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Navetta</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<div class="app-shell">
+
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
+     Stessa struttura a tre livelli di Hub, Calendario, Bici, Pulizie e
+     Manutenzione (v. assets/theme.css), riusata identica qui. ══ -->
+<div class="nav-zone">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Navetta</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item active" href="./"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item active" href="./"><span data-icon="NAVETTA"></span><span>Navetta</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <a class="rail-item" href="../mense/"><span data-icon="MENSE"></span><span>Mense</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Navetta</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item active" href="./"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
+
+<div class="main-col">
+
+<!-- ══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<div class="top-bar" id="top-bar-main">
+  <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div>
+        <div class="header-name" id="header-name"></div>
+        <div class="header-role" id="header-role"></div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+    </div>
+  </div>
+</div>
+
+<main id="main-view">
+  <div class="page-head">
+    <div class="page-eyebrow"><span data-icon="NAVETTA"></span><span>Navetta</span></div>
+    <div class="page-title">Rientri dalla spiaggia — oggi</div>
+  </div>
+
+  <div class="filter-bar" id="filter-bar" style="display:none">
+    <button class="filter-pill active" data-filter="tutte" onclick="setFilter('tutte')">
+      Tutte <span class="pill-count" id="cnt-tutte">0</span>
+    </button>
+    <button class="filter-pill" data-filter="attesa" onclick="setFilter('attesa')">
+      In attesa <span class="pill-count" id="cnt-attesa">0</span>
+    </button>
+    <button class="filter-pill" data-filter="completata" onclick="setFilter('completata')">
+      Completate <span class="pill-count" id="cnt-completata">0</span>
+    </button>
+    <button class="filter-pill" data-filter="annullata" onclick="setFilter('annullata')">
+      Annullate <span class="pill-count" id="cnt-annullata">0</span>
+    </button>
+  </div>
+
+  <!-- Shimmer placeholders -->
+  <div id="shimmer-wrap">
+    <div class="shimmer-card"><div class="shimmer-box" style="width:64px;height:40px;border-radius:10px;flex-shrink:0"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="shimmer-box" style="height:14px;width:60%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:40%;border-radius:6px"></div></div></div>
+    <div class="shimmer-card" style="margin-top:12px"><div class="shimmer-box" style="width:64px;height:40px;border-radius:10px;flex-shrink:0"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="shimmer-box" style="height:14px;width:70%;border-radius:6px"></div><div class="shimmer-box" style="height:11px;width:35%;border-radius:6px"></div></div></div>
+  </div>
+
+  <!-- Lista corse -->
+  <div class="corse-wrap" id="corse-wrap" style="display:none"></div>
+
+</main>
+
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const HUB_URL      = '../';
+const MODULE_ID    = 'navetta';
+const SECTION_IDS  = ['navetta'];
+
+hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
+
+// ── NAVIGAZIONE — categorie sidebar apribili/chiudibili + drawer mobile
+//    (stessa logica della Hub, del Calendario, di Bici e Pulizie) ────────────
+function toggleNavGroup(btn) {
+  btn.classList.toggle('collapsed');
+  btn.nextElementSibling.classList.toggle('collapsed');
+}
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.body.classList.toggle('drawer-open', open);
+}
+
+let hubSession      = null;
+let hubPermessi     = { sezioni: {} };
+let allowedSections = new Set();
+let currentOperatore = null;
+let allCorse        = [];
+let currentFilter    = 'tutte';
+let _firstDataLoad   = true;
+let _countdownTimer  = null;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+
+function oggiIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function waitForFirebase() {
+  return new Promise(resolve => {
+    if (window._fbReady) return resolve();
+    window.addEventListener('firebase-ready', () => resolve(), { once: true });
+  });
+}
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  const map = { connecting:'#60A5FA', live:'#4ADE80', saving:'#FCD34D', error:'#F87171', offline:'rgba(255,255,255,0.3)' };
+  if (dot) dot.style.background = map[state] || map.offline;
+}
+
+async function startCorseSync() {
+  const { db, collection, onSnapshot, query, where } = window._fb;
+  setSyncStatus('connecting');
+  try {
+    onSnapshot(query(collection(db, 'navetta_prenotazioni'), where('data', '==', oggiIso())), (snap) => {
+      allCorse = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setSyncStatus('live');
+      if (_firstDataLoad) {
+        _firstDataLoad = false;
+        document.getElementById('shimmer-wrap').style.display = 'none';
+        document.getElementById('corse-wrap').style.display = '';
+        document.getElementById('filter-bar').style.display = '';
+      }
+      renderCorse();
+    }, (err) => {
+      console.error('Errore listener navetta:', err);
+      setSyncStatus('error');
+      document.getElementById('shimmer-wrap').style.display = 'none';
+      document.getElementById('corse-wrap').style.display = '';
+      document.getElementById('filter-bar').style.display = '';
+      renderCorse();
+    });
+  } catch(e) { console.error('Errore avvio sync navetta:', e); setSyncStatus('error'); }
+}
+
+async function forceRefresh(manual) {
+  await waitForFirebase();
+  const { db, collection, getDocs, query, where } = window._fb;
+  try {
+    const snap = await getDocs(query(collection(db, 'navetta_prenotazioni'), where('data', '==', oggiIso())));
+    allCorse = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setSyncStatus('live');
+    renderCorse();
+    if (manual) showToast('Aggiornato');
+  } catch(e) { console.error('Errore refresh:', e); setSyncStatus('error'); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefresh(false);
+});
+window.addEventListener('online', () => forceRefresh(false));
+window.addEventListener('focus',  () => forceRefresh(false));
+
+// ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia
+//    (stessa logica di Bici, Pulizie e Manutenzione) ─────────────────────────
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+async function kickFirestoreConnection() {
+  try {
+    await waitForFirebase();
+    const { db, enableNetwork, disableNetwork } = window._fb;
+    await disableNetwork(db);
+    await enableNetwork(db);
+  } catch(e) { console.error('Errore riconnessione forzata:', e); }
+}
+async function checkConnessione() {
+  try {
+    await waitForFirebase();
+    const { db, collection, getDocs, query, where, limit } = window._fb;
+    await withTimeout(getDocs(query(collection(db, 'navetta_prenotazioni'), where('data', '==', oggiIso()), limit(1))), 8000);
+  } catch(e) {
+    console.warn('Connessione Firestore bloccata, la riavvio:', e);
+    setSyncStatus('error');
+    await kickFirestoreConnection();
+    forceRefresh(false);
+  }
+}
+setInterval(checkConnessione, 30000);
+
+// ── SESSIONE (single sign-on dalla Hub) ──────────────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.nome) return false;
+    hubSession = parsed;
+    const permRaw = sessionStorage.getItem('gr_permessi');
+    const perm = permRaw ? JSON.parse(permRaw) : {};
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch(e) { return false; }
+}
+
+function computeAllowedSections() {
+  allowedSections = new Set();
+  SECTION_IDS.forEach(id => {
+    const sez = hubPermessi.sezioni || {};
+    const ok = isAdmin() || sez[id] !== false;
+    if (ok) allowedSections.add(id);
+  });
+}
+
+function applyRole() {
+  const admin = isAdmin();
+  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  document.getElementById('header-name').textContent   = currentOperatore || '';
+  document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
+}
+
+function initLogin() {
+  if (!loadHubSession()) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('no-access-screen').classList.add('hidden');
+    hideLoadingScreen();
+    return;
+  }
+  currentOperatore = hubSession.nome;
+  document.getElementById('login-screen').classList.add('hidden');
+  computeAllowedSections();
+  if (!isAdmin() && !allowedSections.has('navetta')) {
+    document.getElementById('no-access-screen').classList.remove('hidden');
+    hideLoadingScreen();
+    return;
+  }
+  document.getElementById('no-access-screen').classList.add('hidden');
+  applyRole();
+  hideLoadingScreen();
+}
+
+// ── SCHERMATA DI CARICAMENTO ──────────────────────────────────────────────
+let _loadingHidden = false;
+function hideLoadingScreen() {
+  if (_loadingHidden) return;
+  _loadingHidden = true;
+  const el = document.getElementById('loading-screen');
+  if (!el) return;
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 250);
+}
+setTimeout(hideLoadingScreen, 12000);
+
+function doLogout() {
+  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_permessi');
+  location.href = HUB_URL;
+}
+
+// ── FILTER ────────────────────────────────────────────────────────────────
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.filter === f);
+  });
+  renderCorse();
+}
+
+// ── COUNTDOWN ────────────────────────────────────────────────────────────
+// Minuti tra adesso e l'orario della corsa (data + orario, fuso del dispositivo,
+// che per lo staff in struttura coincide con l'ora locale di Garden River).
+function minutiAllaCorsa(c) {
+  const [y, m, d] = (c.data || oggiIso()).split('-').map(Number);
+  const [h, mi] = (c.orario || '00:00').split(':').map(Number);
+  const target = new Date(y, m - 1, d, h, mi, 0);
+  return Math.round((target - new Date()) / 60000);
+}
+
+function countdownHtml(c) {
+  if (c.stato !== 'in_attesa') return '';
+  const min = minutiAllaCorsa(c);
+  if (min > 15)  return `<span class="countdown ok">tra ${min} min</span>`;
+  if (min >= 0)  return `<span class="countdown presto">tra ${min} min</span>`;
+  if (min >= -20) return `<span class="countdown ritardo">in ritardo ${-min} min</span>`;
+  return `<span class="countdown fine">passata</span>`;
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderCorse() {
+  const tutte      = allCorse;
+  const attesa     = tutte.filter(c => c.stato === 'in_attesa');
+  const completata = tutte.filter(c => c.stato === 'completata');
+  const annullata  = tutte.filter(c => c.stato === 'annullata');
+  document.getElementById('cnt-tutte').textContent      = tutte.length;
+  document.getElementById('cnt-attesa').textContent     = attesa.length;
+  document.getElementById('cnt-completata').textContent = completata.length;
+  document.getElementById('cnt-annullata').textContent  = annullata.length;
+
+  let visibili = currentFilter === 'tutte' ? tutte
+    : currentFilter === 'attesa' ? attesa
+    : currentFilter === 'completata' ? completata
+    : annullata;
+
+  visibili = [...visibili].sort((a, b) => (a.orario || '').localeCompare(b.orario || ''));
+
+  const wrap = document.getElementById('corse-wrap');
+  if (!visibili.length) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon"><span data-icon="NAVETTA"></span></div>
+        <h3>${tutte.length === 0 ? 'Nessuna richiesta oggi' : 'Nessuna corsa in questo filtro'}</h3>
+        <p>Le richieste arrivano dagli ospiti dal loro link personale — appena ne arriva una, la vedi qui in tempo reale.</p>
+      </div>`;
+    hydrateIcons(wrap);
+    return;
+  }
+
+  wrap.innerHTML = visibili.map(c => corsaCardHtml(c)).join('');
+  startCountdownTimer();
+}
+
+function corsaCardHtml(c) {
+  const statusMap = { in_attesa: ['attesa', 'In attesa'], completata: ['completata', 'Completata'], annullata: ['annullata', 'Annullata'] };
+  const [cls, label] = statusMap[c.stato] || statusMap.in_attesa;
+
+  const azioni = c.stato === 'in_attesa'
+    ? `<button class="btn-icon green" title="Segna completata" onclick="cambiaStato('${c.id}','completata')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
+       <button class="btn-icon red" title="Annulla" onclick="cambiaStato('${c.id}','annullata')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`
+    : `<button class="btn-icon amber" title="Riapri" onclick="cambiaStato('${c.id}','in_attesa')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 1 0 2-9.5L1 10"/></svg></button>`;
+
+  return `
+<div class="corsa-card" id="corsa-${c.id}" data-orario="${escHtml(c.orario||'')}" data-data="${escHtml(c.data||'')}">
+  <div class="corsa-ora">
+    <div class="hhmm">${escHtml(c.orario || '—')}</div>
+    <div class="corsa-countdown">${countdownHtml(c)}</div>
+  </div>
+  <div class="corsa-meta">
+    <div class="corsa-top">
+      <span class="corsa-nome">${escHtml(c.nome || '—')}</span>
+      <span class="status-badge ${cls}">${label}</span>
+    </div>
+    <div class="corsa-bottom">
+      <span class="corsa-tag">${escHtml(c.alloggio_nome || 'Alloggio non indicato')}</span>
+      ${c.spiaggia_nome ? `<span>☂ ${escHtml(c.spiaggia_nome)}</span>` : ''}
+      ${c.telefono ? `<a href="tel:${escHtml(c.telefono)}">${escHtml(c.telefono)}</a>` : ''}
+    </div>
+  </div>
+  <div class="corsa-actions">${azioni}</div>
+</div>`;
+}
+
+// Ricalcola solo il testo del countdown ogni 30s, senza rifare tutto il DOM
+// (evita di perdere lo scroll/i tap in corso sulla lista).
+function startCountdownTimer() {
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  _countdownTimer = setInterval(() => {
+    document.querySelectorAll('.corsa-card').forEach(card => {
+      const id = card.id.replace('corsa-', '');
+      const c = allCorse.find(x => x.id === id);
+      if (!c) return;
+      const el = card.querySelector('.corsa-countdown');
+      if (el) el.innerHTML = countdownHtml(c);
+    });
+  }, 30000);
+}
+
+// ── STATUS CHANGE ──────────────────────────────────────────────────────────
+async function cambiaStato(id, nuovoStato) {
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    const c = allCorse.find(x => x.id === id);
+    const prima = c ? c.stato : null;
+    if (c) { c.stato = nuovoStato; renderCorse(); }
+    await updateDoc(doc(db, 'navetta_prenotazioni', id), { stato: nuovoStato, aggiornato_il: new Date().toISOString() });
+  } catch(e) {
+    console.error('Errore aggiornamento stato navetta:', e);
+    showToast('Errore aggiornamento stato');
+    forceRefresh(false);
+  }
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── START ──────────────────────────────────────────────────────────────────
+async function start() {
+  initLogin();
+  if (document.getElementById('login-screen').classList.contains('hidden') &&
+      document.getElementById('no-access-screen').classList.contains('hidden')) {
+    await waitForFirebase();
+    await startCorseSync();
+  }
+}
+
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Area ospite · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  body { background: var(--gray-50); padding: 0 0 env(safe-area-inset-bottom); }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px 48px; }
+
+  header.top {
+    background: var(--grad-forest); color: #fff; padding: 26px 16px 20px;
+    padding-top: calc(24px + env(safe-area-inset-top));
+  }
+  header.top .inner { max-width: 560px; margin: 0 auto }
+  header.top .brand { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .75 }
+  header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 24px; margin: 8px 0 0; letter-spacing: -.01em }
+  header.top .sub { margin-top: 10px; font-size: 13.5px; opacity: .92; line-height: 1.45 }
+  header.top .sub b { font-weight: 800 }
+
+  .tabs { display: flex; gap: 6px; overflow-x: auto; margin: 16px 0 0; padding-bottom: 2px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; height: 38px; padding: 0 15px; border-radius: 999px; border: 1.5px solid var(--gray-300);
+    background: var(--white); color: var(--gray-700); font-size: 13px; font-weight: 700; font-family: var(--font);
+    cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; -webkit-tap-highlight-color: transparent; }
+  .tab.active { background: var(--green-700); border-color: var(--green-700); color: #fff; }
+
+  .panel { display: none; margin-top: 16px; }
+  .panel.active { display: block; }
+
+  .card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm); padding: 18px 16px; margin-top: 14px; }
+  .card h2 { font-size: 15px; font-weight: 800; margin: 0 0 4px; color: var(--gray-900) }
+  .card p.hint { font-size: 12.5px; color: var(--gray-500); margin: 0; line-height: 1.5 }
+
+  .soon { text-align: center; padding: 36px 16px; }
+  .soon .icon { font-size: 30px; margin-bottom: 10px; opacity: .6 }
+  .soon h3 { font-size: 15px; font-weight: 800; color: var(--gray-700); margin-bottom: 4px }
+  .soon p { font-size: 12.5px; color: var(--gray-500) }
+
+  .field { margin-bottom: 12px }
+  .field label { display: block; font-size: 12px; font-weight: 700; color: var(--gray-700); margin-bottom: 5px }
+  input[type=text], input[type=tel] {
+    width: 100%; height: 46px; padding: 0 13px; border: 1.5px solid var(--gray-300);
+    border-radius: var(--radius-sm); font-size: 15px; font-family: var(--font); color: var(--gray-900);
+    background: var(--white); outline: none; -webkit-appearance: none; appearance: none;
+  }
+  input:focus { border-color: var(--green-700) }
+
+  .chip-spiaggia { display: inline-flex; align-items: center; gap: 6px; background: var(--blue-bg); color: var(--blue);
+    border-radius: 999px; padding: 4px 11px; font-size: 11.5px; font-weight: 700; margin-bottom: 10px }
+
+  .fascia-title { font-size: 12px; font-weight: 800; color: var(--gray-500); text-transform: uppercase;
+    letter-spacing: .04em; margin: 16px 0 8px }
+  .fascia-title:first-of-type { margin-top: 4px }
+  .slot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px }
+  .slot-btn { height: 42px; border: 1.5px solid var(--gray-300); border-radius: var(--radius-sm); background: var(--white);
+    color: var(--gray-700); font-size: 13.5px; font-weight: 700; font-family: var(--font); cursor: pointer;
+    -webkit-tap-highlight-color: transparent; }
+  .slot-btn.selected { background: var(--green-700); border-color: var(--green-700); color: #fff }
+  .slot-btn:disabled { opacity: .35; cursor: not-allowed; text-decoration: line-through }
+
+  .errbox { background: var(--red-bg); border: 1px solid var(--red-bd); border-radius: var(--radius-sm);
+    padding: 11px 13px; margin-top: 14px; font-size: 12.5px; color: #991B1B; line-height: 1.5; display: none }
+
+  .submit { width: 100%; height: 50px; margin-top: 18px; background: var(--green-700); color: #fff;
+    border: none; border-radius: 999px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: var(--font) }
+  .submit:disabled { opacity: .5; cursor: not-allowed }
+
+  .center-state { max-width: 460px; margin: 0 auto; padding: 64px 24px; text-align: center }
+  .center-state .icon { font-size: 34px; margin-bottom: 12px }
+  .center-state h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0 0 8px }
+  .center-state p { font-size: 13.5px; color: var(--gray-500); line-height: 1.55; margin: 0 }
+  .spinner { width: 30px; height: 30px; border: 3px solid var(--gray-300); border-top-color: var(--green-700);
+    border-radius: 50%; margin: 0 auto 16px; animation: spin .8s linear infinite }
+  @keyframes spin { to { transform: rotate(360deg) } }
+
+  .conferma-box { background: var(--green-bg); border: 1px solid var(--green-bd); border-radius: var(--radius-lg);
+    padding: 22px 18px; text-align: center; margin-top: 14px }
+  .conferma-box .big { font-size: 26px; font-weight: 800; color: var(--green-700); margin: 6px 0 }
+  .conferma-box p { font-size: 13px; color: var(--gray-700); line-height: 1.5 }
+  .btn-secondary { width: 100%; height: 46px; margin-top: 14px; background: var(--gray-100); color: var(--gray-700);
+    border: none; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font) }
+
+  .footnote { margin-top: 20px; font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5 }
+</style>
+</head>
+<body>
+
+<div id="stato-caricamento" class="center-state">
+  <div class="spinner"></div>
+  <p>Caricamento…</p>
+</div>
+
+<div id="stato-errore" class="center-state" style="display:none">
+  <div class="icon">🔒</div>
+  <h2 id="err-titolo">Link non valido</h2>
+  <p id="err-testo">Questo link non è valido o è scaduto. Contatta la struttura per riceverne uno nuovo.</p>
+</div>
+
+<div id="app" style="display:none">
+  <header class="top">
+    <div class="inner">
+      <div class="brand">Garden River</div>
+      <h1>Area ospite</h1>
+      <div class="sub" id="riepilogo"></div>
+      <div class="tabs" id="tabs"></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="panel active" data-panel="navetta" id="panel-navetta"></div>
+    <div class="panel" data-panel="ristorazione"><div class="card"><div class="soon"><div class="icon">🍽️</div><h3>Ristorazione</h3><p>Disponibile a breve.</p></div></div></div>
+    <div class="panel" data-panel="animazione"><div class="card"><div class="soon"><div class="icon">🎉</div><h3>Programma animazione</h3><p>Disponibile a breve.</p></div></div></div>
+    <div class="panel" data-panel="info"><div class="card"><div class="soon"><div class="icon">ℹ️</div><h3>Info utili</h3><p>Disponibile a breve.</p></div></div></div>
+    <div class="panel" data-panel="assistenza"><div class="card"><div class="soon"><div class="icon">💬</div><h3>Richiesta assistenza</h3><p>Disponibile a breve.</p></div></div></div>
+
+    <p class="footnote">Garden River · questo link è personale, non condividerlo.</p>
+  </div>
+</div>
+
+<script>
+const AREA_OSPITE_FN_URL = 'https://area-ospite-113994721180.europe-west1.run.app';
+
+const TABS = [
+  { id: 'navetta',      label: '🚐 Navetta' },
+  { id: 'ristorazione', label: 'Ristorazione' },
+  { id: 'animazione',   label: 'Animazione' },
+  { id: 'info',         label: 'Info utili' },
+  { id: 'assistenza',   label: 'Assistenza' },
+];
+
+let CFG = null;
+let orarioScelto = null;
+
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const token = new URLSearchParams(location.search).get('t') || '';
+
+async function carica() {
+  if (!token) return mostraErrore('Link non valido', 'Manca il codice nel link. Usa il link completo che ti ha dato la struttura.');
+  try {
+    const r = await fetch(AREA_OSPITE_FN_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ azione: 'carica', token }),
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      if (d.errore === 'link_non_valido') return mostraErrore('Link non valido o scaduto', 'Questo link non è più attivo. Contatta la struttura per riceverne uno nuovo.');
+      return mostraErrore('Qualcosa non va', 'Riprova tra poco. Se il problema resta, contatta la struttura.');
+    }
+    CFG = d;
+    render();
+  } catch (e) {
+    mostraErrore('Connessione assente', 'Controlla la connessione e ricarica la pagina.');
+  }
+}
+
+function mostraErrore(titolo, testo) {
+  $('#stato-caricamento').style.display = 'none';
+  $('#app').style.display = 'none';
+  $('#err-titolo').textContent = titolo;
+  $('#err-testo').textContent = testo;
+  $('#stato-errore').style.display = 'block';
+}
+
+function render() {
+  const p = CFG.prenotazione;
+  $('#riepilogo').innerHTML = `<b>${esc(p.nome || 'Ospite')}</b> · ${esc(p.alloggio_nome || 'Garden River')}`;
+
+  $('#tabs').innerHTML = TABS.map(t =>
+    `<button type="button" class="tab${t.id === 'navetta' ? ' active' : ''}" data-tab="${t.id}" onclick="selezionaTab('${t.id}')">${t.label}</button>`
+  ).join('');
+
+  renderNavetta();
+
+  $('#stato-caricamento').style.display = 'none';
+  $('#app').style.display = 'block';
+}
+
+function selezionaTab(id) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === id));
+  document.querySelectorAll('.panel').forEach(el => el.classList.toggle('active', el.dataset.panel === id));
+}
+
+// ── Navetta ───────────────────────────────────────────────────────────────
+function slotsFasce(fasce) {
+  const out = [];
+  fasce.forEach(f => {
+    const [h0, m0] = f.dal.split(':').map(Number);
+    const [h1, m1] = f.al.split(':').map(Number);
+    const slot = [];
+    let t = h0 * 60 + m0;
+    const tf = h1 * 60 + m1;
+    while (t <= tf) {
+      slot.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
+      t += 15;
+    }
+    out.push(slot);
+  });
+  return out;
+}
+
+function renderNavetta() {
+  const p = CFG.prenotazione;
+  const sp = CFG.spiaggia;
+  const fasceSlot = slotsFasce(CFG.fasce || []);
+  const adesso = new Date();
+  const minutiAdesso = adesso.getHours() * 60 + adesso.getMinutes();
+
+  const fasceHtml = fasceSlot.map((slot, i) => {
+    const f = (CFG.fasce || [])[i] || {};
+    const bottoni = slot.map(ora => {
+      const [h, m] = ora.split(':').map(Number);
+      const passato = (h * 60 + m) < minutiAdesso;
+      return `<button type="button" class="slot-btn" data-ora="${ora}" ${passato ? 'disabled' : ''} onclick="scegliOrario('${ora}')">${ora}</button>`;
+    }).join('');
+    return `<div class="fascia-title">${esc(f.dal || '')} – ${esc(f.al || '')}</div><div class="slot-grid">${bottoni}</div>`;
+  }).join('');
+
+  const tuttiPassati = fasceSlot.every(slot => slot.every(ora => {
+    const [h, m] = ora.split(':').map(Number);
+    return (h * 60 + m) < minutiAdesso;
+  }));
+
+  $('#panel-navetta').innerHTML = `
+    <div class="card">
+      <h2>Servizio navetta</h2>
+      <p class="hint">Prenota il rientro dalla spiaggia. Il servizio è attivo dalle 09:00 alle 13:00 e dalle 15:30 alle 19:00, ogni 15 minuti.</p>
+    </div>
+    <div class="card" id="navetta-form-card">
+      ${sp ? `<div class="chip-spiaggia">☂ ${esc(sp.spiaggia_nome || '')} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
+      <div class="field"><label>Nome e Cognome</label>
+        <input type="text" id="f-nome" value="${esc(p.nome)}"></div>
+      <div class="field"><label>Numero di telefono</label>
+        <input type="tel" id="f-telefono" value="${esc(p.telefono)}"></div>
+      <div class="field"><label>Alloggio</label>
+        <input type="text" id="f-alloggio" value="${esc(p.alloggio_nome)}"></div>
+      <div class="field"><label>Spiaggia</label>
+        <input type="text" id="f-spiaggia" value="${esc(sp ? sp.spiaggia_nome : '')}" placeholder="Es. Spiaggia 1"></div>
+
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--gray-700);margin-bottom:5px">Orario</label>
+      ${tuttiPassati
+        ? '<p class="hint">Il servizio navetta è chiuso per oggi. Riprova domani.</p>'
+        : fasceHtml}
+
+      <div class="errbox" id="errbox"></div>
+      <button type="button" class="submit" id="btn-invia" onclick="invia()" ${tuttiPassati ? 'disabled' : ''}>Prenota il rientro</button>
+    </div>
+    <div class="card" id="navetta-conferma-card" style="display:none"></div>
+  `;
+}
+
+function scegliOrario(ora) {
+  orarioScelto = ora;
+  document.querySelectorAll('.slot-btn').forEach(el => el.classList.toggle('selected', el.dataset.ora === ora));
+}
+
+async function invia() {
+  const box = $('#errbox');
+  box.style.display = 'none';
+  const nome = $('#f-nome').value.trim();
+  const telefono = $('#f-telefono').value.trim();
+  const alloggio = $('#f-alloggio').value.trim();
+  const spiaggia = $('#f-spiaggia').value.trim();
+
+  if (!nome || !telefono) {
+    box.textContent = 'Compila nome e telefono.';
+    box.style.display = 'block';
+    return;
+  }
+  if (!orarioScelto) {
+    box.textContent = 'Scegli un orario.';
+    box.style.display = 'block';
+    return;
+  }
+
+  const btn = $('#btn-invia');
+  btn.disabled = true; btn.textContent = 'Invio in corso…';
+  try {
+    const r = await fetch(AREA_OSPITE_FN_URL, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        azione: 'navetta_prenota', token,
+        nome, telefono, alloggio_nome: alloggio, spiaggia_nome: spiaggia,
+        orario: orarioScelto,
+      }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      $('#navetta-form-card').style.display = 'none';
+      const conferma = $('#navetta-conferma-card');
+      conferma.style.display = 'block';
+      conferma.innerHTML = `
+        <div class="conferma-box">
+          <div>✅ Richiesta inviata</div>
+          <div class="big">${esc(orarioScelto)}</div>
+          <p>Un autista verrà a prenderti in spiaggia a quest'ora. Se qualcosa cambia, chiedi in reception.</p>
+        </div>
+        <button type="button" class="btn-secondary" onclick="renderNavetta()">Prenota un altro orario</button>
+      `;
+      return;
+    }
+    box.textContent = d.errore === 'orario_non_valido' ? 'Scegli un orario tra quelli disponibili.'
+      : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
+      : 'Invio non riuscito. Riprova.';
+    box.style.display = 'block';
+  } catch (e) {
+    box.textContent = 'Connessione assente. Controlla la rete e riprova.';
+    box.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Prenota il rientro';
+  }
+}
+
+carica();
+</script>
+</body>
+</html>

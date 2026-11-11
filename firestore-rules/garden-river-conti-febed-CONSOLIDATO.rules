@@ -98,6 +98,16 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow read, update, delete: if false;
     }
+    // Area ospite (mini-pannello): mappa token→prenotazione per il link
+    // pubblico unico per prenotazione (https://gardenhub.it/area-ospite/?t=
+    // <token>), usato oggi dalla sezione Navetta e in futuro dalle altre
+    // sezioni del pannello. Stesso schema di checkin_links: l'hub crea il
+    // doc quando genera il link, solo la Cloud Function 'area-ospite'
+    // (Admin SDK) lo risolve. Nessun client deve poterlo leggere.
+    match /area_ospite_links/{token} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
 
     // ── Pulizie / alloggi ────────────────────────────────────────────────
     match /alloggi/{id} {
@@ -144,6 +154,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     match /beach_prenotazioni/{id} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Navetta spiaggia ─────────────────────────────────────────────────
+    // Richieste di rientro navetta create dall'ospite (via Cloud Function
+    // 'area-ospite', Admin SDK — bypassa questa regola) e gestite dagli
+    // autisti dalla dashboard Hub (client autenticato).
+    match /navetta_prenotazioni/{id} {
       allow read, write: if request.auth != null;
     }
 

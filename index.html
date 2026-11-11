@@ -783,6 +783,7 @@ const ICON_WRENCH        = ICONS.MANUTENZIONE;
 const ICON_SPIAGGIA      = ICONS.SPIAGGIA;
 const ICON_CALENDAR      = ICONS.CALENDAR;
 const ICON_MENSE         = ICONS.MENSE;
+const ICON_NAVETTA       = ICONS.NAVETTA;
 
 hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito
 
@@ -827,6 +828,17 @@ const MODULES = [
     statKey: 'spiaggia',
     sezioni: [
       { id: 'spiaggia', nome: 'Prenotazioni ombrelloni' },
+    ],
+  },
+  {
+    id: 'navetta',
+    nome: 'Navetta Spiaggia',
+    titolo: 'Navetta',
+    url: 'navetta/', // 👉 sottocartella dentro questo stesso repository
+    icon: ICON_NAVETTA,
+    tile: 'orange',
+    sezioni: [
+      { id: 'navetta', nome: 'Rientri dalla spiaggia' },
     ],
   },
   {

@@ -604,6 +604,7 @@
     <div class="nav-group-items">
       <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
       <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
       <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
     </div>
   </div>
@@ -627,6 +628,7 @@
   <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
   <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
   <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../navetta/"><span data-icon="NAVETTA"></span><span>Navetta</span></a>
   <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
   <a class="rail-item" href="../mense/"><span data-icon="MENSE"></span><span>Mense</span></a>
   <div class="rail-spacer"></div>
@@ -664,6 +666,7 @@
     <div class="nav-group-items">
       <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
       <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
       <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
     </div>
   </div>
@@ -1009,6 +1012,10 @@
           <span class="ospiti-btn-badge" id="checkin-online-badge" style="display:none"></span>
         </button>
 
+        <button type="button" class="ospiti-btn" id="btn-apri-area-ospite" onclick="apriAreaOspiteModal()" style="background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700);margin-top:8px">
+          Area ospite
+        </button>
+
         <div>
           <label class="f-label">Note</label>
           <div class="note-tabs" id="note-tabs"></div>
@@ -1299,6 +1306,28 @@
   </div>
     <div class="form-actions">
       <button class="modal-btn-cancel" style="flex:1" onclick="chiudiCheckinOnlineModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE LINK AREA OSPITE (mini-pannello: per ora solo Navetta) ══ -->
+<div class="modal-overlay hidden" id="area-ospite-modal-overlay">
+  <div class="form-modal-box">
+  <div class="form-modal-scroll">
+    <div class="form-modal-title">Area ospite</div>
+    <p class="section-hint">Link personale per il mini-pannello dell'ospite: per ora permette solo di prenotare il rientro navetta dalla spiaggia (le altre sezioni arriveranno in seguito). Se la prenotazione ha già un ombrellone posizionato, l'ospite lo trova precompilato.</p>
+    <label class="f-label">Link personale</label>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input class="f-input" id="area-ospite-link" readonly style="flex:1;font-size:12px">
+      <button type="button" class="ospiti-btn" style="width:auto;padding:0 16px;margin:0" onclick="copiaAreaOspiteLink()">Copia</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="ospiti-btn" style="flex:1;min-width:150px;margin:0;background:var(--gray-100);border-color:var(--gray-300);color:var(--gray-700)" onclick="apriWhatsappAreaOspite()">Invia su WhatsApp</button>
+    </div>
+    <p class="section-hint" id="area-ospite-scadenza" style="margin-top:12px"></p>
+  </div>
+    <div class="form-actions">
+      <button class="modal-btn-cancel" style="flex:1" onclick="chiudiAreaOspiteModal()">Chiudi</button>
     </div>
   </div>
 </div>
@@ -5718,6 +5747,72 @@ async function inviaInvitoEmailCheckin() {
     btn.textContent = testo;
     aggiornaBtnInvitoEmail(_prenCheckinCorrente());
   }
+}
+
+// ── AREA OSPITE (mini-pannello: link unico per prenotazione) ────────────────
+// Stesso schema del check-in online: un token in area_ospite_links/{token}
+// che solo la Cloud Function 'area-ospite' risolve (v. quella cartella).
+const AREA_OSPITE_PAGE = 'https://gardenhub.it/area-ospite/';
+
+function testiAreaOspite(p, link) {
+  const nome = (p.nome || '').trim().split(/\s+/)[0] || 'Gentile ospite';
+  const corpo =
+`${nome}, da qui puoi prenotare il rientro navetta dalla spiaggia quando vuoi durante il soggiorno:
+${link}
+
+A presto!
+Garden River`;
+  return { whatsapp: corpo };
+}
+
+async function apriAreaOspiteModal() {
+  if (!editingId) { showToast('Salva prima la prenotazione'); return; }
+  const p = _prenCheckinCorrente();
+  if (!p) { showToast('Prenotazione non trovata'); return; }
+
+  const overlay = document.getElementById('area-ospite-modal-overlay');
+  const linkInput = document.getElementById('area-ospite-link');
+  linkInput.value = 'Genero il link…';
+  overlay.classList.remove('hidden');
+
+  try {
+    if (!p.area_ospite_token) {
+      const { db, doc, setDoc, updateDoc } = window._fb;
+      const token = generaCheckinToken();
+      await setDoc(doc(db, 'area_ospite_links', token), {
+        prenId: p.id,
+        creato_il: new Date().toISOString(),
+        scade_il: scadenzaCheckinMs(p.checkout),
+      });
+      await updateDoc(doc(db, 'prenotazioni', p.id), { area_ospite_token: token });
+      p.area_ospite_token = token;
+    }
+    linkInput.value = AREA_OSPITE_PAGE + '?t=' + p.area_ospite_token;
+    document.getElementById('area-ospite-scadenza').textContent =
+      `Il link resta valido fino a 3 giorni dopo il check-out (${fmtDataIt(p.checkout)}).`;
+  } catch (e) {
+    console.error('Errore generazione link area ospite:', e);
+    linkInput.value = '';
+    showToast('Errore: ' + e.message);
+  }
+}
+
+function chiudiAreaOspiteModal() {
+  document.getElementById('area-ospite-modal-overlay').classList.add('hidden');
+}
+
+async function copiaAreaOspiteLink() {
+  const link = document.getElementById('area-ospite-link').value;
+  if (!link || link.indexOf('http') !== 0) return;
+  showToast(await copiaNegliAppunti(link) ? 'Link copiato' : 'Copia non riuscita — selezionalo a mano');
+}
+
+function apriWhatsappAreaOspite() {
+  const p = _prenCheckinCorrente();
+  const link = document.getElementById('area-ospite-link').value;
+  if (!p || link.indexOf('http') !== 0) return;
+  const { whatsapp } = testiAreaOspite(p, link);
+  window.open('https://wa.me/?text=' + encodeURIComponent(whatsapp), '_blank');
 }
 
 function trovaOverlap(alloggioId, checkin, checkout, excludeId) {
