@@ -96,6 +96,18 @@
   .an-mappa { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--gray-300); cursor: crosshair }
   .an-mappa img { width: 100%; display: block }
   .an-pin { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(242,112,42,.28); border: 3px solid #F2702A; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 15px }
+
+  .av-row { border: 1.5px solid var(--green-200); border-radius: 14px; padding: 12px; margin-top: 10px }
+  .av-row .r1 { display: grid; grid-template-columns: 130px 1fr auto; gap: 6px; align-items: center }
+  .av-row input, .av-row select, .av-row textarea { width: 100%; border: 1.5px solid var(--gray-300); border-radius: 10px; padding: 8px 10px; font: 600 13.5px var(--font); background: #fff; min-width: 0 }
+  .av-row textarea { min-height: 60px; margin-top: 6px; resize: vertical }
+  .av-row .r2 { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-top: 6px; align-items: center }
+  .av-row .r2 label { font-size: 11px; font-weight: 700; color: var(--gray-500); display: flex; flex-direction: column; gap: 2px }
+  .av-row details { margin-top: 8px } .av-row summary { cursor: pointer; font: 700 12.5px var(--font); color: var(--green-700) }
+  .av-row .chk { flex-direction: row !important; align-items: center; gap: 6px !important; white-space: nowrap }
+  .av-row .chk input { width: auto }
+  .fb-item { border-bottom: 1px solid var(--gray-100); padding: 10px 0 } .fb-item .st { color: #F59E0B; font-size: 15px; letter-spacing: 2px }
+  .fb-item b { font-size: 13.5px } .fb-item small { color: var(--gray-500); font-size: 11.5px } .fb-item p { font-size: 13px; color: var(--gray-700); margin-top: 3px }
 </style>
 </head>
 <body>
@@ -181,6 +193,29 @@
     </div>
 
     <div class="card">
+      <h3>Avvisi in home</h3>
+      <div class="subtitle">Messaggi che compaiono in cima alla home di tutti gli ospiti. "Importante" è rosso, "Informazione" è verde. Se imposti le date, compaiono solo in quel periodo. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
+      <div id="av-list"></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="avAggiungi()">+ Aggiungi avviso</button><button class="btn primary" id="btn-salva-av" onclick="avSalva()">Salva avvisi</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Valutazioni degli ospiti</h3>
+      <div class="subtitle">Le stelle e i messaggi lasciati dagli ospiti a fine soggiorno (ultime 30).</div>
+      <div id="fb-list"><p class="nota">Caricamento…</p></div>
+    </div>
+
+    <div class="card">
+      <h3>Contatti e social (in fondo alla home)</h3>
+      <div class="subtitle">Compaiono in fondo alla home dell'ospite. Il telefono reception della sezione Assistenza è già incluso come "Reception".</div>
+      <div class="field"><label>Altri numeri di telefono (uno per riga: Nome | numero)</label>
+        <textarea id="t-contatti_testo" style="min-height:90px" placeholder="Ristorante | 0734 000000&#10;Emergenze | 333 0000000"></textarea></div>
+      <div class="field"><label>Facebook (link)</label><input id="t-social_facebook" type="url" placeholder="https://www.facebook.com/..."></div>
+      <div class="field"><label>Instagram (link)</label><input id="t-social_instagram" type="url" placeholder="https://www.instagram.com/..."></div>
+      <div class="field"><label>Tripadvisor (link)</label><input id="t-social_tripadvisor" type="url" placeholder="https://www.tripadvisor.it/..."></div>
+    </div>
+
+    <div class="card">
       <h3>Richiesta assistenza</h3>
       <div class="subtitle">Messaggio e numero da chiamare per chi ha bisogno di aiuto.</div>
       <div class="field"><label>Messaggio</label><textarea id="t-assistenza_testo" style="min-height:90px" placeholder="Hai bisogno di aiuto? La reception è a tua disposizione."></textarea></div>
@@ -210,7 +245,7 @@ const SERVIZI_FOTO = [
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
   { id: 'assistenza',   nome: 'Assistenza',     def: 'img/assistenza.jpg' },
 ];
-const TESTI = ['info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
+const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
 const MAX_CHARS = 800000;   // doc Firestore max 1 MB; la Cloud Function tronca oltre 900k
 let fotoCorrenti = {};      // id -> data URL (se personalizzata)
 
@@ -388,6 +423,7 @@ async function carica() {
   }));
   renderFoto();
   await anCarica();
+  await avCarica();
 }
 
 
@@ -549,6 +585,47 @@ document.addEventListener('click', ev => {
   const r = $('#an-mappa-img').getBoundingClientRect();
   anPin({ x: Math.round((ev.clientX - r.left) / r.width * 1000) / 10, y: Math.round((ev.clientY - r.top) / r.height * 1000) / 10 });
 });
+
+
+// ── Avvisi in home e valutazioni ospiti ──────────────────────────────────
+let AVVISI = [];
+function avRender() {
+  $('#av-list').innerHTML = AVVISI.map((a, i) => `<div class="av-row">
+    <div class="r1"><select onchange="AVVISI[${i}].tipo=this.value"><option value="info"${a.tipo === 'info' ? ' selected' : ''}>Informazione</option><option value="importante"${a.tipo === 'importante' ? ' selected' : ''}>Importante</option></select>
+      <input value="${esc(a.titolo)}" placeholder="Titolo (es. Piscina chiusa fino alle 11)" oninput="AVVISI[${i}].titolo=this.value">
+      <button class="an-x" aria-label="Elimina" onclick="AVVISI.splice(${i},1);avRender()">✕</button></div>
+    <textarea placeholder="Testo (facoltativo)" oninput="AVVISI[${i}].testo=this.value">${esc(a.testo)}</textarea>
+    <div class="r2"><label>Dal<input type="date" value="${esc(a.dal)}" onchange="AVVISI[${i}].dal=this.value"></label><label>Al<input type="date" value="${esc(a.al)}" onchange="AVVISI[${i}].al=this.value"></label>
+      <label class="chk"><input type="checkbox"${a.chiudibile !== false ? ' checked' : ''} onchange="AVVISI[${i}].chiudibile=this.checked">Chiudibile</label></div>
+    <details><summary>Traduzioni (inglese e tedesco)</summary>
+      <input style="margin-top:6px" value="${esc(a.titolo_en)}" placeholder="Title (EN)" oninput="AVVISI[${i}].titolo_en=this.value"><textarea placeholder="Text (EN)" oninput="AVVISI[${i}].testo_en=this.value">${esc(a.testo_en)}</textarea>
+      <input style="margin-top:6px" value="${esc(a.titolo_de)}" placeholder="Titel (DE)" oninput="AVVISI[${i}].titolo_de=this.value"><textarea placeholder="Text (DE)" oninput="AVVISI[${i}].testo_de=this.value">${esc(a.testo_de)}</textarea></details></div>`).join('')
+    || '<p class="nota">Nessun avviso. Aggiungine uno.</p>';
+}
+function avAggiungi() { AVVISI.push({ id: 'v' + Date.now(), tipo: 'info', titolo: '', testo: '', dal: '', al: '', chiudibile: true, titolo_en: '', testo_en: '', titolo_de: '', testo_de: '' }); avRender(); }
+async function avSalva() {
+  const b = $('#btn-salva-av'); b.disabled = true;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const avvisi = AVVISI.filter(a => (a.titolo || '').trim());
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { avvisi, aggiornato_il: new Date().toISOString() });
+    AVVISI = avvisi; avRender(); toast('Avvisi salvati');
+  } catch (e) { console.error(e); toast('Errore salvataggio'); }
+  b.disabled = false;
+}
+async function avCarica() {
+  try {
+    const { db, doc, getDoc, collection, getDocs } = window._fb;
+    const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'));
+    AVVISI = (s.exists() ? s.data().avvisi : null) || [];
+    avRender();
+    const f = await getDocs(collection(db, 'feedback_ospiti'));
+    const l = f.docs.map(d => d.data()).sort((a, b) => (b.creato_il || '').localeCompare(a.creato_il || '')).slice(0, 30);
+    $('#fb-list').innerHTML = l.length ? l.map(x => `<div class="fb-item"><span class="st">${'★'.repeat(x.stelle || 0)}${'☆'.repeat(5 - (x.stelle || 0))}</span>
+      <b> ${esc(x.nome || '—')}</b> <small>${esc(x.alloggio || '')} · ${esc((x.creato_il || '').slice(0, 10))}</small>${x.testo ? `<p>${esc(x.testo)}</p>` : ''}</div>`).join('')
+      : '<p class="nota">Nessuna valutazione ancora.</p>';
+  } catch (e) { console.error('Avvisi/feedback:', e); $('#fb-list').innerHTML = '<p class="nota">Non riesco a leggere le valutazioni (le regole Firestore vanno pubblicate).</p>'; avRender(); }
+}
 
 (function avvio() {
   hydrateIcons();

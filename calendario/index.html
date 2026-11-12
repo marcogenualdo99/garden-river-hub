@@ -1721,14 +1721,27 @@ function normalizzaListinoVillini(l) {
   return l;
 }
 let _unsubListini = null;
+// Modifiche ai listini non ancora salvate (campi toccati o file importati). Finché
+// ci sono, gli aggiornamenti in tempo reale da Firestore NON devono sovrascrivere
+// la copia locale né ridisegnare il pannello: prima bastava un aggiornamento
+// qualsiasi (riconnessione, altro dispositivo) per far sparire il listino appena
+// importato o i valori digitati, prima di premere "Salva".
+const _listiniSporchi = { villini: false, campeggio: false };
+document.addEventListener('input', (e) => {
+  if (e.target.closest && e.target.closest('#listino-villini-panel')) _listiniSporchi.villini = true;
+  if (e.target.closest && e.target.closest('#listino-campeggio-panel')) _listiniSporchi.campeggio = true;
+});
+window.addEventListener('beforeunload', (e) => {
+  if (_listiniSporchi.villini || _listiniSporchi.campeggio) { e.preventDefault(); e.returnValue = ''; }
+});
 function startListiniSync() {
   waitForFirebase().then(() => {
     const { db, collection, onSnapshot } = window._fb;
     _unsubListini = onSnapshot(collection(db, 'listini'), (snap) => {
-      snap.docs.forEach(d => { listini[d.id] = d.data(); });
+      snap.docs.forEach(d => { if (!_listiniSporchi[d.id]) listini[d.id] = d.data(); });
       normalizzaListinoVillini(listini.villini);
       if (document.getElementById('form-modal-overlay') && !document.getElementById('form-modal-overlay').classList.contains('hidden')) aggiornaPreventivo();
-      if (document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
+      if (!_listiniSporchi.villini && !_listiniSporchi.campeggio && document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
     }, (err) => console.error('Errore lettura listini:', err));
   });
 }
@@ -3199,7 +3212,9 @@ const PREFISSI_SERVIZI_CONTO = ['Animali ·', 'Pulizia finale in presenza di ani
 const PREFISSI_RIGHE_LISTINO = ['Alloggio ·', 'Piazzola ·', 'Luce ·', 'Adulti ×', 'Ragazzi 10-17 ×', 'Bambini 5-9 ×', 'Bambini 3-4 ×', 'Bambini 0-2 ×', ...PREFISSI_SERVIZI_CONTO];
 function toggleServizioConPrezzo() {
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
-  if (risultato.disponibile) {
+  // Conto importato da agenzia: il totale concordato include gia' tutto, non
+  // si aggiungono voci di servizio calcolate dal listino.
+  if (risultato.disponibile && !contoDaAgenzia()) {
     const pagatoPerLabel = {};
     contoCorrente.forEach(r => { pagatoPerLabel[r.label] = r.pagato; });
     const altreVoci = contoCorrente.filter(r => !PREFISSI_SERVIZI_CONTO.some(pre => r.label.startsWith(pre)));
@@ -4974,8 +4989,15 @@ function impostaConto(conto) {
   // vuoto) si riparte agganciati al listino: altrimenti modificare i Dettagli
   // non aggiornava più il conto finché non si premeva "Ricarica dal
   // preventivo". Il vero distacco avviene solo toccando a mano una voce.
-  contoModificatoManualmente = false;
+  // Eccezione: un conto importato da un'agenzia (Soggiorno/Caparra agenzia) ha
+  // gia' il totale concordato. Riaprendolo NON deve riagganciarsi al listino,
+  // altrimenti il ricalcolo aggiunge Alloggio/Adulti/servizi sopra le voci
+  // importate e il totale raddoppia.
+  contoModificatoManualmente = contoDaAgenzia();
   impostaVociContoConosciute(contoCorrente);
+}
+function contoDaAgenzia() {
+  return contoCorrente.some(r => r.label === 'Soggiorno (agenzia)' || r.label === 'Caparra agenzia');
 }
 // Quante volte abbiamo già "visto e incorporato" ogni etichetta del conto,
 // da quando la scheda è aperta — cresce solo quando arriva davvero una voce
@@ -6988,6 +7010,7 @@ async function importaListinoVilliniDaFile() {
       // prezziKit e spiaggiaPerGiorno NON arrivano dal file: restano quelli
       // già salvati (scelta esplicita dell'utente per spiaggiaPerGiorno).
     };
+    _listiniSporchi.villini = true;
     renderListinoVilliniPanel();
     showToast(`Letti ${periodi.length} periodi dai 3 file${nonAbbinate.length ? ` — categorie non trovate nel file: ${nonAbbinate.join(', ')}` : ''}. Controlla i valori e premi "Salva listino Villini" per confermare.`);
   } catch(e) {
@@ -7087,7 +7110,8 @@ async function salvaListinoVillini() {
   l.spiaggiaPerGiorno = parseFloat(document.getElementById('lv-spiaggia-giorno').value) || 0;
   try {
     const { db, doc, setDoc } = window._fb;
-    await setDoc(doc(db, 'listini', 'villini'), l);
+    await setDoc(doc(db, 'listini', 'villini'), JSON.parse(JSON.stringify(l)));
+    _listiniSporchi.villini = false;
     showToast('Listino Villini salvato');
   } catch(e) { console.error('Errore salvataggio listino villini:', e); showToast('Errore: ' + e.message); }
 }
@@ -7135,7 +7159,8 @@ async function salvaListinoCampeggio() {
   };
   try {
     const { db, doc, setDoc } = window._fb;
-    await setDoc(doc(db, 'listini', 'campeggio'), l);
+    await setDoc(doc(db, 'listini', 'campeggio'), JSON.parse(JSON.stringify(l)));
+    _listiniSporchi.campeggio = false;
     showToast('Listino Campeggio salvato');
   } catch(e) { console.error('Errore salvataggio listino campeggio:', e); showToast('Errore: ' + e.message); }
 }

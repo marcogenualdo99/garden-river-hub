@@ -214,6 +214,34 @@ def _animazione(db):
     return out
 
 
+def _avvisi(db):
+    """Avvisi inseriti dallo staff (impostazioni/area_ospite_avvisi) validi oggi."""
+    out = []
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+        d = (snap.to_dict() or {}) if snap.exists else {}
+        oggi = _oggi_iso()
+        for r in (d.get('avvisi') or [])[:30]:
+            if not isinstance(r, dict):
+                continue
+            titolo = _s(r.get('titolo'), 120)
+            if not titolo:
+                continue
+            dal, al = _s(r.get('dal'), 10), _s(r.get('al'), 10)
+            if (dal and oggi < dal) or (al and oggi > al):
+                continue
+            tipo = _s(r.get('tipo'), 10)
+            item = {'id': _s(r.get('id'), 40) or titolo[:20], 'tipo': tipo if tipo in ('importante', 'info') else 'info',
+                    'titolo': titolo, 'testo': _s(r.get('testo'), 400), 'chiudibile': bool(r.get('chiudibile', True))}
+            for lng in ('en', 'de'):
+                item['titolo_' + lng] = _s(r.get('titolo_' + lng), 120)
+                item['testo_' + lng] = _s(r.get('testo_' + lng), 400)
+            out.append(item)
+    except Exception as e:
+        print(f'Lettura avvisi non riuscita: {e}')
+    return out
+
+
 def _contenuti(db):
     """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
     salvate in `impostazioni/area_ospite_foto_<servizio>`."""
@@ -222,11 +250,13 @@ def _contenuti(db):
         snap = db.collection('impostazioni').document('area_ospite').get()
         d = snap.to_dict() or {} if snap.exists else {}
         for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
-                  'assistenza_telefono', 'navetta_testo'):
+                  'assistenza_telefono', 'navetta_testo', 'contatti_testo',
+                  'social_facebook', 'social_instagram', 'social_tripadvisor'):
             out['testi'][k] = _s(d.get(k), 4000)
     except Exception as e:
         print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
     out['animazione'] = _animazione(db)
+    out['avvisi'] = _avvisi(db)
     for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio'):
         try:
             snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()
@@ -441,13 +471,17 @@ def _spiaggia_assegnata(db, pren_id, pren=None):
        al soggiorno. Fra piu' candidate vince quella valida oggi. None se assente."""
     try:
         col = db.collection('beach_prenotazioni')
-        cand = [d.to_dict() or {} for d in col.where('calendario_prenotazione_id', '==', pren_id).stream()]
+        def _con_id(d):
+            x = d.to_dict() or {}
+            x['_id'] = d.id
+            return x
+        cand = [_con_id(d) for d in col.where('calendario_prenotazione_id', '==', pren_id).stream()]
         if not cand and pren:
             nome = _norm_nome(_s(pren.get('nome')))
             ci, co = _s(pren.get('checkin'), 10), _s(pren.get('checkout'), 10)
             if nome:
                 for d in col.where('cliente', '==', _s(pren.get('nome'))).stream():
-                    x = d.to_dict() or {}
+                    x = _con_id(d)
                     if _norm_nome(_s(x.get('cliente'))) != nome:
                         continue
                     dal, al = _s(x.get('dal'), 10), _s(x.get('al'), 10)
@@ -467,7 +501,14 @@ def _spiaggia_assegnata(db, pren_id, pren=None):
             sp = db.collection('beach_spiagge').document(spiaggia_id).get()
             if sp.exists:
                 nome_spiaggia = _s((sp.to_dict() or {}).get('nome')) or nome_spiaggia
-        return {'spiaggia_nome': nome_spiaggia, 'ombrellone': ombrellone}
+        # Dati del tagliandino (stessi di quello cartaceo del modulo Spiaggia): l'ospite lo
+        # mostra allo stabilimento dal telefono.
+        return {'spiaggia_nome': nome_spiaggia, 'ombrellone': ombrellone,
+                'dal': _s(b.get('dal'), 10), 'al': _s(b.get('al'), 10),
+                'cliente': _s(b.get('cliente'), 120) or _s((pren or {}).get('nome'), 120),
+                'note': _s(b.get('note'), 300), 'stato': _s(b.get('stato'), 20) or 'confermata',
+                'codice': _s(b.get('_id'), 40)[-4:].upper(),
+                'navetta_fasce': _cfg_navetta(db).get('fasce') or []}
     except Exception as e:
         print(f'Lettura spiaggia assegnata non riuscita: {e}')
         return None
@@ -1211,6 +1252,26 @@ def _azione_ristorazione_ordina(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
 
 
+def _azione_feedback(db, origin, data):
+    """Valutazione di fine soggiorno (1-5 stelle + messaggio). Va nella collezione
+    `feedback_ospiti`, letta dallo staff in Gestione area ospite."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    try:
+        stelle = int(data.get('stelle'))
+    except (TypeError, ValueError):
+        stelle = 0
+    if stelle < 1 or stelle > 5:
+        return _json(origin, {'ok': False, 'errore': 'valutazione_non_valida'}, 400)
+    db.collection('feedback_ospiti').document(pren_ref.id).set({
+        'prenId': pren_ref.id, 'nome': _s(p.get('nome'), 120), 'alloggio': _s(p.get('alloggio_nome'), 80),
+        'checkin': _s(p.get('checkin'), 10), 'checkout': _s(p.get('checkout'), 10),
+        'stelle': stelle, 'testo': _s(data.get('testo'), 1000), 'creato_il': _now_iso(),
+    })
+    return _json(origin, {'ok': True})
+
+
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -1223,6 +1284,7 @@ AZIONI = {
     'staff_riapri':            _azione_staff_riapri,
     'ristorazione_menu':       _azione_ristorazione_menu,
     'ristorazione_ordina':     _azione_ristorazione_ordina,
+    'feedback':                _azione_feedback,
 }
 
 
