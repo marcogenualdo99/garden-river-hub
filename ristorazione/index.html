@@ -176,7 +176,7 @@ body.embed-mode main{padding-top:20px}
 .mp-selector-label::before{content:'';display:block;width:6px;height:6px;border-radius:50%;background:var(--green-700)}
 .mp-selector-hint{font-size:13px;color:var(--gray-500);margin-bottom:14px;line-height:1.5}
 .mp-selector-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.mp-sel-btn{height:72px;border:2px solid var(--gray-200);border-radius:14px;background:var(--gray-50);cursor:pointer;font-family:var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:background .15s,border-color .15s,transform .1s;-webkit-tap-highlight-color:transparent}
+.mp-sel-btn{min-height:80px;padding:8px 4px;border:2px solid var(--gray-200);border-radius:14px;background:var(--gray-50);cursor:pointer;font-family:var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:background .15s,border-color .15s,transform .1s;-webkit-tap-highlight-color:transparent}
 .mp-sel-btn:active{transform:scale(.97)}
 .mp-sel-btn .mp-sel-icon{font-size:24px;line-height:1}
 .mp-sel-btn .mp-sel-txt{font-size:15px;font-weight:800;color:var(--gray-500)}
@@ -184,6 +184,8 @@ body.embed-mode main{padding-top:20px}
 .mp-sel-btn.active.pranzo .mp-sel-txt{color:#fff}
 .mp-sel-btn.active.cena{background:var(--gray-900);border-color:var(--gray-900)}
 .mp-sel-btn.active.cena .mp-sel-txt{color:#fff}
+.mp-sel-btn .mp-sel-st{font-size:11px;font-weight:700;color:var(--gray-500);line-height:1}
+.mp-sel-btn.active .mp-sel-st{color:rgba(255,255,255,.85)}
 .mp-sel-btn.locked-mp{opacity:.45;cursor:not-allowed;pointer-events:none}
 .mp-change-btn{margin-top:14px;width:100%;height:38px;background:transparent;border:1.5px solid var(--gray-200);border-radius:20px;font-size:12px;font-weight:700;color:var(--gray-500);cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;transition:background .15s}
 .mp-change-btn:active{background:var(--gray-100)}
@@ -554,44 +556,52 @@ function renderGiorno(c,data,voci){
   const tipi={};
   voci.forEach(v=>{ if(!tipi[v.tipo])tipi[v.tipo]=[]; tipi[v.tipo].push(v); });
 
-  // Mezza pensione: mostra selettore pranzo/cena prima del menu
-  if(famiglia.trattamento==='MP'){
-    const disponibili=['pranzo','cena'].filter(t=>tipi[t]);
-    if(disponibili.length>1){ renderGiornoMP(c,data,tipi); return; }
-  }
+  // Selettore pranzo/cena (due card) prima del menu: con la mezza pensione
+  // se ne sceglie UNO, con la pensione completa si ordinano entrambi ma uno
+  // alla volta, cosi' il cliente vede sempre quale pasto sta compilando.
+  const disponibili=['pranzo','cena'].filter(t=>tipi[t]);
+  if(disponibili.length>1){ renderGiornoMP(c,data,tipi); return; }
   ['pranzo','cena'].forEach(t=>{ if(tipi[t]) c.appendChild(buildMealCard(data,t,tipi[t])); });
   c.appendChild(buildConfirmBtn(data));
 }
 
 function renderGiornoMP(c,data,tipi){
+  const esclusivo=famiglia.trattamento==='MP';   // MP: un solo pasto; altrimenti entrambi, uno alla volta
   // Pre-seleziona automaticamente se uno è già confermato
   if(!mpChoice[data]){
     if(ordiniEsistenti[`${data}_pranzo`]) mpChoice[data]='pranzo';
     else if(ordiniEsistenti[`${data}_cena`]) mpChoice[data]='cena';
   }
+  // Pensione completa: nessuna schermata vuota, si parte dal primo pasto ancora da ordinare
+  if(!esclusivo && !mpChoice[data]){
+    mpChoice[data]=['pranzo','cena'].find(t=>tipi[t]&&!ordiniEsistenti[`${data}_${t}`])||'pranzo';
+  }
   const scelta=mpChoice[data];
   const pranzoLocked=!!ordiniEsistenti[`${data}_pranzo`];
   const cenaLocked=!!ordiniEsistenti[`${data}_cena`];
+  const lockedMp=t=>esclusivo&&(t==='pranzo'?cenaLocked:pranzoLocked);
+
+  const btn=(t,icon,nome)=>`
+      <button class="mp-sel-btn ${t}${scelta===t?' active':''}${lockedMp(t)?' locked-mp':''}"
+        onclick="scegliPasto('${data}','${t}')" aria-label="Ordina ${nome.toLowerCase()}">
+        <span class="mp-sel-icon">${icon}</span>
+        <span class="mp-sel-txt">${nome}</span>
+        <span class="mp-sel-st" id="mp-st-${data}-${t}">${statoPasto(data,t)}</span>
+      </button>`;
 
   const wrap=document.createElement('div');
   wrap.className='mp-selector-wrap';
   wrap.id=`mp-sel-${data}`;
   wrap.innerHTML=`
-    <div class="mp-selector-label">Mezza pensione — scegli un pasto</div>
-    ${!scelta?'<div class="mp-selector-hint">Con la mezza pensione puoi ordinare <strong>pranzo oppure cena</strong>, non entrambi. Seleziona quale vuoi ordinare oggi.</div>':''}
+    <div class="mp-selector-label">${esclusivo?'Mezza pensione — scegli un pasto':'Pensione completa — ordina pranzo e cena'}</div>
+    ${esclusivo
+      ? (!scelta?'<div class="mp-selector-hint">Con la mezza pensione puoi ordinare <strong>pranzo oppure cena</strong>, non entrambi. Seleziona quale vuoi ordinare oggi.</div>':'')
+      : '<div class="mp-selector-hint">Tocca <strong>Pranzo</strong> o <strong>Cena</strong> per scegliere i piatti di ciascun pasto, poi conferma l\'ordine.</div>'}
     <div class="mp-selector-btns">
-      <button class="mp-sel-btn pranzo${scelta==='pranzo'?' active':''}${cenaLocked?' locked-mp':''}"
-        onclick="scegliPasto('${data}','pranzo')" aria-label="Scegli pranzo">
-        <span class="mp-sel-icon">☀️</span>
-        <span class="mp-sel-txt">Pranzo</span>
-      </button>
-      <button class="mp-sel-btn cena${scelta==='cena'?' active':''}${pranzoLocked?' locked-mp':''}"
-        onclick="scegliPasto('${data}','cena')" aria-label="Scegli cena">
-        <span class="mp-sel-icon">🌙</span>
-        <span class="mp-sel-txt">Cena</span>
-      </button>
+      ${btn('pranzo','☀️','Pranzo')}
+      ${btn('cena','🌙','Cena')}
     </div>
-    ${scelta&&!pranzoLocked&&!cenaLocked?`<button class="mp-change-btn" onclick="cambiaPasto('${data}')">Cambia scelta</button>`:''}`;
+    ${esclusivo&&scelta&&!pranzoLocked&&!cenaLocked?`<button class="mp-change-btn" onclick="cambiaPasto('${data}')">Cambia scelta</button>`:''}`;
   c.appendChild(wrap);
 
   const cardWrap=document.createElement('div');
@@ -602,10 +612,25 @@ function renderGiornoMP(c,data,tipi){
   c.appendChild(buildConfirmBtn(data));
 }
 
+// Riga di stato sotto il nome del pasto nel selettore.
+function statoPasto(data,tipo){
+  const key=`${data}_${tipo}`;
+  if(ordiniEsistenti[key]) return '✓ Ordinato';
+  const n=totaleKeyPiatti(key);
+  if(n>0) return `${n} ${n===1?'portata':'portate'}`;
+  return tipo==='pranzo'?'Mezzogiorno':'Sera';
+}
+function aggiornaStatoPasti(data){
+  ['pranzo','cena'].forEach(t=>{
+    const el=document.getElementById(`mp-st-${data}-${t}`);
+    if(el) el.textContent=statoPasto(data,t);
+  });
+}
+
 function scegliPasto(data,tipo){
   if(mpChoice[data]===tipo) return;
   const prev=mpChoice[data];
-  if(prev) {
+  if(prev && famiglia.trattamento==='MP') {
     selezioni[`${data}_${prev}`]={piatti:{},bambini:{},note:''};
     const prevKey=`${data}_${prev}`;
     if(ordiniEsistenti[prevKey]){
@@ -837,6 +862,7 @@ function step(key,menuId,cat,delta){
     });
   });
   aggiornaMPLock(data);
+  aggiornaStatoPasti(data);
 }
 
 function aggiornaNota(key,val){ if(selezioni[key]) selezioni[key].note=val; }
