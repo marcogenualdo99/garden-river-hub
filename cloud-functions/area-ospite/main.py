@@ -164,6 +164,55 @@ def _punti_ritiro(grezzi):
     return out
 
 
+def _animazione(db):
+    """Programma animazione strutturato, scritto dall'Hub in
+    `impostazioni/area_ospite_animazione`: catalogo attivita (nome + emoji +
+    fascia) e, per ogni giorno, le attivita scelte dal catalogo con l'orario.
+    Fasce: d = diurno, m = mini club, t = teen club, s = serale."""
+    out = {'catalogo': [], 'settimane': {}, 'data_inizio': '', 'luogo_serate': '', 'pin': None}
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_animazione').get()
+        d = (snap.to_dict() or {}) if snap.exists else {}
+    except Exception as e:
+        print(f'Lettura animazione non riuscita: {e}')
+        return out
+    for r in (d.get('catalogo') or [])[:300]:
+        if not isinstance(r, dict):
+            continue
+        aid, nome = _s(r.get('id'), 40), _s(r.get('nome'), 80)
+        if not aid or not nome:
+            continue
+        fascia = _s(r.get('fascia'), 1)
+        out['catalogo'].append({'id': aid, 'nome': nome, 'emoji': _s(r.get('emoji'), 8),
+                                'fascia': fascia if fascia in ('d', 'm', 't', 's') else 'd',
+                                'speciale': bool(r.get('speciale'))})
+    sett = d.get('settimane') if isinstance(d.get('settimane'), dict) else {}
+    if not sett and isinstance(d.get('programma'), dict):
+        sett = {'1': d.get('programma')}     # formato precedente: una sola settimana
+    for n in ('1', '2'):
+        prog = sett.get(n) if isinstance(sett.get(n), dict) else {}
+        out['settimane'][n] = {}
+        for g in ('sab', 'dom', 'lun', 'mar', 'mer', 'gio', 'ven'):
+            giorno = prog.get(g) if isinstance(prog.get(g), dict) else {}
+            out['settimane'][n][g] = {}
+            for f in ('d', 'm', 't', 's'):
+                voci = []
+                for v in (giorno.get(f) or [])[:40]:
+                    if isinstance(v, dict) and _s(v.get('a'), 40):
+                        voci.append({'a': _s(v.get('a'), 40), 'ora': _s(v.get('ora'), 20)})
+                out['settimane'][n][g][f] = voci
+    di = _s(d.get('data_inizio'), 10)
+    out['data_inizio'] = di if len(di) == 10 and di[4] == '-' and di[7] == '-' else ''
+    out['luogo_serate'] = _s(d.get('luogo_serate'), 60)
+    pin = d.get('pin')
+    if isinstance(pin, dict):
+        try:
+            out['pin'] = {'x': max(0.0, min(100.0, float(pin.get('x')))), 'y': max(0.0, min(100.0, float(pin.get('y'))))}
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
 def _contenuti(db):
     """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
     salvate in `impostazioni/area_ospite_foto_<servizio>`."""
@@ -176,7 +225,8 @@ def _contenuti(db):
             out['testi'][k] = _s(d.get(k), 4000)
     except Exception as e:
         print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
-    for k in SERVIZI_FOTO + ('animazione_programma',):
+    out['animazione'] = _animazione(db)
+    for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio'):
         try:
             snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()
             url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''

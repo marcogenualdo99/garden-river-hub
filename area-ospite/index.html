@@ -263,6 +263,67 @@
   .edit-panel .conf:disabled { opacity: .5 }
   .edit-panel .ann { background: var(--gray-100); color: var(--gray-700) }
   .edit-panel .err { color: #991B1B; font-size: 12.5px; margin-top: 10px; display: none }
+
+  .an-hero { background: var(--grad-forest); color: #fff; border-radius: var(--radius-lg); margin-top: 14px; padding: 18px 16px; position: relative; overflow: hidden; min-height: 150px }
+  .an-hero .sun { position: absolute; right: -34px; top: -34px; width: 120px; height: 120px; border-radius: 50%; background: var(--grad-sun); animation: anSpin 40s linear infinite }
+  .an-hero .sun::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; border: 3px dashed rgba(245,148,95,.55) }
+  .an-hero .k { position: relative; z-index: 2; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; opacity: .8 }
+  .an-hero h2 { position: relative; z-index: 2; font-family: var(--font-display); font-weight: 400; font-size: 25px; line-height: 1.1; margin: 6px 0 0; color: #fff; max-width: 190px }
+  .an-hero h2 span { color: var(--orange-lt) }
+  .an-hero img { position: absolute; right: -24px; bottom: -64px; height: 190px; width: auto; transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite; filter: drop-shadow(0 6px 8px rgba(0,0,0,.25)) }
+  @keyframes anSpin { to { transform: rotate(360deg) } }
+  @keyframes anBob { 50% { transform: translateY(-5px) rotate(-2deg) } }
+  .an-now { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 13px 15px; display: flex; align-items: center; gap: 13px; margin-top: 12px }
+  .an-now .ico { width: 46px; height: 46px; border-radius: 15px; background: var(--orange-bg); display: flex; align-items: center; justify-content: center; font-size: 25px; flex-shrink: 0 }
+  .an-now .lab { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--orange); display: flex; align-items: center; gap: 6px }
+  .an-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: anPulse 1.4s infinite }
+  @keyframes anPulse { 0% { box-shadow: 0 0 0 0 rgba(242,112,42,.5) } 100% { box-shadow: 0 0 0 9px rgba(242,112,42,0) } }
+  .an-now .tit { font-weight: 800; font-size: 15.5px }
+  .an-now .sub { font-size: 12.5px; color: var(--gray-500) }
+  .an-days { display: flex; gap: 8px; overflow-x: auto; padding: 16px 16px 6px; margin: 0 -16px; scrollbar-width: none }
+  .an-days::-webkit-scrollbar { display: none }
+  .an-day { flex: 0 0 auto; width: 56px; padding: 8px 0 7px; border-radius: 18px; border: 1.5px solid var(--green-200); background: var(--white); text-align: center; font-family: var(--font); cursor: pointer; color: var(--green-700) }
+  .an-day b { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase }
+  .an-day i { display: block; font-style: normal; font-size: 19px; margin-top: 2px }
+  .an-day small { display: block; font-size: 10px; font-weight: 700; color: var(--orange); height: 12px }
+  .an-day.on { background: var(--green-700); color: #fff; border-color: var(--green-700); transform: translateY(-2px) }
+  .an-day.on small { color: var(--orange-lt) }
+  .an-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
+  .an-chip { border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 999px; padding: 6px 13px; font: 700 12.5px var(--font); color: var(--gray-700); cursor: pointer }
+  .an-chip.on { background: var(--orange); border-color: var(--orange); color: #fff }
+  .an-star { margin-top: 14px; border-radius: var(--radius-lg); background: var(--green-900); color: #fff; padding: 16px; position: relative; overflow: hidden }
+  .an-star .k { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
+  .an-star .t { font-family: var(--font-display); font-size: 22px; margin: 4px 0 2px; line-height: 1.1; padding-right: 60px }
+  .an-star .h { font-size: 13px; opacity: .85 }
+  .an-star .big { position: absolute; right: 14px; bottom: 8px; font-size: 46px }
+  .an-fase { margin-top: 20px }
+  .an-fase h3 { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700) }
+  .an-fase h3 .b { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--green-100) }
+  .an-fase h3 em { font-style: normal; font-family: var(--font); font-size: 11px; font-weight: 800; background: var(--orange-bg); color: var(--orange); border-radius: 999px; padding: 3px 9px; margin-left: auto }
+  .an-tl { margin-top: 10px; position: relative; padding-left: 18px }
+  .an-tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--green-200); border-radius: 2px }
+  .an-it { position: relative; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 11px; box-shadow: var(--shadow-sm) }
+  .an-it::before { content: ''; position: absolute; left: -17px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--white); border: 2.5px solid var(--green-500) }
+  .an-it .em { font-size: 23px; width: 32px; text-align: center }
+  .an-it .nm { font-weight: 700; font-size: 14.5px; flex: 1; line-height: 1.25 }
+  .an-it .nm small { display: block; font-weight: 600; font-size: 11.5px; color: var(--gray-500) }
+  .an-it .ora { font-weight: 800; font-size: 13.5px; color: var(--green-700); background: var(--green-50); border-radius: 10px; padding: 5px 9px; white-space: nowrap }
+  .an-it.speciale { background: var(--orange-bg); border-color: #F9C9AD }
+  .an-it.speciale .ora { background: var(--orange); color: #fff }
+  .an-it.speciale::before { border-color: var(--orange) }
+  .an-it.passato { opacity: .45 }
+  .an-it.adesso { border: 2px solid var(--orange) }
+  .an-it.adesso::before { background: var(--orange); border-color: var(--orange) }
+  .an-mini .an-it { border-style: dashed; border-color: var(--green-400) }
+  .an-mappa { position: relative; border-radius: 14px; overflow: hidden; margin-top: 10px }
+  .an-mappa img { width: 100%; display: block }
+  .an-pin { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(242,112,42,.30); border: 4px solid var(--orange) }
+  .an-pin::before, .an-pin::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 4px solid var(--orange); animation: anRing 1.8s ease-out infinite }
+  .an-pin::after { animation-delay: .9s }
+  @keyframes anRing { 0% { transform: scale(1); opacity: .95 } 100% { transform: scale(2.6); opacity: 0 } }
+  .an-pin b { position: absolute; left: 50%; bottom: 58px; margin-left: -22px; width: 44px; height: 58px; filter: drop-shadow(0 4px 3px rgba(0,0,0,.35)); animation: anHop 1.2s ease-in-out infinite }
+  .an-pin b svg { display: block }
+  @keyframes anHop { 50% { transform: translateY(-6px) } }
 </style>
 </head>
 <body>
@@ -356,7 +417,7 @@ async function carica() {
     }
     CFG = d;
     if (!CFG.navetta_corse) CFG.navetta_corse = (CFG.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
-    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {} };
+    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null };
     render();
     avviaAggiornamentoStato();
   } catch (e) {
@@ -404,7 +465,7 @@ function mostraIntestazioneHome() {
 // ── Home (card dei servizi) ─────────────────────────────────────────────────
 function haContenuto(id) {
   const t = CONTENUTI.testi;
-  if (id === 'animazione') return !!(t.animazione_testo || CONTENUTI.foto.animazione_programma);
+  if (id === 'animazione') return !!(anHaProgramma() || t.animazione_testo || CONTENUTI.foto.animazione_programma);
   if (id === 'info') return true;
   if (id === 'assistenza') return !!(t.assistenza_testo || t.assistenza_telefono);
   return true;
@@ -448,7 +509,7 @@ function apriServizio(id) {
   window.scrollTo(0, 0);
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
-  if (id === 'animazione') return renderTesto(CONTENUTI.testi.animazione_titolo || 'Programma animazione', CONTENUTI.testi.animazione_testo, CONTENUTI.foto.animazione_programma, s);
+  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } return renderTesto(CONTENUTI.testi.animazione_titolo || 'Programma animazione', CONTENUTI.testi.animazione_testo, CONTENUTI.foto.animazione_programma, s); }
   if (id === 'info') return renderInfo();
   if (id === 'assistenza') return renderAssistenza(s);
 }
@@ -507,6 +568,75 @@ function tornaHome() {
   mostraIntestazioneHome();
   renderHome();
   window.scrollTo(0, 0);
+}
+
+
+// ── Animazione: programma strutturato (catalogo + giorni scelti dall'Hub) ──
+const AN_GIORNI = [['sab','Sab','Sabato','🎉'],['dom','Dom','Domenica','🧘'],['lun','Lun','Lunedì','⚽'],['mar','Mar','Martedì','🏐'],['mer','Mer','Mercoledì','🫧'],['gio','Gio','Giovedì','🎬'],['ven','Ven','Venerdì','🤍']];
+const AN_FASI = [['d','Diurno','☀️',''],['m','Mini club','🧸','4-10 anni'],['t','Teen club','🎧','11-17 anni'],['s','Serale','🌙','']];
+const AN_JS = ['dom','lun','mar','mer','gio','ven','sab'];
+let _anGiorno = null, _anFiltro = 'tutti';
+function anSettimane(a) { return a.settimane || { 1: a.programma || {} }; }
+function anHaProgramma() {
+  const a = CONTENUTI.animazione;
+  if (!a || !(a.catalogo || []).length) return false;
+  return Object.values(anSettimane(a)).some(w => Object.values(w || {}).some(g => Object.values(g).some(l => l.length)));
+}
+// Il programma si alterna su due settimane a partire dalla data di partenza
+// impostata dall'Hub; se la settimana in corso è vuota si usa la 1.
+function anProgrammaCorrente(a) {
+  const S = anSettimane(a);
+  let n = 1;
+  if (a.data_inizio) {
+    const s = new Date(a.data_inizio + 'T12:00:00'), o = new Date();
+    o.setHours(12, 0, 0, 0);
+    const sett = Math.floor(Math.round((o - s) / 86400000) / 7);
+    n = (((sett % 2) + 2) % 2) + 1;
+  }
+  const w = S[n] || S[String(n)] || {};
+  const vuota = !Object.values(w).some(g => Object.values(g).some(l => l.length));
+  return vuota ? (S[1] || S['1'] || {}) : w;
+}
+function anMin(ora) { const m = String(ora || '').match(/(\d+)[.:](\d+)/); return m ? (+m[1]) * 60 + (+m[2]) : 0; }
+function renderAnimazione(s) {
+  const A = CONTENUTI.animazione, cat = {};
+  A.catalogo.forEach(c => { cat[c.id] = c; });
+  const oggiId = AN_JS[new Date().getDay()];
+  if (!_anGiorno) _anGiorno = oggiId;
+  const g = AN_GIORNI.find(x => x[0] === _anGiorno) || AN_GIORNI[0], isOggi = g[0] === oggiId;
+  const prog = anProgrammaCorrente(A)[g[0]] || {};
+  const voci = f => (prog[f] || []).filter(v => cat[v.a]).map(v => ({ ...cat[v.a], ora: v.ora }));
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  let tutte = [];
+  ['d', 'm', 't', 's'].forEach(f => voci(f).forEach(v => tutte.push(v)));
+  tutte.sort((a, b) => anMin(a.ora) - anMin(b.ora));
+  const prossima = isOggi ? tutte.find(v => anMin(v.ora) >= nowM) : null;
+  const serata = voci('s').find(v => v.speciale);
+  const luogo = A.luogo_serate || '';
+  const fasi = AN_FASI.filter(([f]) => (_anFiltro === 'tutti' || _anFiltro === f) && voci(f).length);
+  const riga = v => {
+    const pass = isOggi && anMin(v.ora) < nowM && v !== prossima, adesso = v === prossima;
+    return `<div class="an-it ${v.speciale ? 'speciale' : ''} ${pass ? 'passato' : ''} ${adesso ? 'adesso' : ''}"><span class="em">${esc(v.emoji || '⭐')}</span><span class="nm">${esc(v.nome)}${v.speciale ? '<small>Evento speciale</small>' : ''}</span><span class="ora">${esc(String(v.ora || '').replace('–', ' – '))}</span></div>`;
+  };
+  const mapPers = CONTENUTI.foto.mappa_villaggio;
+  const mapImg = mapPers || 'img/mappa-teatro.jpg';
+  const pin = mapPers ? A.pin : (A.pin || { x: 29.4, y: 58.3 });
+  const mappa = pin
+    ? `<div class="card"><h2>Dove sono le serate</h2><p class="hint" style="margin-top:4px">${esc(luogo || 'Teatro')}</p>
+       <div class="an-mappa"><img src="${esc(mapImg)}" alt="Mappa del villaggio: ${esc(luogo || 'Teatro')}"><span class="an-pin" style="left:${pin.x}%;top:${pin.y}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>` : '';
+  $('#service-content').innerHTML = `
+    <div class="an-hero"><div class="sun"></div><div class="k">Garden River · Nature Fun Summer</div>
+      <h2>Ciao, sono Gardy!<br><span>Cosa facciamo?</span></h2><img src="img/gardy.png" alt="Gardy"></div>
+    <div class="an-now">${prossima
+      ? `<div class="ico">${esc(prossima.emoji || '⭐')}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
+      : `<div class="ico">${g[3]}</div><div><div class="lab">${isOggi ? 'Per oggi è tutto' : 'Anteprima'}</div><div class="tit">${g[2]}</div><div class="sub">${tutte.length} attività in programma</div></div>`}</div>
+    <div class="an-days">${AN_GIORNI.map(x => `<button class="an-day ${x[0] === g[0] ? 'on' : ''}" onclick="_anGiorno='${x[0]}';renderAnimazione()"><b>${x[1]}</b><i>${x[3]}</i><small>${x[0] === oggiId ? 'OGGI' : ''}</small></button>`).join('')}</div>
+    <div class="an-chips">${[['tutti', 'Tutto'], ['d', 'Diurno'], ['m', 'Mini club'], ['t', 'Teen'], ['s', 'Serale']].map(([k, l]) => `<button class="an-chip ${_anFiltro === k ? 'on' : ''}" onclick="_anFiltro='${k}';renderAnimazione()">${l}</button>`).join('')}</div>
+    ${serata ? `<div class="an-star"><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div><div class="big">${esc(serata.emoji || '⭐')}</div></div>` : ''}
+    ${fasi.map(([f, nome, ic, eta]) => `<section class="an-fase ${f === 'm' ? 'an-mini' : ''}"><h3><span class="b">${ic}</span>${nome}${eta ? `<em>${eta}</em>` : ''}</h3><div class="an-tl">${voci(f).map(riga).join('')}</div></section>`).join('')
+      || '<p class="hint" style="margin-top:24px;text-align:center">Nessuna attività per questa selezione.</p>'}
+    ${mappa}
+    <p class="hint" style="margin-top:16px;text-align:center;font-size:11.5px">Il programma può variare in base al meteo.</p>`;
 }
 
 // ── Pagine di contenuto (Animazione, Info, Assistenza) ─────────────────────

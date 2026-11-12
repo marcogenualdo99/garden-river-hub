@@ -70,6 +70,27 @@
   .prog-prev { width: 100%; max-height: 260px; object-fit: contain; border-radius: var(--radius-sm); background: var(--gray-100); margin-bottom: 10px; display: none }
   .nota { font-size: 12px; color: var(--gray-500); line-height: 1.5; margin-top: 8px }
   .login-gate { text-align: center; padding: 80px 24px; color: var(--gray-700); line-height: 1.6 }
+
+  .an-cat-row { display: grid; grid-template-columns: 52px 1fr 116px auto auto; gap: 6px; align-items: center; margin-bottom: 6px }
+  .an-cat-row input, .an-cat-row select, .an-vrow input, .an-vrow select { height: 38px; border: 1.5px solid var(--gray-300); border-radius: 10px; padding: 0 8px; font: 600 13.5px var(--font); min-width: 0; width: 100%; background: #fff }
+  .an-cat-row .em { text-align: center; font-size: 18px }
+  .an-cat-row label { font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px; white-space: nowrap }
+  .an-cat-row label input { width: auto; height: auto }
+  .an-x { border: none; background: var(--gray-100); border-radius: 10px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: var(--gray-700) }
+  .an-tabs { display: flex; gap: 6px; background: var(--gray-100); border-radius: 14px; padding: 4px; margin-top: 4px }
+  .an-tabs button { flex: 1; height: 40px; border: none; border-radius: 11px; background: transparent; font: 800 14px var(--font); color: var(--gray-500); cursor: pointer }
+  .an-tabs button.on { background: var(--green-700); color: #fff }
+  .an-row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px }
+  .an-day { border: 1.5px solid var(--green-200); border-radius: 16px; padding: 12px; margin-top: 12px }
+  .an-day h4 { font-size: 15px; font-weight: 800; color: var(--green-700); display: flex; align-items: center; gap: 8px }
+  .an-day h4 select { margin-left: auto; height: 32px; font-size: 12px; border: 1.5px solid var(--gray-300); border-radius: 8px; max-width: 130px }
+  .an-fase { margin-top: 10px }
+  .an-fase .t { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gray-500); margin-bottom: 4px }
+  .an-vrow { display: grid; grid-template-columns: 1fr 96px 34px; gap: 6px; margin-bottom: 6px }
+  .an-add { border: 1.5px dashed var(--green-400); background: none; border-radius: 10px; font: 700 12.5px var(--font); color: var(--green-700); height: 34px; padding: 0 12px; cursor: pointer }
+  .an-mappa { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--gray-300); cursor: crosshair }
+  .an-mappa img { width: 100%; display: block }
+  .an-pin { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(242,112,42,.28); border: 3px solid #F2702A; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 15px }
 </style>
 </head>
 <body>
@@ -111,8 +132,46 @@
     </div>
 
     <div class="card">
-      <h3>Animazione</h3>
-      <div class="subtitle">Programma settimanale mostrato nella sezione Animazione.</div>
+      <h3>Animazione · attività</h3>
+      <div class="subtitle">L'elenco delle attività che puoi mettere nel programma: scrivi il nome, scegli l'emoji e la fascia. Si compila una volta sola.</div>
+      <div id="an-cat"></div>
+      <div class="an-row-btns">
+        <button class="btn ghost" onclick="anAggiungiAttivita()">+ Aggiungi attività</button>
+        <button class="btn ghost" onclick="anCaricaDati2026()">Carica programma 2026</button>
+      </div>
+      <p class="nota">"Carica programma 2026" riempie attività e programma con quelli delle locandine (sostituisce quanto c'è ora).</p>
+    </div>
+
+    <div class="card">
+      <h3>Animazione · programma</h3>
+      <div class="subtitle">Il programma si alterna su due settimane. Imposta la data di partenza e compila le due settimane: gli ospiti vedono in automatico quella in corso.</div>
+      <div class="field"><label>Data di partenza (il sabato in cui inizia la Settimana 1)</label>
+        <input type="date" id="an-data" onchange="AN.data_inizio=this.value;anNotaData()">
+        <p class="nota" id="an-data-nota"></p></div>
+      <div class="an-tabs"><button id="an-tab-1" onclick="anSettimana(1)">Settimana 1</button><button id="an-tab-2" onclick="anSettimana(2)">Settimana 2</button></div>
+      <div class="an-row-btns"><button class="btn ghost" id="an-copia-sett" onclick="anCopiaSettimana()"></button></div>
+      <div id="an-prog"></div>
+    </div>
+
+    <div class="card">
+      <h3>Animazione · serate e mappa</h3>
+      <div class="field"><label>Dove si svolgono le serate</label><input id="an-luogo" placeholder="Teatro" oninput="AN.luogo_serate=this.value"></div>
+      <div class="field"><label>Mappa del villaggio</label>
+        <div class="an-mappa" id="an-mappa-box" style="display:none"><img id="an-mappa-img" alt="Mappa del villaggio"><span class="an-pin" id="an-pin" style="display:none"></span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn ghost" onclick="scegliFile('mappa_villaggio', 1600)">Carica mappa</button>
+          <button class="btn danger" id="an-mappa-del" style="display:none" onclick="ripristinaFoto('mappa_villaggio')">Rimuovi mappa</button>
+          <button class="btn danger" id="an-pin-del" style="display:none" onclick="anPin(null)">Togli il pin</button>
+        </div>
+        <p class="nota">Senza una mappa caricata gli ospiti vedono la mappa predefinita con il pin sul teatro. Per usarne un'altra, caricala e tocca il punto dove si trova il luogo delle serate.</p>
+      </div>
+    </div>
+
+    <button class="btn primary" style="width:100%;height:50px;margin-bottom:14px" id="btn-salva-an" onclick="anSalva()">Salva programma animazione</button>
+
+    <div class="card">
+      <h3>Animazione · metodo precedente</h3>
+      <div class="subtitle">Testo o locandina libera: viene usata solo se il programma strutturato qui sopra è vuoto.</div>
       <div class="field"><label>Titolo</label><input id="t-animazione_titolo" placeholder="Programma della settimana"></div>
       <div class="field"><label>Programma (testo)</label><textarea id="t-animazione_testo" placeholder="Lunedì&#10;10:00 Risveglio muscolare in piscina&#10;..."></textarea></div>
       <div class="field"><label>Programma (immagine o locandina, facoltativa)</label>
@@ -202,6 +261,7 @@ function renderFoto() {
   $('#prog-prev').style.display = prog ? 'block' : 'none';
   if (prog) $('#prog-prev').src = prog;
   $('#prog-del').style.display = prog ? '' : 'none';
+  if (typeof anRender === 'function' && document.querySelector('#an-cat')) anRender();
 }
 
 // ── Foto autisti (navetta_autisti/{id}.foto, data URL quadrato) ──────────
@@ -300,7 +360,7 @@ async function ripristinaFoto(id) {
     await deleteDoc(doc(db, 'impostazioni', 'area_ospite_foto_' + id));
     delete fotoCorrenti[id];
     renderFoto();
-    toast(id === 'animazione_programma' ? 'Immagine rimossa' : 'Foto ripristinata');
+    toast(id === 'animazione_programma' ? 'Immagine rimossa' : id === 'mappa_villaggio' ? 'Mappa rimossa' : 'Foto ripristinata');
   } catch (e) { console.error(e); toast('Operazione non riuscita'); }
 }
 
@@ -334,7 +394,7 @@ async function carica() {
     const d = snap.exists() ? snap.data() : {};
     TESTI.forEach(k => { $('#t-' + k).value = d[k] || ''; });
   } catch (e) { console.error('Lettura testi:', e); }
-  const chiavi = SERVIZI_FOTO.map(f => f.id).concat('animazione_programma');
+  const chiavi = SERVIZI_FOTO.map(f => f.id).concat('animazione_programma', 'mappa_villaggio');
   await Promise.all(chiavi.map(async k => {
     try {
       const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_foto_' + k));
@@ -342,7 +402,149 @@ async function carica() {
     } catch (e) { console.error('Lettura foto', k, e); }
   }));
   renderFoto();
+  await anCarica();
 }
+
+
+// ── Animazione strutturata ───────────────────────────────────────────────
+const AN_GIORNI = [['sab','Sabato'],['dom','Domenica'],['lun','Lunedì'],['mar','Martedì'],['mer','Mercoledì'],['gio','Giovedì'],['ven','Venerdì']];
+const AN_FASCE = [['d','Diurno'],['m','Mini club (4-10 anni)'],['t','Teen club (11-17 anni)'],['s','Serale']];
+let AN = { catalogo: [], settimane: { 1: {}, 2: {} }, data_inizio: '', luogo_serate: '', pin: null };
+let anSett = 1;
+const AN_EMOJI = [['buongiorno','☀️'],['risveglio','💪'],['acquagym','🏊'],['ping pong','🏓'],['aperitivo','🍹'],['freccette','🎯'],['yoga','🧘'],['pool','🎲'],['calcio','⚽'],['football','🤽'],['zumba','💃'],['beach','🏐'],['schiuma','🫧'],['step','👟'],['accoglienza','👋'],['baby','🕺'],['welcome','🎤'],['balli','🪩'],['circus','🎪'],['yin','☯️'],['michael','🧤'],['cervellone','🧠'],['showman','🎩'],['white','🤍'],['carta','🪪'],['body paint','🎨'],['acqua','💦'],['giochi','💦'],['cooking','🍳'],['medusa','🪼'],['garden green','🌿'],['gioiello','💎'],['cinofila','🐕'],['brucomela','🍎'],['compleanno','🎂'],['teen','📸'],['uno','🃏'],['caso','🔍'],['selfie','🤳'],['battle','🌈'],['calcetto','⚽']];
+function anEmoji(n) { n = n.toLowerCase(); for (const [k, v] of AN_EMOJI) if (n.includes(k)) return v; return '⭐'; }
+function anSlug(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || ('a' + Date.now()); }
+function anProg(g, f) { const w = (AN.settimane[anSett] = AN.settimane[anSett] || {}); w[g] = w[g] || {}; return (w[g][f] = w[g][f] || []); }
+function anSettimana(n) { anSett = n; anRenderProg(); }
+function anNotaData() {
+  const v = AN.data_inizio, n = $('#an-data-nota');
+  if (!v) { n.textContent = 'Senza data gli ospiti vedono sempre la Settimana 1.'; return; }
+  const d = new Date(v + 'T12:00:00');
+  n.textContent = d.getDay() === 6 ? 'Settimana 1 da ' + d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) + ', poi si alterna ogni sabato.'
+    : 'Attenzione: la data scelta non è un sabato.';
+}
+function anCopiaSettimana() {
+  const da = anSett === 1 ? 2 : 1;
+  if (!confirm('Sostituire la Settimana ' + anSett + ' con una copia della Settimana ' + da + '?')) return;
+  AN.settimane[anSett] = JSON.parse(JSON.stringify(AN.settimane[da] || {}));
+  anRenderProg();
+}
+
+function anRender() {
+  $('#an-cat').innerHTML = AN.catalogo.map((a, i) => `<div class="an-cat-row">
+    <input class="em" value="${esc(a.emoji)}" maxlength="4" onchange="AN.catalogo[${i}].emoji=this.value.trim()">
+    <input value="${esc(a.nome)}" placeholder="Nome attività" onchange="AN.catalogo[${i}].nome=this.value.trim();anRenderProg()">
+    <select onchange="AN.catalogo[${i}].fascia=this.value;anRenderProg()">${AN_FASCE.map(([k, n]) => `<option value="${k}"${a.fascia === k ? ' selected' : ''}>${esc(n.split(' (')[0])}</option>`).join('')}</select>
+    <label><input type="checkbox"${a.speciale ? ' checked' : ''} onchange="AN.catalogo[${i}].speciale=this.checked">Speciale</label>
+    <button class="an-x" aria-label="Elimina" onclick="anEliminaAttivita(${i})">✕</button></div>`).join('')
+    || '<p class="nota">Nessuna attività. Aggiungine una o carica il programma 2026.</p>';
+  anRenderProg();
+  $('#an-luogo').value = AN.luogo_serate || '';
+  $('#an-data').value = AN.data_inizio || '';
+  anNotaData();
+  const m = fotoCorrenti.mappa_villaggio;
+  $('#an-mappa-box').style.display = m ? 'block' : 'none';
+  $('#an-mappa-del').style.display = m ? '' : 'none';
+  if (m) $('#an-mappa-img').src = m;
+  anRenderPin();
+}
+function anRenderPin() {
+  const p = AN.pin, ok = p && fotoCorrenti.mappa_villaggio;
+  $('#an-pin').style.display = ok ? 'flex' : 'none';
+  $('#an-pin-del').style.display = p ? '' : 'none';
+  if (ok) { $('#an-pin').style.left = p.x + '%'; $('#an-pin').style.top = p.y + '%'; $('#an-pin').textContent = '📍'; }
+}
+function anPin(p) { AN.pin = p; anRenderPin(); }
+function anRenderProg() {
+  [1, 2].forEach(n => $('#an-tab-' + n).classList.toggle('on', n === anSett));
+  $('#an-copia-sett').textContent = 'Copia dalla Settimana ' + (anSett === 1 ? 2 : 1);
+  const opz = (f, sel) => '<option value="">— scegli —</option>' + AN.catalogo.filter(a => a.fascia === f).map(a =>
+    `<option value="${esc(a.id)}"${a.id === sel ? ' selected' : ''}>${esc((a.emoji || '') + ' ' + a.nome)}</option>`).join('');
+  $('#an-prog').innerHTML = AN_GIORNI.map(([g, nome]) => `<div class="an-day"><h4>${nome}
+    <select onchange="anCopiaGiorno('${g}',this.value);this.value=''"><option value="">Copia da…</option>${AN_GIORNI.filter(x => x[0] !== g).map(x => `<option value="${x[0]}">${x[1]}</option>`).join('')}</select></h4>
+    ${AN_FASCE.map(([f, fn]) => `<div class="an-fase"><div class="t">${fn}</div>
+      ${anProg(g, f).map((v, i) => `<div class="an-vrow">
+        <select onchange="anProg('${g}','${f}')[${i}].a=this.value">${opz(f, v.a)}</select>
+        <input value="${esc(v.ora)}" placeholder="10.00" onchange="anProg('${g}','${f}')[${i}].ora=this.value.trim()">
+        <button class="an-x" aria-label="Rimuovi" onclick="anProg('${g}','${f}').splice(${i},1);anRenderProg()">✕</button></div>`).join('')}
+      <button class="an-add" onclick="anProg('${g}','${f}').push({a:'',ora:''});anRenderProg()">+ Aggiungi</button></div>`).join('')}</div>`).join('');
+}
+function anAggiungiAttivita() { AN.catalogo.push({ id: 'a' + Date.now(), nome: '', emoji: '⭐', fascia: 'd', speciale: false }); anRender(); }
+function anEliminaAttivita(i) {
+  const a = AN.catalogo[i];
+  if (!confirm(`Eliminare "${a.nome || 'attività'}"? Sparirà anche dal programma.`)) return;
+  AN.catalogo.splice(i, 1);
+  Object.values(AN.settimane).forEach(w => Object.values(w).forEach(gg => Object.keys(gg).forEach(f => { gg[f] = gg[f].filter(v => v.a !== a.id); })));
+  anRender();
+}
+function anCopiaGiorno(a, da) {
+  if (!da) return;
+  if (!confirm('Sostituire il programma di questo giorno con quello copiato?')) return;
+  AN.settimane[anSett][a] = JSON.parse(JSON.stringify(AN.settimane[anSett][da] || {}));
+  anRenderProg();
+}
+async function anSalva() {
+  const btn = $('#btn-salva-an'); btn.disabled = true;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    AN.luogo_serate = $('#an-luogo').value.trim();
+    const cat = AN.catalogo.filter(a => a.nome.trim());
+    const ids = new Set(cat.map(a => a.id));
+    const settimane = {};
+    const salvaSett = anSett;
+    [1, 2].forEach(n => { anSett = n; settimane[n] = {}; AN_GIORNI.forEach(([g]) => { settimane[n][g] = {}; AN_FASCE.forEach(([f]) => { settimane[n][g][f] = anProg(g, f).filter(v => ids.has(v.a)); }); }); });
+    anSett = salvaSett;
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_animazione'),
+      { catalogo: cat, settimane, data_inizio: AN.data_inizio || '', luogo_serate: AN.luogo_serate, pin: AN.pin, aggiornato_il: new Date().toISOString() });
+    toast('Programma salvato');
+  } catch (e) { console.error(e); toast('Errore salvataggio'); }
+  btn.disabled = false;
+}
+function anCaricaDati2026() {
+  if (!confirm('Sostituire attività e programma con quelli delle locandine 2026? Ricordati poi di salvare.')) return;
+  const D = {
+   sab:{d:[['Buongiorno Garden','10.00'],['Accoglienza','10.00']],m:[],t:[],s:[['Baby dance','21.30'],['Welcome show','22.00','x'],['Balli','23.00']]},
+   dom:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Ping pong','11.00'],['Gioco aperitivo','12.00'],['Freccette','17.00'],['Yoga','17.15'],['Pool game','18.00']],m:[['Carta d’identità','10.00–12.00'],['Body paint','16.00–18.00']],t:[['Teen spotted','10.30'],['Calcio balilla','16.30']],s:[['Baby dance','21.30'],['Garden Circus','22.00','x'],['Balli','23.00']]},
+   lun:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Calcio balilla','11.00'],['Gioco aperitivo','12.00'],['Football water','17.00'],['Zumba','17.15'],['Pool game','18.00']],m:[['Acqua splash','10.00–12.00'],['LAB. Cooking class','16.00–18.00']],t:[['Carte UNO','10.30'],['Beach volley','16.30']],s:[['Baby dance','21.30'],['Yin e yang game','22.00','x'],['Balli','23.00']]},
+   mar:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Freccette','11.00'],['Gioco aperitivo','12.00'],['Beach volley','17.00'],['Acquagym con noodle','17.30'],['Pool game','18.00']],m:[['Medusa','10.00–12.00'],['LAB. Garden green','16.00–18.00']],t:[['Caso: il mistero del villaggio','10.30'],['Football water','16.30']],s:[['Baby dance Huntrix','21.30'],['Michael Jackson','22.00','x']]},
+   mer:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Calcio balilla','11.00'],['Gioco aperitivo','12.00'],['Schiuma party','17.00','x']],m:[['Giochi d’acqua','10.00–12.00']],t:[['Freccette','10.30'],['Schiuma party','16.30','x']],s:[['Baby dance','21.30'],['Cervellone','22.00','x'],['Balli','23.00']]},
+   gio:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Freccette','11.00'],['Gioco aperitivo','12.00'],['Ping pong','17.00'],['Step','17.15'],['Pool game','18.00']],m:[['Crea il tuo gioiello','10.00–12.00'],['Dimostrazione cinofila','16.00–18.00']],t:[['Acqua splash','10.30'],['Calcetto','16.30']],s:[['Baby dance','21.30'],['The Greatest Showman','22.00','x']]},
+   ven:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Ping pong','11.00'],['Gioco aperitivo','12.00'],['Beach volley','17.00'],['Yoga','17.15'],['Pool game','18.00']],m:[['Brucomela','10.00–12.00'],['Compleanno di Gardy','16.00–18.00','x']],t:[['Caccia al selfie','10.30'],['Battle color','16.30']],s:[['Baby dance','21.30'],['White party','22.00','x']]}
+  };
+  const cat = {}, prog = {};
+  Object.entries(D).forEach(([g, fasi]) => {
+    prog[g] = {};
+    Object.entries(fasi).forEach(([f, voci]) => {
+      prog[g][f] = voci.map(([nome, ora, sp]) => {
+        const chiave = f + '|' + nome.toLowerCase();
+        if (!cat[chiave]) cat[chiave] = { id: f + '-' + anSlug(nome), nome, emoji: anEmoji(nome), fascia: f, speciale: !!sp };
+        else if (sp) cat[chiave].speciale = true;
+        return { a: cat[chiave].id, ora };
+      });
+    });
+  });
+  AN.catalogo = Object.values(cat);
+  AN.settimane = { 1: prog, 2: JSON.parse(JSON.stringify(prog)) };
+  if (!AN.luogo_serate) AN.luogo_serate = 'Teatro';
+  anRender();
+  toast('Dati 2026 caricati: controlla e salva');
+}
+async function anCarica() {
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_animazione'));
+    const d = s.exists() ? s.data() : {};
+    const sett = d.settimane || { 1: d.programma || {}, 2: {} };
+    AN = { catalogo: d.catalogo || [], settimane: { 1: sett[1] || sett['1'] || {}, 2: sett[2] || sett['2'] || {} }, data_inizio: d.data_inizio || '', luogo_serate: d.luogo_serate || '', pin: d.pin || null };
+  } catch (e) { console.error('Lettura animazione:', e); }
+  anRender();
+}
+document.addEventListener('click', ev => {
+  const img = ev.target.closest && ev.target.closest('#an-mappa-box');
+  if (!img) return;
+  const r = $('#an-mappa-img').getBoundingClientRect();
+  anPin({ x: Math.round((ev.clientX - r.left) / r.width * 1000) / 10, y: Math.round((ev.clientY - r.top) / r.height * 1000) / 10 });
+});
 
 (function avvio() {
   hydrateIcons();
