@@ -174,6 +174,11 @@
   .sp-btn { min-height: 58px; padding: 8px 10px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: var(--white);
     color: var(--gray-900); font-size: 18px; font-weight: 800; font-family: var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent; line-height: 1.2 }
   .sp-btn.selected { background: var(--green-700); border-color: var(--green-700); color: #fff }
+  .sp-btn { position: relative }
+  .sp-btn .sp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green-700); margin-right: 8px; vertical-align: middle }
+  .sp-btn.selected .sp-dot { background: #fff }
+  .sp-legenda { font-size: 14px; color: var(--gray-700); margin: 10px 0 0 }
+  .sp-legenda .sp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green-700); margin-right: 6px }
   .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
   .num-btn { height: 58px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: var(--white);
     color: var(--gray-900); font-size: 22px; font-weight: 800; font-family: var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent }
@@ -1034,7 +1039,7 @@ function renderNavetta() {
   const spiaggiaNota = (sp && sp.spiaggia_nome) ? sp.spiaggia_nome : '';
   const nomiSpiagge = spiagge.map(x => x.nome);
   if (spiaggiaNota && !nomiSpiagge.some(n => _nn(n) === _nn(spiaggiaNota))) nomiSpiagge.unshift(spiaggiaNota);
-  const cardSpiagge = nomiSpiagge.map(n => `<button type="button" class="sp-btn" data-sp="${esc(n)}" onclick="scegliSpiaggia(this.dataset.sp)">${esc(n)}</button>`).join('');
+  const cardSpiagge = nomiSpiagge.map(n => `<button type="button" class="sp-btn" data-sp="${esc(n)}" onclick="scegliSpiaggia(this.dataset.sp)">${spiaggiaNota && _nn(n) === _nn(spiaggiaNota) ? '<span class="sp-dot"></span>' : ''}${esc(n)}</button>`).join('');
 
   const autisti = CFG.autisti || [];
   const cardAutisti = autisti.map(a => cardAutistaHtml(a.id, a.nome, a.foto)).join('');
@@ -1060,7 +1065,7 @@ function renderNavetta() {
       <p class="guida">Tocca la spiaggia dove ti devono venire a prendere.</p>
       ${sp && sp.spiaggia_nome ? `<div class="chip-spiaggia">${ICONS.SPIAGGIA}${esc(sp.spiaggia_nome)} · Ombrellone ${esc(sp.ombrellone || '')}</div>` : ''}
       ${nomiSpiagge.length
-        ? `<div class="sp-grid" id="sp-grid">${cardSpiagge}</div>`
+        ? `<div class="sp-grid" id="sp-grid">${cardSpiagge}</div>${spiaggiaNota ? '<p class="sp-legenda"><span class="sp-dot"></span>La spiaggia della tua prenotazione. Puoi sceglierne un\'altra.</p>' : ''}`
         : `<div class="field"><input type="text" id="f-spiaggia-testo" placeholder="Nome della spiaggia"></div>
            <button type="button" class="submit" style="margin-top:12px" onclick="scegliSpiaggia(($('#f-spiaggia-testo').value || '').trim())">Avanti</button>`}
 

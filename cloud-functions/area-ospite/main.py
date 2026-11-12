@@ -382,34 +382,45 @@ def _conto_prenotazione(p):
     }
 
 
-def _spiaggia_assegnata(db, pren_id):
-    """Ombrellone/spiaggia già posizionati dal Calendario per questa
-    prenotazione (collezione beach_prenotazioni, campo
-    calendario_prenotazione_id — v. calendario/index.html). None se assente."""
+def _spiaggia_assegnata(db, pren_id, pren=None):
+    """Ombrellone/spiaggia già posizionati per questa prenotazione.
+    1) collegamento del Calendario (beach_prenotazioni.calendario_prenotazione_id);
+    2) ripiego per le posizioni inserite a mano dal modulo Spiaggia, che non
+       hanno il collegamento: stesso nome cliente e date che si sovrappongono
+       al soggiorno. Fra piu' candidate vince quella valida oggi. None se assente."""
     try:
-        q = (db.collection('beach_prenotazioni')
-               .where('calendario_prenotazione_id', '==', pren_id)
-               .limit(1))
-        docs = list(q.stream())
-        if not docs:
+        col = db.collection('beach_prenotazioni')
+        cand = [d.to_dict() or {} for d in col.where('calendario_prenotazione_id', '==', pren_id).stream()]
+        if not cand and pren:
+            nome = _norm_nome(_s(pren.get('nome')))
+            ci, co = _s(pren.get('checkin'), 10), _s(pren.get('checkout'), 10)
+            if nome:
+                for d in col.where('cliente', '==', _s(pren.get('nome'))).stream():
+                    x = d.to_dict() or {}
+                    if _norm_nome(_s(x.get('cliente'))) != nome:
+                        continue
+                    dal, al = _s(x.get('dal'), 10), _s(x.get('al'), 10)
+                    if ci and co and dal and al and (al < ci or dal >= co):
+                        continue
+                    cand.append(x)
+        cand = [x for x in cand if _s(x.get('ombrellone'))]
+        if not cand:
             return None
-        b = docs[0].to_dict() or {}
+        oggi = _oggi_iso()
+        cand.sort(key=lambda x: (not (_s(x.get('dal'), 10) <= oggi <= _s(x.get('al'), 10)), _s(x.get('dal'), 10)))
+        b = cand[0]
         ombrellone = _s(b.get('ombrellone'))
-        if not ombrellone:
-            return None
         nome_spiaggia = b.get('spiaggia_id') or ''
         spiaggia_id = b.get('spiaggia_id')
         if spiaggia_id:
-            s = db.collection('beach_spiagge').document(spiaggia_id).get()
-            if s.exists:
-                nome_spiaggia = _s((s.to_dict() or {}).get('nome')) or nome_spiaggia
+            sp = db.collection('beach_spiagge').document(spiaggia_id).get()
+            if sp.exists:
+                nome_spiaggia = _s((sp.to_dict() or {}).get('nome')) or nome_spiaggia
         return {'spiaggia_nome': nome_spiaggia, 'ombrellone': ombrellone}
     except Exception as e:
         print(f'Lettura spiaggia assegnata non riuscita: {e}')
         return None
 
-
-# ── orari navetta ──────────────────────────────────────────────────────────
 
 def _slot_validi(cfg):
     """Elenco 'HH:MM' di tutte le fasce, passo configurato (bordo incluso)."""
@@ -613,7 +624,7 @@ def _azione_carica(db, origin, data):
             'checkout':      _s(p.get('checkout')),
         },
         'conto': _conto_prenotazione(p),
-        'spiaggia': _spiaggia_assegnata(db, pren_ref.id),
+        'spiaggia': _spiaggia_assegnata(db, pren_ref.id, p),
         'spiagge': _spiagge_disponibili(db),
         'autisti': _autisti_elenco(db),
         'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
@@ -670,7 +681,7 @@ def _azione_navetta_prenota(db, origin, data):
     alloggio_nome = _s(p.get('alloggio_nome'))
     # La spiaggia e' obbligatoria: l'autista deve sapere dove andare. Se il
     # Calendario ha gia' assegnato l'ombrellone si usa quella.
-    assegnata = _spiaggia_assegnata(db, pren_ref.id)
+    assegnata = _spiaggia_assegnata(db, pren_ref.id, p)
     spiaggia_nome = _s(data.get('spiaggia_nome')) or (assegnata or {}).get('spiaggia_nome') or ''
     if not spiaggia_nome:
         return _json(origin, {'ok': False, 'errore': 'spiaggia_obbligatoria'}, 400)
