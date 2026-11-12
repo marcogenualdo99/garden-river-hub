@@ -39,7 +39,8 @@ Azioni (campo "azione" nel corpo JSON):
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+import urllib.request
 from zoneinfo import ZoneInfo
 
 import firebase_admin
@@ -962,6 +963,254 @@ def _azione_staff_riapri(db, origin, data):
     return _json(origin, {'ok': True, 'id': snap.id})
 
 
+# ── Ristorazione (menu e ordini dentro l'Area ospite) ───────────────────────
+# Prima il menu era un'app a parte (ristorazione/index.html) che parlava
+# direttamente con Firestore. Ora l'ospite passa solo da qui: legge menu e
+# ordini con 'ristorazione_menu' e invia l'ordine con 'ristorazione_ordina',
+# che controlla tutte le regole lato server (quote, mezza pensione, orario
+# limite) e manda la notifica allo staff.
+
+RISTO_NOTIFICA_URL = 'https://invia-notifica-ristorazione-113994721180.europe-west1.run.app'
+RISTO_CAT_DEFAULT = ['Antipasti', 'Primi Carne', 'Primi Pesce', 'Secondi Carne',
+                     'Secondi Pesce', 'Contorni', 'Dessert']
+RISTO_BAMBINI_DEFAULT = ['Cotoletta', 'Patatine', 'Pasta in bianco', 'Pasta al pomodoro',
+                         'Pasta al pesto', 'Hamburger', 'Wurstel']
+RISTO_BAMBINI_CAT = 'Menu Bambini'
+# Categorie che condividono la quota (Primi carne+pesce, Secondi carne+pesce)
+RISTO_GRUPPI = {'Primi Carne': 'Primi', 'Primi Pesce': 'Primi',
+                'Secondi Carne': 'Secondi', 'Secondi Pesce': 'Secondi'}
+RISTO_ORA_LIMITE = (8, 30)
+
+
+def _risto_famiglia(db, pren_id):
+    """(id, dict) della famiglia Ristorazione collegata alla prenotazione."""
+    diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
+    if diretta.exists:
+        return diretta.id, (diretta.to_dict() or {})
+    docs = list(db.collection('famiglie_ristorazione')
+                  .where('calendario_prenotazione_id', '==', pren_id).limit(1).stream())
+    if docs:
+        return docs[0].id, (docs[0].to_dict() or {})
+    return None, None
+
+
+def _risto_impostazioni(db):
+    out = {'ciclo_start': None, 'categorie': list(RISTO_CAT_DEFAULT),
+           'menu_bambini': list(RISTO_BAMBINI_DEFAULT)}
+    try:
+        snap = db.collection('impostazioni').document('ristorazione').get()
+        d = (snap.to_dict() or {}) if snap.exists else {}
+        cs = _s(d.get('ciclo_start'), 10)
+        out['ciclo_start'] = cs if len(cs) == 10 else None
+        if isinstance(d.get('categorie'), list) and d['categorie']:
+            out['categorie'] = [_s(x, 40) for x in d['categorie'] if _s(x, 40)]
+        if isinstance(d.get('menu_bambini'), list) and d['menu_bambini']:
+            out['menu_bambini'] = [_s(x, 60) for x in d['menu_bambini'] if _s(x, 60)]
+    except Exception as e:
+        print(f'Lettura impostazioni/ristorazione non riuscita: {e}')
+    return out
+
+
+def _risto_giorno_ciclo(ciclo_start, iso):
+    if not ciclo_start:
+        return None
+    try:
+        a = datetime.strptime(ciclo_start, '%Y-%m-%d')
+        b = datetime.strptime(iso, '%Y-%m-%d')
+    except ValueError:
+        return None
+    return ((b - a).days % 14) + 1
+
+
+def _risto_giorni(fam, oggi):
+    """(primo, secondo): da oggi, o dal check-in se l'ospite non e' ancora arrivato."""
+    primo = oggi
+    checkin = _s(fam.get('checkin'), 10)
+    if checkin and checkin > oggi:
+        primo = checkin
+    secondo = (datetime.strptime(primo, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+    return primo, secondo
+
+
+def _risto_ordini_chiusi(fam, data, oggi, ora):
+    """True se non si puo' piu' ordinare per questa data (passata, oppure oggi dopo le 8:30
+    senza lo sblocco dello staff)."""
+    if data < oggi:
+        return True
+    if data == oggi and (ora.hour, ora.minute) >= RISTO_ORA_LIMITE and _s(fam.get('sblocco_orario'), 10) != oggi:
+        return True
+    return False
+
+
+def _risto_menu_giorno(db, ciclo_start, iso):
+    g = _risto_giorno_ciclo(ciclo_start, iso)
+    if g is None:
+        return []
+    out = []
+    for d in db.collection('menu_ristorazione').where('giorno', '==', g).stream():
+        x = d.to_dict() or {}
+        out.append({'id': d.id, 'tipo': _s(x.get('tipo'), 10), 'piatto': _s(x.get('piatto'), 120),
+                    'categoria': _s(x.get('categoria'), 40) or 'Altro',
+                    'descrizione': _s(x.get('descrizione'), 200)})
+    out.sort(key=lambda m: m['tipo'])
+    return out
+
+
+def _risto_ordini(db, fam_id, giorni):
+    """Ordini gia' confermati: { 'YYYY-MM-DD_pranzo': {note, piatti:[{menu_id,piatto,quantita,categoria}]} }"""
+    out = {}
+    for iso in giorni:
+        for d in db.collection('ordini_ristorazione').where('famiglia_id', '==', fam_id).where('data', '==', iso).stream():
+            x = d.to_dict() or {}
+            piatti = x.get('piatti')
+            if isinstance(piatti, dict):                  # formato storico {menuId: qty}
+                piatti = [{'menu_id': k, 'piatto': '', 'quantita': v, 'categoria': ''} for k, v in piatti.items()]
+            righe = []
+            for p in (piatti or []):
+                if isinstance(p, dict) and (p.get('quantita') or 0) > 0:
+                    righe.append({'menu_id': _s(p.get('menu_id'), 80), 'piatto': _s(p.get('piatto'), 120),
+                                  'quantita': int(p.get('quantita') or 0), 'categoria': _s(p.get('categoria'), 40)})
+            tipo = _s(x.get('tipo'), 10)
+            out[f'{_s(x.get("data"), 10)}_{tipo}'] = {'note': _s(x.get('note'), 300), 'piatti': righe}
+    return out
+
+
+def _azione_ristorazione_menu(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    fam_id, fam = _risto_famiglia(db, pren_ref.id)
+    if not fam or _s(fam.get('trattamento')) not in ('PC', 'MP'):
+        return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    primo, secondo = _risto_giorni(fam, oggi)
+    imp = _risto_impostazioni(db)
+    menu = {primo: _risto_menu_giorno(db, imp['ciclo_start'], primo),
+            secondo: _risto_menu_giorno(db, imp['ciclo_start'], secondo)}
+    return _json(origin, {
+        'ok': True,
+        'oggi': oggi, 'ora': ora.strftime('%H:%M'),
+        'chiusura_oggi': _risto_ordini_chiusi(fam, oggi, oggi, ora),
+        'famiglia': {'trattamento': _s(fam.get('trattamento')), 'max_ospiti': int(fam.get('max_ospiti') or 1),
+                     'checkin': _s(fam.get('checkin'), 10), 'checkout': _s(fam.get('checkout'), 10),
+                     'ora_arrivo': _s(fam.get('ora_arrivo'), 20), 'sblocco_orario': _s(fam.get('sblocco_orario'), 10)},
+        'giorni': [primo, secondo],
+        'menu': menu,
+        'categorie': imp['categorie'], 'menu_bambini': imp['menu_bambini'],
+        'ordini': _risto_ordini(db, fam_id, [primo, secondo]),
+    })
+
+
+def _risto_notifica(payload):
+    """Notifica push allo staff (stessa funzione che chiamava la vecchia pagina)."""
+    try:
+        req = urllib.request.Request(
+            RISTO_NOTIFICA_URL, data=json.dumps(payload).encode(),
+            headers={'Content-Type': 'application/json', 'Origin': 'https://gardenhub.it'}, method='POST')
+        urllib.request.urlopen(req, timeout=8).read()
+    except Exception as e:
+        print(f'Notifica ristorazione non inviata: {e}')
+
+
+def _azione_ristorazione_ordina(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    fam_id, fam = _risto_famiglia(db, pren_ref.id)
+    trattamento = _s((fam or {}).get('trattamento'))
+    if not fam or trattamento not in ('PC', 'MP'):
+        return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
+
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    primo, secondo = _risto_giorni(fam, oggi)
+    giorno = _s(data.get('data'), 10)
+    if giorno not in (primo, secondo):
+        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+    checkout = _s(fam.get('checkout'), 10)
+    if checkout and checkout <= oggi and giorno != oggi:
+        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+    if _risto_ordini_chiusi(fam, giorno, oggi, ora):
+        return _json(origin, {'ok': False, 'errore': 'ordini_chiusi'}, 409)
+
+    max_ospiti = max(1, int(fam.get('max_ospiti') or 1))
+    imp = _risto_impostazioni(db)
+    menu = {m['id']: m for m in _risto_menu_giorno(db, imp['ciclo_start'], giorno)}
+    pasti = data.get('pasti')
+    if not isinstance(pasti, list) or not pasti:
+        return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
+
+    esistenti = _risto_ordini(db, fam_id, [giorno])
+    da_scrivere = []
+    for pasto in pasti[:2]:
+        if not isinstance(pasto, dict):
+            continue
+        tipo = _s(pasto.get('tipo'), 10)
+        if tipo not in ('pranzo', 'cena'):
+            return _json(origin, {'ok': False, 'errore': 'pasto_non_valido'}, 400)
+        if f'{giorno}_{tipo}' in esistenti:
+            return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
+        righe, quota = [], {}
+        for r in (pasto.get('piatti') or []):
+            if not isinstance(r, dict):
+                continue
+            m = menu.get(_s(r.get('menu_id'), 80))
+            try:
+                q = int(r.get('quantita') or 0)
+            except (TypeError, ValueError):
+                q = 0
+            if q <= 0:
+                continue
+            if not m or m['tipo'] != tipo:
+                return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
+            gruppo = RISTO_GRUPPI.get(m['categoria'], m['categoria'])
+            quota[gruppo] = quota.get(gruppo, 0) + q
+            if quota[gruppo] > max_ospiti:
+                return _json(origin, {'ok': False, 'errore': 'quota_superata'}, 409)
+            righe.append({'menu_id': m['id'], 'piatto': m['piatto'], 'quantita': q, 'categoria': m['categoria']})
+        bamb = pasto.get('bambini') if isinstance(pasto.get('bambini'), dict) else {}
+        for nome, q in bamb.items():
+            try:
+                q = int(q or 0)
+            except (TypeError, ValueError):
+                q = 0
+            if q <= 0:
+                continue
+            if nome not in imp['menu_bambini'] or q > 20:
+                return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
+            righe.append({'menu_id': 'bambino_' + nome, 'piatto': nome, 'quantita': q, 'categoria': RISTO_BAMBINI_CAT})
+        if righe:
+            da_scrivere.append((tipo, righe, _s(pasto.get('note'), 300)))
+    if not da_scrivere:
+        return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
+
+    # Mezza pensione: un solo pasto al giorno (pranzo OPPURE cena)
+    if trattamento == 'MP':
+        tipi = {t for t, _, _ in da_scrivere} | {k.split('_')[-1] for k in esistenti}
+        if len(tipi) > 1:
+            return _json(origin, {'ok': False, 'errore': 'mezza_pensione_un_pasto'}, 409)
+
+    scritti = []
+    for tipo, righe, note in da_scrivere:
+        doc_id = f'{fam_id}_{giorno}_{tipo}'
+        try:
+            db.collection('ordini_ristorazione').document(doc_id).create({
+                'famiglia_id': fam_id, 'famiglia_nome': _s(fam.get('nome'), 120), 'unita': fam.get('unita'),
+                'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note,
+                'servito': False, 'notified': False, 'timestamp': _now_iso(),
+            })
+        except Exception as e:                      # AlreadyExists: doppio invio
+            print(f'Ordine {doc_id} non creato: {e}')
+            return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
+        scritti.append((doc_id, tipo, righe, note))
+
+    for doc_id, tipo, righe, note in scritti:
+        _risto_notifica({'evento': 'ordine', 'doc_id': doc_id, 'famiglia_nome': _s(fam.get('nome'), 120),
+                         'unita': fam.get('unita'), 'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note})
+    return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
+
+
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -972,6 +1221,8 @@ AZIONI = {
     'staff_crea':              _azione_staff_crea,
     'staff_modifica':          _azione_staff_modifica,
     'staff_riapri':            _azione_staff_riapri,
+    'ristorazione_menu':       _azione_ristorazione_menu,
+    'ristorazione_ordina':     _azione_ristorazione_ordina,
 }
 
 
