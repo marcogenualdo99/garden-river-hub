@@ -96,6 +96,8 @@
   .info-row .emoji { font-size: 19px; flex-shrink: 0 }
   .info-row .titolo { flex: 1; font-size: 14.5px; font-weight: 700; color: var(--gray-900) }
   .info-row svg { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0 }
+  .carta-pagine { margin: 10px -16px 0; display: flex; flex-direction: column; gap: 4px }
+  .carta-pagine img { width: 100%; height: auto; display: block }
   .info-body { font-size: 14px; color: var(--gray-700); line-height: 1.6 }
   .info-body h3 { font-size: 14px; font-weight: 800; color: var(--gray-900); margin: 18px 0 4px }
   .info-body h3:first-child { margin-top: 0 }
@@ -415,7 +417,7 @@ function sottotitoloServizio(id) {
   }
   if (id === 'ristorazione') {
     const r = CFG.ristorazione;
-    if (!r) return 'Non incluso nel soggiorno';
+    if (!r) return 'Menu e informazioni';
     return r.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
   }
   if (id === 'animazione') return haContenuto(id) ? 'Il programma della settimana' : 'Disponibile a breve';
@@ -641,10 +643,7 @@ function renderAssistenza(s) {
 function renderRistorazione() {
   const r = CFG.ristorazione;
   const panel = $('#service-content');
-  if (!r) {
-    panel.innerHTML = boxPresto({ icon: 'RISTORAZIONE', title: 'Ristorazione' }).replace('Disponibile a breve.', 'Il tuo soggiorno non include pasti in ristorazione.');
-    return;
-  }
+  if (!r) { renderRistoranteLibero(panel); return; }
   // Pagina originale della Ristorazione, con la sua testata (saluto, frase,
   // info, nome ospite e numero ospiti): a schermo intero, con solo una
   // barra sottile per tornare alla home dell'Area ospite.
@@ -653,6 +652,32 @@ function renderRistorazione() {
   panel.innerHTML = `<div class="risto-bar"><button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna alla home</button></div>
     <iframe class="risto-frame" src="../ristorazione/?f=${encodeURIComponent(r.codice)}" title="Ristorazione"></iframe>`;
   hydrateIcons(panel);
+}
+
+// Soggiorno senza pasti inclusi: niente ordini, ma il ristorante e' aperto a
+// tutti. Informazioni e menu alla carta (le pagine del PDF, a tutta larghezza).
+function renderRistoranteLibero(panel) {
+  panel.innerHTML = `<div class="card"><h2>Il nostro ristorante</h2>
+    <div class="info-body" style="margin-top:8px">
+      <p>Il soggiorno non include i pasti, ma il ristorante è aperto anche a te: puoi mangiare alla carta quando vuoi, nei suoi orari.</p>
+      <h3>Orari</h3>
+      <ul>
+        <li>Colazione: 8:00 – 10:00</li>
+        <li>Pranzo: 13:00 – 14:30</li>
+        <li>Cena: 20:00 – 22:00</li>
+      </ul>
+      <p>Il lunedì sera è serata sushi.</p>
+      <h3>Da sapere</h3>
+      <ul>
+        <li>Per intolleranze, allergie o menù vegetariano/vegano contatta lo staff in anticipo.</li>
+        <li>Cani non ammessi nella sala interna del ristorante.</li>
+        <li>Colazione, gelati e cocktail anche al chiosco bar a bordo piscina.</li>
+      </ul>
+    </div></div>
+    <div class="card"><h2>Menu alla carta</h2>
+      <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
+      <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a>
+    </div>`;
 }
 
 // ── Navetta ───────────────────────────────────────────────────────────────
