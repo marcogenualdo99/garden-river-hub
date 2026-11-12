@@ -650,7 +650,7 @@ function renderRistorazione() {
   document.body.classList.add('risto-aperta');
   $('#service-view').querySelector('.home-back-btn').style.display = 'none';
   panel.innerHTML = `<div class="risto-bar"><button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna alla home</button></div>
-    <iframe class="risto-frame" src="../ristorazione/?f=${encodeURIComponent(r.codice)}" title="Ristorazione"></iframe>`;
+    <iframe class="risto-frame" src="../ristorazione/?f=${encodeURIComponent(r.codice)}&n=${encodeURIComponent(((CFG.prenotazione || {}).nome_proprio) || '')}" title="Ristorazione"></iframe>`;
   hydrateIcons(panel);
 }
 

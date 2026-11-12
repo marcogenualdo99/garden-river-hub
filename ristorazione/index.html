@@ -515,7 +515,10 @@ function renderApp(){
   // famiglia.nome è registrato come "Cognome Nome" (convenzione di reception):
   // il saluto usa l'ultima parola, non la prima.
   const _parti=(famiglia.nome||'').trim().split(/\s+/);
-  document.getElementById('hero-nome').textContent=_parti[_parti.length-1]||famiglia.nome;
+  // Dall'Area ospite arriva il nome di battesimo vero (anagrafica ospiti, ?n=):
+  // e' l'unico dato affidabile, l'ordine "Cognome Nome" della stringa no.
+  const _nProprio=(new URLSearchParams(location.search).get('n')||'').trim();
+  document.getElementById('hero-nome').textContent=_nProprio||_parti[_parti.length-1]||famiglia.nome;
   document.getElementById('set-nome').textContent=famiglia.nome;
   document.getElementById('set-codice').textContent=famiglia.codice;
   document.getElementById('gs-val').textContent=famiglia.max_ospiti;
