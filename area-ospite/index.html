@@ -259,6 +259,12 @@
   .btn-secondary { width: 100%; height: 54px; font-size: 16px; margin-top: 14px; background: var(--gray-100); color: var(--gray-700);
     border: none; border-radius: 999px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font) }
 
+  .wa-btn { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 22px; height: 52px; border-radius: 26px;
+    background: #25D366; color: #fff; font-weight: 800; font-size: 16px; text-decoration: none }
+  .wa-btn svg { width: 24px; height: 24px }
+  .bici-live { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--gray-100) }
+  .bici-live:last-child { border-bottom: none }
+  .bici-live em { font-style: normal; color: var(--gray-500); font-size: 12px; display: block }
   .footnote { margin-top: 20px; font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5 }
 
   .stato-card { background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius-lg);
@@ -535,6 +541,7 @@
       <div id="service-content"></div>
     </div>
 
+    <div id="wa-footer"></div>
     <p class="footnote">Garden River · questo link è personale, non condividerlo.</p>
   </div>
 </div>
@@ -593,6 +600,7 @@ async function carica() {
     if (!CFG.navetta_corse) CFG.navetta_corse = (CFG.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
     if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {} };
     render();
+    renderWhatsapp();
     avviaTraduzione();
     avviaAggiornamentoStato();
   } catch (e) {
@@ -1104,9 +1112,19 @@ function apriPrenotazioneInfo() {
 function renderPrenotazioneInfo() {
   const p = CFG.prenotazione || {};
   const c = CFG.conto || { voci: [], totale: 0, pagato: 0, da_pagare: 0 };
-  const righeHtml = c.voci.length
-    ? c.voci.map(r => `<div class="conto-row"><span>${esc(r.label || '—')}${r.acconto ? ' <em>(acconto)</em>' : ''}${r.pagato ? ' <em>· pagato</em>' : ''}</span><span>€ ${Math.abs(r.importo || 0).toFixed(2)}</span></div>`).join('')
-    : '<p class="hint">Il conto non è ancora disponibile.</p>';
+  const riga = r => `<div class="conto-row"><span>${esc(r.label || '—')}${r.acconto ? ' <em>(acconto)</em>' : ''}${r.pagato ? ' <em>· pagato</em>' : ''}</span><span>€ ${Math.abs(r.importo || 0).toFixed(2)}</span></div>`;
+  const isBici = r => /^bici\b/i.test(r.label || '');
+  const vBici = c.voci.filter(isBici), vAltre = c.voci.filter(r => !isBici(r));
+  const righeHtml = vAltre.length ? vAltre.map(riga).join('')
+    : (vBici.length ? '' : '<p class="hint">Il conto non è ancora disponibile.</p>');
+  const attive = CFG.bici_attive || [];
+  const fmtOra = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); };
+  const stimaTot = attive.reduce((n, b) => n + (b.pagata ? 0 : (b.costo_stimato || 0)), 0);
+  const biciHtml = (attive.length || vBici.length) ? `<div class="card"><h2>Noleggio bici</h2>
+      ${attive.length ? `<div style="margin-top:6px"><div class="hint" style="margin-bottom:4px">In corso adesso</div>${attive.map(b => `<div class="bici-live"><span>Bici N° ${esc(b.numero)}<em>ritirata il ${esc(fmtOra(b.ritiro))}</em></span><strong>${b.pagata ? 'già pagata' : (b.costo_stimato != null ? '≈ € ' + b.costo_stimato.toFixed(2) : '—')}</strong></div>`).join('')}
+        ${stimaTot > 0 ? `<p class="hint" style="margin-top:6px">Importo indicativo fino ad ora: il totale esatto viene aggiunto al conto alla riconsegna.</p>` : ''}</div>` : ''}
+      ${vBici.length ? `<div style="margin-top:10px"><div class="hint" style="margin-bottom:4px">Noleggi conclusi</div>${vBici.map(riga).join('')}</div>` : ''}
+    </div>` : '';
   const saldato = (c.da_pagare || 0) <= 0.004;
   $('#service-content').innerHTML = `
     <div class="card">
@@ -1116,6 +1134,7 @@ function renderPrenotazioneInfo() {
       <div class="info-kv"><span>Check-out</span><strong>${fmtDataItEstesa(p.checkout)}</strong></div>
       <div class="info-kv"><span>Persone</span><strong>${p.persone_totali || '—'}</strong></div>
     </div>
+    ${biciHtml}
     <div class="card">
       <h2>Il tuo conto</h2>
       <div class="conto-list" style="margin-top:6px">${righeHtml}</div>
@@ -1337,6 +1356,20 @@ function renderInfo() {
   hydrateIcons(panel);
 }
 function apriInfoSub(id) { _infoSub = id; renderInfo(); window.scrollTo(0, 0); }
+
+function renderWhatsapp() {
+  const t = CONTENUTI.testi || {};
+  let n = (t.assistenza_whatsapp || t.assistenza_telefono || '').replace(/[^\d+]/g, '');
+  if (n.startsWith('00')) n = '+' + n.slice(2);
+  n = n.replace(/\D/g, '');
+  if (n.length < 8) { $('#wa-footer').innerHTML = ''; return; }
+  if (n.length <= 10 && !n.startsWith('39')) n = '39' + n;
+  const p = (CFG && CFG.prenotazione) || {};
+  const msg = 'Buongiorno, sono ' + (p.nome || 'un ospite') + (p.alloggio_nome ? ' (' + p.alloggio_nome + ')' : '') + '. ';
+  $('#wa-footer').innerHTML = `<a class="wa-btn" href="https://wa.me/${n}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-2.9-.4-4.1-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2c0 1.3.9 2.5 1 2.7.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3z"/></svg>
+    <span>Scrivici su WhatsApp</span></a>`;
+}
 
 function renderAssistenza(s) {
   const t = CONTENUTI.testi;
@@ -1906,6 +1939,8 @@ async function aggiornaStato(forza) {
   try {
     const d = await chiama({ azione: 'navetta_stato' });
     if (!d.ok) return;
+    if (d.oggi) CFG.oggi = d.oggi;            // cambio giorno anche a pagina rimasta aperta
+    verificaFase();
     const corse = d.navetta_corse || (d.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
     const occupati = d.orari_occupati || CFG.orari_occupati || [];
     const postiOcc = d.posti_occupati || CFG.posti_occupati || {};
@@ -1922,7 +1957,23 @@ async function aggiornaStato(forza) {
   } catch (e) { /* silenzioso: riprova al giro successivo */ }
   finally { _inVolo = false; }
 }
+// Fase della home (giorno, pre-arrivo, dopo partenza): se cambia a pagina aperta
+// (mezzanotte, ore 10 del check-out) la home si ridisegna da sola.
+let _fase = null;
+function faseCorrente() { return [oggiData(), preArrivo(), dopoPartenza()].join('|'); }
+function verificaFase() {
+  if (!CFG) return;
+  const f = faseCorrente();
+  if (_fase === null) { _fase = f; return; }
+  if (f === _fase) return;
+  _fase = f;
+  if (_servizioAperto && dopoPartenza()) { tornaHome(); return; }
+  if (!_servizioAperto) render();
+}
 function avviaAggiornamentoStato() {
+  _fase = faseCorrente();
+  setInterval(verificaFase, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verificaFase(); });
   _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || [], CFG.posti_occupati || {}]);
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(() => { if (document.visibilityState === 'visible') aggiornaStato(false); }, 8000);

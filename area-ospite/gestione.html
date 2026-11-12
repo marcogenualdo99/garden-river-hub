@@ -240,6 +240,7 @@
       <div class="subtitle">Messaggio e numero da chiamare per chi ha bisogno di aiuto.</div>
       <div class="field"><label>Messaggio</label><textarea id="t-assistenza_testo" style="min-height:90px" placeholder="Hai bisogno di aiuto? La reception è a tua disposizione."></textarea></div>
       <div class="field"><label>Telefono reception</label><input id="t-assistenza_telefono" type="tel" placeholder="+39 ..."></div>
+      <div class="field"><label>WhatsApp reception (pulsante in fondo alla pagina)</label><input id="t-assistenza_whatsapp" type="tel" placeholder="+39 ... (se vuoto usa il telefono reception)"></div>
     </div>
     <div class="card">
       <h3>Navetta</h3>
@@ -266,7 +267,7 @@ const SERVIZI_FOTO = [
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
   { id: 'assistenza',   nome: 'Assistenza',     def: 'img/assistenza.jpg' },
 ];
-const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
+const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo'];
 const MAX_CHARS = 800000;   // doc Firestore max 1 MB; la Cloud Function tronca oltre 900k
 let fotoCorrenti = {};      // id -> data URL (se personalizzata)
 

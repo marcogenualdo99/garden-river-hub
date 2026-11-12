@@ -283,7 +283,7 @@ def _contenuti(db):
         snap = db.collection('impostazioni').document('area_ospite').get()
         d = snap.to_dict() or {} if snap.exists else {}
         for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
-                  'assistenza_telefono', 'navetta_testo', 'contatti_testo',
+                  'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo', 'contatti_testo',
                   'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
             out['testi'][k] = _s(d.get(k), 4000)
     except Exception as e:
@@ -508,6 +508,52 @@ def _conto_prenotazione(p):
         'pagato': round(pagato_normale + acconti, 2),
         'da_pagare': round(totale - pagato_normale - acconti, 2),
     }
+
+
+TARIFFE_BICI_DEFAULT = {
+    'oraria': 1, 'sogliaOrariaH': 5, 'mezzaGiornata': 5, 'sogliaMezzaGiornataH': 6,
+    'giornataIntera': 10, 'sogliaGiornataH': 24, 'settimana': 50,
+}
+
+
+def _costo_bici(ms, t):
+    """Stessa logica di calcolaCostoBici in bici/index.html."""
+    ore = ms / 3600000.0
+    if ore <= t['sogliaOrariaH']:
+        return max(1, -(-ore // 1)) * t['oraria']
+    if ore <= t['sogliaMezzaGiornataH']:
+        return t['mezzaGiornata']
+    if ore <= t['sogliaGiornataH']:
+        return t['giornataIntera']
+    giorni = -(-ore // 24)
+    return min(giorni * t['giornataIntera'], t['settimana'])
+
+
+def _bici_attive(db, pren_id):
+    """Bici attualmente a noleggio per questa prenotazione (sola lettura).
+    Il costo e' una STIMA al momento: il conto vero lo scrive la Hub al rientro."""
+    try:
+        snap = db.collection('impostazioni').document('bici').get()
+        t = dict(TARIFFE_BICI_DEFAULT)
+        t.update(((snap.to_dict() or {}).get('tariffe') or {}) if snap.exists else {})
+        out = []
+        for d in db.collection('bici').where('clientePrenotazioneId', '==', pren_id).stream():
+            b = d.to_dict() or {}
+            if b.get('stato') != 'occupata' or not b.get('ritiroTs'):
+                continue
+            try:
+                inizio = datetime.fromisoformat(str(b['ritiroTs']).replace('Z', '+00:00'))
+                ms = max(0, (datetime.now(inizio.tzinfo) - inizio).total_seconds() * 1000)
+                costo = round(float(_costo_bici(ms, t)), 2)
+            except (ValueError, TypeError, KeyError):
+                costo = None
+            out.append({'numero': b.get('numero'), 'tipologia': _s(b.get('tipologia'), 20),
+                        'ritiro': _s(b.get('ritiroTs'), 40), 'costo_stimato': costo,
+                        'pagata': bool(b.get('pagamentoAnticipato'))})
+        out.sort(key=lambda x: x['numero'] or 0)
+        return out
+    except Exception:
+        return []
 
 
 def _spiaggia_assegnata(db, pren_id, pren=None):
@@ -763,6 +809,7 @@ def _azione_carica(db, origin, data):
             'checkout':      _s(p.get('checkout')),
         },
         'conto': _conto_prenotazione(p),
+        'bici_attive': _bici_attive(db, pren_ref.id),
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id, p),
         'spiagge': _spiagge_disponibili(db),
         'autisti': _autisti_elenco(db),
