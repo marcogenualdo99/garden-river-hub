@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 300" width="320" height="300">
+  <defs>
+    <mask id="chiave">
+      <rect x="-60" y="-140" width="120" height="260" fill="#fff"/>
+      <rect x="-12" y="-134" width="24" height="40" rx="3" fill="#000"/>
+    </mask>
+  </defs>
+
+  <!-- chiave inglese (dietro) -->
+  <g transform="translate(206 138) rotate(24)">
+    <g mask="url(#chiave)">
+      <circle cx="0" cy="-86" r="36" fill="#CEDEDA"/>
+      <rect x="-11" y="-60" width="22" height="168" rx="11" fill="#CEDEDA"/>
+      <circle cx="0" cy="104" r="17" fill="#CEDEDA"/>
+    </g>
+    <circle cx="0" cy="104" r="7" fill="#095C48"/>
+    <rect x="-11" y="-40" width="22" height="8" fill="#9FBFB6"/>
+  </g>
+
+  <!-- martello -->
+  <g transform="translate(112 148) rotate(-32)">
+    <rect x="-10" y="-52" width="20" height="170" rx="10" fill="#FFF3E8"/>
+    <rect x="-10" y="38" width="20" height="80" rx="10" fill="#F2702A"/>
+    <rect x="-10" y="38" width="20" height="10" fill="#D95A1B"/>
+    <rect x="-44" y="-96" width="88" height="46" rx="8" fill="#CEDEDA"/>
+    <rect x="-44" y="-96" width="22" height="46" rx="8" fill="#9FBFB6"/>
+    <path d="M44 -90 L72 -100 L72 -58 L44 -56 Z" fill="#CEDEDA"/>
+    <rect x="-44" y="-66" width="88" height="6" fill="#9FBFB6"/>
+  </g>
+
+  <!-- avvitatore -->
+  <g transform="translate(70 214) rotate(-10)">
+    <rect x="0" y="0" width="120" height="50" rx="16" fill="#F2702A"/>
+    <rect x="74" y="7" width="38" height="36" rx="9" fill="#D95A1B"/>
+    <path d="M24 46 L58 46 L66 104 Q66 114 56 114 L36 114 Q26 114 26 104 Z" fill="#053328"/>
+    <rect x="12" y="108" width="62" height="26" rx="8" fill="#0B3B2D"/>
+    <rect x="12" y="116" width="62" height="5" fill="#2E7463"/>
+    <rect x="52" y="46" width="7" height="22" rx="3" fill="#FFB27F"/>
+    <rect x="120" y="11" width="30" height="28" rx="6" fill="#CEDEDA"/>
+    <rect x="126" y="11" width="6" height="28" fill="#9FBFB6"/>
+    <rect x="150" y="21" width="66" height="8" rx="4" fill="#FFFFFF"/>
+    <circle cx="22" cy="25" r="5" fill="#FFB27F"/>
+  </g>
+</svg>
