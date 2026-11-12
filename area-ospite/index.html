@@ -446,16 +446,18 @@
   .oggi .r.a { --c: var(--orange); --t: var(--orange-bg) } .oggi .r.p { --c: var(--green-700); --t: var(--green-100) } .oggi .r.n { --c: var(--blue); --t: var(--blue-bg) } .oggi .r.s { --c: #0E7490; --t: #E0F5FA }
   .service-card .pill-soon.todo { background: var(--orange); color: #fff } .service-card.wide { grid-column: 1 / -1; min-height: 140px }
   .adesso { background: #fff; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden }
-  .meteo { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(90deg, #E6F3FB, #fff 70%); border-bottom: 1px solid var(--gray-100) }
-  .meteo .mi { width: 46px; height: 46px; color: #F59E0B } .meteo .mi svg { width: 46px; height: 46px } .meteo b { font-size: 26px; font-weight: 800; display: block; line-height: 1 } .meteo small { font-size: 12.5px; color: var(--gray-500) }
-  .meteo .md { margin-left: auto; text-align: right } .meteo .md b { font-size: 14px }
+  .meteo { display: flex; align-items: center; gap: 14px; padding: 16px; border-bottom: 1px solid var(--gray-100) }
+  .meteo .mi { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #FFF3D6; color: #E8A21A }
+  .meteo .mi.nube { background: #EEF1F5; color: #64748B } .meteo .mi.acqua { background: #E8EEF8; color: #3B6FB6 } .meteo .mi svg { width: 32px; height: 32px }
+  .meteo .mt b { font-size: 30px; font-weight: 800; display: block; line-height: 1; letter-spacing: -.02em } .meteo .mt small { font-size: 13px; color: var(--gray-500); font-weight: 600 }
+  .meteo .md { margin-left: auto; text-align: center; border: 1.5px solid var(--gray-100); border-radius: 14px; padding: 8px 12px } .meteo .md small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray-500) } .meteo .md b { font-size: 14.5px; font-weight: 800 }
   .ore { display: grid; grid-template-columns: 1fr; } .ore .o { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--gray-100) } .ore .o:last-child { border: none }
   .ore i { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0 } .ore i.on { background: var(--green-ok); box-shadow: 0 0 0 4px rgba(22,163,74,.18) }
   .ore b { display: block; font-size: 14.5px; font-weight: 800 } .ore small { font-size: 12.5px; color: var(--gray-500) }
   .tk { position: relative; background: #fff; border-radius: 24px; box-shadow: var(--shadow-lg); padding: 20px 20px 16px; margin-top: 14px; overflow: hidden; border: 2px dashed var(--green-200) }
   .tk::before, .tk::after { content: ''; position: absolute; top: 56%; width: 26px; height: 26px; border-radius: 50%; background: var(--gray-50) }
   .tk::before { left: -14px } .tk::after { right: -14px }
-  .tk-top { display: flex; align-items: center; justify-content: space-between } .tk-top img { height: 34px; width: auto } .tk-id { font: 800 13px var(--font); color: var(--gray-400); letter-spacing: .06em }
+  .tk-top { display: flex; align-items: center; justify-content: space-between } .tk-top img { height: 58px; width: auto; max-width: 78% } .tk-id { font: 800 13px var(--font); color: var(--gray-400); letter-spacing: .06em }
   .tk-stato { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--green-ok) }
   .tk-stato i { width: 9px; height: 9px; border-radius: 50%; background: var(--green-ok); animation: anPulse 1.4s infinite } .tk-stato span { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--gray-700); letter-spacing: 0 }
   .tk.off .tk-stato { color: var(--red) } .tk.off .tk-stato i { background: var(--red); animation: none }
@@ -768,8 +770,8 @@ function avvisiHome() {
   if (S) {
     const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
     const parz = iso => { const d = S.d; return ['pranzo', 'cena'].some(x => d.ordini[`${iso}_${x}`]); };   // gia' qualcosa ordinato
-    if (S.mOggi.length && S.min >= 360 && S.min < 8 * 60 + 30) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
-    else if (S.mDomani.length && (S.min >= 18 * 60 || parz(S.domani))) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
+    if (S.mOggi.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: S.min < 8 * 60 + 30 ? t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }) : t('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
+    if (S.mDomani.length && (S.min >= 12 * 60 || parz(S.domani))) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
   }
   const dd = giorniA(p.checkout), dec = giorniA(p.checkin);
   if (dd !== null && dd >= 0 && dd <= 1 && dec !== null && dec <= 0) out.push({ cls: 'info', icon: ICONS.CLOCK, tag: t('Partenza'), titolo: dd === 1 ? t('Domani è il giorno della partenza') : t('Oggi è il giorno della partenza'), testo: t('Check-out entro le 10:00. Scopri cosa fare prima di partire.'), azione: { label: t('Cosa fare'), fn: 'apriPartenza()' } });
@@ -862,15 +864,15 @@ function statoRistorante() {
   const pr = serv.find(([, a]) => now < a) || serv[0];
   return { on: false, txt: t('Prossimo: {s} alle {o}', { s: pr[0].toLowerCase(), o: hhmm(pr[1]) }) };
 }
-const WMO = c => c === 0 ? [IC.SUN, 'Sereno'] : c <= 2 ? [IC.CLOUDSUN, 'Poco nuvoloso'] : c === 3 ? [IC.CLOUD, 'Coperto'] : (c === 45 || c === 48) ? [IC.FOG, 'Nebbia'] : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? [IC.RAIN, 'Pioggia'] : c >= 95 ? [IC.STORM, 'Temporale'] : [IC.CLOUD, 'Nuvoloso'];
+const WMO = c => c === 0 ? [IC.SUN, 'Sereno', 'sole'] : c <= 2 ? [IC.CLOUDSUN, 'Poco nuvoloso', 'sole'] : c === 3 ? [IC.CLOUD, 'Coperto', 'nube'] : (c === 45 || c === 48) ? [IC.FOG, 'Nebbia', 'nube'] : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? [IC.RAIN, 'Pioggia', 'acqua'] : c >= 95 ? [IC.STORM, 'Temporale', 'acqua'] : [IC.CLOUD, 'Nuvoloso', 'nube'];
 function renderAdesso() {
   const el = $('#home-adesso'); if (!el) return;
   const m = HOME_X.meteo, fasce = (CFG.fasce || []).map(f => [f.dal, f.al]).filter(f => f[0] && f[1]);
   const righe = [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]];
   if (fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
   el.innerHTML = `<div class="sez">${esc(t('Adesso al villaggio'))}</div><div class="adesso">
-    ${m ? `<div class="meteo"><span class="mi">${WMO(m.codice)[0]}</span><div><b>${Math.round(m.temp)}°</b><small>${esc(t(WMO(m.codice)[1]))}</small></div>
-      <div class="md"><small>${esc(t('Domani'))}</small><b>${Math.round(m.dom_min)}° / ${Math.round(m.dom_max)}°</b></div></div>` : ''}
+    ${m ? `<div class="meteo"><span class="mi ${WMO(m.codice)[2]}">${WMO(m.codice)[0]}</span><div class="mt"><b>${Math.round(m.temp)}°</b><small>${esc(t(WMO(m.codice)[1]))}</small></div>
+      <div class="md"><small>${esc(t('Domani'))}</small><b>${Math.round(m.dom_min)}° · ${Math.round(m.dom_max)}°</b></div></div>` : ''}
     <div class="ore">${righe.map(([n, s]) => `<div class="o"><i class="${s.on ? 'on' : ''}"></i><span><b>${esc(t(n))}</b><small>${esc(s.txt)}</small></span></div>`).join('')}</div></div>`;
 }
 async function caricaMeteo() {
@@ -918,7 +920,7 @@ function renderTicketSpiaggia() {
   const stato = valido ? t('Valido oggi') : (al && oggi > String(al).slice(0, 10) ? t('Scaduto') : t('Non ancora valido'));
   const fasce = (sp.navetta_fasce || []).map(f => `${f.dal} – ${f.al}`);
   $('#service-content').innerHTML = `<div class="tk ${valido ? '' : 'off'}">
-    <div class="tk-top"><img src="../logo-tagliandini.png" alt="Garden River" onerror="this.style.display='none'"><span class="tk-id">#${esc(sp.codice || '')}</span></div>
+    <div class="tk-top"><img src="img/logo-tagliandino.png" alt="Garden River" onerror="this.style.display='none'"><span class="tk-id">#${esc(sp.codice || '')}</span></div>
     <div class="tk-stato"><i></i>${esc(stato)}<span id="tk-ora"></span></div>
     <div class="tk-nome">${esc(sp.cliente || p.nome || '')}</div>
     <div class="tk-ombr"><span>${esc(t('Ombrellone'))}</span><b>${esc(sp.ombrellone)}</b>${sp.spiaggia_nome ? `<em>${esc(sp.spiaggia_nome)}</em>` : ''}</div>

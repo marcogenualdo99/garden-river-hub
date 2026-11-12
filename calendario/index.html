@@ -3273,7 +3273,13 @@ function aggiornaPreventivo(opzioni) {
     // appena ricalcolate come "conosciute" per evitare che l'eco realtime del
     // prossimo autosave le scambi per voci nuove e le duplichi (era esattamente
     // il bug segnalato: alternare 2→1→2 adulti duplicava "Adulti × 2...").
-    impostaVociContoConosciute(contoCorrente);
+    // Merge, NON reset: le righe del listino appena sostituite (es. "Alloggio · 4
+    // notti (08/06–12/06)" prima di un cambio di date) devono restare "conosciute".
+    // Con un reset, l'eco realtime dell'ultimo salvataggio — che ha ancora le
+    // etichette vecchie — le faceva passare per voci arrivate da un altro modulo
+    // e le rimetteva nel conto: cambiando le date si sommavano i periodi vecchi
+    // e quello nuovo.
+    aggiornaVociContoConosciute(contoCorrente);
   }
   renderContoInline(risultato.disponibile ? null : risultato.motivo);
   aggiornaRiepilogoPrenotazione();
@@ -5917,8 +5923,11 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
   const { db, doc, setDoc, updateDoc } = window._fb;
   const eraNuova = !editingId;
   let idPrenotazione;
+  let datiPrima = null;   // ultimo stato salvato, per propagare ai servizi cio' che e' cambiato
   if (editingId) {
     idPrenotazione = editingId;
+    const prec = prenotazioni.find(x => x.id === editingId);
+    if (prec) datiPrima = { checkin: prec.checkin, checkout: prec.checkout, nome: prec.nome, alloggio_nome: prec.alloggio_nome, tel: prec.tel || '', area_ospite_token: prec.area_ospite_token, checkin_token: prec.checkin_token };
     await updateDoc(doc(db, 'prenotazioni', editingId), data);
   } else {
     // Se stiamo salvando per la prima volta una bozza aperta da una riga di
@@ -5942,7 +5951,61 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
   }
   registraLogModifiche(idPrenotazione, eraNuova, data); // non blocca il salvataggio se fallisce
   sincronizzaFamigliaRistorazione(idPrenotazione, data); // non blocca il salvataggio se fallisce
+  propagaAiServizi(idPrenotazione, datiPrima, data);      // idem: Spiaggia, Bici, Navetta, link ospite
   return idPrenotazione;
+}
+
+// ── PROPAGAZIONE AGLI ALTRI SERVIZI ────────────────────────────────────────
+// La prenotazione del Calendario e' quella "di testa": date, nome e alloggio si
+// cambiano solo qui e devono riflettersi in tutto cio' che ne conserva una copia.
+//  · Ristorazione e Conti (Conto Pensione): v. sincronizzaFamigliaRistorazione
+//  · Spiaggia: la posizione ombrellone ha dal/al/cliente propri
+//  · Link check-in e Area ospite: la scadenza e' calcolata dal check-out
+//  · Bici e Navetta: nome e alloggio salvati sul noleggio/corsa
+// Un servizio che non risponde non blocca il salvataggio: l'operatore vede un avviso.
+async function propagaAiServizi(idPren, prima, dopo) {
+  if (!prima || !idPren) return;
+  const cambiaDate = prima.checkin !== dopo.checkin || prima.checkout !== dopo.checkout;
+  const cambiaAnag = prima.nome !== dopo.nome || prima.alloggio_nome !== dopo.alloggio_nome || (prima.tel || '') !== (dopo.tel || '');
+  if (!cambiaDate && !cambiaAnag) return;
+  const { db, collection, doc, getDocs, updateDoc } = window._fb;
+  const avvisi = [], ora = new Date().toISOString();
+  const prova = async (nome, fn) => { try { await fn(); } catch (e) { console.error('Propagazione ' + nome + ':', e); avvisi.push(nome + ' non aggiornato'); } };
+
+  await prova('Spiaggia', async () => {
+    const tutte = (await getDocs(collection(db, 'beach_prenotazioni'))).docs.map(d => ({ id: d.id, ...d.data() }));
+    for (const b of tutte.filter(x => x.calendario_prenotazione_id === idPren)) {
+      const upd = { cliente: dopo.nome, alloggio: dopo.alloggio_nome || '', updatedAt: ora };
+      if (cambiaDate) {
+        upd.dal = dopo.checkin; upd.al = addDaysIso(dopo.checkout, -1);
+        const altre = tutte.filter(x => x.spiaggia_id === b.spiaggia_id);
+        if (spiaggiaHaConflitto(altre, b.ombrellone, upd.dal, upd.al, b.id)) avvisi.push('Spiaggia: l\'ombrellone ' + b.ombrellone + ' e\' occupato nelle nuove date, riposizionalo');
+      }
+      await updateDoc(doc(db, 'beach_prenotazioni', b.id), upd);
+    }
+  });
+
+  if (cambiaDate) {
+    const scade = scadenzaCheckinMs(dopo.checkout);
+    if (prima.checkin_token) await prova('Link check-in', () => updateDoc(doc(db, 'checkin_links', prima.checkin_token), { scade_il: scade }));
+    if (prima.area_ospite_token) await prova('Link Area ospite', () => updateDoc(doc(db, 'area_ospite_links', prima.area_ospite_token), { scade_il: scade }));
+  }
+
+  if (cambiaAnag) {
+    await prova('Bici', async () => {
+      const bici = (await getDocs(collection(db, 'bici'))).docs.map(d => ({ id: d.id, ...d.data() }));
+      for (const b of bici.filter(x => x.clientePrenotazioneId === idPren)) {
+        await updateDoc(doc(db, 'bici', b.id), { clienteNome: dopo.nome, clienteAlloggio: dopo.alloggio_nome || b.clienteAlloggio || null });
+      }
+    });
+    await prova('Navetta', async () => {
+      const corse = (await getDocs(collection(db, 'navetta_prenotazioni'))).docs.map(d => ({ id: d.id, ...d.data() }));
+      for (const c of corse.filter(x => x.prenId === idPren && (x.stato === 'in_attesa' || x.stato === 'accettata'))) {
+        await updateDoc(doc(db, 'navetta_prenotazioni', c.id), { nome: dopo.nome, alloggio_nome: dopo.alloggio_nome || '', telefono: dopo.tel || c.telefono || '' });
+      }
+    });
+  }
+  if (avvisi.length) showToast('Attenzione: ' + avvisi.join(' · '));
 }
 
 // ── LOG MODIFICHE (icona "i" nel form prenotazione) ────────────────────────
@@ -6110,6 +6173,7 @@ async function autosalvaPrenotazione() {
   const costruiti = costruisciDatiPrenotazione();
   if (!costruiti) return; // dati minimi non ancora completi: niente da salvare finché non lo sono
   const { alloggioId, alloggioNome, checkin, checkout, data } = costruiti;
+  const righeSalvate = contoCorrente.map(r => ({ ...r }));   // quello che stiamo per scrivere
   // Stesso blocco rigido del salvataggio manuale (v. salvaPrenotazione):
   // l'autosave scriveva prima senza controllare le sovrapposizioni affatto,
   // ed era proprio così che nascevano le prenotazioni doppie sullo stesso
@@ -6128,7 +6192,12 @@ async function autosalvaPrenotazione() {
     // "dimentichiamo" quella voce (v. estraiVociContoNuove) così una futura
     // voce davvero nuova con la stessa etichetta (es. un altro noleggio della
     // stessa bici) torna ad essere riconosciuta come tale.
-    impostaVociContoConosciute(contoCorrente);
+    // Si riparte da cio' che e' stato SCRITTO (il server ha quello), non da cio' che il
+    // conto contiene ora: se nel frattempo l'operatore ha cambiato altre date, le
+    // righe appena salvate devono restare "conosciute" o la lettura pre-salvataggio
+    // le prenderebbe per voci di un altro modulo e le sommerebbe a quelle nuove.
+    impostaVociContoConosciute(righeSalvate);
+    aggiornaVociContoConosciute(contoCorrente);
     impostaStatoAutosave('Salvato');
   } catch(e) {
     console.error('Errore autosave prenotazione:', e);

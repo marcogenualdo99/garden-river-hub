@@ -148,6 +148,7 @@ const _LISTA = [
   _D('Ti manca ancora: {x}. Si ordina entro le 8:30.', 'Still missing: {x}. Orders close at 8:30.', 'Es fehlt noch: {x}. Bestellung bis 8:30 Uhr.'), _D('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', "Still missing: {x} for tomorrow. Order by 8:30 tomorrow morning.", 'Es fehlt noch: {x} für morgen. Bestellung bis morgen früh 8:30 Uhr.'),
   _D("Completa l'ordine", 'Complete the order', 'Bestellung vervollständigen'), _D('Trova subito ogni punto del villaggio', 'Find every spot in the village', 'Finde jeden Ort im Dorf'),
   _D('Domani si riparte con il programma', 'The programme starts again tomorrow', 'Morgen geht das Programm weiter'), _D('Per qualsiasi bisogno chiedi in reception: siamo a tua disposizione.', 'For anything you need, ask at reception: we are at your disposal.', 'Bei jedem Anliegen frag an der Rezeption: Wir sind für dich da.'),
+  _D('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', 'Still missing: {x}. The staff has reopened today\'s orders.', 'Es fehlt noch: {x}. Das Personal hat die heutigen Bestellungen wieder geöffnet.'),
   _D('Non riesco a caricare', "Can't load", 'Kann nicht geladen werden'),
 ];
 const DIZ = { en: {}, de: {} };
