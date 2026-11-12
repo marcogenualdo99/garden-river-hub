@@ -20,15 +20,16 @@
     background: var(--grad-sun) center/cover no-repeat;
     color: #fff; padding: 20px 16px 24px; position: relative; overflow: hidden;
     min-height: 230px; display: flex; flex-direction: column; justify-content: flex-end;
-    padding-top: calc(18px + env(safe-area-inset-top));
+    padding-top: calc(10px + env(safe-area-inset-top));
     transition: background-image .25s;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   }
   header.top.servizio { min-height: 200px }
   @media (min-width: 560px) { header.top { min-height: 280px } header.top.servizio { min-height: 240px } }
   header.top::before { content: ''; position: absolute; inset: 0;
     background: linear-gradient(180deg, rgba(154,56,14,.40) 0%, rgba(120,45,12,.88) 100%); }
-  header.top .inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; width: 100% }
-  header.top .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px }
+  header.top .inner { max-width: 560px; margin: 0 auto; position: relative; z-index: 1; width: 100%; flex: 1; display: flex; flex-direction: column }
+  header.top .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: auto; padding-bottom: 18px }
   header.top .info-btn { margin-left: auto; width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff;
     display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
@@ -264,13 +265,15 @@
   .edit-panel .ann { background: var(--gray-100); color: var(--gray-700) }
   .edit-panel .err { color: #991B1B; font-size: 12.5px; margin-top: 10px; display: none }
 
-  .an-hero { background: var(--grad-forest); color: #fff; border-radius: var(--radius-lg); margin-top: 14px; padding: 18px 16px; position: relative; overflow: hidden; min-height: 150px }
-  .an-hero .sun { position: absolute; right: -34px; top: -34px; width: 120px; height: 120px; border-radius: 50%; background: var(--grad-sun); animation: anSpin 40s linear infinite }
-  .an-hero .sun::before { content: ''; position: absolute; inset: -12px; border-radius: 50%; border: 3px dashed rgba(245,148,95,.55) }
-  .an-hero .k { position: relative; z-index: 2; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; opacity: .8 }
-  .an-hero h2 { position: relative; z-index: 2; font-family: var(--font-display); font-weight: 400; font-size: 25px; line-height: 1.1; margin: 6px 0 0; color: #fff; max-width: 190px }
-  .an-hero h2 span { color: var(--orange-lt) }
-  .an-hero img { position: absolute; right: -24px; bottom: -64px; height: 190px; width: auto; transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite; filter: drop-shadow(0 6px 8px rgba(0,0,0,.25)) }
+  header.top .hero-gardy { display: none }
+  header.top.anim { background: var(--grad-forest); min-height: 300px; padding-bottom: 28px }
+  header.top.anim::before { inset: auto; right: -40px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: var(--grad-sun); animation: anSpin 40s linear infinite }
+  header.top.anim::after { content: ''; position: absolute; right: -58px; top: -58px; width: 186px; height: 186px; border-radius: 50%; border: 3px dashed rgba(245,148,95,.55); pointer-events: none }
+  header.top.anim .inner { flex: 1; display: flex; flex-direction: column }
+  header.top.anim .topbar { margin-bottom: auto }
+  header.top.anim h1 { max-width: 66%; font-size: 27px }
+  header.top.anim .sub { max-width: 56%; font-size: 15px; font-weight: 700 }
+  header.top.anim .hero-gardy { display: block; position: absolute; right: -86px; bottom: -80px; height: 235px; width: auto; transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite; filter: drop-shadow(0 6px 8px rgba(0,0,0,.25)); pointer-events: none }
   @keyframes anSpin { to { transform: rotate(360deg) } }
   @keyframes anBob { 50% { transform: translateY(-5px) rotate(-2deg) } }
   .an-now { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 13px 15px; display: flex; align-items: center; gap: 13px; margin-top: 12px }
@@ -349,6 +352,7 @@
       </div>
       <h1 id="titolo">Area ospite</h1>
       <div class="sub" id="sottotitolo"></div>
+      <img class="hero-gardy" src="img/gardy.png" alt="" aria-hidden="true">
     </div>
   </header>
 
@@ -438,10 +442,11 @@ function fotoServizio(id) {
   const s = SERVIZI.find(x => x.id === id);
   return CONTENUTI.foto[id] || (s ? s.foto : FOTO_HOME);
 }
-function impostaHero(foto, servizio) {
+function impostaHero(foto, servizio, anim) {
   const h = $('#hero');
-  h.style.backgroundImage = `url("${foto}")`;
+  h.style.backgroundImage = anim ? '' : `url("${foto}")`;
   h.classList.toggle('servizio', !!servizio);
+  h.classList.toggle('anim', !!anim);
 }
 
 function render() {
@@ -509,7 +514,7 @@ function apriServizio(id) {
   window.scrollTo(0, 0);
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
-  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
+  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; impostaHero('', true, true); $('#titolo').textContent = 'Programma Animazione'; $('#sottotitolo').textContent = 'Ciao, sono Gardy! Cosa facciamo oggi?'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
   if (id === 'info') return renderInfo();
   if (id === 'assistenza') return renderAssistenza(s);
 }
@@ -625,8 +630,6 @@ function renderAnimazione(s) {
     ? `<div class="card"><h2>Dove sono le serate</h2><p class="hint" style="margin-top:4px">${esc(luogo || 'Teatro')}</p>
        <div class="an-mappa"><img src="${esc(mapImg)}" alt="Mappa del villaggio: ${esc(luogo || 'Teatro')}"><span class="an-pin" style="left:${pin.x}%;top:${pin.y}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>` : '';
   $('#service-content').innerHTML = `
-    <div class="an-hero"><div class="sun"></div><div class="k">Garden River · Nature Fun Summer</div>
-      <h2>Ciao, sono Gardy!<br><span>Cosa facciamo?</span></h2><img src="img/gardy.png" alt="Gardy"></div>
     <div class="an-now">${prossima
       ? `<div class="ico">${esc(prossima.emoji || '⭐')}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
       : `<div class="ico">${g[3]}</div><div><div class="lab">${isOggi ? 'Per oggi è tutto' : 'Anteprima'}</div><div class="tit">${g[2]}</div><div class="sub">${tutte.length} attività in programma</div></div>`}</div>
