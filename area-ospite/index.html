@@ -324,6 +324,9 @@
   .an-chip { border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 999px; padding: 6px 13px; font: 700 12.5px var(--font); color: var(--gray-700); cursor: pointer }
   .an-chip.on { background: var(--orange); border-color: var(--orange); color: #fff }
   .an-star { margin-top: 14px; border-radius: var(--radius-lg); background: var(--green-900); color: #fff; padding: 16px; position: relative; overflow: hidden }
+  .an-star.foto { background-size: cover; background-position: center; position: relative; overflow: hidden; min-height: 150px }
+  .an-star.foto::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,40,28,.82) 0%, rgba(6,40,28,.45) 60%, rgba(6,40,28,.12) 100%) }
+  .an-star.foto > div { position: relative; z-index: 1 }
   .an-star .k { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
   .an-star .t { font-family: var(--font-display); font-size: 22px; margin: 4px 0 2px; line-height: 1.1; padding-right: 60px }
   .an-star .h { font-size: 13px; opacity: .85 }
@@ -444,7 +447,9 @@
   .sera h3 { position: relative; z-index: 1; font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.05; margin: 8px 0 6px; max-width: 60% }
   .sera .w { position: relative; z-index: 1; font-size: 13.5px; opacity: .92; max-width: 58%; display: flex; align-items: center; gap: 6px } .sera .w svg { width: 16px; height: 16px; flex-shrink: 0 }
   .sera .btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; height: 40px; padding: 0 14px 0 18px; border-radius: 999px; background: var(--orange); color: #fff; font: 800 13.5px var(--font) } .sera .btn svg { width: 16px; height: 16px }
-  .sera img.gfx { max-width: 46%; object-fit: contain; object-position: right bottom; right: 6px; bottom: 6px; height: 160px }
+  .sera.foto { background-size: cover; background-position: center }
+  .sera.foto::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,40,28,.82) 0%, rgba(6,40,28,.45) 55%, rgba(6,40,28,.12) 100%) }
+  .sera.foto h3, .sera.foto .w { max-width: 80% }
   .sera img { position: absolute; right: -14px; bottom: -34px; height: 190px; width: auto; z-index: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite }
   .oggi { background: #fff; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden }
   .oggi .r { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-bottom: 1px solid var(--gray-100); cursor: pointer; -webkit-tap-highlight-color: transparent } .oggi .r:last-child { border: none } .oggi .r:active { background: var(--gray-50) }
@@ -637,11 +642,8 @@ function impostaBanner(id) {
   hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? ' home-top' : ' in-servizio'}`;
   hydrateIcons(hd);
   const im = hd.querySelector('.hero-img');
-  // Pagina Animazione: se la serata speciale di oggi ha una grafica, sostituisce Gardy.
-  const gf = id === 'animazione' && typeof animazioneOggi === 'function' ? ((animazioneOggi() || {}).serata || {}).grafica : '';
-  im.src = gf || b.img;
-  im.style.cssText = gf ? 'height:190px;max-width:48%;object-fit:contain;object-position:right bottom;right:12px;bottom:0'
-                        : `height:${b.h}px;right:${b.r}px;bottom:${b.b}px`;
+  im.src = b.img;
+  im.style.cssText = `height:${b.h}px;right:${b.r}px;bottom:${b.b}px`;
   $('#sottotitolo').style.maxWidth = b.sw ? b.sw + 'px' : '';
 }
 
@@ -857,9 +859,10 @@ function renderSera() {
   const a = animazioneOggi();
   if (!a || !a.serata || adessoMin() > 23 * 60 + 30) { el.innerHTML = ''; return; }
   const st = [[22, 128, 10, 0], [52, 150, 6, .7], [120, 30, 8, 1.2], [196, 118, 7, .4]].map(([x, y, w, d]) => `<i class="st" style="left:${x}px;top:${y}px;width:${w}px;height:${w}px;animation-delay:${d}s"></i>`).join('');
-  el.innerHTML = `<div class="sera" onclick="apriServizio('animazione')">${st}<div class="k"><i></i>${esc(t('Stasera · ore {o}', { o: String(a.serata.ora).replace('.', ':') }))}</div>
+  const gf = a.serata.grafica || '';
+  el.innerHTML = `<div class="sera${gf ? ' foto' : ''}"${gf ? ` style="background-image:url('${esc(gf)}')"` : ''} onclick="apriServizio('animazione')">${st}<div class="k"><i></i>${esc(t('Stasera · ore {o}', { o: String(a.serata.ora).replace('.', ':') }))}</div>
     <h3>${esc(a.serata.nome)}</h3>${a.A.luogo_serate ? `<div class="w">${IC.PIN}${esc(a.A.luogo_serate)}</div>` : ''}
-    <span class="btn">${esc(t('Vedi il programma'))} ${GO}</span><img${a.serata.grafica ? ' class="gfx"' : ''} src="${a.serata.grafica ? esc(a.serata.grafica) : 'img/gardy.png'}" alt=""></div>`;
+    <span class="btn">${esc(t('Vedi il programma'))} ${GO}</span>${gf ? '' : '<img src="img/gardy.png" alt="">'}</div>`;
 }
 
 function righeOggi() {
@@ -1240,7 +1243,7 @@ function renderAnimazione(s) {
       : `<div class="ico">${g[3]}</div><div><div class="lab">${isOggi ? 'Per oggi è tutto' : 'Programma del giorno'}</div><div class="tit">${g[2]} ${dd.getDate()}/${dd.getMonth() + 1}</div><div class="sub">${tutte.length} attività in programma</div></div>`}</div>
     <div class="an-days">${date.map(iso => { const d = new Date(iso + 'T12:00:00'), w = AN_GIORNI.find(x => x[0] === AN_JS[d.getDay()]); return `<button class="an-day ${iso === _anGiorno ? 'on' : ''}" onclick="_anGiorno='${iso}';renderAnimazione()"><b>${w[1]}</b><i>${w[3]}</i><small>${iso === oggiIso ? 'OGGI' : d.getDate() + '/' + (d.getMonth() + 1)}</small></button>`; }).join('')}</div>
     <div class="an-chips">${[['tutti', 'Tutto'], ['d', 'Diurno'], ['m', 'Mini club'], ['t', 'Teen'], ['s', 'Serale']].map(([k, l]) => `<button class="an-chip ${_anFiltro === k ? 'on' : ''}" onclick="_anFiltro='${k}';renderAnimazione()">${l}</button>`).join('')}</div>
-    ${serata ? `<div class="an-star"><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div><div class="big">${esc(serata.emoji || '⭐')}</div></div>` : ''}
+    ${serata ? `<div class="an-star${serata.grafica ? ' foto' : ''}"${serata.grafica ? ` style="background-image:url('${esc(serata.grafica)}')"` : ''}><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div>${serata.grafica ? '' : `<div class="big">${esc(serata.emoji || '⭐')}</div>`}</div>` : ''}
     ${fasi.map(([f, nome, ic, eta]) => `<section class="an-fase ${f === 'm' ? 'an-mini' : ''}"><h3><span class="b">${ic}</span>${nome}${eta ? `<em>${eta}</em>` : ''}</h3><div class="an-tl">${voci(f).map(riga).join('')}</div></section>`).join('')
       || '<p class="hint" style="margin-top:24px;text-align:center">Nessuna attività per questa selezione.</p>'}
     ${mappa}
