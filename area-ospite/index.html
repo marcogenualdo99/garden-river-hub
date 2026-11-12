@@ -509,7 +509,7 @@ function apriServizio(id) {
   window.scrollTo(0, 0);
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
-  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } return boxPresto(s); }
+  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
   if (id === 'info') return renderInfo();
   if (id === 'assistenza') return renderAssistenza(s);
 }
