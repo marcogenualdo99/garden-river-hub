@@ -465,7 +465,7 @@ function mostraIntestazioneHome() {
 // ── Home (card dei servizi) ─────────────────────────────────────────────────
 function haContenuto(id) {
   const t = CONTENUTI.testi;
-  if (id === 'animazione') return !!(anHaProgramma() || t.animazione_testo || CONTENUTI.foto.animazione_programma);
+  if (id === 'animazione') return anHaProgramma();
   if (id === 'info') return true;
   if (id === 'assistenza') return !!(t.assistenza_testo || t.assistenza_telefono);
   return true;
@@ -509,7 +509,7 @@ function apriServizio(id) {
   window.scrollTo(0, 0);
   if (id === 'navetta') return renderNavetta();
   if (id === 'ristorazione') return renderRistorazione();
-  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } return renderTesto(CONTENUTI.testi.animazione_titolo || 'Programma animazione', CONTENUTI.testi.animazione_testo, CONTENUTI.foto.animazione_programma, s); }
+  if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; return renderAnimazione(s); } return boxPresto(s); }
   if (id === 'info') return renderInfo();
   if (id === 'assistenza') return renderAssistenza(s);
 }
@@ -642,12 +642,6 @@ function renderAnimazione(s) {
 // ── Pagine di contenuto (Animazione, Info, Assistenza) ─────────────────────
 function boxPresto(s) {
   return `<div class="card"><div class="soon-box"><div class="ico">${ICONS[s.icon] || ''}</div><h3>${esc(s.title || '')}</h3><p>Disponibile a breve.</p></div></div>`;
-}
-function renderTesto(titolo, testo, immagine, s) {
-  if (!testo && !immagine) { $('#service-content').innerHTML = boxPresto(s); return; }
-  $('#service-content').innerHTML = `<div class="card"><h2>${esc(titolo)}</h2>
-    ${testo ? `<div class="testo" style="margin-top:8px">${esc(testo)}</div>` : ''}
-    ${immagine ? `<img class="testo-img" src="${esc(immagine)}" alt="${esc(titolo)}">` : ''}</div>`;
 }
 // ── Info utili: sotto-argomenti (contenuti fissi, portati dal sito) ────────
 const INFO_TOPICS = [

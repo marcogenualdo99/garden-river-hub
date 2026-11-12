@@ -67,7 +67,6 @@
   .aut-item .nome { font-weight: 800; font-size: 14px; margin-bottom: 8px }
   .aut-item .btns { display: flex; gap: 6px; justify-content: center }
   .aut-item .btns .btn { height: 34px; padding: 0 12px; font-size: 12.5px }
-  .prog-prev { width: 100%; max-height: 260px; object-fit: contain; border-radius: var(--radius-sm); background: var(--gray-100); margin-bottom: 10px; display: none }
   .nota { font-size: 12px; color: var(--gray-500); line-height: 1.5; margin-top: 8px }
   .login-gate { text-align: center; padding: 80px 24px; color: var(--gray-700); line-height: 1.6 }
 
@@ -80,6 +79,12 @@
   .an-tabs { display: flex; gap: 6px; background: var(--gray-100); border-radius: 14px; padding: 4px; margin-top: 4px }
   .an-tabs button { flex: 1; height: 40px; border: none; border-radius: 11px; background: transparent; font: 800 14px var(--font); color: var(--gray-500); cursor: pointer }
   .an-tabs button.on { background: var(--green-700); color: #fff }
+  .an-grp { border: 1.5px solid var(--green-200); border-radius: 14px; padding: 0 10px 6px; margin-bottom: 8px }
+  .an-grp summary { cursor: pointer; font: 800 14px var(--font); color: var(--green-700); padding: 11px 2px; list-style: none; display: flex; align-items: center; gap: 8px }
+  .an-grp summary::-webkit-details-marker { display: none }
+  .an-grp summary::before { content: '▸'; font-size: 12px }
+  .an-grp[open] summary::before { content: '▾' }
+  .an-grp summary span { margin-left: auto; background: var(--green-100); border-radius: 999px; padding: 2px 9px; font-size: 12px }
   .an-row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px }
   .an-day { border: 1.5px solid var(--green-200); border-radius: 16px; padding: 12px; margin-top: 12px }
   .an-day h4 { font-size: 15px; font-weight: 800; color: var(--green-700); display: flex; align-items: center; gap: 8px }
@@ -170,21 +175,6 @@
     <button class="btn primary" style="width:100%;height:50px;margin-bottom:14px" id="btn-salva-an" onclick="anSalva()">Salva programma animazione</button>
 
     <div class="card">
-      <h3>Animazione · metodo precedente</h3>
-      <div class="subtitle">Testo o locandina libera: viene usata solo se il programma strutturato qui sopra è vuoto.</div>
-      <div class="field"><label>Titolo</label><input id="t-animazione_titolo" placeholder="Programma della settimana"></div>
-      <div class="field"><label>Programma (testo)</label><textarea id="t-animazione_testo" placeholder="Lunedì&#10;10:00 Risveglio muscolare in piscina&#10;..."></textarea></div>
-      <div class="field"><label>Programma (immagine o locandina, facoltativa)</label>
-        <img class="prog-prev" id="prog-prev" alt="">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn ghost" onclick="scegliFile('animazione_programma', 1400)">Carica immagine</button>
-          <button class="btn danger" id="prog-del" style="display:none" onclick="ripristinaFoto('animazione_programma')">Rimuovi</button>
-        </div>
-        <p class="nota">Per un PDF, fai uno screenshot o esportalo come immagine.</p>
-      </div>
-    </div>
-
-    <div class="card">
       <h3>Info utili</h3>
       <div class="subtitle">Orari di reception, piscina, ristorante, numeri utili, regole del villaggio.</div>
       <div class="field"><textarea id="t-info_testo" placeholder="Reception: 8:00 - 20:00&#10;Piscina: 9:00 - 19:00&#10;..."></textarea></div>
@@ -221,7 +211,7 @@ const SERVIZI_FOTO = [
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
   { id: 'assistenza',   nome: 'Assistenza',     def: 'img/assistenza.jpg' },
 ];
-const TESTI = ['animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
+const TESTI = ['info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
 const MAX_CHARS = 800000;   // doc Firestore max 1 MB; la Cloud Function tronca oltre 900k
 let fotoCorrenti = {};      // id -> data URL (se personalizzata)
 
@@ -257,10 +247,6 @@ function renderFoto() {
         <div class="btns"><button class="btn ghost" onclick="scegliFile('${f.id}', 900)">Cambia</button>
         ${custom ? `<button class="btn danger" onclick="ripristinaFoto('${f.id}')">Ripristina</button>` : ''}</div></div></div>`;
   }).join('');
-  const prog = fotoCorrenti.animazione_programma;
-  $('#prog-prev').style.display = prog ? 'block' : 'none';
-  if (prog) $('#prog-prev').src = prog;
-  $('#prog-del').style.display = prog ? '' : 'none';
   if (typeof anRender === 'function' && document.querySelector('#an-cat')) anRender();
 }
 
@@ -360,7 +346,7 @@ async function ripristinaFoto(id) {
     await deleteDoc(doc(db, 'impostazioni', 'area_ospite_foto_' + id));
     delete fotoCorrenti[id];
     renderFoto();
-    toast(id === 'animazione_programma' ? 'Immagine rimossa' : id === 'mappa_villaggio' ? 'Mappa rimossa' : 'Foto ripristinata');
+    toast(id === 'mappa_villaggio' ? 'Mappa rimossa' : 'Foto ripristinata');
   } catch (e) { console.error(e); toast('Operazione non riuscita'); }
 }
 
@@ -394,7 +380,7 @@ async function carica() {
     const d = snap.exists() ? snap.data() : {};
     TESTI.forEach(k => { $('#t-' + k).value = d[k] || ''; });
   } catch (e) { console.error('Lettura testi:', e); }
-  const chiavi = SERVIZI_FOTO.map(f => f.id).concat('animazione_programma', 'mappa_villaggio');
+  const chiavi = SERVIZI_FOTO.map(f => f.id).concat('mappa_villaggio');
   await Promise.all(chiavi.map(async k => {
     try {
       const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_foto_' + k));
@@ -411,7 +397,8 @@ const AN_GIORNI = [['sab','Sabato'],['dom','Domenica'],['lun','Lunedì'],['mar',
 const AN_FASCE = [['d','Diurno'],['m','Mini club (4-10 anni)'],['t','Teen club (11-17 anni)'],['s','Serale']];
 let AN = { catalogo: [], settimane: { 1: {}, 2: {} }, data_inizio: '', luogo_serate: '', pin: null };
 let anSett = 1;
-const AN_EMOJI = [['buongiorno','☀️'],['risveglio','💪'],['acquagym','🏊'],['ping pong','🏓'],['aperitivo','🍹'],['freccette','🎯'],['yoga','🧘'],['pool','🎲'],['calcio','⚽'],['football','🤽'],['zumba','💃'],['beach','🏐'],['schiuma','🫧'],['step','👟'],['accoglienza','👋'],['baby','🕺'],['welcome','🎤'],['balli','🪩'],['circus','🎪'],['yin','☯️'],['michael','🧤'],['cervellone','🧠'],['showman','🎩'],['white','🤍'],['carta','🪪'],['body paint','🎨'],['acqua','💦'],['giochi','💦'],['cooking','🍳'],['medusa','🪼'],['garden green','🌿'],['gioiello','💎'],['cinofila','🐕'],['brucomela','🍎'],['compleanno','🎂'],['teen','📸'],['uno','🃏'],['caso','🔍'],['selfie','🤳'],['battle','🌈'],['calcetto','⚽']];
+const anAperti = new Set();
+const AN_EMOJI = [['zeling','😂'],['stars','🌟'],['mini show','🎭'],['surprise','🎁'],['slime','🟢'],['art attack','🖌️'],['pasta di sale','🧂'],['fattoria','🐄'],['buongiorno','☀️'],['risveglio','💪'],['acquagym','🏊'],['ping pong','🏓'],['aperitivo','🍹'],['freccette','🎯'],['yoga','🧘'],['pool','🎲'],['calcio','⚽'],['football','🤽'],['zumba','💃'],['beach','🏐'],['schiuma','🫧'],['step','👟'],['accoglienza','👋'],['baby','🕺'],['welcome','🎤'],['balli','🪩'],['circus','🎪'],['yin','☯️'],['michael','🧤'],['cervellone','🧠'],['showman','🎩'],['white','🤍'],['carta','🪪'],['body paint','🎨'],['acqua','💦'],['giochi','💦'],['cooking','🍳'],['medusa','🪼'],['garden green','🌿'],['gioiello','💎'],['cinofila','🐕'],['brucomela','🍎'],['compleanno','🎂'],['teen','📸'],['uno','🃏'],['caso','🔍'],['selfie','🤳'],['battle','🌈'],['calcetto','⚽']];
 function anEmoji(n) { n = n.toLowerCase(); for (const [k, v] of AN_EMOJI) if (n.includes(k)) return v; return '⭐'; }
 function anSlug(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || ('a' + Date.now()); }
 function anProg(g, f) { const w = (AN.settimane[anSett] = AN.settimane[anSett] || {}); w[g] = w[g] || {}; return (w[g][f] = w[g][f] || []); }
@@ -431,13 +418,16 @@ function anCopiaSettimana() {
 }
 
 function anRender() {
-  $('#an-cat').innerHTML = AN.catalogo.map((a, i) => `<div class="an-cat-row">
+  const riga = (a, i) => `<div class="an-cat-row">
     <input class="em" value="${esc(a.emoji)}" maxlength="4" onchange="AN.catalogo[${i}].emoji=this.value.trim()">
     <input value="${esc(a.nome)}" placeholder="Nome attività" onchange="AN.catalogo[${i}].nome=this.value.trim();anRenderProg()">
-    <select onchange="AN.catalogo[${i}].fascia=this.value;anRenderProg()">${AN_FASCE.map(([k, n]) => `<option value="${k}"${a.fascia === k ? ' selected' : ''}>${esc(n.split(' (')[0])}</option>`).join('')}</select>
+    <select onchange="AN.catalogo[${i}].fascia=this.value;anRender()">${AN_FASCE.map(([k, n]) => `<option value="${k}"${a.fascia === k ? ' selected' : ''}>${esc(n.split(' (')[0])}</option>`).join('')}</select>
     <label><input type="checkbox"${a.speciale ? ' checked' : ''} onchange="AN.catalogo[${i}].speciale=this.checked">Speciale</label>
-    <button class="an-x" aria-label="Elimina" onclick="anEliminaAttivita(${i})">✕</button></div>`).join('')
-    || '<p class="nota">Nessuna attività. Aggiungine una o carica il programma 2026.</p>';
+    <button class="an-x" aria-label="Elimina" onclick="anEliminaAttivita(${i})">✕</button></div>`;
+  $('#an-cat').innerHTML = AN.catalogo.length ? AN_FASCE.map(([f, nome]) => {
+    const voci = AN.catalogo.map((a, i) => [a, i]).filter(([a]) => a.fascia === f).sort((x, y) => x[0].nome.localeCompare(y[0].nome));
+    return `<details class="an-grp"${anAperti.has(f) ? ' open' : ''} ontoggle="this.open?anAperti.add('${f}'):anAperti.delete('${f}')"><summary>${esc(nome.split(' (')[0])}<span>${voci.length}</span></summary>${voci.map(([a, i]) => riga(a, i)).join('') || '<p class="nota">Nessuna attività in questa categoria.</p>'}</details>`;
+  }).join('') : '<p class="nota">Nessuna attività. Aggiungine una oppure usa "Carica programma 2026".</p>';
   anRenderProg();
   $('#an-luogo').value = AN.luogo_serate || '';
   $('#an-data').value = AN.data_inizio || '';
@@ -469,7 +459,7 @@ function anRenderProg() {
         <button class="an-x" aria-label="Rimuovi" onclick="anProg('${g}','${f}').splice(${i},1);anRenderProg()">✕</button></div>`).join('')}
       <button class="an-add" onclick="anProg('${g}','${f}').push({a:'',ora:''});anRenderProg()">+ Aggiungi</button></div>`).join('')}</div>`).join('');
 }
-function anAggiungiAttivita() { AN.catalogo.push({ id: 'a' + Date.now(), nome: '', emoji: '⭐', fascia: 'd', speciale: false }); anRender(); }
+function anAggiungiAttivita() { AN.catalogo.push({ id: 'a' + Date.now(), nome: '', emoji: '⭐', fascia: 'd', speciale: false }); anAperti.add('d'); anRender(); }
 function anEliminaAttivita(i) {
   const a = AN.catalogo[i];
   if (!confirm(`Eliminare "${a.nome || 'attività'}"? Sparirà anche dal programma.`)) return;
@@ -501,33 +491,48 @@ async function anSalva() {
   btn.disabled = false;
 }
 function anCaricaDati2026() {
-  if (!confirm('Sostituire attività e programma con quelli delle locandine 2026? Ricordati poi di salvare.')) return;
-  const D = {
-   sab:{d:[['Buongiorno Garden','10.00'],['Accoglienza','10.00']],m:[],t:[],s:[['Baby dance','21.30'],['Welcome show','22.00','x'],['Balli','23.00']]},
-   dom:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Ping pong','11.00'],['Gioco aperitivo','12.00'],['Freccette','17.00'],['Yoga','17.15'],['Pool game','18.00']],m:[['Carta d’identità','10.00–12.00'],['Body paint','16.00–18.00']],t:[['Teen spotted','10.30'],['Calcio balilla','16.30']],s:[['Baby dance','21.30'],['Garden Circus','22.00','x'],['Balli','23.00']]},
-   lun:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Calcio balilla','11.00'],['Gioco aperitivo','12.00'],['Football water','17.00'],['Zumba','17.15'],['Pool game','18.00']],m:[['Acqua splash','10.00–12.00'],['LAB. Cooking class','16.00–18.00']],t:[['Carte UNO','10.30'],['Beach volley','16.30']],s:[['Baby dance','21.30'],['Yin e yang game','22.00','x'],['Balli','23.00']]},
-   mar:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Freccette','11.00'],['Gioco aperitivo','12.00'],['Beach volley','17.00'],['Acquagym con noodle','17.30'],['Pool game','18.00']],m:[['Medusa','10.00–12.00'],['LAB. Garden green','16.00–18.00']],t:[['Caso: il mistero del villaggio','10.30'],['Football water','16.30']],s:[['Baby dance Huntrix','21.30'],['Michael Jackson','22.00','x']]},
-   mer:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Calcio balilla','11.00'],['Gioco aperitivo','12.00'],['Schiuma party','17.00','x']],m:[['Giochi d’acqua','10.00–12.00']],t:[['Freccette','10.30'],['Schiuma party','16.30','x']],s:[['Baby dance','21.30'],['Cervellone','22.00','x'],['Balli','23.00']]},
-   gio:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Freccette','11.00'],['Gioco aperitivo','12.00'],['Ping pong','17.00'],['Step','17.15'],['Pool game','18.00']],m:[['Crea il tuo gioiello','10.00–12.00'],['Dimostrazione cinofila','16.00–18.00']],t:[['Acqua splash','10.30'],['Calcetto','16.30']],s:[['Baby dance','21.30'],['The Greatest Showman','22.00','x']]},
-   ven:{d:[['Buongiorno Garden','10.00'],['Risveglio muscolare','10.15'],['Acquagym','11.00'],['Ping pong','11.00'],['Gioco aperitivo','12.00'],['Beach volley','17.00'],['Yoga','17.15'],['Pool game','18.00']],m:[['Brucomela','10.00–12.00'],['Compleanno di Gardy','16.00–18.00','x']],t:[['Caccia al selfie','10.30'],['Battle color','16.30']],s:[['Baby dance','21.30'],['White party','22.00','x']]}
+  if (!confirm('Sostituire attività e programma con quelli delle locandine 2026 (due settimane, partenza sabato 13 giugno)? Ricordati poi di salvare.')) return;
+  const BG = ['Buongiorno Garden','10.00'], RM = ['Risveglio muscolare','10.15'], AQ = ['Acquagym','11.00'], GA = ['Gioco aperitivo','12.00'], PG = ['Pool game','18.00'], BD = ['Baby dance','21.30'], BA = ['Balli','23.00'];
+  const W1 = {
+   sab:{d:[BG,['Accoglienza','10.00']],m:[],t:[],s:[BD,['Welcome show','22.00','x'],BA]},
+   dom:{d:[BG,RM,AQ,['Ping pong','11.00'],GA,['Freccette','17.00'],['Yoga','17.15'],PG],m:[['Carta d’identità','10.00–12.00'],['Body paint','16.00–18.00']],t:[['Teen spotted','10.30'],['Calcio balilla','16.30']],s:[BD,['Garden Circus','22.00','x'],BA]},
+   lun:{d:[BG,RM,AQ,['Calcio balilla','11.00'],GA,['Football water','17.00'],['Zumba','17.15'],PG],m:[['Acqua splash','10.00–12.00'],['LAB. Cooking class','16.00–18.00']],t:[['Carte UNO','10.30'],['Beach volley','16.30']],s:[BD,['Yin e yang game','22.00','x'],BA]},
+   mar:{d:[BG,RM,AQ,['Freccette','11.00'],GA,['Beach volley','17.00'],['Acquagym con noodle','17.30'],PG],m:[['Medusa','10.00–12.00'],['LAB. Garden green','16.00–18.00']],t:[['Caso: il mistero del villaggio','10.30'],['Football water','16.30']],s:[['Baby dance Huntrix','21.30'],['Michael Jackson','22.00','x']]},
+   mer:{d:[BG,RM,AQ,['Calcio balilla','11.00'],GA,['Schiuma party','17.00','x']],m:[['Giochi d’acqua','10.00–12.00']],t:[['Freccette','10.30'],['Schiuma party','16.30','x']],s:[BD,['Cervellone','22.00','x'],BA]},
+   gio:{d:[BG,RM,AQ,['Freccette','11.00'],GA,['Ping pong','17.00'],['Step','17.15'],PG],m:[['Crea il tuo gioiello','10.00–12.00'],['Dimostrazione cinofila','16.00–18.00']],t:[['Acqua splash','10.30'],['Calcetto','16.30']],s:[BD,['The Greatest Showman','22.00','x']]},
+   ven:{d:[BG,RM,AQ,['Ping pong','11.00'],GA,['Beach volley','17.00'],['Yoga','17.15'],PG],m:[['Brucomela','10.00–12.00'],['Compleanno di Gardy','16.00–18.00','x']],t:[['Caccia al selfie','10.30'],['Battle color','16.30']],s:[BD,['White party','22.00','x']]}
   };
-  const cat = {}, prog = {};
-  Object.entries(D).forEach(([g, fasi]) => {
-    prog[g] = {};
-    Object.entries(fasi).forEach(([f, voci]) => {
-      prog[g][f] = voci.map(([nome, ora, sp]) => {
-        const chiave = f + '|' + nome.toLowerCase();
-        if (!cat[chiave]) cat[chiave] = { id: f + '-' + anSlug(nome), nome, emoji: anEmoji(nome), fascia: f, speciale: !!sp };
-        else if (sp) cat[chiave].speciale = true;
-        return { a: cat[chiave].id, ora };
+  const W2 = {
+   sab:{d:[BG,['Accoglienza','10.00']],m:[],t:[],s:[BD,['Welcome show','22.00','x'],BA]},
+   dom:{d:[BG,RM,AQ,['Ping pong','11.00'],GA,['Freccette','17.00'],['Yoga','17.15'],PG],m:[['Carta d’identità','10.00–12.00'],['Body paint','16.00–18.00']],t:[['Teen spotted','10.30'],['Calcio balilla','16.30']],s:[BD,['Yin e yang game','22.00','x'],BA]},
+   lun:{d:[BG,RM,AQ,['Calcio balilla','11.00'],GA,['Football water','17.00'],['Zumba','17.15'],PG],m:[['Acqua splash','10.00–12.00'],['LAB. nella vecchia fattoria','16.00–18.00']],t:[['Carte UNO','10.30'],['Beach volley','16.30']],s:[BD,['Zeling','22.00','x'],BA]},
+   mar:{d:[BG,RM,AQ,['Ping pong','11.00'],GA,['Beach volley','17.00'],['Yoga','17.15'],PG],m:[['Medusa','10.00–12.00'],['LAB. Garden circus','16.00–18.00']],t:[['Caso: il mistero del villaggio','10.30'],['Football water','17.00']],s:[BD,['Stars on stage','22.00','x']]},
+   mer:{d:[BG,RM,AQ,['Calcio balilla','11.00'],GA,['Schiuma party','17.00','x']],m:[['Giochi d’acqua','10.00–12.00']],t:[['Freccette','10.30'],['Schiuma party','16.30','x']],s:[BD,['Mini show','22.00','x'],BA]},
+   gio:{d:[BG,RM,AQ,['Freccette','11.00'],GA,['Beach volley','17.00'],['Step','17.15'],PG],m:[['SLIME','10.00–12.00'],['Art attack','16.00–17.00'],['Dimostrazione cinofila','17.00–18.00']],t:[['Acqua splash','10.30'],['Calcetto','16.30']],s:[BD,['Live surprise show','22.00','x']]},
+   ven:{d:[BG,RM,AQ,['Ping pong','11.00'],GA,['Calcio balilla','17.00'],['Yoga','17.15'],PG],m:[['Pasta di sale','10.00–12.00'],['Compleanno di Gardy','16.00–18.00','x']],t:[['Caccia al selfie','10.30'],['Battle color','16.30']],s:[BD,['White party','22.00','x']]}
+  };
+  const cat = {};
+  const costruisci = D => {
+    const prog = {};
+    Object.entries(D).forEach(([g, fasi]) => {
+      prog[g] = {};
+      Object.entries(fasi).forEach(([f, voci]) => {
+        prog[g][f] = voci.map(([nome, ora, sp]) => {
+          const chiave = f + '|' + nome.toLowerCase();
+          if (!cat[chiave]) cat[chiave] = { id: f + '-' + anSlug(nome), nome, emoji: anEmoji(nome), fascia: f, speciale: !!sp };
+          else if (sp) cat[chiave].speciale = true;
+          return { a: cat[chiave].id, ora };
+        });
       });
     });
-  });
+    return prog;
+  };
+  AN.settimane = { 1: costruisci(W1), 2: costruisci(W2) };
   AN.catalogo = Object.values(cat);
-  AN.settimane = { 1: prog, 2: JSON.parse(JSON.stringify(prog)) };
+  AN.data_inizio = '2026-06-13';
   if (!AN.luogo_serate) AN.luogo_serate = 'Teatro';
   anRender();
-  toast('Dati 2026 caricati: controlla e salva');
+  toast('Programma 2026 caricato: controlla e salva');
 }
 async function anCarica() {
   try {
