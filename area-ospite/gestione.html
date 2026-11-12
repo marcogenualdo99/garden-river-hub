@@ -114,6 +114,10 @@
   .tabs-g button.on { background: var(--green-700); color: #fff }
   .tabpane { display: none } .tabpane.on { display: block }
   .tab-intro { font-size: 13.5px; color: var(--gray-500); line-height: 1.5; margin: 12px 2px 0 }
+
+  .auto-t { width: 100%; border-collapse: collapse; margin-top: 10px } .auto-t th { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gray-500); text-align: center; padding: 6px 4px } .auto-t th:first-child { text-align: left }
+  .auto-t td { padding: 10px 4px; border-top: 1px solid var(--gray-100); font-size: 13.5px; font-weight: 600 } .auto-t td + td { text-align: center; width: 86px }
+  .auto-t input { width: 22px; height: 22px; accent-color: var(--green-700) } .auto-na { color: var(--gray-300); font-weight: 800 }
 </style>
 </head>
 <body>
@@ -150,6 +154,13 @@
 
     <div class="tabpane on" id="tab-home">
       <p class="tab-intro">Quello che gli ospiti vedono in cima e in fondo alla home.</p>
+    <div class="card">
+      <h3>Quali avvisi mostrare</h3>
+      <div class="subtitle">Scegli cosa vedono gli ospiti che devono ancora arrivare e quelli già in struttura. Una casella con il trattino non ha senso in quella fase. Dopo la partenza il link mostra sempre il ringraziamento con le recensioni.</div>
+      <div id="auto-list"></div>
+      <div class="an-row-btns"><button class="btn primary" id="btn-salva-auto" onclick="autoSalva()">Salva impostazioni</button></div>
+    </div>
+
     <div class="card">
       <h3>Avvisi in home</h3>
       <div class="subtitle">Messaggi che compaiono in cima alla home di tutti gli ospiti. "Importante" è rosso, "Informazione" è verde. Se imposti le date, compaiono solo in quel periodo. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
@@ -607,6 +618,40 @@ function vaiTab(n) {
 (function () { const h = (location.hash || '').slice(1); if (['home', 'anim', 'serv'].includes(h)) setTimeout(() => vaiTab(h), 0); })();
 
 // ── Avvisi in home ──────────────────────────────────
+
+// ── Quali avvisi mostrare: prima dell'arrivo / in struttura ──────────────
+const AUTO_DEF = {
+  benvenuto: { l: 'Benvenuto «Ti aspettiamo tra N giorni»', pre: true, dentro: null },
+  ordini:    { l: 'Ordine dei pasti incompleto', pre: null, dentro: true },
+  checkout:  { l: 'Procedura di check-out (dal giorno prima della partenza)', pre: null, dentro: true },
+  navetta:   { l: 'Corsa navetta confermata o in attesa', pre: null, dentro: true },
+  pioggia:   { l: 'Possibile pioggia', pre: null, dentro: true },
+  stasera:   { l: 'Banner «Stasera» (serata speciale dell\'animazione)', pre: false, dentro: true },
+  oggi:      { l: 'Riquadro «Oggi per te» (attività, pasti, navetta, spiaggia)', pre: null, dentro: true },
+  adesso:    { l: 'Riquadro «Adesso al villaggio» (meteo e orari)', pre: false, dentro: true },
+};
+let AUTO = {};
+function autoRender() {
+  const cella = (k, ph) => {
+    const d = AUTO_DEF[k][ph];
+    if (d === null) return '<span class="auto-na">—</span>';
+    const v = (AUTO[k] && AUTO[k][ph] !== undefined) ? AUTO[k][ph] : d;
+    return `<input type="checkbox"${v ? ' checked' : ''} onchange="(AUTO['${k}'] = AUTO['${k}'] || {}).${ph} = this.checked">`;
+  };
+  $('#auto-list').innerHTML = `<table class="auto-t"><thead><tr><th></th><th>Prima dell'arrivo</th><th>In struttura</th></tr></thead><tbody>${
+    Object.keys(AUTO_DEF).map(k => `<tr><td>${esc(AUTO_DEF[k].l)}</td><td>${cella(k, 'pre')}</td><td>${cella(k, 'dentro')}</td></tr>`).join('')}</tbody></table>`;
+}
+async function autoSalva() {
+  const b = $('#btn-salva-auto'); b.disabled = true;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const auto = {};
+    Object.keys(AUTO_DEF).forEach(k => { auto[k] = {}; ['pre', 'dentro'].forEach(ph => { if (AUTO_DEF[k][ph] !== null) auto[k][ph] = (AUTO[k] && AUTO[k][ph] !== undefined) ? !!AUTO[k][ph] : AUTO_DEF[k][ph]; }); });
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { auto, aggiornato_il: new Date().toISOString() }, { merge: true });
+    AUTO = auto; toast('Impostazioni salvate');
+  } catch (e) { console.error(e); toast('Errore salvataggio'); }
+  b.disabled = false;
+}
 let AVVISI = [];
 function avRender() {
   $('#av-list').innerHTML = AVVISI.map((a, i) => `<div class="av-row">
@@ -614,6 +659,7 @@ function avRender() {
       <input value="${esc(a.titolo)}" placeholder="Titolo (es. Piscina chiusa fino alle 11)" oninput="AVVISI[${i}].titolo=this.value">
       <button class="an-x" aria-label="Elimina" onclick="AVVISI.splice(${i},1);avRender()">✕</button></div>
     <textarea placeholder="Testo (facoltativo)" oninput="AVVISI[${i}].testo=this.value">${esc(a.testo)}</textarea>
+    <div class="r2"><label>Chi lo vede<select onchange="AVVISI[${i}].pubblico=this.value"><option value="tutti"${(a.pubblico || 'tutti') === 'tutti' ? ' selected' : ''}>Tutti</option><option value="prima"${a.pubblico === 'prima' ? ' selected' : ''}>Solo chi deve arrivare</option><option value="dentro"${a.pubblico === 'dentro' ? ' selected' : ''}>Solo chi è in struttura</option></select></label></div>
     <div class="r2"><label>Dal<input type="date" value="${esc(a.dal)}" onchange="AVVISI[${i}].dal=this.value"></label><label>Al<input type="date" value="${esc(a.al)}" onchange="AVVISI[${i}].al=this.value"></label>
       <label class="chk"><input type="checkbox"${a.chiudibile !== false ? ' checked' : ''} onchange="AVVISI[${i}].chiudibile=this.checked">Chiudibile</label></div>
     <details><summary>Traduzioni (inglese e tedesco)</summary>
@@ -621,13 +667,13 @@ function avRender() {
       <input style="margin-top:6px" value="${esc(a.titolo_de)}" placeholder="Titel (DE)" oninput="AVVISI[${i}].titolo_de=this.value"><textarea placeholder="Text (DE)" oninput="AVVISI[${i}].testo_de=this.value">${esc(a.testo_de)}</textarea></details></div>`).join('')
     || '<p class="nota">Nessun avviso. Aggiungine uno.</p>';
 }
-function avAggiungi() { AVVISI.push({ id: 'v' + Date.now(), tipo: 'info', titolo: '', testo: '', dal: '', al: '', chiudibile: true, titolo_en: '', testo_en: '', titolo_de: '', testo_de: '' }); avRender(); }
+function avAggiungi() { AVVISI.push({ id: 'v' + Date.now(), tipo: 'info', pubblico: 'tutti', titolo: '', testo: '', dal: '', al: '', chiudibile: true, titolo_en: '', testo_en: '', titolo_de: '', testo_de: '' }); avRender(); }
 async function avSalva() {
   const b = $('#btn-salva-av'); b.disabled = true;
   try {
     const { db, doc, setDoc } = window._fb;
     const avvisi = AVVISI.filter(a => (a.titolo || '').trim());
-    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { avvisi, aggiornato_il: new Date().toISOString() });
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { avvisi, aggiornato_il: new Date().toISOString() }, { merge: true });
     AVVISI = avvisi; avRender(); toast('Avvisi salvati');
   } catch (e) { console.error(e); toast('Errore salvataggio'); }
   b.disabled = false;
@@ -637,6 +683,8 @@ async function avCarica() {
     const { db, doc, getDoc } = window._fb;
     const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'));
     AVVISI = (s.exists() ? s.data().avvisi : null) || [];
+    AUTO = (s.exists() ? s.data().auto : null) || {};
+    autoRender();
     avRender();
   } catch (e) { console.error('Avvisi:', e); avRender(); }
 }

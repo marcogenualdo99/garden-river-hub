@@ -214,6 +214,34 @@ def _animazione(db):
     return out
 
 
+# Quali avvisi/riquadri mostrare a chi deve ancora arrivare ('pre') e a chi e' in struttura
+# ('dentro'). None = non ha senso in quella fase. Si cambia da Gestione area ospite.
+AVVISI_AUTO_DEF = {
+    'benvenuto': {'pre': True,  'dentro': None},    # "Ti aspettiamo tra N giorni"
+    'ordini':    {'pre': None,  'dentro': True},    # ordine pasti incompleto
+    'checkout':  {'pre': None,  'dentro': True},    # procedura di check-out
+    'navetta':   {'pre': None,  'dentro': True},    # corsa navetta
+    'pioggia':   {'pre': None,  'dentro': True},    # possibile pioggia
+    'stasera':   {'pre': False, 'dentro': True},    # banner serata speciale
+    'oggi':      {'pre': None,  'dentro': True},    # riquadro "Oggi per te"
+    'adesso':    {'pre': False, 'dentro': True},    # meteo e orari "adesso"
+}
+
+
+def _avvisi_cfg(db):
+    memorizzato = {}
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+        memorizzato = ((snap.to_dict() or {}).get('auto') or {}) if snap.exists else {}
+    except Exception as e:
+        print(f'Lettura impostazioni avvisi non riuscita: {e}')
+    out = {}
+    for k, fasi in AVVISI_AUTO_DEF.items():
+        m = memorizzato.get(k) if isinstance(memorizzato.get(k), dict) else {}
+        out[k] = {ph: (None if d is None else bool(m.get(ph, d))) for ph, d in fasi.items()}
+    return out
+
+
 def _avvisi(db):
     """Avvisi inseriti dallo staff (impostazioni/area_ospite_avvisi) validi oggi."""
     out = []
@@ -231,7 +259,9 @@ def _avvisi(db):
             if (dal and oggi < dal) or (al and oggi > al):
                 continue
             tipo = _s(r.get('tipo'), 10)
+            pubblico = _s(r.get('pubblico'), 10)
             item = {'id': _s(r.get('id'), 40) or titolo[:20], 'tipo': tipo if tipo in ('importante', 'info') else 'info',
+                    'pubblico': pubblico if pubblico in ('prima', 'dentro') else 'tutti',
                     'titolo': titolo, 'testo': _s(r.get('testo'), 400), 'chiudibile': bool(r.get('chiudibile', True))}
             for lng in ('en', 'de'):
                 item['titolo_' + lng] = _s(r.get('titolo_' + lng), 120)
@@ -257,6 +287,7 @@ def _contenuti(db):
         print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
     out['animazione'] = _animazione(db)
     out['avvisi'] = _avvisi(db)
+    out['avvisi_cfg'] = _avvisi_cfg(db)
     for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio'):
         try:
             snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()

@@ -554,7 +554,7 @@ const SERVIZI = [
 const FOTO_HOME = 'img/home.jpg';
 
 let CFG = null;
-let CONTENUTI = { testi: {}, foto: {}, avvisi: [] };
+let CONTENUTI = { testi: {}, foto: {}, avvisi: [], avvisi_cfg: {} };
 let orarioScelto = null;
 let personeScelte = null;
 let spiaggiaScelta = '';
@@ -591,7 +591,7 @@ async function carica() {
     }
     CFG = d;
     if (!CFG.navetta_corse) CFG.navetta_corse = (CFG.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
-    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [] };
+    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {} };
     render();
     avviaTraduzione();
     avviaAggiornamentoStato();
@@ -638,7 +638,7 @@ function render() {
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
   // Se l'ospite ha i pasti, scarica il menu in anticipo: quando apre Ristorazione è già pronto.
   if (CFG.ristorazione && !preArrivo() && !dopoPartenza() && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
-  if (!preArrivo() && !dopoPartenza()) { caricaMeteo(); caricaRistoHome(); }
+  if (!dopoPartenza()) { if (vis('adesso') || vis('pioggia')) caricaMeteo(); if (!preArrivo() && vis('ordini')) caricaRistoHome(); }
   $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
   mostraIntestazioneHome();
   renderHome();
@@ -754,6 +754,17 @@ const HOME_X = { risto: null, meteo: null };
 // Prima dell'arrivo il link si apre, ma solo con le informazioni di base.
 function preArrivo() { const d = giorniA((CFG.prenotazione || {}).checkin); return d !== null && d > 0; }
 const SOLO_DOPO_ARRIVO = ['navetta', 'ristorazione'];
+// Cosa mostrare a chi deve arrivare ('pre') e a chi e' in struttura ('dentro'); null = non ha senso.
+// Le scelte arrivano dalle impostazioni (Gestione area ospite); questi sono i valori di partenza.
+const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: null, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
+  pioggia: { pre: null, dentro: true }, stasera: { pre: false, dentro: true }, oggi: { pre: null, dentro: true }, adesso: { pre: false, dentro: true } };
+function vis(k) {
+  const ph = preArrivo() ? 'pre' : 'dentro', d = AVV_DEF[k][ph];
+  if (d === null) return false;
+  const c = ((CONTENUTI && CONTENUTI.avvisi_cfg) || {})[k];
+  return c && c[ph] !== undefined && c[ph] !== null ? !!c[ph] : d;
+}
+const pubblicoOk = a => !a.pubblico || a.pubblico === 'tutti' || (a.pubblico === 'prima') === preArrivo();
 // Dopo l'orario di partenza (check-out alle 10:00) la home diventa un ringraziamento con
 // l'invito a lasciare una recensione; il link vive ancora 20 giorni (v. Cloud Function).
 function dopoPartenza() { const d = giorniA((CFG.prenotazione || {}).checkout); return d !== null && (d < 0 || (d === 0 && adessoMin() >= 10 * 60)); }
@@ -778,7 +789,7 @@ function rsStatoPasti() {
 
 function avvisiHome() {
   const out = [], chiusi = _chiusi(), p = CFG.prenotazione || {};
-  const staff = () => ((CONTENUTI && CONTENUTI.avvisi) || []).forEach(a => {
+  const staff = () => ((CONTENUTI && CONTENUTI.avvisi) || []).filter(pubblicoOk).forEach(a => {
     const tl = (LANG !== 'it' && a['titolo_' + LANG]) || a.titolo, tx = (LANG !== 'it' && a['testo_' + LANG]) || a.testo;
     out.push({ id: 'st-' + a.id, cls: a.tipo === 'importante' ? 'stop' : 'info', icon: a.tipo === 'importante' ? IC.WARN : ICONS.INFO, tag: a.tipo === 'importante' ? t('Importante') : t('Informazione'), titolo: tl, testo: tx, chiudibile: a.chiudibile !== false });
   });
@@ -786,11 +797,11 @@ function avvisiHome() {
   const filtra = l => l.filter(a => !(a.id && a.chiudibile !== false && chiusi.includes(a.id))).sort((a, b) => peso(a) - peso(b));
   if (preArrivo()) {
     const n = giorniA(p.checkin);
-    out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
+    if (vis('benvenuto')) out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
     staff();
     return filtra(out);
   }
-  const S = rsStatoPasti();
+  const S = vis('ordini') ? rsStatoPasti() : null;
   if (S) {
     const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
     if (S.mOggi.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: S.min < 8 * 60 + 30 ? t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }) : t('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
@@ -798,16 +809,16 @@ function avvisiHome() {
   }
   // Procedura di check-out: fissa dal giorno prima fino alla partenza (non si chiude).
   const dd = giorniA(p.checkout);
-  if (dd !== null && dd >= 0 && dd <= 1) {
+  if (vis('checkout') && dd !== null && dd >= 0 && dd <= 1) {
     const c = CFG.conto || {}, lista = [t('Check-out entro le ore 10:00.'), t('Prima di lasciare l\'alloggio telefona in reception per concordare il controllo finale.'), t('Lascia la biancheria usata in una federa fuori dalla porta.'), t('Se hai chiavi o telecomando, riconsegnali in reception.')];
     if ((c.da_pagare || 0) > 0.004) lista.push(t('Ci sono € {n} da saldare', { n: c.da_pagare.toFixed(2) }));
     out.push({ pin: true, cls: 'info', icon: ICONS.CLOCK, tag: t('Partenza'), titolo: dd === 1 ? t('Domani è il giorno della partenza') : t('Oggi è il giorno della partenza'), lista, azione: { label: t('Tutti i dettagli'), fn: 'apriPartenza()' } });
   }
   const oggi = oggiData();
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
-  if (corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
+  if (vis('navetta') && corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
   const m = HOME_X.meteo;
-  if (m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
+  if (vis('pioggia') && m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
   staff();
   return filtra(out);
 }
@@ -829,7 +840,7 @@ function animazioneOggi() {
 
 function renderSera() {
   const el = $('#home-sera'); if (!el) return;
-  if (preArrivo()) { el.innerHTML = ''; return; }
+  if (!vis('stasera')) { el.innerHTML = ''; return; }
   const a = animazioneOggi();
   if (!a || !a.serata || adessoMin() > 23 * 60 + 30) { el.innerHTML = ''; return; }
   const st = [[22, 128, 10, 0], [52, 150, 6, .7], [120, 30, 8, 1.2], [196, 118, 7, .4]].map(([x, y, w, d]) => `<i class="st" style="left:${x}px;top:${y}px;width:${w}px;height:${w}px;animation-delay:${d}s"></i>`).join('');
@@ -866,7 +877,7 @@ function righeOggi() {
 }
 function renderOggi() {
   const el = $('#home-oggi'); if (!el) return;
-  if (preArrivo()) { el.innerHTML = ''; return; }
+  if (!vis('oggi')) { el.innerHTML = ''; return; }
   const r = righeOggi();
   el.innerHTML = r.length ? `<div class="sez">${esc(t('Oggi per te'))}</div><div class="oggi">${r.map(x => `<div class="r ${x.c}" onclick="${x.fn}"><span class="e">${x.icon}</span><div class="t"><small>${esc(x.k)}</small><b>${esc(x.b)}</b>${x.s ? `<span>${esc(x.s)}</span>` : ''}</div>${x.pill ? `<span class="pill">${esc(x.pill)}</span>` : `<span class="go">${GO}</span>`}</div>`).join('')}</div>` : '';
 }
@@ -890,7 +901,7 @@ function statoRistorante() {
 const WMO = c => c === 0 ? [IC.SUN, 'Sereno', 'sole'] : c <= 2 ? [IC.CLOUDSUN, 'Poco nuvoloso', 'sole'] : c === 3 ? [IC.CLOUD, 'Coperto', 'nube'] : (c === 45 || c === 48) ? [IC.FOG, 'Nebbia', 'nube'] : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? [IC.RAIN, 'Pioggia', 'acqua'] : c >= 95 ? [IC.STORM, 'Temporale', 'acqua'] : [IC.CLOUD, 'Nuvoloso', 'nube'];
 function renderAdesso() {
   const el = $('#home-adesso'); if (!el) return;
-  if (preArrivo()) { el.innerHTML = ''; return; }
+  if (!vis('adesso')) { el.innerHTML = ''; return; }
   const m = HOME_X.meteo, fasce = (CFG.fasce || []).map(f => [f.dal, f.al]).filter(f => f[0] && f[1]);
   const righe = [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]];
   if (fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
