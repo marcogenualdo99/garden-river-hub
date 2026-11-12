@@ -68,7 +68,7 @@ const _LISTA = [
   _D('Invia valutazione', 'Send rating', 'Bewertung senden'), _D('Grazie!', 'Thank you!', 'Danke!'), _D('Siamo felici che ti sia piaciuto!', "We're glad you enjoyed it!", 'Wir freuen uns, dass es dir gefallen hat!'), _D('Il tuo messaggio è arrivato alla reception.', 'Your message has reached reception.', 'Deine Nachricht ist an der Rezeption angekommen.'),
   _D('Raccontalo su Tripadvisor', 'Tell the world on Tripadvisor', 'Erzähle es auf Tripadvisor'), _D('Non sono riuscito a inviare, riprova', "Couldn't send, please try again", 'Senden fehlgeschlagen, bitte erneut versuchen'),
   // mappa punti
-  _D('Ingresso', 'Entrance', 'Eingang'), _D('Teatro', 'Theatre', 'Theater'), _D('Bar', 'Bar', 'Bar'), _D('Parco giochi', 'Playground', 'Spielplatz'), _D('Campo da calcio', 'Football pitch', 'Fußballplatz'), _D('Beach volley', 'Beach volleyball', 'Beachvolleyball'),
+  _D('Ingresso', 'Entrance', 'Eingang'), _D('Teatro', 'Theatre', 'Theater'), _D('Bar', 'Bar', 'Bar'), _D('Bar teatro', 'Theatre bar', 'Theater-Bar'), _D('Bar piscina', 'Pool bar', 'Pool-Bar'), _D('Parco giochi', 'Playground', 'Spielplatz'), _D('Campo da calcio', 'Football pitch', 'Fußballplatz'), _D('Beach volley', 'Beach volleyball', 'Beachvolleyball'),
   _D('Dog zone', 'Dog zone', 'Hundezone'), _D('Lavaggio cani', 'Dog wash', 'Hundewäsche'), _D('Lavatrici', 'Laundry', 'Waschmaschinen'), _D('Bagni', 'Toilets', 'Toiletten'), _D('Water house', 'Water house', 'Water House'), _D('Isola ecologica', 'Recycling point', 'Wertstoffinsel'),
   _D('Pista ciclabile', 'Cycle path', 'Radweg'), _D('Parcheggio', 'Car park', 'Parkplatz'),
   // animazione

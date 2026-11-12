@@ -490,14 +490,23 @@
   .rev-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 14px }
   .rev-btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 54px; border-radius: 16px; text-decoration: none; font: 800 15px var(--font); color: #fff; -webkit-tap-highlight-color: transparent }
   .rev-btn svg { width: 24px; height: 24px } .rev-btn.g { background: #4285F4 } .rev-btn.t { background: #00AA6C } .rev-btn:active { transform: scale(.98) }
-  .mp-wrap { position: relative; border-radius: 20px; overflow: hidden; background: #CDE0A0; margin-top: 14px; touch-action: none; box-shadow: var(--shadow); height: 68vh; min-height: 420px; display: flex; justify-content: center }
+  .mp-wrap { position: relative; border-radius: 20px; overflow: hidden; background: #CDE0A0; margin-top: 12px; touch-action: pan-y; box-shadow: var(--shadow); height: 60vh; min-height: 380px; display: flex; justify-content: center }
   .mp-in { position: relative; height: 100%; aspect-ratio: 794 / 1700; flex: none; transform-origin: 50% 50%; transition: transform .25s ease } .mp-in img { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-drag: none }
   .mp-poi { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border: none; background: none; padding: 0; cursor: pointer; transform: scale(var(--z, 1)) }
   .mp-poi i { position: absolute; inset: 9px; border-radius: 50%; background: var(--orange); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35) }
+  .mp-poi .mp-tag { display: none }
+  .mp-poi.sel .mp-tag { display: block; position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); background: var(--green-900); color: #fff; font: 800 13px var(--font); padding: 6px 12px; border-radius: 999px; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,.35) }
+  .mp-poi.sel .mp-tag::after { content: ''; position: absolute; left: 50%; top: 100%; margin-left: -6px; border: 6px solid transparent; border-top-color: var(--green-900) }
+  .mp-poi.sel::before { content: ''; position: absolute; inset: -10px; border-radius: 50%; border: 3px solid var(--orange); background: rgba(242,112,42,.25); animation: mpRing 1.3s ease-out infinite }
+  @keyframes mpRing { 0% { transform: scale(.5); opacity: 1 } 100% { transform: scale(1.4); opacity: 0 } }
   .mp-poi.sel i { inset: 4px; background: var(--orange); animation: anPulse 1.4s infinite; border-width: 3px } .mp-poi.sel { z-index: 3 }
-  .mp-ctl { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 8px } .mp-ctl button { width: 42px; height: 42px; border-radius: 12px; border: none; background: #fff; color: var(--green-700); box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; cursor: pointer } .mp-ctl svg { width: 20px; height: 20px }
+  .mp-ctl { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 8px } .mp-ctl button { width: 46px; height: 46px; border-radius: 50%; border: 2px solid #fff; background: var(--green-700); color: #fff; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; cursor: pointer } .mp-ctl svg { width: 22px; height: 22px }
   .mp-lab { position: absolute; left: 10px; bottom: 10px; background: var(--green-900); color: #fff; font: 800 14px var(--font); padding: 9px 16px; border-radius: 999px; opacity: 0; transition: opacity .2s } .mp-lab.on { opacity: 1 }
-  .mp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px } .mp-chips button { border: 1.5px solid var(--green-200); background: #fff; border-radius: 999px; padding: 8px 14px; font: 700 13px var(--font); color: var(--green-700); cursor: pointer }
+  .mp-chips { display: flex; gap: 8px; margin: 14px -16px 0; padding: 2px 16px 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch }
+  .mp-chips::-webkit-scrollbar { display: none }
+  .mp-chips button { flex: none; scroll-snap-align: start; display: inline-flex; align-items: center; gap: 7px; border: none; background: var(--green-700); color: #fff; border-radius: 14px; padding: 11px 15px 11px 12px; font: 800 14px var(--font); cursor: pointer; box-shadow: 0 3px 8px rgba(11,61,46,.25); white-space: nowrap }
+  .mp-chips button svg { width: 18px; height: 18px; flex: none }
+  .mp-chips button.on { background: var(--orange); box-shadow: 0 3px 10px rgba(232,119,34,.45) }
   .lang-btn { height: 36px; min-width: 44px; padding: 0 12px; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff; font: 800 12.5px var(--font); letter-spacing: .06em; cursor: pointer; -webkit-tap-highlight-color: transparent }
   .lang-menu { position: absolute; z-index: 60; background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; min-width: 150px }
   .lang-menu button { text-align: left; border: none; background: none; padding: 10px 12px; border-radius: 10px; font: 700 14px var(--font); color: var(--gray-900); cursor: pointer } .lang-menu button.on { background: var(--green-50); color: var(--green-700) } .lang-menu button:active { background: var(--gray-50) }
@@ -1021,7 +1030,7 @@ function fbCardInner() { return recensioniHtml(); }
 // ── Mappa interattiva del villaggio ───────────────────────────────────────
 const POI = [
   ['reception', 'Reception', 35.7, 87.9, 'INFO'], ['entrata', 'Ingresso', 37.6, 95.7, 'GO'], ['teatro', 'Teatro', 14.4, 85.6, 'ANIMAZIONE'],
-  ['bar', 'Bar', 25.9, 88.8, 'RISTORAZIONE'], ['piscina', 'Piscina', 37.9, 28.8, 'SUN'], ['ristorante', 'Ristorante', 50.0, 29.2, 'RISTORAZIONE'],
+  ['bar_teatro', 'Bar teatro', 26.1, 89.0, 'RISTORAZIONE'], ['bar_piscina', 'Bar piscina', 47.2, 32.8, 'RISTORAZIONE'], ['piscina', 'Piscina', 37.9, 28.8, 'SUN'], ['ristorante', 'Ristorante', 50.0, 29.2, 'RISTORAZIONE'],
   ['giochi', 'Parco giochi', 41.0, 49.8, 'ANIMAZIONE'], ['calcio', 'Campo da calcio', 77.1, 19.4, 'ANIMAZIONE'], ['beach', 'Beach volley', 77.1, 11.7, 'ANIMAZIONE'],
   ['dog', 'Dog zone', 92.4, 12.1, 'PIN'], ['pettinato', 'Lavaggio cani', 40.3, 58.3, 'PIN'], ['lavatrici', 'Lavatrici', 40.3, 61.5, 'BROOM'],
   ['bagni', 'Bagni', 40.3, 55.7, 'PIN'], ['water', 'Water house', 59.4, 42.3, 'PIN'], ['eco', 'Isola ecologica', 78.7, 58.8, 'BROOM'],
@@ -1031,11 +1040,13 @@ let _mp = { s: 1, x: 0, y: 0, sel: null };
 function apriMappa() { apriVista('mappa', t('Mappa del villaggio'), t('Tocca un punto per vederlo'), 'info', renderMappa); }
 function renderMappa() {
   _mp = { s: 1, x: 0, y: 0, sel: null };
-  $('#service-content').innerHTML = `<div class="mp-wrap" id="mp-wrap"><div class="mp-in" id="mp-in"><img src="img/mappa-villaggio.jpg" alt="${esc(t('Mappa del villaggio'))}" draggable="false">
-      ${POI.map(([id, n, x, y]) => `<button type="button" class="mp-poi" id="poi-${id}" style="left:${x}%;top:${y}%" onclick="selPoi('${id}')" aria-label="${esc(t(n))}"><i></i></button>`).join('')}</div>
+  const iconaPoi = k => (typeof ICONS !== 'undefined' && ICONS[k]) || IC[k] || IC.PIN || '';
+  const voci = [...new Map(POI.map(p => [p[1], p])).values()];
+  $('#service-content').innerHTML = `<div class="mp-chips" id="mp-chips">${voci.map(([id, n, , , ic]) => `<button type="button" data-n="${esc(n)}" onclick="selPoi('${id}')">${iconaPoi(ic)}<span>${esc(t(n))}</span></button>`).join('')}</div>
+    <div class="mp-wrap" id="mp-wrap"><div class="mp-in" id="mp-in"><img src="img/mappa-villaggio.jpg" alt="${esc(t('Mappa del villaggio'))}" draggable="false">
+      ${POI.map(([id, n, x, y]) => `<button type="button" class="mp-poi" id="poi-${id}" style="left:${x}%;top:${y}%" onclick="selPoi('${id}')" aria-label="${esc(t(n))}"><i></i><b class="mp-tag">${esc(t(n))}</b></button>`).join('')}</div>
     <div class="mp-ctl"><button type="button" onclick="zoomMappa(1.4)" aria-label="+">${IC.PLUS}</button><button type="button" onclick="zoomMappa(1/1.4)" aria-label="-">${IC.MINUS}</button></div>
-    <div class="mp-lab" id="mp-lab"></div></div>
-    <div class="mp-chips">${[...new Map(POI.map(p => [p[1], p])).values()].map(([id, n]) => `<button type="button" onclick="selPoi('${id}')">${esc(t(n))}</button>`).join('')}</div>`;
+    <div class="mp-lab" id="mp-lab"></div></div>`;
   const w = $('#mp-wrap'); let d0 = 0, pt = null;
   w.addEventListener('touchstart', e => { if (e.touches.length === 2) d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); else pt = [e.touches[0].clientX, e.touches[0].clientY]; }, { passive: true });
   w.addEventListener('touchmove', e => {
@@ -1048,6 +1059,7 @@ function renderMappa() {
 }
 function applMappa() {
   const w = $('#mp-wrap'), i = $('#mp-in'); if (!w || !i) return;
+  w.style.touchAction = _mp.s > 1 ? 'none' : 'pan-y';   // non zoomata: la pagina scorre normalmente
   const mx = (i.offsetWidth * (_mp.s - 1)) / 2 + w.clientWidth * .1, my = (i.offsetHeight * (_mp.s - 1)) / 2;
   _mp.x = Math.max(-mx, Math.min(mx, _mp.x)); _mp.y = Math.max(-my, Math.min(my, _mp.y));
   i.style.transform = `translate(${_mp.x}px,${_mp.y}px) scale(${_mp.s})`;
@@ -1057,6 +1069,7 @@ function zoomMappa(f) { _mp.s = Math.max(1, Math.min(4, _mp.s * f)); if (_mp.s =
 function selPoi(id) {
   const p = POI.find(x => x[0] === id); if (!p) return;
   document.querySelectorAll('.mp-poi').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#mp-chips button').forEach(c => c.classList.toggle('on', c.dataset.n === p[1]));
   const b = document.getElementById('poi-' + id); if (b) b.classList.add('sel');
   const w = $('#mp-wrap'), i = $('#mp-in'); _mp.s = Math.max(_mp.s, 2.2);
   _mp.x = -(p[2] / 100 - .5) * i.offsetWidth * _mp.s; _mp.y = -(p[3] / 100 - .5) * i.offsetHeight * _mp.s; applMappa();
