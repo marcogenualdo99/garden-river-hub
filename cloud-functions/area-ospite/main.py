@@ -186,7 +186,8 @@ def _animazione(db):
         fascia = _s(r.get('fascia'), 1)
         out['catalogo'].append({'id': aid, 'nome': nome, 'emoji': _s(r.get('emoji'), 8),
                                 'fascia': fascia if fascia in ('d', 'm', 't', 's') else 'd',
-                                'speciale': bool(r.get('speciale'))})
+                                'speciale': bool(r.get('speciale')),
+                                'grafica': (_s(r.get('grafica'), 600000) if str(r.get('grafica') or '').startswith('data:image/') else '')})
     sett = d.get('settimane') if isinstance(d.get('settimane'), dict) else {}
     if not sett and isinstance(d.get('programma'), dict):
         sett = {'1': d.get('programma')}     # formato precedente: una sola settimana

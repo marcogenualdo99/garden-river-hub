@@ -444,6 +444,7 @@
   .sera h3 { position: relative; z-index: 1; font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.05; margin: 8px 0 6px; max-width: 60% }
   .sera .w { position: relative; z-index: 1; font-size: 13.5px; opacity: .92; max-width: 58%; display: flex; align-items: center; gap: 6px } .sera .w svg { width: 16px; height: 16px; flex-shrink: 0 }
   .sera .btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; height: 40px; padding: 0 14px 0 18px; border-radius: 999px; background: var(--orange); color: #fff; font: 800 13.5px var(--font) } .sera .btn svg { width: 16px; height: 16px }
+  .sera img.gfx { max-width: 46%; object-fit: contain; object-position: right bottom; right: 6px; bottom: 6px; height: 160px }
   .sera img { position: absolute; right: -14px; bottom: -34px; height: 190px; width: auto; z-index: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite }
   .oggi { background: #fff; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden }
   .oggi .r { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-bottom: 1px solid var(--gray-100); cursor: pointer; -webkit-tap-highlight-color: transparent } .oggi .r:last-child { border: none } .oggi .r:active { background: var(--gray-50) }
@@ -636,8 +637,11 @@ function impostaBanner(id) {
   hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? ' home-top' : ' in-servizio'}`;
   hydrateIcons(hd);
   const im = hd.querySelector('.hero-img');
-  im.src = b.img;
-  im.style.cssText = `height:${b.h}px;right:${b.r}px;bottom:${b.b}px`;
+  // Pagina Animazione: se la serata speciale di oggi ha una grafica, sostituisce Gardy.
+  const gf = id === 'animazione' && typeof animazioneOggi === 'function' ? ((animazioneOggi() || {}).serata || {}).grafica : '';
+  im.src = gf || b.img;
+  im.style.cssText = gf ? 'height:190px;max-width:48%;object-fit:contain;object-position:right bottom;right:12px;bottom:0'
+                        : `height:${b.h}px;right:${b.r}px;bottom:${b.b}px`;
   $('#sottotitolo').style.maxWidth = b.sw ? b.sw + 'px' : '';
 }
 
@@ -855,7 +859,7 @@ function renderSera() {
   const st = [[22, 128, 10, 0], [52, 150, 6, .7], [120, 30, 8, 1.2], [196, 118, 7, .4]].map(([x, y, w, d]) => `<i class="st" style="left:${x}px;top:${y}px;width:${w}px;height:${w}px;animation-delay:${d}s"></i>`).join('');
   el.innerHTML = `<div class="sera" onclick="apriServizio('animazione')">${st}<div class="k"><i></i>${esc(t('Stasera · ore {o}', { o: String(a.serata.ora).replace('.', ':') }))}</div>
     <h3>${esc(a.serata.nome)}</h3>${a.A.luogo_serate ? `<div class="w">${IC.PIN}${esc(a.A.luogo_serate)}</div>` : ''}
-    <span class="btn">${esc(t('Vedi il programma'))} ${GO}</span><img src="img/gardy.png" alt=""></div>`;
+    <span class="btn">${esc(t('Vedi il programma'))} ${GO}</span><img${a.serata.grafica ? ' class="gfx"' : ''} src="${a.serata.grafica ? esc(a.serata.grafica) : 'img/gardy.png'}" alt=""></div>`;
 }
 
 function righeOggi() {
