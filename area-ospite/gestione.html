@@ -108,6 +108,12 @@
   .av-row .chk input { width: auto }
   .fb-item { border-bottom: 1px solid var(--gray-100); padding: 10px 0 } .fb-item .st { color: #F59E0B; font-size: 15px; letter-spacing: 2px }
   .fb-item b { font-size: 13.5px } .fb-item small { color: var(--gray-500); font-size: 11.5px } .fb-item p { font-size: 13px; color: var(--gray-700); margin-top: 3px }
+
+  .tabs-g { position: sticky; top: 0; z-index: 20; display: flex; gap: 6px; background: var(--gray-100); border-radius: 16px; padding: 5px; margin: 14px 0 6px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.25) }
+  .tabs-g button { flex: 1; height: 42px; border: none; border-radius: 12px; background: transparent; font: 800 13.5px var(--font); color: var(--gray-500); cursor: pointer }
+  .tabs-g button.on { background: var(--green-700); color: #fff }
+  .tabpane { display: none } .tabpane.on { display: block }
+  .tab-intro { font-size: 13.5px; color: var(--gray-500); line-height: 1.5; margin: 12px 2px 0 }
 </style>
 </head>
 <body>
@@ -136,20 +142,37 @@
     <div class="page-title">Gestione area ospite</div>
     <p class="page-sub">Modifica foto e contenuti che i clienti vedono nel loro link personale. Le modifiche sono visibili subito. Gli orari e i parametri della navetta si cambiano da Navetta, icona ingranaggio.</p>
 
-    <div class="card">
-      <h3>Foto dei servizi</h3>
-      <div class="subtitle">Ogni servizio ha una foto nella sua card della home (le testate usano immagini ritagliate fisse). Carica una foto orizzontale o verticale: viene ridimensionata in automatico.</div>
-      <div class="foto-grid" id="foto-grid"></div>
+    <div class="tabs-g" id="tabs-g">
+      <button type="button" data-tab="home" class="on" onclick="vaiTab('home')">Home</button>
+      <button type="button" data-tab="anim" onclick="vaiTab('anim')">Animazione</button>
+      <button type="button" data-tab="serv" onclick="vaiTab('serv')">Servizi</button>
+      <button type="button" data-tab="val" onclick="vaiTab('val')">Valutazioni</button>
     </div>
 
+    <div class="tabpane on" id="tab-home">
+      <p class="tab-intro">Quello che gli ospiti vedono in cima e in fondo alla home.</p>
     <div class="card">
-      <h3>Foto degli autisti</h3>
-      <div class="subtitle">La foto compare nella card dell'autista quando l'ospite sceglie "Chi ti ha accompagnato?". Gli autisti si aggiungono da Navetta, icona ingranaggio. La foto viene ritagliata a quadrato in automatico.</div>
-      <div class="aut-grid" id="aut-grid"></div>
+      <h3>Avvisi in home</h3>
+      <div class="subtitle">Messaggi che compaiono in cima alla home di tutti gli ospiti. "Importante" è rosso, "Informazione" è verde. Se imposti le date, compaiono solo in quel periodo. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
+      <div id="av-list"></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="avAggiungi()">+ Aggiungi avviso</button><button class="btn primary" id="btn-salva-av" onclick="avSalva()">Salva avvisi</button></div>
+    </div>
+    <div class="card">
+      <h3>Contatti e social (in fondo alla home)</h3>
+      <div class="subtitle">Compaiono in fondo alla home dell'ospite. Il telefono reception della sezione Assistenza è già incluso come "Reception".</div>
+      <div class="field"><label>Altri numeri di telefono (uno per riga: Nome | numero)</label>
+        <textarea id="t-contatti_testo" style="min-height:90px" placeholder="Ristorante | 0734 000000&#10;Emergenze | 333 0000000"></textarea></div>
+      <div class="field"><label>Facebook (link)</label><input id="t-social_facebook" type="url" placeholder="https://www.facebook.com/..."></div>
+      <div class="field"><label>Instagram (link)</label><input id="t-social_instagram" type="url" placeholder="https://www.instagram.com/..."></div>
+      <div class="field"><label>Tripadvisor (link)</label><input id="t-social_tripadvisor" type="url" placeholder="https://www.tripadvisor.it/..."></div>
+    </div>
+    <button class="btn primary" style="width:100%;height:50px;margin-bottom:14px" onclick="salvaTesti()">Salva contatti e social</button>
     </div>
 
+    <div class="tabpane" id="tab-anim">
+      <p class="tab-intro">Tre passi: scrivi le attività, mettile nel programma delle due settimane, indica dove sono le serate. Poi salva.</p>
     <div class="card">
-      <h3>Animazione · attività</h3>
+      <h3>1 · Elenco delle attività</h3>
       <div class="subtitle">L'elenco delle attività che puoi mettere nel programma: scrivi il nome, scegli l'emoji e la fascia. Si compila una volta sola.</div>
       <div id="an-cat"></div>
       <div class="an-row-btns">
@@ -158,9 +181,8 @@
       </div>
       <p class="nota">"Carica programma 2026" riempie attività e programma con quelli delle locandine (sostituisce quanto c'è ora).</p>
     </div>
-
     <div class="card">
-      <h3>Animazione · programma</h3>
+      <h3>2 · Programma settimanale</h3>
       <div class="subtitle">Il programma si alterna su due settimane. Imposta la data di partenza e compila le due settimane: gli ospiti vedono in automatico quella in corso.</div>
       <div class="field"><label>Data di partenza (il sabato in cui inizia la Settimana 1)</label>
         <input type="date" id="an-data" onchange="AN.data_inizio=this.value;anNotaData()">
@@ -169,9 +191,8 @@
       <div class="an-row-btns"><button class="btn ghost" id="an-copia-sett" onclick="anCopiaSettimana()"></button></div>
       <div id="an-prog"></div>
     </div>
-
     <div class="card">
-      <h3>Animazione · serate e mappa</h3>
+      <h3>3 · Serate e mappa</h3>
       <div class="field"><label>Dove si svolgono le serate</label><input id="an-luogo" placeholder="Teatro" oninput="AN.luogo_serate=this.value"></div>
       <div class="field"><label>Mappa del villaggio</label>
         <div class="an-mappa" id="an-mappa-box" style="display:none"><img id="an-mappa-img" alt="Mappa del villaggio"><span class="an-pin" id="an-pin" style="display:none"></span></div>
@@ -183,52 +204,48 @@
         <p class="nota">Senza una mappa caricata gli ospiti vedono la mappa predefinita con il pin sul teatro. Per usarne un'altra, caricala e tocca il punto dove si trova il luogo delle serate.</p>
       </div>
     </div>
-
     <button class="btn primary" style="width:100%;height:50px;margin-bottom:14px" id="btn-salva-an" onclick="anSalva()">Salva programma animazione</button>
+    </div>
 
+    <div class="tabpane" id="tab-serv">
+      <p class="tab-intro">Foto e testi delle sezioni Navetta, Info utili e Assistenza.</p>
+    <div class="card">
+      <h3>Foto dei servizi</h3>
+      <div class="subtitle">Ogni servizio ha una foto nella sua card della home (le testate usano immagini ritagliate fisse). Carica una foto orizzontale o verticale: viene ridimensionata in automatico.</div>
+      <div class="foto-grid" id="foto-grid"></div>
+    </div>
+    <div class="card">
+      <h3>Foto degli autisti</h3>
+      <div class="subtitle">La foto compare nella card dell'autista quando l'ospite sceglie "Chi ti ha accompagnato?". Gli autisti si aggiungono da Navetta, icona ingranaggio. La foto viene ritagliata a quadrato in automatico.</div>
+      <div class="aut-grid" id="aut-grid"></div>
+    </div>
     <div class="card">
       <h3>Info utili</h3>
       <div class="subtitle">Orari di reception, piscina, ristorante, numeri utili, regole del villaggio.</div>
       <div class="field"><textarea id="t-info_testo" placeholder="Reception: 8:00 - 20:00&#10;Piscina: 9:00 - 19:00&#10;..."></textarea></div>
     </div>
-
-    <div class="card">
-      <h3>Avvisi in home</h3>
-      <div class="subtitle">Messaggi che compaiono in cima alla home di tutti gli ospiti. "Importante" è rosso, "Informazione" è verde. Se imposti le date, compaiono solo in quel periodo. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
-      <div id="av-list"></div>
-      <div class="an-row-btns"><button class="btn ghost" onclick="avAggiungi()">+ Aggiungi avviso</button><button class="btn primary" id="btn-salva-av" onclick="avSalva()">Salva avvisi</button></div>
-    </div>
-
-    <div class="card">
-      <h3>Valutazioni degli ospiti</h3>
-      <div class="subtitle">Le stelle e i messaggi lasciati dagli ospiti a fine soggiorno (ultime 30).</div>
-      <div id="fb-list"><p class="nota">Caricamento…</p></div>
-    </div>
-
-    <div class="card">
-      <h3>Contatti e social (in fondo alla home)</h3>
-      <div class="subtitle">Compaiono in fondo alla home dell'ospite. Il telefono reception della sezione Assistenza è già incluso come "Reception".</div>
-      <div class="field"><label>Altri numeri di telefono (uno per riga: Nome | numero)</label>
-        <textarea id="t-contatti_testo" style="min-height:90px" placeholder="Ristorante | 0734 000000&#10;Emergenze | 333 0000000"></textarea></div>
-      <div class="field"><label>Facebook (link)</label><input id="t-social_facebook" type="url" placeholder="https://www.facebook.com/..."></div>
-      <div class="field"><label>Instagram (link)</label><input id="t-social_instagram" type="url" placeholder="https://www.instagram.com/..."></div>
-      <div class="field"><label>Tripadvisor (link)</label><input id="t-social_tripadvisor" type="url" placeholder="https://www.tripadvisor.it/..."></div>
-    </div>
-
     <div class="card">
       <h3>Richiesta assistenza</h3>
       <div class="subtitle">Messaggio e numero da chiamare per chi ha bisogno di aiuto.</div>
       <div class="field"><label>Messaggio</label><textarea id="t-assistenza_testo" style="min-height:90px" placeholder="Hai bisogno di aiuto? La reception è a tua disposizione."></textarea></div>
       <div class="field"><label>Telefono reception</label><input id="t-assistenza_telefono" type="tel" placeholder="+39 ..."></div>
     </div>
-
     <div class="card">
       <h3>Navetta</h3>
       <div class="subtitle">Testo introduttivo opzionale. Se lo lasci vuoto, viene generato dagli orari impostati in Navetta.</div>
       <div class="field"><textarea id="t-navetta_testo" style="min-height:80px"></textarea></div>
     </div>
+    <button class="btn primary" id="btn-salva" style="width:100%;height:50px" onclick="salvaTesti()">Salva testi dei servizi</button>
+    </div>
 
-    <button class="btn primary" id="btn-salva" style="width:100%;height:50px" onclick="salvaTesti()">Salva contenuti</button>
+    <div class="tabpane" id="tab-val">
+      <p class="tab-intro">Cosa hanno scritto gli ospiti a fine soggiorno.</p>
+    <div class="card">
+      <h3>Valutazioni degli ospiti</h3>
+      <div class="subtitle">Le stelle e i messaggi lasciati dagli ospiti a fine soggiorno (ultime 30).</div>
+      <div id="fb-list"><p class="nota">Caricamento…</p></div>
+    </div>
+    </div>
   </main>
 </div>
 
@@ -586,6 +603,15 @@ document.addEventListener('click', ev => {
   anPin({ x: Math.round((ev.clientX - r.left) / r.width * 1000) / 10, y: Math.round((ev.clientY - r.top) / r.height * 1000) / 10 });
 });
 
+
+
+function vaiTab(n) {
+  document.querySelectorAll('.tabpane').forEach(e => e.classList.toggle('on', e.id === 'tab-' + n));
+  document.querySelectorAll('#tabs-g button').forEach(b => b.classList.toggle('on', b.dataset.tab === n));
+  try { history.replaceState(null, '', '#' + n); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+(function () { const h = (location.hash || '').slice(1); if (['home', 'anim', 'serv', 'val'].includes(h)) setTimeout(() => vaiTab(h), 0); })();
 
 // ── Avvisi in home e valutazioni ospiti ──────────────────────────────────
 let AVVISI = [];

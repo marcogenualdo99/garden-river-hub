@@ -692,7 +692,9 @@ function renderFooterHome() {
   });
   const soc = [['facebook', 'Facebook', t.social_facebook], ['instagram', 'Instagram', t.social_instagram], ['tripadvisor', 'Tripadvisor', t.social_tripadvisor]]
     .filter(([, , u]) => /^https:\/\//i.test(String(u || '').trim()));
-  if (!tel.length && !soc.length) { el.innerHTML = ''; return; }
+  if (!tel.length && !soc.length) {
+    el.innerHTML = `<div class="hf"><h3>Siamo qui per te</h3><p>Per qualsiasi bisogno chiedi in reception: siamo a tua disposizione.</p></div>`; return;
+  }
   el.innerHTML = `<div class="hf"><h3>Siamo qui per te</h3><p>Chiamaci o seguici: ci trovi anche online.</p>
     ${tel.length ? `<div class="hf-tel">${tel.map(([n, v]) => `<a href="tel:${esc(num(v))}"><span class="ic">${HF_ICONE.tel}</span><span><b>${esc(n)}</b><small>${esc(v)}</small></span></a>`).join('')}</div>` : ''}
     ${soc.length ? `<div class="hf-social"><span>Seguici</span>${soc.map(([k, n, u]) => `<a href="${esc(u.trim())}" target="_blank" rel="noopener" aria-label="${n}">${HF_ICONE[k]}</a>`).join('')}</div>` : ''}</div>`;
@@ -764,8 +766,10 @@ function avvisiHome() {
   const out = [], chiusi = _chiusi(), p = CFG.prenotazione || {};
   const S = rsStatoPasti();
   if (S) {
-    if (S.mOggi.length && S.min >= 420 && S.min < 8 * 60 + 30) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi non completato'), testo: t('Non hai ancora scelto cosa mangiare. Si ordina entro le 8:30.'), azione: { label: t('Ordina ora'), fn: "apriServizio('ristorazione')" } });
-    else if (S.mDomani.length && S.min >= 18 * 60) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani non completato'), testo: t('Non hai ancora scelto cosa mangiare. Si ordina entro le 8:30 di domani mattina.'), azione: { label: t('Ordina ora'), fn: "apriServizio('ristorazione')" } });
+    const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
+    const parz = iso => { const d = S.d; return ['pranzo', 'cena'].some(x => d.ordini[`${iso}_${x}`]); };   // gia' qualcosa ordinato
+    if (S.mOggi.length && S.min >= 360 && S.min < 8 * 60 + 30) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
+    else if (S.mDomani.length && (S.min >= 18 * 60 || parz(S.domani))) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
   }
   const dd = giorniA(p.checkout), dec = giorniA(p.checkin);
   if (dd !== null && dd >= 0 && dd <= 1 && dec !== null && dec <= 0) out.push({ cls: 'info', icon: ICONS.CLOCK, tag: t('Partenza'), titolo: dd === 1 ? t('Domani è il giorno della partenza') : t('Oggi è il giorno della partenza'), testo: t('Check-out entro le 10:00. Scopri cosa fare prima di partire.'), azione: { label: t('Cosa fare'), fn: 'apriPartenza()' } });
@@ -793,8 +797,6 @@ function avvisoHtml(a) {
 // Programma di animazione di oggi, solo se l'ospite e' in struttura oggi
 function animazioneOggi() {
   const A = CONTENUTI && CONTENUTI.animazione; if (!A || !anHaProgramma()) return null;
-  const p = CFG.prenotazione || {}, di = giorniA(p.checkin), df = giorniA(p.checkout);
-  if ((di !== null && di > 0) || (df !== null && df < 0)) return null;
   const oggi = anIsoLocale(new Date()), key = AN_JS[new Date().getDay()], prog = anProgrammaPerData(A, oggi)[key] || {}, cat = {};
   A.catalogo.forEach(c => { cat[c.id] = c; });
   const voci = []; ['d', 'm', 't', 's'].forEach(f => (prog[f] || []).forEach(v => { if (cat[v.a]) voci.push({ ...cat[v.a], ora: v.ora, fascia: f }); }));
@@ -816,6 +818,7 @@ function righeOggi() {
   const r = [], a = animazioneOggi(), oggi = oggiData(), now = adessoMin();
   if (a && a.voci.length) {
     const prox = a.voci.find(v => (minDa(v.ora) || 0) >= now), dopo = prox && a.voci[a.voci.indexOf(prox) + 1];
+    if (!prox) r.push({ c: 'a', icon: ICONS.ANIMAZIONE, k: t('Prossima attività'), b: t('Per oggi è tutto'), s: t('Domani si riparte con il programma'), fn: "apriServizio('animazione')" });
     if (prox) r.push({ c: 'a', icon: ICONS.ANIMAZIONE, k: t('Prossima attività'), b: prox.nome, s: t('alle {o}', { o: String(prox.ora).split('–')[0].replace('.', ':') }) + (dopo ? ' · ' + t('poi {n} alle {o}', { n: dopo.nome, o: String(dopo.ora).split('–')[0].replace('.', ':') }) : ''), fn: "apriServizio('animazione')" });
   }
   const S = rsStatoPasti();
@@ -827,7 +830,8 @@ function righeOggi() {
       const ord = tipi(d.oggi).filter(x => d.ordini[`${d.oggi}_${x}`]).map(x => x === 'pranzo' ? t('Pranzo') : t('Cena'));
       b = ord.length ? t('{p} ordinato', { p: ord.join(' + ') }) : t('Nessun pasto ordinato oggi');
     } else b = t('Pasti inclusi');
-    if (S.mDomani.length) s = t('Domani da ordinare');
+    const manca = [...S.mOggi.map(x => x === 'pranzo' ? t('Pranzo') : (x === 'cena' ? t('Cena') : t('Pasto'))), ...(S.mDomani.length ? [t('Domani da ordinare')] : [])];
+    if (manca.length) s = t('Da completare') + ': ' + manca.join(' · ');
     r.push({ c: 'p', icon: ICONS.RISTORAZIONE, k: t('I tuoi pasti'), b, s, pill: n ? t('{n} da fare', { n }) : '', fn: "apriServizio('ristorazione')" });
   }
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
@@ -1013,11 +1017,12 @@ function selPoi(id) {
 
 function renderHome() {
   const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
-  $('#service-grid').innerHTML = SERVIZI.map((s, i) => `
-    <div class="service-card${(SERVIZI.length % 2 === 1 && i === SERVIZI.length - 1) ? ' wide' : ''}" style="background-image:url('${esc(fotoServizio(s.id))}')" onclick="apriServizio('${s.id}')">
+  const CARD = SERVIZI.concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
+  $('#service-grid').innerHTML = CARD.map((s, i) => `
+    <div class="service-card${(CARD.length % 2 === 1 && i === CARD.length - 1) ? ' wide' : ''}" style="background-image:url('${esc(s.id === 'mappa' ? s.foto : fotoServizio(s.id))}')" onclick="${s.id === 'mappa' ? 'apriMappa()' : `apriServizio('${s.id}')`}">
       ${!haContenuto(s.id) ? '<span class="pill-soon">A breve</span>' : (s.id === 'ristorazione' && daFare ? `<span class="pill-soon todo">${esc(t('{n} da fare', { n: daFare }))}</span>` : '')}
       <h3>${esc(s.title)}</h3>
-      <p>${esc(sottotitoloServizio(s.id))}</p>
+      <p>${esc(s.id === 'mappa' ? 'Trova subito ogni punto del villaggio' : sottotitoloServizio(s.id))}</p>
     </div>`).join('');
   renderFooterHome();
   renderHomeExtra();
@@ -1054,7 +1059,7 @@ function apriPrenotazioneInfo() {
   $('#service-view').style.display = 'block';
   $('#titolo').textContent = 'I tuoi dati';
   $('#sottotitolo').textContent = 'Prenotazione e conto';
-  impostaBanner('home');
+  impostaBanner('info');
   hydrateIcons($('#service-view'));
   window.scrollTo(0, 0);
   renderPrenotazioneInfo();
