@@ -1070,7 +1070,7 @@ function renderHome() {
   const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
   if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
   $('#service-grid').innerHTML = CARD.map((s, i) => `
-    <div class="service-card${(CARD.length % 2 === 1 && i === CARD.length - 1) ? ' wide' : ''}" style="background-image:url('${esc(s.id === 'mappa' ? s.foto : fotoServizio(s.id))}')" onclick="${s.id === 'mappa' ? 'apriMappa()' : `apriServizio('${s.id}')`}">
+    <div class="service-card${(CARD.length % 2 === 1 && i === CARD.length - 1) ? ' wide' : ''}" style="background-image:url('${esc(s.id === 'mappa' ? (CONTENUTI.foto.mappa_card || s.foto) : fotoServizio(s.id))}')" onclick="${s.id === 'mappa' ? 'apriMappa()' : `apriServizio('${s.id}')`}">
       ${!haContenuto(s.id) ? '<span class="pill-soon">A breve</span>' : (s.id === 'ristorazione' && daFare ? `<span class="pill-soon todo">${esc(t('{n} da fare', { n: daFare }))}</span>` : '')}
       <h3>${esc(s.title)}</h3>
       <p>${esc(s.id === 'mappa' ? 'Trova subito ogni punto del villaggio' : sottotitoloServizio(s.id))}</p>

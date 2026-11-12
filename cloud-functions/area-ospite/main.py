@@ -292,7 +292,7 @@ def _contenuti(db):
     out['animazione'] = _animazione(db)
     out['avvisi'] = _avvisi(db)
     out['avvisi_cfg'] = _avvisi_cfg(db)
-    for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio'):
+    for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio', 'mappa_card'):
         try:
             snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()
             url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''
