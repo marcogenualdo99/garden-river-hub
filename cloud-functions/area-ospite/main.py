@@ -251,7 +251,7 @@ def _contenuti(db):
         d = snap.to_dict() or {} if snap.exists else {}
         for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
                   'assistenza_telefono', 'navetta_testo', 'contatti_testo',
-                  'social_facebook', 'social_instagram', 'social_tripadvisor'):
+                  'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
             out['testi'][k] = _s(d.get(k), 4000)
     except Exception as e:
         print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
@@ -299,6 +299,21 @@ def _token_valido(token):
     return bool(re.fullmatch(r'[a-f0-9]{16,64}', token or ''))
 
 
+def _link_scaduto(link, pren):
+    """Il link vale fino a 20 giorni dopo il check-out (dopo la partenza mostra il
+    ringraziamento e l'invito alla recensione), calcolato SEMPRE sul check-out
+    attuale della prenotazione: cambiando le date dal Calendario la validita' si
+    sposta da sola (il documento del link non si puo' aggiornare dal client).
+    Senza check-out valido si ripiega sulla scadenza scritta alla creazione."""
+    co = _s(pren.get('checkout'), 10)
+    try:
+        d = datetime.strptime(co, '%Y-%m-%d')
+        return _oggi_iso() > (d + timedelta(days=20)).strftime('%Y-%m-%d')
+    except ValueError:
+        scade_il = (link or {}).get('scade_il') or 0
+        return bool(scade_il and scade_il < _now_ms())
+
+
 def _risolvi_token(db, token):
     """Ritorna (pren_ref, pren_dict) oppure (None, None)."""
     if not _token_valido(token):
@@ -308,13 +323,6 @@ def _risolvi_token(db, token):
     if not snap.exists:
         return None, None
     d = snap.to_dict() or {}
-    scade_il = d.get('scade_il') or 0
-    if scade_il and scade_il < _now_ms():
-        try:
-            link_ref.delete()           # link scaduto: pulizia opportunistica
-        except Exception:
-            pass
-        return None, None
     pren_id = d.get('prenId')
     if not pren_id:
         return None, None
@@ -322,7 +330,10 @@ def _risolvi_token(db, token):
     pren = pren_ref.get()
     if not pren.exists:
         return None, None
-    return pren_ref, (pren.to_dict() or {})
+    p = pren.to_dict() or {}
+    if _link_scaduto(d, p):
+        return None, None
+    return pren_ref, p
 
 
 def _spiagge_disponibili(db):
@@ -1252,26 +1263,6 @@ def _azione_ristorazione_ordina(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
 
 
-def _azione_feedback(db, origin, data):
-    """Valutazione di fine soggiorno (1-5 stelle + messaggio). Va nella collezione
-    `feedback_ospiti`, letta dallo staff in Gestione area ospite."""
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    try:
-        stelle = int(data.get('stelle'))
-    except (TypeError, ValueError):
-        stelle = 0
-    if stelle < 1 or stelle > 5:
-        return _json(origin, {'ok': False, 'errore': 'valutazione_non_valida'}, 400)
-    db.collection('feedback_ospiti').document(pren_ref.id).set({
-        'prenId': pren_ref.id, 'nome': _s(p.get('nome'), 120), 'alloggio': _s(p.get('alloggio_nome'), 80),
-        'checkin': _s(p.get('checkin'), 10), 'checkout': _s(p.get('checkout'), 10),
-        'stelle': stelle, 'testo': _s(data.get('testo'), 1000), 'creato_il': _now_iso(),
-    })
-    return _json(origin, {'ok': True})
-
-
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -1284,7 +1275,6 @@ AZIONI = {
     'staff_riapri':            _azione_staff_riapri,
     'ristorazione_menu':       _azione_ristorazione_menu,
     'ristorazione_ordina':     _azione_ristorazione_ordina,
-    'feedback':                _azione_feedback,
 }
 
 

@@ -427,6 +427,7 @@
   .av .az { display: inline-flex; align-items: center; gap: 4px; margin-top: 9px; font: 800 13.5px var(--font); color: var(--c); text-decoration: none } .av .az svg { width: 15px; height: 15px }
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
+  .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
   .av.info { --c: var(--green-700); --t: var(--green-100) } .av.stop { --c: var(--red); --t: var(--red-bg) }
   .sera { margin-top: 12px; border-radius: 24px; background: var(--green-900); color: #fff; padding: 18px; position: relative; overflow: hidden; min-height: 176px; cursor: pointer }
   .sera::before { content: ''; position: absolute; right: -46px; top: -46px; width: 170px; height: 170px; border-radius: 50%; background: var(--grad-sun) }
@@ -470,10 +471,13 @@
   .tk-nav { display: flex; align-items: center; gap: 12px; margin-top: 14px; background: var(--green-50); border-radius: 14px; padding: 10px 12px; color: var(--green-700); font-size: 13px } .tk-nav svg { width: 24px; height: 24px; flex-shrink: 0 } .tk-nav b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em }
   .tk-foot { margin-top: 14px; text-align: center; font: 800 11px var(--font); letter-spacing: .25em; text-transform: uppercase; color: var(--gray-300) }
   .pt-lista { list-style: none; margin-top: 10px; display: flex; flex-direction: column; gap: 10px } .pt-lista li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.45; color: var(--gray-700) } .pt-lista svg { width: 20px; height: 20px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
-  .stelle { display: flex; gap: 6px; justify-content: center; margin: 14px 0 }
-  .stelle button { width: 48px; height: 48px; border: none; background: none; color: var(--gray-300); cursor: pointer; padding: 0; transition: transform .12s } .stelle button svg { width: 100%; height: 100% } .stelle button.on { color: #F59E0B } .stelle button:active { transform: scale(.9) }
-  .stelle.fisse { margin: 8px 0 } .stelle.fisse button { width: 34px; height: 34px; cursor: default }
-  .fb-testo { width: 100%; min-height: 84px; border: 1.5px solid var(--gray-300); border-radius: 14px; padding: 12px; font: 500 14px var(--font); resize: vertical }
+  .grazie { margin-top: 14px; border-radius: 24px; background: var(--grad-forest); color: #fff; padding: 22px 20px; text-align: center; position: relative; overflow: hidden }
+  .grazie::before { content: ''; position: absolute; right: -40px; top: -40px; width: 130px; height: 130px; border-radius: 50%; background: var(--grad-sun) }
+  .grazie > * { position: relative } .gz-ic { width: 50px; height: 50px; margin: 0 auto 10px; border-radius: 16px; background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; color: #FBBF24 } .gz-ic svg { width: 28px; height: 28px }
+  .grazie h2 { font-family: var(--font-display); font-weight: 400; font-size: 26px; margin-bottom: 6px } .grazie p { font-size: 14px; line-height: 1.5; opacity: .92 }
+  .rev-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 14px }
+  .rev-btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 54px; border-radius: 16px; text-decoration: none; font: 800 15px var(--font); color: #fff; -webkit-tap-highlight-color: transparent }
+  .rev-btn svg { width: 24px; height: 24px } .rev-btn.g { background: #4285F4 } .rev-btn.t { background: #00AA6C } .rev-btn:active { transform: scale(.98) }
   .mp-wrap { position: relative; border-radius: 20px; overflow: hidden; background: #CDE0A0; margin-top: 14px; touch-action: none; box-shadow: var(--shadow); height: 68vh; min-height: 420px; display: flex; justify-content: center }
   .mp-in { position: relative; height: 100%; aspect-ratio: 794 / 1700; flex: none; transform-origin: 50% 50%; transition: transform .25s ease } .mp-in img { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-drag: none }
   .mp-poi { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border: none; background: none; padding: 0; cursor: pointer; transform: scale(var(--z, 1)) }
@@ -509,7 +513,7 @@
         <button type="button" class="lang-btn" id="lang-btn" onclick="menuLingua(event)" aria-label="Language">IT</button>
         <button type="button" class="info-btn" onclick="apriPrenotazioneInfo()" aria-label="I tuoi dati e il conto"><span data-icon="INFO"></span></button>
       </div>
-      <div class="kicker">Benvenuto al Garden River</div>
+      <div class="kicker" id="kicker">Benvenuto al Garden River</div>
       <h1 id="titolo">Area ospite</h1>
       <div class="sub" id="sottotitolo"></div>
       <img class="hero-img" src="img/gardy.png" alt="" aria-hidden="true">
@@ -633,8 +637,8 @@ function render() {
   const p = CFG.prenotazione;
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
   // Se l'ospite ha i pasti, scarica il menu in anticipo: quando apre Ristorazione è già pronto.
-  if (CFG.ristorazione && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
-  caricaMeteo(); caricaRistoHome();
+  if (CFG.ristorazione && !preArrivo() && !dopoPartenza() && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
+  if (!preArrivo() && !dopoPartenza()) { caricaMeteo(); caricaRistoHome(); }
   $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
   mostraIntestazioneHome();
   renderHome();
@@ -647,6 +651,7 @@ function mostraIntestazioneHome() {
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
   $('#titolo').textContent = `Ciao ${nome}`;
   $('#sottotitolo').textContent = p.alloggio_nome || 'Garden River';
+  $('#kicker').textContent = dopoPartenza() ? t('Grazie per aver scelto Garden River') : t('Benvenuto al Garden River');
   impostaBanner('home');
 }
 
@@ -729,6 +734,7 @@ const IC = {
   CLOUD: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 19a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.800 12 3.500 3.500 0 0 1 18 19Z"/></svg>',
   RAIN: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 15a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.800 8 3.500 3.500 0 0 1 18 15Z"/><path d="M8 18l-1 2M12 18l-1 2M16 18l-1 2"/></svg>',
   STORM: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14a4.5 4.5 0 1 1 1.2-8.8A5.5 5.5 0 0 1 18.800 7 3.500 3.500 0 0 1 18 14Z"/><path d="m12 13-2 4h4l-2 4"/></svg>',
+  GOOGLE: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1H12v2.9h5.35c-.5 2.4-2.5 3.9-5.35 3.9a6 6 0 1 1 0-12c1.5 0 2.8.5 3.8 1.4l2.1-2.1A9 9 0 1 0 12 21c5.2 0 9-3.6 9-9 0-.6-.1-1.2-.2-1.9Z"/></svg>',
   FOG: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M5 9h14M3 13h18M6 17h12"/></svg>',
 };
 const GO = IC.GO;
@@ -745,6 +751,12 @@ function chiudiAvviso(id) {
   renderHomeExtra();
 }
 const HOME_X = { risto: null, meteo: null };
+// Prima dell'arrivo il link si apre, ma solo con le informazioni di base.
+function preArrivo() { const d = giorniA((CFG.prenotazione || {}).checkin); return d !== null && d > 0; }
+const SOLO_DOPO_ARRIVO = ['navetta', 'ristorazione'];
+// Dopo l'orario di partenza (check-out alle 10:00) la home diventa un ringraziamento con
+// l'invito a lasciare una recensione; il link vive ancora 20 giorni (v. Cloud Function).
+function dopoPartenza() { const d = giorniA((CFG.prenotazione || {}).checkout); return d !== null && (d < 0 || (d === 0 && adessoMin() >= 10 * 60)); }
 
 // Pasti ancora da ordinare per una data (stessa regola della Ristorazione: MP = un solo pasto)
 function rsMancanti(d, iso) {
@@ -766,32 +778,41 @@ function rsStatoPasti() {
 
 function avvisiHome() {
   const out = [], chiusi = _chiusi(), p = CFG.prenotazione || {};
+  const staff = () => ((CONTENUTI && CONTENUTI.avvisi) || []).forEach(a => {
+    const tl = (LANG !== 'it' && a['titolo_' + LANG]) || a.titolo, tx = (LANG !== 'it' && a['testo_' + LANG]) || a.testo;
+    out.push({ id: 'st-' + a.id, cls: a.tipo === 'importante' ? 'stop' : 'info', icon: a.tipo === 'importante' ? IC.WARN : ICONS.INFO, tag: a.tipo === 'importante' ? t('Importante') : t('Informazione'), titolo: tl, testo: tx, chiudibile: a.chiudibile !== false });
+  });
+  const peso = a => a.pin ? 0.5 : (a.cls === 'todo' ? 0 : (a.cls === 'stop' ? 1 : 2));
+  const filtra = l => l.filter(a => !(a.id && a.chiudibile !== false && chiusi.includes(a.id))).sort((a, b) => peso(a) - peso(b));
+  if (preArrivo()) {
+    const n = giorniA(p.checkin);
+    out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
+    staff();
+    return filtra(out);
+  }
   const S = rsStatoPasti();
   if (S) {
     const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
-    const parz = iso => { const d = S.d; return ['pranzo', 'cena'].some(x => d.ordini[`${iso}_${x}`]); };   // gia' qualcosa ordinato
     if (S.mOggi.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: S.min < 8 * 60 + 30 ? t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }) : t('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
-    if (S.mDomani.length && (S.min >= 12 * 60 || parz(S.domani))) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
+    if (S.mDomani.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
   }
-  const dd = giorniA(p.checkout), dec = giorniA(p.checkin);
-  if (dd !== null && dd >= 0 && dd <= 1 && dec !== null && dec <= 0) out.push({ cls: 'info', icon: ICONS.CLOCK, tag: t('Partenza'), titolo: dd === 1 ? t('Domani è il giorno della partenza') : t('Oggi è il giorno della partenza'), testo: t('Check-out entro le 10:00. Scopri cosa fare prima di partire.'), azione: { label: t('Cosa fare'), fn: 'apriPartenza()' } });
-  let valutato = false; try { valutato = !!localStorage.getItem('gr_fb_' + token); } catch (e) {}
-  if (dd !== null && dd <= 0 && dd >= -5 && !valutato) out.push({ cls: 'todo', icon: IC.STAR, tag: t('Il tuo parere'), titolo: t('Com\'è andato il soggiorno?'), testo: t('Bastano 10 secondi: ci aiuta a migliorare.'), azione: { label: t('Valuta'), fn: 'apriPartenza()' } });
+  // Procedura di check-out: fissa dal giorno prima fino alla partenza (non si chiude).
+  const dd = giorniA(p.checkout);
+  if (dd !== null && dd >= 0 && dd <= 1) {
+    const c = CFG.conto || {}, lista = [t('Check-out entro le ore 10:00.'), t('Prima di lasciare l\'alloggio telefona in reception per concordare il controllo finale.'), t('Lascia la biancheria usata in una federa fuori dalla porta.'), t('Se hai chiavi o telecomando, riconsegnali in reception.')];
+    if ((c.da_pagare || 0) > 0.004) lista.push(t('Ci sono € {n} da saldare', { n: c.da_pagare.toFixed(2) }));
+    out.push({ pin: true, cls: 'info', icon: ICONS.CLOCK, tag: t('Partenza'), titolo: dd === 1 ? t('Domani è il giorno della partenza') : t('Oggi è il giorno della partenza'), lista, azione: { label: t('Tutti i dettagli'), fn: 'apriPartenza()' } });
+  }
   const oggi = oggiData();
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
   if (corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
   const m = HOME_X.meteo;
   if (m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
-  ((CONTENUTI && CONTENUTI.avvisi) || []).forEach(a => {
-    const tl = (LANG !== 'it' && a['titolo_' + LANG]) || a.titolo, tx = (LANG !== 'it' && a['testo_' + LANG]) || a.testo;
-    out.push({ id: 'st-' + a.id, cls: a.tipo === 'importante' ? 'stop' : 'info', icon: a.tipo === 'importante' ? IC.WARN : ICONS.INFO, tag: a.tipo === 'importante' ? t('Importante') : t('Informazione'), titolo: tl, testo: tx, chiudibile: a.chiudibile !== false });
-  });
-  // ordine: da fare, importanti, il resto
-  const peso = a => a.cls === 'todo' ? 0 : (a.cls === 'stop' ? 1 : 2);
-  return out.filter(a => !(a.id && a.chiudibile !== false && chiusi.includes(a.id))).sort((a, b) => peso(a) - peso(b));
+  staff();
+  return filtra(out);
 }
 function avvisoHtml(a) {
-  return `<div class="av ${a.cls}"><span class="ic">${a.icon}</span><div class="tx"><div class="tg">${esc(a.tag)}</div><b>${esc(a.titolo)}</b>${a.testo ? `<p>${esc(a.testo)}</p>` : ''}
+  return `<div class="av ${a.cls}"><span class="ic">${a.icon}</span><div class="tx"><div class="tg">${esc(a.tag)}</div><b>${esc(a.titolo)}</b>${a.testo ? `<p>${esc(a.testo)}</p>` : ''}${a.lista ? `<ul class="av-lista">${a.lista.map(x => `<li>${ICONS.CHECK}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
     ${a.azione ? `<a class="az" href="#" onclick="${a.azione.fn};return false">${esc(a.azione.label)} ${GO}</a>` : ''}</div>
     ${a.id && a.chiudibile !== false ? `<button type="button" class="x" onclick="chiudiAvviso('${esc(a.id)}')" aria-label="${esc(t('Chiudi'))}">${IC.X}</button>` : ''}</div>`;
 }
@@ -808,6 +829,7 @@ function animazioneOggi() {
 
 function renderSera() {
   const el = $('#home-sera'); if (!el) return;
+  if (preArrivo()) { el.innerHTML = ''; return; }
   const a = animazioneOggi();
   if (!a || !a.serata || adessoMin() > 23 * 60 + 30) { el.innerHTML = ''; return; }
   const st = [[22, 128, 10, 0], [52, 150, 6, .7], [120, 30, 8, 1.2], [196, 118, 7, .4]].map(([x, y, w, d]) => `<i class="st" style="left:${x}px;top:${y}px;width:${w}px;height:${w}px;animation-delay:${d}s"></i>`).join('');
@@ -844,6 +866,7 @@ function righeOggi() {
 }
 function renderOggi() {
   const el = $('#home-oggi'); if (!el) return;
+  if (preArrivo()) { el.innerHTML = ''; return; }
   const r = righeOggi();
   el.innerHTML = r.length ? `<div class="sez">${esc(t('Oggi per te'))}</div><div class="oggi">${r.map(x => `<div class="r ${x.c}" onclick="${x.fn}"><span class="e">${x.icon}</span><div class="t"><small>${esc(x.k)}</small><b>${esc(x.b)}</b>${x.s ? `<span>${esc(x.s)}</span>` : ''}</div>${x.pill ? `<span class="pill">${esc(x.pill)}</span>` : `<span class="go">${GO}</span>`}</div>`).join('')}</div>` : '';
 }
@@ -867,6 +890,7 @@ function statoRistorante() {
 const WMO = c => c === 0 ? [IC.SUN, 'Sereno', 'sole'] : c <= 2 ? [IC.CLOUDSUN, 'Poco nuvoloso', 'sole'] : c === 3 ? [IC.CLOUD, 'Coperto', 'nube'] : (c === 45 || c === 48) ? [IC.FOG, 'Nebbia', 'nube'] : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? [IC.RAIN, 'Pioggia', 'acqua'] : c >= 95 ? [IC.STORM, 'Temporale', 'acqua'] : [IC.CLOUD, 'Nuvoloso', 'nube'];
 function renderAdesso() {
   const el = $('#home-adesso'); if (!el) return;
+  if (preArrivo()) { el.innerHTML = ''; return; }
   const m = HOME_X.meteo, fasce = (CFG.fasce || []).map(f => [f.dal, f.al]).filter(f => f[0] && f[1]);
   const righe = [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]];
   if (fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
@@ -892,6 +916,15 @@ async function caricaRistoHome() {
 
 function renderHomeExtra() {
   const av = $('#home-alerts'); if (!av) return;
+  if (dopoPartenza()) {
+    const nome = (CFG.prenotazione || {}).nome_proprio || '';
+    av.innerHTML = `<div class="grazie"><div class="gz-ic">${IC.STAR}</div><h2>${esc(nome ? t('Grazie, {n}!', { n: nome }) : t('Grazie!'))}</h2>
+      <p>${esc(t('È stato un piacere averti con noi. Speriamo di rivederti presto al Garden River!'))}</p></div>
+      ${recensioniHtml() ? `<div class="card" id="fb-card">${recensioniHtml()}</div>` : ''}`;
+    ['#home-sera', '#home-oggi', '#home-adesso'].forEach(s => { const e = $(s); if (e) e.innerHTML = ''; });
+    traduciDom($('#home-view'));
+    return;
+  }
   const l = avvisiHome();
   av.innerHTML = l.length ? `<div class="sez">${esc(t('Da sapere'))}</div>${l.map(avvisoHtml).join('')}` : '';
   renderSera(); renderOggi(); renderAdesso();
@@ -939,37 +972,22 @@ function apriPartenza() { apriVista('partenza', t('La tua partenza'), t('Cosa fa
 let _stelle = 0;
 function renderPartenza() {
   const p = CFG.prenotazione || {}, c = CFG.conto || {}, dd = giorniA(p.checkout);
-  let valutato = null; try { valutato = localStorage.getItem('gr_fb_' + token); } catch (e) {}
   const lista = [t('Check-out entro le ore 10:00.'), t('Prima di lasciare l\'alloggio telefona in reception per concordare il controllo finale.'), t('Lascia la biancheria usata in una federa fuori dalla porta.'), t('Se hai chiavi o telecomando, riconsegnali in reception.')];
   const conto = (c.da_pagare || 0) > 0.004 ? `<div class="av info" style="margin-top:10px"><span class="ic">${ICONS.CONTI || ICONS.INFO}</span><div class="tx"><div class="tg">${esc(t('Conto'))}</div><b>${esc(t('Ci sono € {n} da saldare', { n: c.da_pagare.toFixed(2) }))}</b><a class="az" href="#" onclick="apriPrenotazioneInfo();return false">${esc(t('Vedi il conto'))} ${GO}</a></div></div>` : '';
   $('#service-content').innerHTML = `${dd !== null && dd >= 0 ? `<div class="card"><h2>${esc(dd === 0 ? t('Oggi si parte') : (dd === 1 ? t('Domani si parte') : t('Mancano {n} giorni alla partenza', { n: dd })))}</h2>
     <ul class="pt-lista">${lista.map(x => `<li>${ICONS.CHECK}<span>${esc(x)}</span></li>`).join('')}</ul></div>` : ''}${conto}
-    <div class="card" id="fb-card">${valutato ? fbGrazie(+valutato) : `<h2>${esc(t('Com\'è andato il soggiorno?'))}</h2><p class="hint" style="margin-top:4px">${esc(t('Tocca le stelle: ci aiuta a migliorare.'))}</p>
-      <div class="stelle" id="stelle">${[1, 2, 3, 4, 5].map(n => `<button type="button" onclick="scegliStelle(${n})" aria-label="${n}">${IC.STAR}</button>`).join('')}</div>
-      <textarea id="fb-testo" class="fb-testo" maxlength="1000" placeholder="${esc(t('Vuoi dirci qualcosa? (facoltativo)'))}"></textarea>
-      <button type="button" class="submit" style="height:52px;margin-top:12px" id="fb-invia" onclick="inviaFeedback()" disabled>${esc(t('Invia valutazione'))}</button>`}</div>`;
+    ${dd !== null && dd <= 0 && recensioniHtml() ? `<div class="card" id="fb-card">${recensioniHtml()}</div>` : ''}`;
 }
-function scegliStelle(n) {
-  _stelle = n;
-  document.querySelectorAll('#stelle button').forEach((b, i) => b.classList.toggle('on', i < n));
-  const b = $('#fb-invia'); if (b) b.disabled = false;
+// Recensioni: nessuna valutazione interna, solo i link alle pagine pubbliche (Tripadvisor e Google).
+function recensioniHtml() {
+  const tx = (CONTENUTI && CONTENUTI.testi) || {}, ok = u => /^https:\/\//i.test(String(u || '').trim());
+  const tp = (tx.social_tripadvisor || '').trim(), gg = (tx.recensione_google || '').trim();
+  if (!ok(tp) && !ok(gg)) return '';
+  return `<h2>${esc(t('Raccontaci come è andata'))}</h2><p class="hint" style="margin-top:4px">${esc(t('Se ti è piaciuto il soggiorno, una recensione ci aiuta tantissimo.'))}</p>
+    <div class="rev-btns">${ok(gg) ? `<a class="rev-btn g" href="${esc(gg)}" target="_blank" rel="noopener">${IC.GOOGLE}<span>${esc(t('Recensisci su Google'))}</span></a>` : ''}
+      ${ok(tp) ? `<a class="rev-btn t" href="${esc(tp)}" target="_blank" rel="noopener">${HF_ICONE.tripadvisor}<span>${esc(t('Recensisci su Tripadvisor'))}</span></a>` : ''}</div>`;
 }
-function fbGrazie(n) {
-  const tp = ((CONTENUTI && CONTENUTI.testi) || {}).social_tripadvisor || '';
-  const ok = /^https:\/\//i.test(tp.trim());
-  return `<h2>${esc(t('Grazie!'))}</h2><div class="stelle fisse">${[1, 2, 3, 4, 5].map(i => `<button type="button" class="${i <= n ? 'on' : ''}" tabindex="-1">${IC.STAR}</button>`).join('')}</div>
-    <p class="hint" style="margin-top:6px">${esc(n >= 4 ? t('Siamo felici che ti sia piaciuto!') : t('Il tuo messaggio è arrivato alla reception.'))}</p>
-    ${n >= 4 && ok ? `<a class="submit" style="display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-top:12px;height:52px" href="${esc(tp.trim())}" target="_blank" rel="noopener">${HF_ICONE.tripadvisor.replace('<svg', '<svg style="width:22px;height:22px"')}${esc(t('Raccontalo su Tripadvisor'))}</a>` : ''}`;
-}
-async function inviaFeedback() {
-  const b = $('#fb-invia'); b.disabled = true; b.textContent = t('Invio in corso…');
-  try {
-    const r = await chiama({ azione: 'feedback', stelle: _stelle, testo: ($('#fb-testo') || {}).value || '' });
-    if (!r.ok) throw new Error(r.errore);
-    try { localStorage.setItem('gr_fb_' + token, String(_stelle)); } catch (e) {}
-    $('#fb-card').innerHTML = fbGrazie(_stelle); traduciDom($('#fb-card'));
-  } catch (e) { b.disabled = false; b.textContent = t('Invia valutazione'); rsToast(t('Non sono riuscito a inviare, riprova')); }
-}
+function fbCardInner() { return recensioniHtml(); }
 
 // ── Mappa interattiva del villaggio ───────────────────────────────────────
 const POI = [
@@ -1019,7 +1037,9 @@ function selPoi(id) {
 
 function renderHome() {
   const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
-  const CARD = SERVIZI.concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
+  const CARD = SERVIZI.filter(s => !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
+  const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
+  if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
   $('#service-grid').innerHTML = CARD.map((s, i) => `
     <div class="service-card${(CARD.length % 2 === 1 && i === CARD.length - 1) ? ' wide' : ''}" style="background-image:url('${esc(s.id === 'mappa' ? s.foto : fotoServizio(s.id))}')" onclick="${s.id === 'mappa' ? 'apriMappa()' : `apriServizio('${s.id}')`}">
       ${!haContenuto(s.id) ? '<span class="pill-soon">A breve</span>' : (s.id === 'ristorazione' && daFare ? `<span class="pill-soon todo">${esc(t('{n} da fare', { n: daFare }))}</span>` : '')}
@@ -1032,6 +1052,7 @@ function renderHome() {
 }
 
 function apriServizio(id) {
+  if ((preArrivo() && SOLO_DOPO_ARRIVO.includes(id)) || dopoPartenza()) return;
   _servizioAperto = id;
   _infoSub = null;
   const s = SERVIZI.find(x => x.id === id) || {};

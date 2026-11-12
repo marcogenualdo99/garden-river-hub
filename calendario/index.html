@@ -5818,14 +5818,14 @@ async function apriAreaOspiteModal() {
       await setDoc(doc(db, 'area_ospite_links', token), {
         prenId: p.id,
         creato_il: new Date().toISOString(),
-        scade_il: scadenzaCheckinMs(p.checkout),
+        scade_il: scadenzaCheckinMs(p.checkout) + 17 * 24 * 3600 * 1000,   // check-out + 20 giorni
       });
       await updateDoc(doc(db, 'prenotazioni', p.id), { area_ospite_token: token });
       p.area_ospite_token = token;
     }
     linkInput.value = AREA_OSPITE_PAGE + '?t=' + p.area_ospite_token;
     document.getElementById('area-ospite-scadenza').textContent =
-      `Il link resta valido fino a 3 giorni dopo il check-out (${fmtDataIt(p.checkout)}).`;
+      `Il link resta valido fino a 20 giorni dopo il check-out (${fmtDataIt(p.checkout)}). Dopo la partenza mostra un ringraziamento e l'invito alla recensione.`;
   } catch (e) {
     console.error('Errore generazione link area ospite:', e);
     linkInput.value = '';
@@ -5960,16 +5960,24 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
 // cambiano solo qui e devono riflettersi in tutto cio' che ne conserva una copia.
 //  · Ristorazione e Conti (Conto Pensione): v. sincronizzaFamigliaRistorazione
 //  · Spiaggia: la posizione ombrellone ha dal/al/cliente propri
-//  · Link check-in e Area ospite: la scadenza e' calcolata dal check-out
+//  · Link check-in e Area ospite: la scadenza segue il check-out (lo calcola la Cloud Function)
 //  · Bici e Navetta: nome e alloggio salvati sul noleggio/corsa
 // Un servizio che non risponde non blocca il salvataggio: l'operatore vede un avviso.
+const _statoPropagato = {};   // id prenotazione -> ultimo stato gia' riportato ai servizi
 async function propagaAiServizi(idPren, prima, dopo) {
-  if (!prima || !idPren) return;
+  if (!idPren) return;
+  // Si confronta con l'ultimo stato GIA' propagato in questa sessione, non solo con
+  // quello letto prima di scrivere: se due salvataggi automatici si susseguono prima
+  // che l'aggiornamento in tempo reale arrivi, il secondo non deve credere che non
+  // sia cambiato niente (era il motivo per cui la Spiaggia a volte restava indietro).
+  prima = _statoPropagato[idPren] || prima;
+  _statoPropagato[idPren] = { checkin: dopo.checkin, checkout: dopo.checkout, nome: dopo.nome, alloggio_nome: dopo.alloggio_nome, tel: dopo.tel || '' };
+  if (!prima) return;
   const cambiaDate = prima.checkin !== dopo.checkin || prima.checkout !== dopo.checkout;
   const cambiaAnag = prima.nome !== dopo.nome || prima.alloggio_nome !== dopo.alloggio_nome || (prima.tel || '') !== (dopo.tel || '');
   if (!cambiaDate && !cambiaAnag) return;
   const { db, collection, doc, getDocs, updateDoc } = window._fb;
-  const avvisi = [], ora = new Date().toISOString();
+  const avvisi = [], aggiornati = [], ora = new Date().toISOString();
   const prova = async (nome, fn) => { try { await fn(); } catch (e) { console.error('Propagazione ' + nome + ':', e); avvisi.push(nome + ' non aggiornato'); } };
 
   await prova('Spiaggia', async () => {
@@ -5982,30 +5990,30 @@ async function propagaAiServizi(idPren, prima, dopo) {
         if (spiaggiaHaConflitto(altre, b.ombrellone, upd.dal, upd.al, b.id)) avvisi.push('Spiaggia: l\'ombrellone ' + b.ombrellone + ' e\' occupato nelle nuove date, riposizionalo');
       }
       await updateDoc(doc(db, 'beach_prenotazioni', b.id), upd);
+      aggiornati.push('Spiaggia');
     }
   });
 
-  if (cambiaDate) {
-    const scade = scadenzaCheckinMs(dopo.checkout);
-    if (prima.checkin_token) await prova('Link check-in', () => updateDoc(doc(db, 'checkin_links', prima.checkin_token), { scade_il: scade }));
-    if (prima.area_ospite_token) await prova('Link Area ospite', () => updateDoc(doc(db, 'area_ospite_links', prima.area_ospite_token), { scade_il: scade }));
-  }
-
+  // Link check-in / Area ospite: nessuna scrittura. La scadenza (check-out + 3 giorni) la
+  // calcolano le Cloud Function sul check-out attuale, quindi segue le nuove date da sola.
   if (cambiaAnag) {
     await prova('Bici', async () => {
       const bici = (await getDocs(collection(db, 'bici'))).docs.map(d => ({ id: d.id, ...d.data() }));
       for (const b of bici.filter(x => x.clientePrenotazioneId === idPren)) {
         await updateDoc(doc(db, 'bici', b.id), { clienteNome: dopo.nome, clienteAlloggio: dopo.alloggio_nome || b.clienteAlloggio || null });
+        aggiornati.push('Bici');
       }
     });
     await prova('Navetta', async () => {
       const corse = (await getDocs(collection(db, 'navetta_prenotazioni'))).docs.map(d => ({ id: d.id, ...d.data() }));
       for (const c of corse.filter(x => x.prenId === idPren && (x.stato === 'in_attesa' || x.stato === 'accettata'))) {
         await updateDoc(doc(db, 'navetta_prenotazioni', c.id), { nome: dopo.nome, alloggio_nome: dopo.alloggio_nome || '', telefono: dopo.tel || c.telefono || '' });
+        aggiornati.push('Navetta');
       }
     });
   }
   if (avvisi.length) showToast('Attenzione: ' + avvisi.join(' · '));
+  else if (aggiornati.length) showToast('Aggiornato anche in: ' + [...new Set(aggiornati)].join(', '));
 }
 
 // ── LOG MODIFICHE (icona "i" nel form prenotazione) ────────────────────────

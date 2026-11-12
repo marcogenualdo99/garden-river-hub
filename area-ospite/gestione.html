@@ -146,7 +146,6 @@
       <button type="button" data-tab="home" class="on" onclick="vaiTab('home')">Home</button>
       <button type="button" data-tab="anim" onclick="vaiTab('anim')">Animazione</button>
       <button type="button" data-tab="serv" onclick="vaiTab('serv')">Servizi</button>
-      <button type="button" data-tab="val" onclick="vaiTab('val')">Valutazioni</button>
     </div>
 
     <div class="tabpane on" id="tab-home">
@@ -164,7 +163,8 @@
         <textarea id="t-contatti_testo" style="min-height:90px" placeholder="Ristorante | 0734 000000&#10;Emergenze | 333 0000000"></textarea></div>
       <div class="field"><label>Facebook (link)</label><input id="t-social_facebook" type="url" placeholder="https://www.facebook.com/..."></div>
       <div class="field"><label>Instagram (link)</label><input id="t-social_instagram" type="url" placeholder="https://www.instagram.com/..."></div>
-      <div class="field"><label>Tripadvisor (link)</label><input id="t-social_tripadvisor" type="url" placeholder="https://www.tripadvisor.it/..."></div>
+      <div class="field"><label>Tripadvisor (link, anche per le recensioni)</label><input id="t-social_tripadvisor" type="url" placeholder="https://www.tripadvisor.it/..."></div>
+      <div class="field"><label>Recensioni Google (link)</label><input id="t-recensione_google" type="url" placeholder="https://g.page/r/..../review"></div>
     </div>
     <button class="btn primary" style="width:100%;height:50px;margin-bottom:14px" onclick="salvaTesti()">Salva contatti e social</button>
     </div>
@@ -238,13 +238,6 @@
     <button class="btn primary" id="btn-salva" style="width:100%;height:50px" onclick="salvaTesti()">Salva testi dei servizi</button>
     </div>
 
-    <div class="tabpane" id="tab-val">
-      <p class="tab-intro">Cosa hanno scritto gli ospiti a fine soggiorno.</p>
-    <div class="card">
-      <h3>Valutazioni degli ospiti</h3>
-      <div class="subtitle">Le stelle e i messaggi lasciati dagli ospiti a fine soggiorno (ultime 30).</div>
-      <div id="fb-list"><p class="nota">Caricamento…</p></div>
-    </div>
     </div>
   </main>
 </div>
@@ -262,7 +255,7 @@ const SERVIZI_FOTO = [
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
   { id: 'assistenza',   nome: 'Assistenza',     def: 'img/assistenza.jpg' },
 ];
-const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
+const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'navetta_testo'];
 const MAX_CHARS = 800000;   // doc Firestore max 1 MB; la Cloud Function tronca oltre 900k
 let fotoCorrenti = {};      // id -> data URL (se personalizzata)
 
@@ -611,9 +604,9 @@ function vaiTab(n) {
   try { history.replaceState(null, '', '#' + n); } catch (e) {}
   window.scrollTo(0, 0);
 }
-(function () { const h = (location.hash || '').slice(1); if (['home', 'anim', 'serv', 'val'].includes(h)) setTimeout(() => vaiTab(h), 0); })();
+(function () { const h = (location.hash || '').slice(1); if (['home', 'anim', 'serv'].includes(h)) setTimeout(() => vaiTab(h), 0); })();
 
-// ── Avvisi in home e valutazioni ospiti ──────────────────────────────────
+// ── Avvisi in home ──────────────────────────────────
 let AVVISI = [];
 function avRender() {
   $('#av-list').innerHTML = AVVISI.map((a, i) => `<div class="av-row">
@@ -641,16 +634,11 @@ async function avSalva() {
 }
 async function avCarica() {
   try {
-    const { db, doc, getDoc, collection, getDocs } = window._fb;
+    const { db, doc, getDoc } = window._fb;
     const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'));
     AVVISI = (s.exists() ? s.data().avvisi : null) || [];
     avRender();
-    const f = await getDocs(collection(db, 'feedback_ospiti'));
-    const l = f.docs.map(d => d.data()).sort((a, b) => (b.creato_il || '').localeCompare(a.creato_il || '')).slice(0, 30);
-    $('#fb-list').innerHTML = l.length ? l.map(x => `<div class="fb-item"><span class="st">${'★'.repeat(x.stelle || 0)}${'☆'.repeat(5 - (x.stelle || 0))}</span>
-      <b> ${esc(x.nome || '—')}</b> <small>${esc(x.alloggio || '')} · ${esc((x.creato_il || '').slice(0, 10))}</small>${x.testo ? `<p>${esc(x.testo)}</p>` : ''}</div>`).join('')
-      : '<p class="nota">Nessuna valutazione ancora.</p>';
-  } catch (e) { console.error('Avvisi/feedback:', e); $('#fb-list').innerHTML = '<p class="nota">Non riesco a leggere le valutazioni (le regole Firestore vanno pubblicate).</p>'; avRender(); }
+  } catch (e) { console.error('Avvisi:', e); avRender(); }
 }
 
 (function avvio() {

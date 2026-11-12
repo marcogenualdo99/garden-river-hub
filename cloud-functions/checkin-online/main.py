@@ -118,6 +118,18 @@ def _token_valido(token):
     return bool(re.fullmatch(r'[a-f0-9]{16,64}', token or ''))
 
 
+def _link_scaduto(link, pren):
+    """Valido fino a 3 giorni dopo il check-out ATTUALE della prenotazione (si
+    adegua da solo se le date cambiano dal Calendario)."""
+    co = _s(pren.get('checkout'))[:10]
+    try:
+        d = datetime.date.fromisoformat(co)
+        return datetime.date.today() > d + datetime.timedelta(days=3)
+    except ValueError:
+        scade_il = (link or {}).get('scade_il') or 0
+        return bool(scade_il and scade_il < _now_ms())
+
+
 def _risolvi_token(db, token):
     """Ritorna (pren_ref, pren_dict, link_ref) oppure (None, None, None)."""
     if not _token_valido(token):
@@ -127,13 +139,6 @@ def _risolvi_token(db, token):
     if not snap.exists:
         return None, None, None
     d = snap.to_dict() or {}
-    scade_il = d.get('scade_il') or 0
-    if scade_il and scade_il < _now_ms():
-        try:
-            link_ref.delete()          # link scaduto: pulizia opportunistica
-        except Exception:
-            pass
-        return None, None, None
     pren_id = d.get('prenId')
     if not pren_id:
         return None, None, None
@@ -141,7 +146,10 @@ def _risolvi_token(db, token):
     pren = pren_ref.get()
     if not pren.exists:
         return None, None, None
-    return pren_ref, (pren.to_dict() or {}), link_ref
+    p = pren.to_dict() or {}
+    if _link_scaduto(d, p):
+        return None, None, None
+    return pren_ref, p, link_ref
 
 
 def _oggi_iso():

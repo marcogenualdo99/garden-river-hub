@@ -149,6 +149,13 @@ const _LISTA = [
   _D("Completa l'ordine", 'Complete the order', 'Bestellung vervollständigen'), _D('Trova subito ogni punto del villaggio', 'Find every spot in the village', 'Finde jeden Ort im Dorf'),
   _D('Domani si riparte con il programma', 'The programme starts again tomorrow', 'Morgen geht das Programm weiter'), _D('Per qualsiasi bisogno chiedi in reception: siamo a tua disposizione.', 'For anything you need, ask at reception: we are at your disposal.', 'Bei jedem Anliegen frag an der Rezeption: Wir sind für dich da.'),
   _D('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', 'Still missing: {x}. The staff has reopened today\'s orders.', 'Es fehlt noch: {x}. Das Personal hat die heutigen Bestellungen wieder geöffnet.'),
+  _D('Il tuo soggiorno', 'Your stay', 'Dein Aufenthalt'), _D('Ti aspettiamo domani!', 'See you tomorrow!', 'Wir erwarten dich morgen!'), _D('Ti aspettiamo tra {n} giorni', 'See you in {n} days', 'Wir erwarten dich in {n} Tagen'),
+  _D('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', 'Arrival {d}. In the meantime, here is useful information to get ready.', 'Anreise {d}. Hier findest du schon nützliche Infos zur Vorbereitung.'), _D('Tutti i dettagli', 'All the details', 'Alle Details'),
+  _D('Grazie per aver scelto Garden River', 'Thank you for choosing Garden River', 'Danke, dass du dich für Garden River entschieden hast'), _D('Grazie, {n}!', 'Thank you, {n}!', 'Danke, {n}!'),
+  _D('È stato un piacere averti con noi. Speriamo di rivederti presto al Garden River!', 'It was a pleasure having you with us. We hope to see you again soon at Garden River!', 'Es war uns eine Freude, dich bei uns zu haben. Wir hoffen, dich bald wiederzusehen!'),
+  _D('Se ti è piaciuto, una recensione ci aiuta tantissimo: tocca le stelle.', 'If you enjoyed it, a review helps us enormously: tap the stars.', 'Wenn es dir gefallen hat, hilft uns eine Bewertung sehr: Tippe auf die Sterne.'),
+  _D('Raccontaci come è andata', 'Tell us how it went', 'Erzähl uns, wie es war'), _D('Se ti è piaciuto il soggiorno, una recensione ci aiuta tantissimo.', 'If you enjoyed your stay, a review helps us enormously.', 'Wenn dir dein Aufenthalt gefallen hat, hilft uns eine Bewertung sehr.'),
+  _D('Recensisci su Google', 'Review us on Google', 'Auf Google bewerten'), _D('Recensisci su Tripadvisor', 'Review us on Tripadvisor', 'Auf Tripadvisor bewerten'),
   _D('Non riesco a caricare', "Can't load", 'Kann nicht geladen werden'),
 ];
 const DIZ = { en: {}, de: {} };
