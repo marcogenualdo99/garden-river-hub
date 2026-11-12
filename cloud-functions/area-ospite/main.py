@@ -224,7 +224,8 @@ AVVISI_AUTO_DEF = {
     'pioggia':   {'pre': None,  'dentro': True},    # possibile pioggia
     'stasera':   {'pre': False, 'dentro': True},    # banner serata speciale
     'oggi':      {'pre': None,  'dentro': True},    # riquadro "Oggi per te"
-    'adesso':    {'pre': False, 'dentro': True},    # meteo e orari "adesso"
+    'meteo':     {'pre': False, 'dentro': True},    # card meteo
+    'orari':     {'pre': False, 'dentro': True},    # orari "aperto adesso" (piscina, ristorante, navetta)
 }
 
 
@@ -238,6 +239,8 @@ def _avvisi_cfg(db):
     out = {}
     for k, fasi in AVVISI_AUTO_DEF.items():
         m = memorizzato.get(k) if isinstance(memorizzato.get(k), dict) else {}
+        if not m and k in ('meteo', 'orari') and isinstance(memorizzato.get('adesso'), dict):
+            m = memorizzato['adesso']       # impostazione precedente, quando erano un unico riquadro
         out[k] = {ph: (None if d is None else bool(m.get(ph, d))) for ph, d in fasi.items()}
     return out
 
@@ -395,7 +398,7 @@ def _autisti_elenco(db, con_foto=True):
         return []
 
 
-def _ristorazione_disponibile(db, pren_id):
+def _ristorazione_disponibile(db, pren_id, pren=None):
     """Famiglia Ristorazione collegata a questa prenotazione (creata in
     automatico dal Calendario quando il trattamento è PC/MP — v.
     sincronizzaFamigliaRistorazione in calendario/index.html). Cerca prima
@@ -416,6 +419,8 @@ def _ristorazione_disponibile(db, pren_id):
                 f = docs[0].to_dict() or {}
         if not f:
             return None
+        if pren:
+            f = _risto_allinea(f, pren)
         codice = _s(f.get('codice'))
         trattamento = _s(f.get('trattamento'))
         if not codice or trattamento not in ('PC', 'MP'):
@@ -761,7 +766,7 @@ def _azione_carica(db, origin, data):
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id, p),
         'spiagge': _spiagge_disponibili(db),
         'autisti': _autisti_elenco(db),
-        'ristorazione': _ristorazione_disponibile(db, pren_ref.id),
+        'ristorazione': _ristorazione_disponibile(db, pren_ref.id, p),
         'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
         'orari_occupati': _orari_occupati(attive, cfg),
         'posti_occupati': _posti_occupati(attive, cfg),
@@ -1077,6 +1082,27 @@ def _risto_famiglia(db, pren_id):
     return None, None
 
 
+def _risto_allinea(fam, p):
+    """La prenotazione del Calendario e' la fonte di verita': date, trattamento e numero
+    di ospiti vengono da li', non dalla copia nell'anagrafica Ristorazione (che puo'
+    essere rimasta indietro dopo un cambio di date)."""
+    fam = dict(fam or {})
+    for k in ('checkin', 'checkout'):
+        v = _s(p.get(k), 10)
+        if v:
+            fam[k] = v
+    tr = _s(p.get('trattamento_ristorazione'), 2)
+    if tr in ('PC', 'MP'):
+        fam['trattamento'] = tr
+    try:
+        ospiti = int(p.get('adulti') or 0) + int(p.get('bambini') or 0)
+    except (TypeError, ValueError):
+        ospiti = 0
+    if ospiti > 0:
+        fam['max_ospiti'] = ospiti
+    return fam
+
+
 def _risto_impostazioni(db):
     out = {'ciclo_start': None, 'categorie': list(RISTO_CAT_DEFAULT),
            'menu_bambini': list(RISTO_BAMBINI_DEFAULT)}
@@ -1163,6 +1189,8 @@ def _azione_ristorazione_menu(db, origin, data):
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
     fam_id, fam = _risto_famiglia(db, pren_ref.id)
+    if fam:
+        fam = _risto_allinea(fam, p)
     if not fam or _s(fam.get('trattamento')) not in ('PC', 'MP'):
         return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
     ora = datetime.now(TZ_ROMA)
@@ -1201,6 +1229,8 @@ def _azione_ristorazione_ordina(db, origin, data):
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
     fam_id, fam = _risto_famiglia(db, pren_ref.id)
+    if fam:
+        fam = _risto_allinea(fam, p)
     trattamento = _s((fam or {}).get('trattamento'))
     if not fam or trattamento not in ('PC', 'MP'):
         return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)

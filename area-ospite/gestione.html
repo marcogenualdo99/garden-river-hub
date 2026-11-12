@@ -628,14 +628,16 @@ const AUTO_DEF = {
   pioggia:   { l: 'Possibile pioggia', pre: null, dentro: true },
   stasera:   { l: 'Banner «Stasera» (serata speciale dell\'animazione)', pre: false, dentro: true },
   oggi:      { l: 'Riquadro «Oggi per te» (attività, pasti, navetta, spiaggia)', pre: null, dentro: true },
-  adesso:    { l: 'Riquadro «Adesso al villaggio» (meteo e orari)', pre: false, dentro: true },
+  meteo:     { l: 'Meteo (temperatura e previsione di domani)', pre: false, dentro: true },
+  orari:     { l: 'Orari «aperto adesso» (piscina, ristorante, navetta)', pre: false, dentro: true },
 };
 let AUTO = {};
 function autoRender() {
   const cella = (k, ph) => {
     const d = AUTO_DEF[k][ph];
     if (d === null) return '<span class="auto-na">—</span>';
-    const v = (AUTO[k] && AUTO[k][ph] !== undefined) ? AUTO[k][ph] : d;
+    const salv = AUTO[k] || ((k === 'meteo' || k === 'orari') ? AUTO.adesso : null);   // 'adesso' = vecchia impostazione unica
+    const v = (salv && salv[ph] !== undefined) ? salv[ph] : d;
     return `<input type="checkbox"${v ? ' checked' : ''} onchange="(AUTO['${k}'] = AUTO['${k}'] || {}).${ph} = this.checked">`;
   };
   $('#auto-list').innerHTML = `<table class="auto-t"><thead><tr><th></th><th>Prima dell'arrivo</th><th>In struttura</th></tr></thead><tbody>${
@@ -646,7 +648,7 @@ async function autoSalva() {
   try {
     const { db, doc, setDoc } = window._fb;
     const auto = {};
-    Object.keys(AUTO_DEF).forEach(k => { auto[k] = {}; ['pre', 'dentro'].forEach(ph => { if (AUTO_DEF[k][ph] !== null) auto[k][ph] = (AUTO[k] && AUTO[k][ph] !== undefined) ? !!AUTO[k][ph] : AUTO_DEF[k][ph]; }); });
+    Object.keys(AUTO_DEF).forEach(k => { auto[k] = {}; ['pre', 'dentro'].forEach(ph => { if (AUTO_DEF[k][ph] !== null) auto[k][ph] = (AUTO[k] && AUTO[k][ph] !== undefined) ? !!AUTO[k][ph] : (((k === 'meteo' || k === 'orari') && AUTO.adesso && AUTO.adesso[ph] !== undefined) ? !!AUTO.adesso[ph] : AUTO_DEF[k][ph]); }); });
     await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { auto, aggiornato_il: new Date().toISOString() }, { merge: true });
     AUTO = auto; toast('Impostazioni salvate');
   } catch (e) { console.error(e); toast('Errore salvataggio'); }

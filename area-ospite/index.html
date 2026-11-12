@@ -638,7 +638,7 @@ function render() {
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
   // Se l'ospite ha i pasti, scarica il menu in anticipo: quando apre Ristorazione è già pronto.
   if (CFG.ristorazione && !preArrivo() && !dopoPartenza() && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
-  if (!dopoPartenza()) { if (vis('adesso') || vis('pioggia')) caricaMeteo(); if (!preArrivo() && vis('ordini')) caricaRistoHome(); }
+  if (!dopoPartenza()) { if (vis('meteo') || vis('pioggia')) caricaMeteo(); if (!preArrivo() && vis('ordini')) caricaRistoHome(); }
   $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
   mostraIntestazioneHome();
   renderHome();
@@ -757,11 +757,12 @@ const SOLO_DOPO_ARRIVO = ['navetta', 'ristorazione'];
 // Cosa mostrare a chi deve arrivare ('pre') e a chi e' in struttura ('dentro'); null = non ha senso.
 // Le scelte arrivano dalle impostazioni (Gestione area ospite); questi sono i valori di partenza.
 const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: null, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
-  pioggia: { pre: null, dentro: true }, stasera: { pre: false, dentro: true }, oggi: { pre: null, dentro: true }, adesso: { pre: false, dentro: true } };
+  pioggia: { pre: null, dentro: true }, stasera: { pre: false, dentro: true }, oggi: { pre: null, dentro: true }, meteo: { pre: false, dentro: true }, orari: { pre: false, dentro: true } };
 function vis(k) {
   const ph = preArrivo() ? 'pre' : 'dentro', d = AVV_DEF[k][ph];
   if (d === null) return false;
-  const c = ((CONTENUTI && CONTENUTI.avvisi_cfg) || {})[k];
+  const cfg = (CONTENUTI && CONTENUTI.avvisi_cfg) || {};
+  const c = cfg[k] || ((k === 'meteo' || k === 'orari') ? cfg.adesso : null);   // 'adesso' = impostazione precedente
   return c && c[ph] !== undefined && c[ph] !== null ? !!c[ph] : d;
 }
 const pubblicoOk = a => !a.pubblico || a.pubblico === 'tutti' || (a.pubblico === 'prima') === preArrivo();
@@ -901,14 +902,16 @@ function statoRistorante() {
 const WMO = c => c === 0 ? [IC.SUN, 'Sereno', 'sole'] : c <= 2 ? [IC.CLOUDSUN, 'Poco nuvoloso', 'sole'] : c === 3 ? [IC.CLOUD, 'Coperto', 'nube'] : (c === 45 || c === 48) ? [IC.FOG, 'Nebbia', 'nube'] : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? [IC.RAIN, 'Pioggia', 'acqua'] : c >= 95 ? [IC.STORM, 'Temporale', 'acqua'] : [IC.CLOUD, 'Nuvoloso', 'nube'];
 function renderAdesso() {
   const el = $('#home-adesso'); if (!el) return;
-  if (!vis('adesso')) { el.innerHTML = ''; return; }
-  const m = HOME_X.meteo, fasce = (CFG.fasce || []).map(f => [f.dal, f.al]).filter(f => f[0] && f[1]);
-  const righe = [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]];
-  if (fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
-  el.innerHTML = `<div class="sez">${esc(t('Adesso al villaggio'))}</div><div class="adesso">
+  const mostraMeteo = vis('meteo'), mostraOrari = vis('orari');
+  if (!mostraMeteo && !mostraOrari) { el.innerHTML = ''; return; }
+  const m = mostraMeteo ? HOME_X.meteo : null, fasce = (CFG.fasce || []).map(f => [f.dal, f.al]).filter(f => f[0] && f[1]);
+  const righe = mostraOrari ? [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]] : [];
+  if (mostraOrari && fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
+  if (!m && !righe.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="sez">${esc(t(mostraOrari ? 'Adesso al villaggio' : 'Meteo'))}</div><div class="adesso">
     ${m ? `<div class="meteo"><span class="mi ${WMO(m.codice)[2]}">${WMO(m.codice)[0]}</span><div class="mt"><b>${Math.round(m.temp)}°</b><small>${esc(t(WMO(m.codice)[1]))}</small></div>
       <div class="md"><small>${esc(t('Domani'))}</small><b>${Math.round(m.dom_min)}° · ${Math.round(m.dom_max)}°</b></div></div>` : ''}
-    <div class="ore">${righe.map(([n, s]) => `<div class="o"><i class="${s.on ? 'on' : ''}"></i><span><b>${esc(t(n))}</b><small>${esc(s.txt)}</small></span></div>`).join('')}</div></div>`;
+    ${righe.length ? `<div class="ore">${righe.map(([n, s]) => `<div class="o"><i class="${s.on ? 'on' : ''}"></i><span><b>${esc(t(n))}</b><small>${esc(s.txt)}</small></span></div>`).join('')}</div>` : ''}</div>`;
 }
 async function caricaMeteo() {
   if (HOME_X.meteo || HOME_X._meteoProvato) return;
