@@ -15,7 +15,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, where, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -34,7 +34,7 @@
   const auth  = getAuth(fbApp);
 
   // Expose to global scope so the main script (non-module) can use it
-  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, where, limit, enableNetwork, disableNetwork };
   window._fbReady     = false;
   window._fbAuthError = false;
 
@@ -417,7 +417,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
         <span class="search-icon">&#9906;</span>
         <input type="text" id="search-input" placeholder="Cerca per nome o per alloggio" oninput="renderOspiti()">
       </div>
-      <button class="add-btn" id="btn-add-ospite" onclick="switchTab('nuovo-ospite')">+ Ospite</button>
+      <button class="add-btn" id="btn-add-ospite" onclick="goNuovoOspite()">+ Ospite</button>
     </div>
     <div id="filter-bar" class="filter-bar hidden">
       <span class="filter-label" id="filter-label"></span>
@@ -515,29 +515,16 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
   <div id="sec-nuovo-ospite" class="section">
     <div class="back-header">
       <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
-      <div><div class="back-title">Nuovo ospite</div></div>
+      <div><div class="back-title">Apri conto</div><div class="back-sub" id="no-sub">Ospiti presenti in struttura</div></div>
     </div>
     <div class="card">
-      <h3>Registra ospite</h3>
-      <p class="subtitle">Compila i dati di check-in</p>
-      <div class="form-row">
-        <div class="form-group"><label>Nome</label><input type="text" id="no-nome" placeholder="Marco"></div>
-        <div class="form-group"><label>Cognome</label><input type="text" id="no-cognome" placeholder="Rossi"></div>
+      <p class="subtitle">I conti si aprono solo per chi è in struttura: scegli l'ospite dalle prenotazioni del Calendario. Nome, alloggio, piano pasti, telefono e check-out si compilano da soli.</p>
+      <div class="search-wrap" style="margin-top:10px">
+        <span class="search-icon">&#9906;</span>
+        <input type="text" id="no-cerca" placeholder="Cerca per nome o alloggio" oninput="renderPresenti()">
       </div>
-      <div class="form-group"><label>Alloggio</label><select id="no-alloggio"></select></div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Piano pasti</label>
-          <select id="no-piano">
-            <option value="mezza">Mezza pensione</option>
-            <option value="completa">Pensione completa</option>
-            <option value="nessuno">Nessuno (conto libero)</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Data checkout</label><input type="date" id="no-checkout"></div>
-      </div>
-      <button class="btn-primary" onclick="addOspite()">Registra ospite</button>
     </div>
+    <div id="no-lista" style="margin-top:12px"></div>
   </div>
 
   <!-- MODIFICA OSPITE -->
@@ -549,6 +536,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
     <div class="card">
       <h3>Dati ospite</h3>
       <p class="subtitle">Correggi i dati del conto, se necessario</p>
+      <button class="btn-action ghost" id="mo-richiama" style="display:none;margin-bottom:12px" onclick="richiamaDaPrenotazione()">Richiama i dati dalla prenotazione</button>
       <div class="form-row">
         <div class="form-group"><label>Nome</label><input type="text" id="mo-nome"></div>
         <div class="form-group"><label>Cognome</label><input type="text" id="mo-cognome"></div>
@@ -740,7 +728,7 @@ function populateAlloggioSelect(selectEl, currentValue) {
 // Richiamata ogni volta che arriva un aggiornamento della lista alloggi:
 // ricostruisce i menu mantenendo quello che l'utente aveva già scelto.
 function refreshAlloggioSelects() {
-  ['no-alloggio','mo-alloggio'].forEach(id => {
+  ['mo-alloggio'].forEach(id => {
     const el = document.getElementById(id);
     if (el) populateAlloggioSelect(el, el.value);
   });
@@ -1028,7 +1016,7 @@ async function sincronizzaFamiglieEsistenti() {
           const nome     = parti[0] || '';
           const cognome  = parti.slice(1).join(' ');
           const piano    = fam.trattamento === 'PC' ? 'completa' : 'mezza';
-          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId: fam.id };
+          const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId: fam.id, prenotazioneId: fam.calendario_prenotazione_id || '' };
           let ospiteId = fam.ospiteId;
           if (!ospiteId) {
             ospiteId = 'osp_' + fam.id;
@@ -1978,27 +1966,75 @@ function goReport()    { renderReport(currentOspiteId); document.querySelectorAl
 function goReportDa(id){ currentOspiteId=id; renderReport(id); document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById('sec-report').classList.add('active'); }
 
 // ── AZIONI ────────────────────────────────────────────────────────────────────
-async function addOspite() {
-  const nome     = document.getElementById('no-nome').value.trim();
-  const cognome  = document.getElementById('no-cognome').value.trim();
-  const alloggio = document.getElementById('no-alloggio').value.trim();
-  const piano    = document.getElementById('no-piano').value;
-  const checkout = document.getElementById('no-checkout').value;
-  if (!nome||!cognome||!alloggio||!checkout) { showToast('Compila tutti i campi'); return; }
-  const nuovoId = uid();
-  const ospite = { id: nuovoId, nome, cognome, alloggio, piano, checkout, chiuso: false };
+// ── NUOVO CONTO: solo da prenotazioni presenti in struttura ─────────────────
+// Si puo' aprire un conto soltanto per chi sta soggiornando (check-in <= oggi <= check-out,
+// il giorno di partenza resta incluso per addebitare le ultime spese). I dati vengono
+// richiamati dall'anagrafica della prenotazione (Calendario): niente inserimento libero.
+let _presenti = [], _presentiTs = 0;
+function oggiLocale() { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function pianoDaTrattamento(t) { return t === 'PC' ? 'completa' : t === 'MP' ? 'mezza' : 'nessuno'; }
+function contoDellaPrenotazione(pid) {
+  return ospiti.find(o => o.prenotazioneId === pid || o.id === 'osp_cal_' + pid || o.famigliaId === 'cal_' + pid);
+}
+async function caricaPresenti(forza) {
+  if (!forza && Date.now() - _presentiTs < 60000 && _presenti.length) return;
+  await waitForFirebase();
+  const { db, collection, getDocs, query, where } = window._fb;
+  const oggiS = oggiLocale();
+  const snap = await getDocs(query(collection(db, 'prenotazioni'), where('checkout', '>=', oggiS)));
+  _presenti = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.checkin && p.checkin <= oggiS && p.alloggio_nome);
+  _presenti.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+  _presentiTs = Date.now();
+}
+async function goNuovoOspite() {
+  document.getElementById('no-cerca').value = '';
+  switchTab('nuovo-ospite');
+  document.getElementById('no-lista').innerHTML = '<p class="subtitle" style="text-align:center;padding:18px">Caricamento ospiti presenti…</p>';
+  try { await caricaPresenti(true); renderPresenti(); }
+  catch (e) { console.error(e); document.getElementById('no-lista').innerHTML = '<p class="subtitle" style="text-align:center;padding:18px">Impossibile leggere le prenotazioni. Riprova.</p>'; }
+}
+function renderPresenti() {
+  const q = document.getElementById('no-cerca').value.trim().toLowerCase();
+  const el = document.getElementById('no-lista');
+  const lista = _presenti.filter(p => !q || (p.nome || '').toLowerCase().includes(q) || (p.alloggio_nome || '').toLowerCase().includes(q));
+  document.getElementById('no-sub').textContent = `${_presenti.length} prenotazioni in struttura`;
+  if (!lista.length) { el.innerHTML = `<p class="subtitle" style="text-align:center;padding:18px">${_presenti.length ? 'Nessun risultato.' : 'Nessun ospite presente in struttura.'}</p>`; return; }
+  const fd = d => new Date(d).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+  el.innerHTML = lista.map(p => {
+    const c = contoDellaPrenotazione(p.id);
+    const stato = c ? (c.chiuso ? '<span class="badge gray">Conto chiuso</span>' : '<span class="badge green">Conto aperto</span>') : '';
+    const partenza = p.checkout === oggiLocale() ? '<span class="badge red">Parte oggi</span>' : `<span class="badge gray">Check-out ${fd(p.checkout)}</span>`;
+    const piano = pianoBadgeHtml(pianoDaTrattamento(p.trattamento_ristorazione));
+    const persone = (p.adulti || 0) + (p.bambini || 0);
+    return `<div class="ospite-card"><div class="ospite-header" onclick="apriContoDaPrenotazione('${escJs(p.id)}')">
+      <div class="ospite-avatar">${escHtml((p.nome || '?').trim().slice(0, 1).toUpperCase())}</div>
+      <div class="ospite-info"><div class="ospite-nome">${escHtml(p.nome || '—')}</div>
+        <div class="ospite-sub">${escHtml(p.alloggio_nome)}${persone ? ` · ${persone} pers.` : ''}</div>
+        <div class="ospite-badges">${partenza}${piano}${stato}</div></div></div></div>`;
+  }).join('');
+}
+async function apriContoDaPrenotazione(pid) {
+  const esistente = contoDellaPrenotazione(pid);
+  if (esistente) { if (esistente.chiuso) { goDettaglioChiuso(esistente.id); } else { goDettaglio(esistente.id); } return; }
+  const p = _presenti.find(x => x.id === pid); if (!p) return;
+  const parti = (p.nome || '').trim().split(/\s+/);
+  const ospite = {
+    id: 'osp_cal_' + pid, nome: parti[0] || '', cognome: parti.slice(1).join(' '),
+    alloggio: p.alloggio_nome, piano: pianoDaTrattamento(p.trattamento_ristorazione),
+    checkin: p.checkin, checkout: p.checkout, tel: p.tel || '', prenotazioneId: pid, chiuso: false,
+  };
   try {
+    await waitForFirebase();
+    const { db, doc, getDoc, setDoc } = window._fb;
+    const fam = await getDoc(doc(db, 'famiglie_ristorazione', 'cal_' + pid));
+    if (fam.exists()) {
+      ospite.famigliaId = 'cal_' + pid;
+      await setDoc(doc(db, 'famiglie_ristorazione', 'cal_' + pid), { ospiteId: ospite.id }, { merge: true });
+    }
     await fsSetOspite(ospite);
-    // Nessun collegamento a una famiglia: un conto creato qui manualmente è
-    // un conto libero indipendente (l'inserimento principale avviene da
-    // Ristorazione, che genera già il conto collegato automaticamente).
-    ['no-nome','no-cognome','no-alloggio','no-checkout'].forEach(id=>document.getElementById(id).value='');
-    showToast(`${cognome} ${nome} registrato!`);
-    switchTab('ospiti');
-  } catch(e) {
-    console.error(e);
-    showToast('Errore salvataggio — riprova');
-  }
+    showToast(`Conto aperto: ${p.nome}`);
+    goDettaglio(ospite.id);
+  } catch (e) { console.error(e); showToast('Errore salvataggio — riprova'); }
 }
 
 // ── MODIFICA ANAGRAFICA OSPITE ────────────────────────────────────────────────
@@ -2010,8 +2046,29 @@ function goModificaOspite() {
   document.getElementById('mo-piano').value    = o.piano || 'mezza';
   document.getElementById('mo-checkout').value = o.checkout;
   document.getElementById('mo-tel').value      = o.tel || '';
+  document.getElementById('mo-richiama').style.display = o.prenotazioneId ? '' : 'none';
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-modifica-ospite').classList.add('active');
+}
+
+// Riallinea il conto all'anagrafica della prenotazione (nome, alloggio, piano, check-out, telefono)
+// senza salvare: i campi si compilano e l'operatore conferma con "Salva modifiche".
+async function richiamaDaPrenotazione() {
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o || !o.prenotazioneId) return;
+  try {
+    await waitForFirebase();
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'prenotazioni', o.prenotazioneId));
+    if (!snap.exists()) { showToast('Prenotazione non trovata'); return; }
+    const p = snap.data(), parti = (p.nome || '').trim().split(/\s+/);
+    document.getElementById('mo-nome').value = parti[0] || '';
+    document.getElementById('mo-cognome').value = parti.slice(1).join(' ');
+    populateAlloggioSelect(document.getElementById('mo-alloggio'), p.alloggio_nome || o.alloggio);
+    document.getElementById('mo-piano').value = pianoDaTrattamento(p.trattamento_ristorazione);
+    document.getElementById('mo-checkout').value = p.checkout || o.checkout;
+    document.getElementById('mo-tel').value = p.tel || o.tel || '';
+    showToast('Dati richiamati: controlla e salva');
+  } catch (e) { console.error(e); showToast('Errore lettura prenotazione'); }
 }
 
 async function salvaModificaOspite() {

@@ -557,6 +557,70 @@ def _bici_attive(db, pren_id):
         return []
 
 
+def _conto_con_spese(db, pren_id, p):
+    c = _conto_prenotazione(p)
+    extra = _spese_conti(db, pren_id, p)
+    if extra:
+        tot = round(sum(v['importo'] for v in extra), 2)
+        c['voci'] = c['voci'] + extra
+        c['totale'] = round(c['totale'] + tot, 2)
+        c['da_pagare'] = round(c['da_pagare'] + tot, 2)
+    return c
+
+
+def _token_nome(v):
+    return set(re.sub(r'[^a-z0-9 ]', ' ', (v or '').lower()).split())
+
+
+def _spese_conti(db, pren_id, p):
+    """Spese registrate nel modulo Conti (collezioni `ospiti` + `ordini`) per questo ospite,
+    ancora da incassare (dopo l'ultimo azzeramento `pagatoFinoA`). Il collegamento passa dalla
+    famiglia Ristorazione; se manca, si cerca il conto per alloggio + nome. Sola lettura."""
+    try:
+        ids = []
+        fam_id, fam = _risto_famiglia(db, pren_id)
+        if fam_id:
+            if fam.get('ospiteId'):
+                ids.append(fam['ospiteId'])
+            ids.append('osp_' + fam_id)
+        ospiti = []
+        for d in db.collection('ospiti').where('prenotazioneId', '==', pren_id).stream():
+            ospiti.append((d.id, d.to_dict() or {}))
+        for oid in dict.fromkeys(i for i in ids if i not in {x[0] for x in ospiti}):
+            d = db.collection('ospiti').document(oid).get()
+            if d.exists:
+                ospiti.append((d.id, d.to_dict() or {}))
+        if not ospiti:
+            nome_p = _token_nome(p.get('nome'))
+            alloggio = _s(p.get('alloggio_nome'))
+            if nome_p and alloggio:
+                for d in db.collection('ospiti').where('alloggio', '==', alloggio).stream():
+                    o = d.to_dict() or {}
+                    nome_o = _token_nome(f"{o.get('nome', '')} {o.get('cognome', '')}")
+                    if nome_o and (nome_o <= nome_p or nome_p <= nome_o):
+                        ospiti.append((d.id, o))
+        voci = []
+        for oid, o in ospiti:
+            soglia = _s(o.get('pagatoFinoA'), 20)
+            for d in db.collection('ordini').where('ospiteId', '==', oid).stream():
+                x = d.to_dict() or {}
+                ts = _s(x.get('ts'), 20)
+                if soglia and ts <= soglia:
+                    continue
+                try:
+                    imp = round(float(x.get('importo') or 0), 2)
+                except (TypeError, ValueError):
+                    continue
+                if imp:
+                    voci.append((ts, {'label': _s(x.get('desc'), 160) or _s(x.get('punto'), 60) or 'Spesa',
+                                      'importo': imp, 'pagato': False, 'acconto': False}))
+        voci.sort(key=lambda v: v[0])
+        return [v for _, v in voci]
+    except Exception as e:
+        print(f'Lettura spese Conti non riuscita: {e}')
+        return []
+
+
 def _spiaggia_assegnata(db, pren_id, pren=None):
     """Ombrellone/spiaggia già posizionati per questa prenotazione.
     1) collegamento del Calendario (beach_prenotazioni.calendario_prenotazione_id);
@@ -809,7 +873,7 @@ def _azione_carica(db, origin, data):
             'checkin':       _s(p.get('checkin')),
             'checkout':      _s(p.get('checkout')),
         },
-        'conto': _conto_prenotazione(p),
+        'conto': _conto_con_spese(db, pren_ref.id, p),
         'bici_attive': _bici_attive(db, pren_ref.id),
         'spiaggia': _spiaggia_assegnata(db, pren_ref.id, p),
         'spiagge': _spiagge_disponibili(db),
