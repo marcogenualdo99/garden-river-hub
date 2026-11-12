@@ -64,6 +64,10 @@
   header.top .top-back:active { background: rgba(255,255,255,.3) }
   header.top.in-servizio .top-back { display: inline-flex }
   header.top.in-servizio .avatar { display: none }
+  header.top .kicker { display: none }
+  header.top:not(.in-servizio) .kicker { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; opacity: .95; margin-bottom: 4px; color: var(--orange-lt); max-width: 52% }
+  header.top.home-top { min-height: 250px }
+  header.top.home-top .sub { font-size: 15px }
   #service-view > .home-back-btn { display: none }
   header.top .brand { font-size: 11.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85 }
   header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 27px; margin: 2px 0 0; letter-spacing: -.01em; max-width: 64% }
@@ -369,6 +373,7 @@
         <button type="button" class="top-back" onclick="handleBack()" aria-label="Torna indietro"><span data-icon="BACK"></span>Torna indietro</button>
         <button type="button" class="info-btn" onclick="apriPrenotazioneInfo()" aria-label="I tuoi dati e il conto"><span data-icon="INFO"></span></button>
       </div>
+      <div class="kicker">Benvenuto al Garden River</div>
       <h1 id="titolo">Area ospite</h1>
       <div class="sub" id="sottotitolo"></div>
       <img class="hero-img" src="img/gardy.png" alt="" aria-hidden="true">
@@ -464,7 +469,7 @@ function fotoServizio(id) {
 // Ogni sezione ha il suo banner: foto PNG ritagliata, sfondo verde/arancione alternato
 // ed elemento grafico diverso (h/r/b = altezza, destra, fondo dell'immagine in px).
 const BANNER = {
-  home:         { img: 'img/banner/home.png',         tema: 'verde',   deco: 'raggi',  h: 200, r: -34, b: -40, sw: 150 },
+  home:         { img: 'img/banner/home.png',         tema: 'arancio',   deco: 'raggi',  h: 215, r: -62, b: -54, sw: 150 },
   navetta:      { img: 'img/banner/navetta.png',      tema: 'verde',   deco: 'onde',   h: 172, r: -18, b: -6 },
   ristorazione: { img: 'img/banner/ristorazione.png', tema: 'arancio', deco: 'piatto', h: 185, r: -18, b: -12 },
   animazione:   { img: 'img/gardy.png',               tema: 'verde',   deco: 'sole',   h: 235, r: -86, b: -80 },
@@ -473,7 +478,7 @@ const BANNER = {
 };
 function impostaBanner(id) {
   const b = BANNER[id] || BANNER.home, hd = $('#hero');
-  hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? '' : ' in-servizio'}`;
+  hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? ' home-top' : ' in-servizio'}`;
   hydrateIcons(hd);
   const im = hd.querySelector('.hero-img');
   im.src = b.img;
@@ -484,6 +489,14 @@ function impostaBanner(id) {
 function render() {
   const p = CFG.prenotazione;
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
+  // Se l'ospite ha la Ristorazione, scalda subito la connessione e la libreria
+  // Firebase che la sua pagina usa: quando la apre parte già in parte caricata.
+  if (CFG.ristorazione && !document.getElementById('risto-warm')) {
+    [['preconnect', 'https://www.gstatic.com'], ['preconnect', 'https://firestore.googleapis.com'], ['preconnect', 'https://identitytoolkit.googleapis.com']]
+      .forEach(([rel, href]) => { const l = document.createElement('link'); l.rel = rel; l.href = href; l.crossOrigin = ''; document.head.appendChild(l); });
+    ['app', 'firestore', 'auth'].forEach(n => { const l = document.createElement('link'); l.rel = 'modulepreload'; l.href = `https://www.gstatic.com/firebasejs/10.12.2/firebase-${n}.js`; document.head.appendChild(l); });
+    const w = document.createElement('meta'); w.id = 'risto-warm'; document.head.appendChild(w);
+  }
   $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
   mostraIntestazioneHome();
   renderHome();
@@ -808,7 +821,7 @@ function renderRistorazione() {
   // barra sottile per tornare alla home dell'Area ospite.
   document.body.classList.add('risto-aperta');
   $('#service-view').querySelector('.home-back-btn').style.display = 'none';
-  panel.innerHTML = `<div class="risto-bar"><button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna alla home</button></div>
+  panel.innerHTML = `<div class="risto-bar"><button type="button" class="home-back-btn" onclick="tornaHome()"><span data-icon="BACK"></span>Torna indietro</button></div>
     <iframe class="risto-frame" src="../ristorazione/?f=${encodeURIComponent(r.codice)}&n=${encodeURIComponent(((CFG.prenotazione || {}).nome_proprio) || '')}" title="Ristorazione"></iframe>`;
   hydrateIcons(panel);
 }

@@ -68,16 +68,18 @@
    .hero quando arriva). Prova corrente: velatura Arancio Sole — per
    confrontarla con il Verde Garden basta cambiare i due colori qui sotto
    (--grad-sun → --grad-forest, e i due rgba del ::before sui toni verdi). */
-.hero{position:relative;overflow:hidden;min-height:300px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 20px 26px;background:url('hero-ospiti.jpg') center/cover no-repeat, var(--grad-sun);color:#fff}
+.hero{position:relative;overflow:hidden;min-height:290px;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 20px 26px;background:var(--grad-sun);color:#fff;border-radius:0 0 32px 32px}
 @media (min-width:768px){.hero{min-height:360px}}
-.hero::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg, rgba(154,56,14,.4) 0%, rgba(120,45,12,.88) 100%)}
+.hero::before{content:'';position:absolute;right:-50px;top:-50px;width:200px;height:200px;border-radius:50%;background:var(--green-700);box-shadow:inset 0 0 0 16px rgba(255,255,255,.18)}
+.hero::after{content:'';position:absolute;right:-70px;top:-70px;width:240px;height:240px;border-radius:50%;border:3px dashed rgba(255,255,255,.7);pointer-events:none}
+.hero-img{position:absolute;right:-18px;bottom:-12px;height:185px;width:auto;z-index:0;pointer-events:none;filter:drop-shadow(0 6px 8px rgba(0,0,0,.25))}
 .hero-topbar{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;width:100%;max-width:600px;margin:0 auto 22px}
 .header-left{display:flex;align-items:center;gap:10px}
 .header-avatar{width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--orange);flex-shrink:0}
 .header-nome{font-size:15px;font-weight:800;color:#fff;line-height:1.2}
 .header-sub{font-size:11px;color:rgba(255,255,255,.75);margin-top:1px}
 .hero-info-btn{position:relative;z-index:1;width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(255,255,255,.5);background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.hero-title{position:relative;z-index:1;max-width:600px;margin:0 auto;font-family:var(--font-display);font-weight:400;font-size:30px;line-height:1.2;letter-spacing:-.01em;color:#fff}
+.hero-title{position:relative;z-index:1;max-width:600px;padding-right:36%;margin:0 auto;font-family:var(--font-display);font-weight:400;font-size:30px;line-height:1.2;letter-spacing:-.01em;color:#fff}
 @media (min-width:768px){.hero-title{font-size:38px}}
 .hbtn{height:32px;padding:0 12px;border:none;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:opacity .15s;-webkit-tap-highlight-color:transparent}
 .hbtn.icon{width:32px;padding:0;display:flex;align-items:center;justify-content:center}
@@ -228,6 +230,7 @@ body.embed-mode main{padding-top:20px}
     </button>
   </div>
   <h1 class="hero-title">Ciao <span id="hero-nome">—</span>,<br>Cosa mangiamo oggi?</h1>
+  <img class="hero-img" src="hero-piatto.png" alt="" aria-hidden="true">
 </div>
 
 <main class="hidden" id="app-main">
@@ -405,6 +408,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
   const codice=leggiCodice();
   if(!codice){ mostraErrore(); return; }
   try{
+    const impP=caricaImpostazioni();
     await caricaFamiglia(codice);
     // Ascolta in real-time le modifiche alla famiglia (es. sblocco_orario da staff)
     const {db,doc,onSnapshot}=window._fbRisto;
@@ -423,7 +427,7 @@ window.addEventListener('DOMContentLoaded', async()=>{
       d.setDate(d.getDate()+1);
       SECONDO_GIORNO = d.toISOString().split('T')[0];
     }
-    await Promise.all([caricaMenu(), caricaOrdiniEsistenti()]);
+    await Promise.all([caricaMenu(impP), caricaOrdiniEsistenti()]);
     buildMenuCatMap();
     inizializzaSelezioni();
     renderApp();
@@ -444,9 +448,10 @@ async function caricaFamiglia(codice){
   famiglia={id:snap.docs[0].id,...snap.docs[0].data()};
 }
 
-async function caricaMenu(){
-  const {db,collection,query,where,getDocs,getDoc,doc}=window._fbRisto;
-  // Carica inizio ciclo
+// Impostazioni (inizio ciclo, categorie): non dipendono dalla famiglia, quindi
+// partono in parallelo alla sua ricerca invece di aspettarla.
+async function caricaImpostazioni(){
+  const {db,getDoc,doc}=window._fbRisto;
   try {
     const snap=await getDoc(doc(db,'impostazioni','ristorazione'));
     if(snap.exists()){
@@ -456,6 +461,11 @@ async function caricaMenu(){
       MENU_BAMBINI=(Array.isArray(data.menu_bambini)&&data.menu_bambini.length)?data.menu_bambini:[...MENU_BAMBINI_DEFAULT];
     }
   } catch(e) { console.error('cicloStart:', e); }
+}
+
+async function caricaMenu(impP){
+  const {db,collection,query,where,getDocs}=window._fbRisto;
+  await (impP||caricaImpostazioni());
 
   if(!cicloStart){ menuOggi=[]; menuDomani=[]; return; }
 
