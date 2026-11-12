@@ -4439,7 +4439,15 @@ function formattaProvenienzaScidoo(s) {
 const STATI_SCIDOO_NON_IMPORTABILI = ['annullata', 'annullato', 'rifiutata', 'scaduta'];
 function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
   const agenziaId = String(campoScidoo(row, 'ID') || '').trim();
-  const cliente = String(campoScidoo(row, 'Nome Cliente') || '').trim();
+  // Scidoo esporta "Nome Cliente" come "COGNOME Nome" (es. "Rossi Mario"),
+  // mentre il resto dell'app si aspetta "Nome Cognome" (prima parola = nome):
+  // portiamo la prima parola (il cognome) in fondo, così nome e cognome non
+  // risultano invertiti. Cognomi composti ("De Rossi Mario") restano ambigui
+  // e vanno corretti a mano nel form di revisione.
+  const clientePartiScidoo = String(campoScidoo(row, 'Nome Cliente') || '').trim().split(/\s+/).filter(Boolean);
+  const cliente = clientePartiScidoo.length > 1
+    ? [...clientePartiScidoo.slice(1), clientePartiScidoo[0]].join(' ')
+    : (clientePartiScidoo[0] || '');
   const checkin = parseDataISO(campoScidoo(row, 'Checkin'));
   const checkout = parseDataISO(campoScidoo(row, 'Checkout'));
   const stato = String(campoScidoo(row, 'Stato') || '').trim();
