@@ -438,6 +438,21 @@
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
   .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
+  .fb { margin-top: 10px; position: relative }
+  .fb-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 22px; box-shadow: var(--shadow) }
+  .fb-track::-webkit-scrollbar { display: none }
+  .fb-slide { flex: 0 0 100%; scroll-snap-align: start; background: var(--green-700); color: #fff; display: flex; flex-direction: column }
+  .fb-slide.arancio { background: var(--orange) }
+  .fb-body { padding: 16px 16px 12px }
+  .fb-slide h2 { font-size: 18px; font-weight: 800; line-height: 1.25; margin: 0; color: #fff }
+  .fb-slide p { font-size: 13.5px; line-height: 1.4; margin: 6px 0 0; opacity: .94 }
+  .fb-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; background: #fff; color: var(--green-700); border: none; border-radius: 999px; padding: 10px 16px; font-weight: 800; font-size: 14px; font-family: var(--font); cursor: pointer; text-decoration: none }
+  .fb-btn svg { width: 15px; height: 15px }
+  .fb-slide.arancio .fb-btn { color: #B4531A }
+  .fb-img { display: block; width: 100%; height: 150px; object-fit: cover; margin-top: 4px }
+  .fb-dots { display: flex; justify-content: center; gap: 6px; padding: 8px 0 0 }
+  .fb-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-200, #d4d9d6); transition: all .2s }
+  .fb-dots i.on { background: var(--green-700); width: 18px; border-radius: 4px }
   .ci-banner { background: #fff; border-radius: 22px; padding: 16px 14px 8px; margin-top: 10px; box-shadow: var(--shadow) }
   .ci-banner .tg { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--green-700); padding: 0 4px }
   .ci-banner h2 { font-size: 18px; font-weight: 800; line-height: 1.25; color: var(--gray-900); margin: 2px 4px 12px }
@@ -562,11 +577,14 @@
 
   <div class="wrap">
     <div id="home-view">
+      <div id="home-fasce-alto"></div>
       <div id="home-checkin"></div>
       <div id="home-alerts"></div>
+      <div id="home-fasce-centro"></div>
       <div id="home-sera"></div>
       <div id="home-oggi"></div>
       <div id="home-adesso"></div>
+      <div id="home-fasce-basso"></div>
       <div class="sez" data-sez="villaggio">Tutto il villaggio</div>
       <div class="service-grid" id="service-grid" style="margin-top:0"></div>
       <div id="home-footer"></div>
@@ -654,7 +672,7 @@ async function carica() {
     }
     CFG = d;
     if (!CFG.navetta_corse) CFG.navetta_corse = (CFG.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
-    const applica = c => { if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {}, checkin: c.checkin || null }; return !!(c && c.ok); };
+    const applica = c => { if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {}, checkin: c.checkin || null, fasce_banner: c.fasce_banner || null }; return !!(c && c.ok); };
     const c = await Promise.race([pc, new Promise(res => setTimeout(() => res('tardi'), 2500))]);
     const inTempo = c !== 'tardi';
     if (inTempo) applica(c);
@@ -1028,7 +1046,67 @@ function checkinInfoHtml() {
     ${L(c.chiusura) ? `<div class="ci-fine">${esc(L(c.chiusura))}</div>` : ''}</div>`;
 }
 
+// ── Banner a fasce orarie (gestiti da Gestione area ospite) ───────────────
+// Piu' banner attivi nella stessa posizione e nello stesso momento scorrono in automatico.
+const FB_POS = ['alto', 'centro', 'basso'];
+const _fbSig = {}, _fbTimer = {};
+function fbAttivi(pos) {
+  const f = CONTENUTI && CONTENUTI.fasce_banner; if (!f || f.attivo === false) return [];
+  const m = adessoMin();
+  return (f.banner || []).filter(b => {
+    if (b.posizione !== pos || !pubblicoOk(b)) return false;
+    const a = minDa(b.dalle), z = minDa(b.alle); if (a === null || z === null) return false;
+    if (!(b.titolo.it || b.testo.it || b.grafica)) return false;
+    return a <= z ? (m >= a && m < z) : (m >= a || m < z);   // fascia a cavallo della mezzanotte
+  });
+}
+function fbHtml(l) {
+  const L = x => !x ? '' : ((LANG !== 'it' && x[LANG]) || x.it || '');
+  const slide = b => {
+    const az = b.azione || {}, et = L(az.etichetta);
+    return `<div class="fb-slide ${b.tema === 'arancio' ? 'arancio' : ''}"><div class="fb-body">
+      ${L(b.titolo) ? `<h2>${esc(L(b.titolo))}</h2>` : ''}${L(b.testo) ? `<p>${esc(L(b.testo))}</p>` : ''}
+      ${az.tipo !== 'nessuno' && et ? `<button class="fb-btn" data-fb="${esc(b.id)}">${esc(et)} ${GO}</button>` : ''}</div>
+      ${b.grafica ? `<img class="fb-img" src="${esc(b.grafica)}" alt="">` : ''}</div>`;
+  };
+  return `<div class="fb"><div class="fb-track">${l.map(slide).join('')}</div>${l.length > 1 ? `<div class="fb-dots">${l.map((_, i) => `<i${i ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}</div>`;
+}
+function fbAvvia(pos, el) {
+  clearInterval(_fbTimer[pos]);
+  const tr = el.querySelector('.fb-track'), dots = [...el.querySelectorAll('.fb-dots i')];
+  if (!tr || dots.length < 2) return;
+  tr.addEventListener('scroll', () => { const i = Math.round(tr.scrollLeft / (tr.clientWidth || 1)); dots.forEach((d, k) => d.classList.toggle('on', k === i)); }, { passive: true });
+  let pausa = 0;
+  tr.addEventListener('pointerdown', () => { pausa = Date.now() + 12000; }, { passive: true });   // se l'ospite lo tocca, si ferma un po'
+  _fbTimer[pos] = setInterval(() => {
+    if (!tr.isConnected) { clearInterval(_fbTimer[pos]); return; }
+    if (Date.now() < pausa || document.visibilityState !== 'visible') return;
+    const i = (Math.round(tr.scrollLeft / (tr.clientWidth || 1)) + 1) % dots.length;
+    tr.scrollTo({ left: i * tr.clientWidth, behavior: 'smooth' });
+  }, (((CONTENUTI && CONTENUTI.fasce_banner) || {}).secondi || 6) * 1000);
+}
+function aggiornaFasce() {
+  FB_POS.forEach(pos => {
+    const el = $('#home-fasce-' + pos); if (!el) return;
+    const l = (CFG && !dopoPartenza()) ? fbAttivi(pos) : [];
+    const sig = LANG + '|' + l.map(b => [b.id, b.titolo.it, b.testo.it, b.dalle, b.alle, b.tema, (b.grafica || '').length].join('~')).join('|');
+    if (_fbSig[pos] === sig) return;
+    _fbSig[pos] = sig;
+    el.innerHTML = l.length ? fbHtml(l) : '';
+    if (l.length) fbAvvia(pos, el);
+  });
+}
+document.addEventListener('click', ev => {
+  const bt = ev.target.closest && ev.target.closest('.fb-btn'); if (!bt) return;
+  const b = (((CONTENUTI && CONTENUTI.fasce_banner) || {}).banner || []).find(x => x.id === bt.dataset.fb); if (!b) return;
+  const az = b.azione || {}, v = String(az.valore || '').trim();
+  if (az.tipo === 'servizio' && SERVIZI.some(s => s.id === v)) apriServizio(v);
+  else if (az.tipo === 'link' && /^https:\/\//i.test(v)) window.open(v, '_blank', 'noopener');
+  else if (az.tipo === 'telefono' && /^[+\d][\d\s]{4,}$/.test(v)) location.href = 'tel:' + v.replace(/\s+/g, '');
+});
+
 function renderHomeExtra() {
+  aggiornaFasce();
   const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
@@ -2072,6 +2150,7 @@ function verificaFase() {
 function avviaAggiornamentoStato() {
   _fase = faseCorrente();
   setInterval(verificaFase, 30000);
+  setInterval(() => { if (!_servizioAperto) aggiornaFasce(); }, 30000);   // le fasce orarie cambiano da sole
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verificaFase(); });
   _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || [], CFG.posti_occupati || {}]);
   if (_pollTimer) clearInterval(_pollTimer);

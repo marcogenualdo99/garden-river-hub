@@ -165,6 +165,13 @@
     </div>
 
     <div class="card">
+      <h3>Banner a fasce orarie</h3>
+      <div class="subtitle">Banner promozionali che compaiono nella home solo negli orari che scegli (colazione, pranzo, pane fresco…). Se nella stessa posizione e nello stesso orario ce n'è più di uno, scorrono in automatico. Titolo, testo e grafica compaiono nell'ordine: titolo, testo, pulsante, grafica sotto. Le traduzioni sono facoltative.</div>
+      <div id="fb-box"></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="fbAggiungi()">+ Aggiungi banner</button><button class="btn primary" id="btn-salva-fb" onclick="fbSalva()">Salva banner a fasce</button></div>
+    </div>
+
+    <div class="card">
       <h3>Quali avvisi mostrare</h3>
       <div class="subtitle">Scegli cosa vedono gli ospiti che devono ancora arrivare e quelli già in struttura. Una casella con il trattino non ha senso in quella fase. Dopo la partenza il link mostra sempre il ringraziamento con le recensioni.</div>
       <div id="auto-list"></div>
@@ -711,6 +718,95 @@ async function chkSalva() {
   b.disabled = false;
 }
 
+// ── Banner a fasce orarie ────────────────────────────────────────────────
+let FB = { attivo: true, secondi: 6, banner: [] };
+const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['assistenza', 'Richiesta assistenza']];
+const FB_MAX = 12, FB_IMG_MAX = 110000, FB_TOT_MAX = 800000;
+const fbTri = () => ({ it: '', en: '', de: '' });
+function fbCampo(i, campo, label, multi) {
+  const v = FB.banner[i][campo] || {};
+  const el = (lng, ph) => multi
+    ? `<textarea style="min-height:64px" placeholder="${ph}" oninput="FB.banner[${i}].${campo}.${lng}=this.value">${esc(v[lng])}</textarea>`
+    : `<input value="${esc(v[lng])}" placeholder="${ph}" oninput="FB.banner[${i}].${campo}.${lng}=this.value">`;
+  return `<div class="field"><label>${esc(label)}</label>${el('it', '')}
+    <details><summary>Traduzioni (inglese e tedesco)</summary><div style="margin-top:6px">${el('en', 'English')}</div><div style="margin-top:6px">${el('de', 'Deutsch')}</div></details></div>`;
+}
+function fbRender() {
+  const opt = (v, cur, l) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`;
+  $('#fb-box').innerHTML = `
+    <div class="av-row" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <label class="chk" style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" style="width:auto"${FB.attivo !== false ? ' checked' : ''} onchange="FB.attivo=this.checked"> Mostra i banner a fasce</label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:700">Secondi tra un banner e il successivo <input type="number" min="3" max="30" style="width:64px" value="${esc(FB.secondi || 6)}" oninput="FB.secondi=+this.value||6"></label>
+    </div>` + (FB.banner.map((b, i) => {
+      const az = b.azione || (b.azione = { tipo: 'nessuno', valore: '', etichetta: fbTri() });
+      const val = az.tipo === 'servizio'
+        ? `<select onchange="FB.banner[${i}].azione.valore=this.value">${FB_SERVIZI.map(([k, n]) => opt(k, az.valore, n)).join('')}</select>`
+        : az.tipo === 'link' ? `<input type="url" placeholder="https://..." value="${esc(az.valore)}" oninput="FB.banner[${i}].azione.valore=this.value">`
+        : az.tipo === 'telefono' ? `<input type="tel" placeholder="+39 0734 000000" value="${esc(az.valore)}" oninput="FB.banner[${i}].azione.valore=this.value">` : '';
+      return `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><label class="chk" style="display:flex;gap:6px;align-items:center;font-weight:700;font-size:13px"><input type="checkbox" style="width:auto"${b.attivo !== false ? ' checked' : ''} onchange="FB.banner[${i}].attivo=this.checked"> Banner ${i + 1}</label>
+        <span><button class="an-x" aria-label="Su" onclick="fbSposta(${i},-1)">↑</button> <button class="an-x" aria-label="Giù" onclick="fbSposta(${i},1)">↓</button> <button class="an-x" aria-label="Elimina" onclick="if(confirm('Eliminare questo banner?')){FB.banner.splice(${i},1);fbRender()}">✕</button></span></div>
+        ${fbCampo(i, 'titolo', 'Titolo (es. Pane fresco appena sfornato)')}${fbCampo(i, 'testo', 'Testo', true)}
+        <div class="r2"><label>Dalle<input type="time" value="${esc(b.dalle)}" onchange="FB.banner[${i}].dalle=this.value"></label><label>Alle<input type="time" value="${esc(b.alle)}" onchange="FB.banner[${i}].alle=this.value"></label></div>
+        <div class="r2"><label>Posizione nella home<select onchange="FB.banner[${i}].posizione=this.value">${opt('alto', b.posizione, 'In alto (sopra tutto)')}${opt('centro', b.posizione, 'Al centro (dopo gli avvisi)')}${opt('basso', b.posizione, 'In basso (dopo «Adesso»)')}</select></label>
+          <label>Chi lo vede<select onchange="FB.banner[${i}].pubblico=this.value">${opt('dentro', b.pubblico, 'Solo chi è in struttura')}${opt('tutti', b.pubblico, 'Tutti')}${opt('prima', b.pubblico, 'Solo chi deve arrivare')}</select></label>
+          <label>Colore<select onchange="FB.banner[${i}].tema=this.value">${opt('verde', b.tema, 'Verde')}${opt('arancio', b.tema, 'Arancio')}</select></label></div>
+        <div class="r2"><label>Cosa fa il pulsante<select onchange="FB.banner[${i}].azione.tipo=this.value;fbRender()">${opt('nessuno', az.tipo, 'Nessun pulsante')}${opt('servizio', az.tipo, 'Apre un servizio')}${opt('link', az.tipo, 'Apre un link')}${opt('telefono', az.tipo, 'Chiama un numero')}</select></label>${val ? `<label>${az.tipo === 'servizio' ? 'Servizio' : az.tipo === 'link' ? 'Indirizzo' : 'Numero'}${val}</label>` : ''}</div>
+        ${az.tipo !== 'nessuno' ? fbCampoAz(i) : ''}
+        <div class="field"><label>Grafica (compare sotto il testo)</label>
+          ${b.grafica ? `<img src="${esc(b.grafica)}" alt="" style="width:100%;max-height:120px;object-fit:cover;border-radius:12px;margin-bottom:6px">` : ''}
+          <div class="an-row-btns" style="margin:0"><button class="btn ghost" onclick="fbScegliGrafica(${i})">${b.grafica ? 'Cambia grafica' : 'Carica grafica'}</button>${b.grafica ? `<button class="btn ghost" onclick="FB.banner[${i}].grafica='';fbRender()">Togli</button>` : ''}</div></div></div>`;
+    }).join('') || '<p class="nota">Nessun banner. Aggiungine uno.</p>');
+}
+function fbCampoAz(i) {
+  const v = FB.banner[i].azione.etichetta || (FB.banner[i].azione.etichetta = fbTri());
+  const el = (lng, ph) => `<input value="${esc(v[lng])}" placeholder="${ph}" oninput="FB.banner[${i}].azione.etichetta.${lng}=this.value">`;
+  return `<div class="field"><label>Scritta sul pulsante (es. Prenota il pane)</label>${el('it', '')}
+    <details><summary>Traduzioni (inglese e tedesco)</summary><div style="margin-top:6px">${el('en', 'English')}</div><div style="margin-top:6px">${el('de', 'Deutsch')}</div></details></div>`;
+}
+function fbAggiungi() {
+  if (FB.banner.length >= FB_MAX) return toast('Massimo ' + FB_MAX + ' banner');
+  FB.banner.push({ id: 'b' + Date.now(), attivo: true, titolo: fbTri(), testo: fbTri(), dalle: '12:00', alle: '14:30', posizione: 'centro', pubblico: 'dentro', tema: 'verde', azione: { tipo: 'nessuno', valore: '', etichetta: fbTri() }, grafica: '' });
+  fbRender();
+}
+function fbSposta(i, d) {
+  const l = FB.banner, j = i + d; if (j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]]; fbRender();
+}
+function fbScegliGrafica(i) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => {
+    const f = inp.files[0]; if (!f) return;
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, 700 / img.width), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      let q = 0.75, d = c.toDataURL('image/jpeg', q);
+      while (d.length > FB_IMG_MAX && q > 0.35) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+      if (d.length > FB_IMG_MAX) { toast('Immagine troppo pesante: usane una più semplice'); return; }
+      FB.banner[i].grafica = d; fbRender(); toast('Grafica caricata: ricordati di salvare');
+    };
+    img.onerror = () => toast('Immagine non valida');
+    img.src = url;
+  };
+  inp.click();
+}
+async function fbSalva() {
+  const b = $('#btn-salva-fb'); b.disabled = true;
+  try {
+    const c = JSON.parse(JSON.stringify(FB));
+    c.banner = c.banner.filter(x => (x.titolo.it || '').trim() || (x.testo.it || '').trim() || x.grafica);
+    for (const x of c.banner) if (!/^\d{1,2}:\d{2}$/.test(x.dalle || '') || !/^\d{1,2}:\d{2}$/.test(x.alle || '')) { toast('Controlla gli orari «Dalle» e «Alle»'); b.disabled = false; return; }
+    if (c.banner.reduce((s, x) => s + (x.grafica || '').length, 0) > FB_TOT_MAX) { toast('Le grafiche pesano troppo in totale: toglierne qualcuna o usarne di più leggere'); b.disabled = false; return; }
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { banner_fasce: c, aggiornato_il: new Date().toISOString() }, { merge: true });
+    FB = c; fbRender(); toast('Banner a fasce salvati');
+  } catch (e) { console.error(e); toast('Errore salvataggio'); }
+  b.disabled = false;
+}
+
 // ── Quali avvisi mostrare: prima dell'arrivo / in struttura ──────────────
 const AUTO_DEF = {
   benvenuto: { l: 'Benvenuto «Ti aspettiamo tra N giorni»', pre: true, dentro: null },
@@ -780,6 +876,9 @@ async function avCarica() {
     AUTO = (s.exists() ? s.data().auto : null) || {};
     CHK = (s.exists() && s.data().checkin) || chkCopia(CHECKIN_DEF);
     chkRender();
+    const fb = s.exists() ? s.data().banner_fasce : null;
+    if (fb && Array.isArray(fb.banner)) FB = { attivo: fb.attivo !== false, secondi: fb.secondi || 6, banner: fb.banner };
+    fbRender();
     autoRender();
     avRender();
   } catch (e) { console.error('Avvisi:', e); CHK = CHK || chkCopia(CHECKIN_DEF); chkRender(); avRender(); }

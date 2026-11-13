@@ -335,6 +335,48 @@ def _checkin_info(db):
         return None
 
 
+def _banner_fasce(db):
+    """Banner a fasce orarie (impostazioni/area_ospite_avvisi -> banner_fasce), sanificati.
+    Piu' banner con la stessa posizione e orari sovrapposti scorrono in automatico nella pagina."""
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+        c = ((snap.to_dict() or {}).get('banner_fasce')) if snap.exists else None
+        if not isinstance(c, dict):
+            return None
+        try:
+            secondi = max(3, min(30, int(c.get('secondi') or 6)))
+        except (TypeError, ValueError):
+            secondi = 6
+        def ora(x, d):
+            x = str(x or '').strip()
+            return x if re.fullmatch(r'([01]?\d|2[0-3]):[0-5]\d', x) else d
+        out = []
+        for b in (c.get('banner') or [])[:12]:
+            if not isinstance(b, dict) or b.get('attivo') is False:
+                continue
+            az = b.get('azione') if isinstance(b.get('azione'), dict) else {}
+            tipo = az.get('tipo') if az.get('tipo') in ('servizio', 'link', 'telefono') else 'nessuno'
+            img = str(b.get('grafica') or '').strip()
+            if not (img.startswith('data:image/') and len(img) <= 150000):
+                img = ''
+            out.append({
+                'id': _s(b.get('id'), 40),
+                'titolo': _tri(b.get('titolo'), 100),
+                'testo': _tri(b.get('testo'), 300),
+                'dalle': ora(b.get('dalle'), '00:00'),
+                'alle': ora(b.get('alle'), '23:59'),
+                'posizione': b.get('posizione') if b.get('posizione') in ('alto', 'centro', 'basso') else 'centro',
+                'pubblico': b.get('pubblico') if b.get('pubblico') in ('tutti', 'prima', 'dentro') else 'dentro',
+                'tema': 'arancio' if b.get('tema') == 'arancio' else 'verde',
+                'azione': {'tipo': tipo, 'valore': _s(az.get('valore'), 300), 'etichetta': _tri(az.get('etichetta'), 40)},
+                'grafica': img,
+            })
+        return {'attivo': c.get('attivo') is not False, 'secondi': secondi, 'banner': out}
+    except Exception as e:
+        print(f'Lettura banner a fasce non riuscita: {e}')
+        return None
+
+
 def _contenuti(db):
     return _con_cache('contenuti', 30, lambda: _contenuti_leggi(db))
 
@@ -377,7 +419,7 @@ def _contenuti_leggi(db):
 
     r = _parallelo(testi=testi, foto=foto, animazione=lambda: _animazione(db),
                    avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db),
-                   checkin=lambda: _checkin_info(db))
+                   checkin=lambda: _checkin_info(db), fasce_banner=lambda: _banner_fasce(db))
     return r
 
 
