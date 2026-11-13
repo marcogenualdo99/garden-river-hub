@@ -239,6 +239,9 @@ def _evento(data):
         return _invia(['pulizie'], t)
     if ev == 'cambio_stato':
         stato = data.get('nuovo_stato') or ''
+        if stato == 'da_pulire':
+            op = _e(data.get('op'), 60) or 'Operatore'
+            return _invia(['pulizie'], f"🧹 <b>Check-out eseguito da {op}</b>\n🏠 Alloggio <b>{_e(data.get('alloggio_nome'), 60) or 'Alloggio'}</b> da pulire")
         t = (f"{EMOJI_STATO.get(stato, '🏠')} <b>{_e(data.get('alloggio_nome'), 60) or 'Alloggio'}</b> · {_e(LABEL_STATO.get(stato, stato), 40)}"
              + (f"\nda {_e(data.get('op'), 60)}" if data.get('op') else ''))
         # L'alloggio pronto interessa anche alla reception (puo' assegnarlo all'arrivo).
