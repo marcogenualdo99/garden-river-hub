@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../assets/theme.css">
 <script src="../assets/icons.js"></script>
 <script src="checkin-default.js"></script>
+<script src="banner-default.js"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -168,7 +169,7 @@
       <h3>Banner a fasce orarie</h3>
       <div class="subtitle">Banner promozionali che compaiono in cima alla home solo negli orari che scegli (colazione, pranzo, pane fresco…). Se nello stesso orario ce n'è più di uno, scorrono in automatico. Come il banner «Stasera»: la grafica è lo sfondo e sopra ci sono titolo, testo e pulsante. Senza grafica resta il fondo colorato. Le traduzioni sono facoltative.</div>
       <div id="fb-box"></div>
-      <div class="an-row-btns"><button class="btn ghost" onclick="fbAggiungi()">+ Aggiungi banner</button><button class="btn primary" id="btn-salva-fb" onclick="fbSalva()">Salva banner a fasce</button></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="fbAggiungi()">+ Aggiungi banner</button><button class="btn ghost" onclick="fbRipristina()">Ripristina banner predefiniti</button><button class="btn primary" id="btn-salva-fb" onclick="fbSalva()">Salva banner a fasce</button></div>
     </div>
 
     <div class="card">
@@ -719,7 +720,7 @@ async function chkSalva() {
 }
 
 // ── Banner a fasce orarie ────────────────────────────────────────────────
-let FB = { attivo: true, secondi: 6, banner: [] };
+let FB = { attivo: true, secondi: 6, banner: [] }, FB_BOZZA = false;   // FB_BOZZA: sono i banner predefiniti, non ancora salvati
 const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['assistenza', 'Richiesta assistenza']];
 const FB_MAX = 12, FB_IMG_MAX = 110000, FB_TOT_MAX = 800000;
 const fbTri = () => ({ it: '', en: '', de: '' });
@@ -731,9 +732,13 @@ function fbCampo(i, campo, label, multi) {
   return `<div class="field"><label>${esc(label)}</label>${el('it', '')}
     <details><summary>Traduzioni (inglese e tedesco)</summary><div style="margin-top:6px">${el('en', 'English')}</div><div style="margin-top:6px">${el('de', 'Deutsch')}</div></details></div>`;
 }
+function fbRipristina() {
+  if (!confirm('Sostituire i banner con quelli predefiniti? Le modifiche non salvate andranno perse.')) return;
+  FB = JSON.parse(JSON.stringify(BANNER_FASCE_DEF)); FB_BOZZA = true; fbRender();
+}
 function fbRender() {
   const opt = (v, cur, l) => `<option value="${v}"${v === cur ? ' selected' : ''}>${esc(l)}</option>`;
-  $('#fb-box').innerHTML = `
+  $('#fb-box').innerHTML = (FB_BOZZA ? '<div class="nota" style="margin-bottom:10px"><b>Banner di esempio, non ancora pubblicati.</b> Controlla testi, orari e pulsanti, aggiungi le grafiche e premi «Salva banner a fasce»: solo allora gli ospiti li vedono.</div>' : '') + `
     <div class="av-row" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
       <label class="chk" style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" style="width:auto"${FB.attivo !== false ? ' checked' : ''} onchange="FB.attivo=this.checked"> Mostra i banner a fasce</label>
       <label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:700">Secondi tra un banner e il successivo <input type="number" min="3" max="30" style="width:64px" value="${esc(FB.secondi || 6)}" oninput="FB.secondi=+this.value||6"></label>
@@ -801,7 +806,7 @@ async function fbSalva() {
     if (c.banner.reduce((s, x) => s + (x.grafica || '').length, 0) > FB_TOT_MAX) { toast('Le grafiche pesano troppo in totale: toglierne qualcuna o usarne di più leggere'); b.disabled = false; return; }
     const { db, doc, setDoc } = window._fb;
     await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { banner_fasce: c, aggiornato_il: new Date().toISOString() }, { merge: true });
-    FB = c; fbRender(); toast('Banner a fasce salvati');
+    FB = c; FB_BOZZA = false; fbRender(); toast('Banner a fasce salvati');
   } catch (e) { console.error(e); toast('Errore salvataggio'); }
   b.disabled = false;
 }
@@ -877,6 +882,7 @@ async function avCarica() {
     chkRender();
     const fb = s.exists() ? s.data().banner_fasce : null;
     if (fb && Array.isArray(fb.banner)) FB = { attivo: fb.attivo !== false, secondi: fb.secondi || 6, banner: fb.banner };
+    else { FB = JSON.parse(JSON.stringify(BANNER_FASCE_DEF)); FB_BOZZA = true; }   // mai salvati: parte dagli esempi
     fbRender();
     autoRender();
     avRender();

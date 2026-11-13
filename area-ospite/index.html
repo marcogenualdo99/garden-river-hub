@@ -78,7 +78,7 @@
   @media (min-width: 560px) { header.top h1 { font-size: 34px } }
   header.top .sub { margin-top: 10px; font-size: 14.5px; font-weight: 600; line-height: 1.4; max-width: 56% }
 
-  .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+  .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
   .service-card { position: relative; overflow: hidden; border-radius: var(--radius-lg); min-height: 164px;
     background: var(--green-700) center/cover no-repeat; color: #fff; cursor: pointer;
     box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: flex-end;
@@ -426,8 +426,8 @@
   .hf-social a { width: 46px; height: 46px; border-radius: 50%; background: #fff; color: var(--green-700); display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent }
   .hf-social a:active { transform: scale(.94) } .hf-social svg { width: 22px; height: 22px }
   .hf-social span { align-self: center; font-size: 12.5px; font-weight: 700; opacity: .9; margin-right: 2px }
-  .sez { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray-500); margin: 24px 2px 10px }
-  .av { position: relative; display: flex; gap: 14px; align-items: center; background: #fff; border-radius: 20px; padding: 14px 16px 14px 14px; margin-top: 10px; box-shadow: var(--shadow); overflow: hidden; --c: var(--orange); --t: var(--orange-bg) }
+  .sez { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray-500); margin: 32px 2px 14px }
+  .av { position: relative; display: flex; gap: 14px; align-items: center; background: #fff; border-radius: 20px; padding: 14px 16px 14px 14px; margin-top: 14px; box-shadow: var(--shadow); overflow: hidden; --c: var(--orange); --t: var(--orange-bg) }
   .av::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--t) 0%, rgba(255,255,255,0) 62%); pointer-events: none }
   .av > * { position: relative }
   .av .ic { width: 46px; height: 46px; border-radius: 15px; background: var(--c); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 6px 14px -4px var(--c) }
@@ -438,7 +438,7 @@
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
   .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
-  .fb { margin-top: 12px; position: relative }
+  .fb { margin-top: 18px; position: relative }
   .fb-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 24px; box-shadow: var(--shadow) }
   .fb-track::-webkit-scrollbar { display: none }
   .fb-slide { flex: 0 0 100%; scroll-snap-align: start; position: relative; overflow: hidden; min-height: 176px; padding: 18px 18px 30px; background: var(--green-900) center / cover; color: #fff }
@@ -478,7 +478,7 @@
   .ci-body ul { margin: 6px 0 0 18px; font-size: 13px; line-height: 1.5; color: var(--gray-700) }
   .ci-fine { text-align: center; font-weight: 700; font-size: 13px; color: var(--gray-700); padding: 10px 6px 12px; border-top: 1px solid var(--gray-100) }
   .av.info { --c: var(--green-700); --t: var(--green-100) } .av.stop { --c: var(--red); --t: var(--red-bg) }
-  .sera { margin-top: 12px; border-radius: 24px; background: var(--green-900); color: #fff; padding: 18px; position: relative; overflow: hidden; min-height: 176px; cursor: pointer }
+  .sera { margin-top: 20px; border-radius: 24px; background: var(--green-900); color: #fff; padding: 18px; position: relative; overflow: hidden; min-height: 176px; cursor: pointer }
   .sera::before { content: ''; position: absolute; right: -46px; top: -46px; width: 170px; height: 170px; border-radius: 50%; background: var(--grad-sun) }
   .sera .st { position: absolute; background: var(--orange-lt); clip-path: polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%); animation: stTw 2.4s ease-in-out infinite }
   @keyframes stTw { 50% { opacity: .25 } }
@@ -491,16 +491,16 @@
   .sera.foto::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,40,28,.82) 0%, rgba(6,40,28,.45) 55%, rgba(6,40,28,.12) 100%) }
   .sera.foto h3, .sera.foto .w { max-width: 80% }
   .sera img { position: absolute; right: -14px; bottom: -34px; height: 190px; width: auto; z-index: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite }
-  .oggi { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px 2px 6px; margin: 0 -2px }
+  .oggi { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px 2px 8px; margin: 0 -2px }
   .oggi::-webkit-scrollbar { display: none }
-  .oggi-dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px } .oggi-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-200, #d4d9d6); transition: all .2s } .oggi-dots i.on { background: var(--green-700); width: 18px; border-radius: 4px }
+  .oggi-dots { display: flex; justify-content: center; gap: 6px; margin-top: 8px } .oggi-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-200, #d4d9d6); transition: all .2s } .oggi-dots i.on { background: var(--green-700); width: 18px; border-radius: 4px }
   .oggi .r { flex: 0 0 88%; scroll-snap-align: start; background: #fff; border-radius: 22px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 13px; padding: 16px 15px; cursor: pointer; -webkit-tap-highlight-color: transparent } .oggi .r:only-child { flex-basis: 100% } .oggi .r:active { background: var(--gray-50) }
   .oggi .e { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--t); color: var(--c) } .oggi .e svg { width: 22px; height: 22px }
   .oggi .t { flex: 1; min-width: 0 } .oggi .t small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray-500) } .oggi .t b { font-size: 15px; font-weight: 800 } .oggi .t span { display: block; font-size: 12.5px; color: var(--gray-500) }
   .oggi .go { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0 } .pill { font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 4px 10px; background: var(--orange-bg); color: var(--orange); white-space: nowrap }
   .oggi .r.a { --c: var(--orange); --t: var(--orange-bg) } .oggi .r.p { --c: var(--green-700); --t: var(--green-100) } .oggi .r.n { --c: var(--blue); --t: var(--blue-bg) } .oggi .r.s { --c: #0E7490; --t: #E0F5FA }
   .service-card .pill-soon.todo { background: var(--orange); color: #fff } .service-card.wide { grid-column: 1 / -1; min-height: 140px }
-  .adesso-s { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: 12px; padding: 2px 2px 6px }
+  .adesso-s { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: 20px; padding: 2px 2px 6px }
   .adesso-s::-webkit-scrollbar { display: none }
   .adesso-s .ch { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 999px; box-shadow: var(--shadow); padding: 8px 14px 8px 10px; white-space: nowrap }
   .ch b { font-size: 14px; font-weight: 800; color: var(--gray-900) } .ch small { font-size: 12.5px; color: var(--gray-500); font-weight: 600 }
