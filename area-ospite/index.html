@@ -878,7 +878,6 @@ function avvisiHome() {
         : t('Ti manca ancora: {x} del giorno dopo l\'arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', { x: nomi(Sa.mDopo) });
       out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i tuoi pasti'), testo, azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
     }
-    if (Sa && Sa.mDomani.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i pasti del giorno dopo l\'arrivo'), testo: t('Puoi già ordinare anche il giorno dopo l\'arrivo, entro le 8:30 di quella mattina.'), azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
     staff();
     return filtra(out);
   }
@@ -940,7 +939,7 @@ function righeOggi() {
   }
   const S = rsStatoPasti();
   if (S) {
-    const d = S.d, f = d.famiglia, n = (S.mOggi.length ? S.mOggi.length : 0) + (S.mDomani.length ? 1 : 0);
+    const d = S.d, f = d.famiglia, n = S.mOggi.length + S.mDomani.length;
     let b, s = '';
     const tipi = x => [...new Set((d.menu[x] || []).map(m => m.tipo))];
     if (d.giorni.includes(d.oggi)) {
@@ -1156,7 +1155,7 @@ function selPoi(id) {
 }
 
 function renderHome() {
-  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + (S.mDopo.length ? 1 : 0) + S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
+  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + S.mDopo.length + S.mOggi.length + S.mDomani.length) : 0;
   const CARD = SERVIZI.filter(s => !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
   const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
   if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
