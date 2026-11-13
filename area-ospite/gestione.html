@@ -714,7 +714,7 @@ async function chkSalva() {
 // ── Quali avvisi mostrare: prima dell'arrivo / in struttura ──────────────
 const AUTO_DEF = {
   benvenuto: { l: 'Benvenuto «Ti aspettiamo tra N giorni»', pre: true, dentro: null },
-  ordini:    { l: 'Ordine dei pasti incompleto', pre: null, dentro: true },
+  ordini:    { l: 'Ordine dei pasti incompleto (prima dell\'arrivo: pasti del giorno di arrivo)', pre: true, dentro: true },
   checkout:  { l: 'Procedura di check-out (dal giorno prima della partenza)', pre: null, dentro: true },
   navetta:   { l: 'Corsa navetta confermata o in attesa', pre: null, dentro: true },
   pioggia:   { l: 'Possibile pioggia', pre: null, dentro: true },

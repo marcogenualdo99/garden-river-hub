@@ -1401,9 +1401,10 @@ def _azione_ristorazione_menu(db, origin, data):
     ora = datetime.now(TZ_ROMA)
     oggi = ora.strftime('%Y-%m-%d')
     primo, secondo = _risto_giorni(fam, oggi)
+    # Prima dell'arrivo si puo' ordinare solo il giorno di arrivo.
+    giorni = [primo] if primo > oggi else [primo, secondo]
     imp = _risto_impostazioni(db)
-    menu = {primo: _risto_menu_giorno(db, imp['ciclo_start'], primo),
-            secondo: _risto_menu_giorno(db, imp['ciclo_start'], secondo)}
+    menu = {g: _risto_menu_giorno(db, imp['ciclo_start'], g) for g in giorni}
     return _json(origin, {
         'ok': True,
         'oggi': oggi, 'ora': ora.strftime('%H:%M'),
@@ -1411,10 +1412,10 @@ def _azione_ristorazione_menu(db, origin, data):
         'famiglia': {'trattamento': _s(fam.get('trattamento')), 'max_ospiti': int(fam.get('max_ospiti') or 1),
                      'checkin': _s(fam.get('checkin'), 10), 'checkout': _s(fam.get('checkout'), 10),
                      'ora_arrivo': _s(fam.get('ora_arrivo'), 20), 'sblocco_orario': _s(fam.get('sblocco_orario'), 10)},
-        'giorni': [primo, secondo],
+        'giorni': giorni,
         'menu': menu,
         'categorie': imp['categorie'], 'menu_bambini': imp['menu_bambini'],
-        'ordini': _risto_ordini(db, fam_id, [primo, secondo]),
+        'ordini': _risto_ordini(db, fam_id, giorni),
     })
 
 
@@ -1444,7 +1445,7 @@ def _azione_ristorazione_ordina(db, origin, data):
     oggi = ora.strftime('%Y-%m-%d')
     primo, secondo = _risto_giorni(fam, oggi)
     giorno = _s(data.get('data'), 10)
-    if giorno not in (primo, secondo):
+    if giorno not in ((primo,) if primo > oggi else (primo, secondo)):
         return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
     checkout = _s(fam.get('checkout'), 10)
     if checkout and checkout <= oggi and giorno != oggi:

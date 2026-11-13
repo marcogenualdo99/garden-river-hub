@@ -705,8 +705,8 @@ function render() {
   const p = CFG.prenotazione;
   const nome = p.nome_proprio || (p.nome || '').trim().split(/\s+/)[0] || 'Ospite';
   // Se l'ospite ha i pasti, scarica il menu in anticipo: quando apre Ristorazione è già pronto.
-  if (CFG.ristorazione && !preArrivo() && !dopoPartenza() && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
-  if (!dopoPartenza()) { if (vis('meteo') || vis('pioggia')) caricaMeteo(); if (!preArrivo() && vis('ordini')) caricaRistoHome(); }
+  if (CFG.ristorazione && !dopoPartenza() && (!_ristoPre || Date.now() - _ristoPre.t > 90000)) ristoPrecarica();
+  if (!dopoPartenza()) { if (vis('meteo') || vis('pioggia')) caricaMeteo(); if (vis('ordini')) caricaRistoHome(); }
   $('#avatar').textContent = (nome || '?').slice(0, 1).toUpperCase();
   mostraIntestazioneHome();
   renderHome();
@@ -821,10 +821,10 @@ function chiudiAvviso(id) {
 const HOME_X = { risto: null, meteo: null };
 // Prima dell'arrivo il link si apre, ma solo con le informazioni di base.
 function preArrivo() { const d = giorniA((CFG.prenotazione || {}).checkin); return d !== null && d > 0; }
-const SOLO_DOPO_ARRIVO = ['navetta', 'ristorazione'];
+const SOLO_DOPO_ARRIVO = ['navetta'];   // la Ristorazione e' aperta anche prima: si scelgono i pasti del giorno di arrivo
 // Cosa mostrare a chi deve arrivare ('pre') e a chi e' in struttura ('dentro'); null = non ha senso.
 // Le scelte arrivano dalle impostazioni (Gestione area ospite); questi sono i valori di partenza.
-const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: null, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
+const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: true, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
   pioggia: { pre: null, dentro: true }, stasera: { pre: false, dentro: true }, oggi: { pre: null, dentro: true }, meteo: { pre: false, dentro: true }, orari: { pre: false, dentro: true } };
 function vis(k) {
   const ph = preArrivo() ? 'pre' : 'dentro', d = AVV_DEF[k][ph];
@@ -853,7 +853,10 @@ function rsStatoPasti() {
   const domani = dom.toISOString().slice(0, 10);
   const oggiOk = d.giorni.includes(d.oggi) && (!d.famiglia.checkout || d.famiglia.checkout >= d.oggi);
   const domaniOk = d.giorni.includes(domani) && (!d.famiglia.checkout || d.famiglia.checkout > d.oggi);
-  return { d, min, domani, mOggi: oggiOk && !d.chiusura_oggi ? rsMancanti(d, d.oggi) : [], mDomani: domaniOk ? rsMancanti(d, domani) : [] };
+  // Prima dell'arrivo il menu parte dal giorno di arrivo: e' l'unico da compilare.
+  const arrivo = d.giorni[0] > d.oggi ? d.giorni[0] : null;
+  if (arrivo) return { d, min, domani, arrivo, mArrivo: rsMancanti(d, arrivo), mOggi: [], mDomani: [] };
+  return { d, min, domani, arrivo: null, mArrivo: [], mOggi: oggiOk && !d.chiusura_oggi ? rsMancanti(d, d.oggi) : [], mDomani: domaniOk ? rsMancanti(d, domani) : [] };
 }
 
 function avvisiHome() {
@@ -867,6 +870,11 @@ function avvisiHome() {
   if (preArrivo()) {
     const n = giorniA(p.checkin);
     if (vis('benvenuto')) out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
+    const Sa = vis('ordini') ? rsStatoPasti() : null;
+    if (Sa && Sa.mArrivo.length) {
+      const nomi = Sa.mArrivo.includes('pasto') ? t('un pasto') : Sa.mArrivo.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
+      out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i pasti del giorno di arrivo'), testo: t('Ti manca ancora: {x}. Puoi ordinare fino alle 8:30 del giorno di arrivo.', { x: nomi }), azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
+    }
     staff();
     return filtra(out);
   }
@@ -1144,7 +1152,7 @@ function selPoi(id) {
 }
 
 function renderHome() {
-  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
+  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
   const CARD = SERVIZI.filter(s => !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
   const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
   if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
@@ -1566,7 +1574,7 @@ function rsGiorno(data) {
   }
   html += mostra.map(t => rsCard(data, t)).join('');
   const aperti = mostra.filter(t => !RS.d.ordini[`${data}_${t}`] && !rsScaduto(data));
-  if (aperti.length) html += `<button type="button" class="rs-conferma" onclick="rsApriConferma('${data}')">Conferma ordine ${data === RS.d.oggi ? 'di oggi' : 'di domani'}</button>`;
+  if (aperti.length) html += `<button type="button" class="rs-conferma" onclick="rsApriConferma('${data}')">Conferma ordine ${rsEtichettaOrdine(data)}</button>`;
   return html;
 }
 function rsScegli(data, tipo) {
@@ -1626,6 +1634,7 @@ function rsDaInviare(data) {
   if (!rec.length && ts.length > 1 && f.trattamento === 'MP' && RS.mp[data]) ts = [RS.mp[data]];
   return ts.filter(t => !RS.d.ordini[`${data}_${t}`] && rsTotKey(`${data}_${t}`) > 0);
 }
+function rsEtichettaOrdine(data) { const pre = RS.d.famiglia.checkin && RS.d.famiglia.checkin > RS.d.oggi; return pre ? "dell'arrivo" : (data === RS.d.oggi ? 'di oggi' : 'di domani'); }
 function rsApriConferma(data) {
   const ts = rsDaInviare(data);
   if (!ts.length) { rsToast('Seleziona almeno un piatto prima di confermare'); return; }
@@ -1640,7 +1649,7 @@ function rsApriConferma(data) {
   rsChiudiConferma();
   const w = document.createElement('div'); w.id = 'rs-sheet';
   w.innerHTML = `<div class="bg" onclick="rsChiudiConferma()"></div><div class="pan"><i class="grip"></i>
-    <h3>${data === RS.d.oggi ? 'Ordine di oggi' : 'Ordine di domani'}</h3><p class="sub">${tot} portate selezionate · controlla prima di inviare</p>
+    <h3>Ordine ${rsEtichettaOrdine(data)}</h3><p class="sub">${tot} portate selezionate · controlla prima di inviare</p>
     <div class="rie">${righe}</div><button type="button" id="rs-invia" class="rs-conferma" onclick="rsInvia('${data}')">Invia ordine</button>
     <button type="button" class="rs-annulla" onclick="rsChiudiConferma()">Torna indietro</button></div>`;
   document.body.appendChild(w);
