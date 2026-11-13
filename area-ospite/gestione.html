@@ -117,6 +117,15 @@
   .tabs-g button { flex: 1; height: 42px; border: none; border-radius: 12px; background: transparent; font: 800 13.5px var(--font); color: var(--gray-500); cursor: pointer }
   .tabs-g button.on { background: var(--green-700); color: #fff }
   .tabpane { display: none } .tabpane.on { display: block }
+  .card.acc { padding: 0 }
+  .acc > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; -webkit-tap-highlight-color: transparent }
+  .acc > summary::-webkit-details-marker { display: none }
+  .acc > summary h3 { margin: 0; font-size: 16px }
+  .acc > summary small { display: block; font-size: 12.5px; font-weight: 600; color: var(--gray-500); margin-top: 2px }
+  .acc > summary::after { content: '›'; margin-left: auto; font-size: 24px; line-height: 1; color: var(--gray-500); transition: transform .2s }
+  .acc[open] > summary::after { transform: rotate(90deg) }
+  .acc[open] > summary { border-bottom: 1px solid var(--gray-100) }
+  .acc-body { padding: 14px 18px 18px }
   .tab-intro { font-size: 13.5px; color: var(--gray-500); line-height: 1.5; margin: 12px 2px 0 }
 
   .auto-t { width: 100%; border-collapse: collapse; margin-top: 10px } .auto-t th { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gray-500); text-align: center; padding: 6px 4px } .auto-t th:first-child { text-align: left }
@@ -157,33 +166,30 @@
     </div>
 
     <div class="tabpane on" id="tab-home">
-      <p class="tab-intro">Quello che gli ospiti vedono in cima e in fondo alla home.</p>
-    <div class="card">
-      <h3>Banner informazioni di arrivo</h3>
-      <div class="subtitle">Il riquadro in cima alla home con le informazioni utili per il check-in. Compare solo prima dell'arrivo. Nel testo, una riga vuota separa i paragrafi e le righe che iniziano con «- » diventano un elenco. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
-      <div id="chk-box"></div>
-      <div class="an-row-btns"><button class="btn ghost" onclick="chkRipristina()">Ripristina testi predefiniti</button><button class="btn primary" id="btn-salva-chk" onclick="chkSalva()">Salva banner</button></div>
-    </div>
-
+      <p class="tab-intro">Quello che gli ospiti vedono nella home, dall'alto in basso. Tocca una voce per aprirla.</p>
     <div class="card">
       <h3>Banner a fasce orarie</h3>
       <div class="subtitle">Banner promozionali che compaiono in cima alla home solo negli orari che scegli (colazione, pranzo, pane fresco…). Se nello stesso orario ce n'è più di uno, scorrono in automatico. Come il banner «Stasera»: la grafica è lo sfondo e sopra ci sono titolo, testo e pulsante. Senza grafica resta il fondo colorato. Le traduzioni sono facoltative.</div>
       <div id="fb-box"></div>
       <div class="an-row-btns"><button class="btn ghost" onclick="fbAggiungi()">+ Aggiungi banner</button><button class="btn ghost" onclick="fbRipristina()">Ripristina banner predefiniti</button><button class="btn primary" id="btn-salva-fb" onclick="fbSalva()">Salva banner a fasce</button></div>
     </div>
-
     <div class="card">
-      <h3>Quali avvisi mostrare</h3>
-      <div class="subtitle">Scegli cosa vedono gli ospiti che devono ancora arrivare e quelli già in struttura. Una casella con il trattino non ha senso in quella fase. Dopo la partenza il link mostra sempre il ringraziamento con le recensioni.</div>
-      <div id="auto-list"></div>
-      <div class="an-row-btns"><button class="btn primary" id="btn-salva-auto" onclick="autoSalva()">Salva impostazioni</button></div>
+      <h3>Banner informazioni di arrivo</h3>
+      <div class="subtitle">Il riquadro in cima alla home con le informazioni utili per il check-in. Compare solo prima dell'arrivo. Nel testo, una riga vuota separa i paragrafi e le righe che iniziano con «- » diventano un elenco. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
+      <div id="chk-box"></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="chkRipristina()">Ripristina testi predefiniti</button><button class="btn primary" id="btn-salva-chk" onclick="chkSalva()">Salva banner</button></div>
     </div>
-
     <div class="card">
       <h3>Avvisi in home</h3>
       <div class="subtitle">Messaggi che compaiono in cima alla home di tutti gli ospiti. "Importante" è rosso, "Informazione" è verde. Se imposti le date, compaiono solo in quel periodo. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
       <div id="av-list"></div>
       <div class="an-row-btns"><button class="btn ghost" onclick="avAggiungi()">+ Aggiungi avviso</button><button class="btn primary" id="btn-salva-av" onclick="avSalva()">Salva avvisi</button></div>
+    </div>
+    <div class="card">
+      <h3>Quali avvisi mostrare</h3>
+      <div class="subtitle">Scegli cosa vedono gli ospiti che devono ancora arrivare e quelli già in struttura. Una casella con il trattino non ha senso in quella fase. Dopo la partenza il link mostra sempre il ringraziamento con le recensioni.</div>
+      <div id="auto-list"></div>
+      <div class="an-row-btns"><button class="btn primary" id="btn-salva-auto" onclick="autoSalva()">Salva impostazioni</button></div>
     </div>
     <div class="card">
       <h3>Contatti e social (in fondo alla home)</h3>
@@ -199,7 +205,7 @@
     </div>
 
     <div class="tabpane" id="tab-anim">
-      <p class="tab-intro">Tre passi: scrivi le attività, mettile nel programma delle due settimane, indica dove sono le serate. Poi salva.</p>
+      <p class="tab-intro">Tre passi (tocca una voce per aprirla): scrivi le attività, mettile nel programma delle due settimane, indica dove sono le serate. Poi salva.</p>
     <div class="card">
       <h3>1 · Elenco delle attività</h3>
       <div class="subtitle">L'elenco delle attività che puoi mettere nel programma: scrivi il nome, scegli l'emoji e la fascia. Si compila una volta sola.</div>
@@ -237,7 +243,7 @@
     </div>
 
     <div class="tabpane" id="tab-serv">
-      <p class="tab-intro">Foto e testi delle sezioni Navetta, Info utili e Assistenza.</p>
+      <p class="tab-intro">Foto e testi delle sezioni Navetta, Info utili e Assistenza. Tocca una voce per aprirla.</p>
     <div class="card">
       <h3>Foto dei servizi</h3>
       <div class="subtitle">Ogni servizio ha una foto nella sua card della home (le testate usano immagini ritagliate fisse). Carica una foto orizzontale o verticale: viene ridimensionata in automatico.</div>
@@ -888,6 +894,30 @@ async function avCarica() {
     avRender();
   } catch (e) { console.error('Avvisi:', e); CHK = CHK || chkCopia(CHECKIN_DEF); chkRender(); avRender(); }
 }
+
+// Ogni scheda diventa una voce a tendina: la pagina e' una lista corta, si apre solo quella che serve.
+const ACC_HINT = {
+  'Banner a fasce orarie': 'Promozioni che cambiano con l\'orario', 'Banner informazioni di arrivo': 'Informazioni per il check-in',
+  'Avvisi in home': 'Messaggi per tutti gli ospiti', 'Quali avvisi mostrare': 'Cosa vede chi arriva e chi è già qui',
+  'Contatti e social (in fondo alla home)': 'Telefoni, social e recensioni',
+  '1 · Elenco delle attività': 'Le attività che puoi mettere nel programma', '2 · Programma settimanale': 'Le due settimane che si alternano', '3 · Serate e mappa': 'Dove si fanno le serate',
+  'Foto dei servizi': 'Le foto delle card nella home', 'Foto degli autisti': 'Per «Chi ti ha accompagnato?»', 'Info utili': 'Orari e regole del villaggio',
+  'Richiesta assistenza': 'Messaggio e numeri della reception', 'Navetta': 'Testo introduttivo'
+};
+function accordion() {
+  document.querySelectorAll('.tabpane').forEach(p => {
+    [...p.children].filter(c => c.classList.contains('card') && c.querySelector(':scope > h3')).forEach((c, i) => {
+      const h = c.querySelector(':scope > h3'), d = document.createElement('details');
+      d.className = 'card acc'; if (i === 0) d.open = true;
+      const sm = document.createElement('summary'), w = document.createElement('div'), body = document.createElement('div');
+      w.appendChild(h); if (ACC_HINT[h.textContent.trim()]) { const s = document.createElement('small'); s.textContent = ACC_HINT[h.textContent.trim()]; w.appendChild(s); }
+      sm.appendChild(w); body.className = 'acc-body';
+      while (c.firstChild) body.appendChild(c.firstChild);
+      d.appendChild(sm); d.appendChild(body); c.replaceWith(d);
+    });
+  });
+}
+accordion();
 
 (function avvio() {
   hydrateIcons();
