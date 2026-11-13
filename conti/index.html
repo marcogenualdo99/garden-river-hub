@@ -920,6 +920,7 @@ async function startRealtimeSync() {
     _unsubOspiti = onSnapshot(collection(db, 'ospiti'), (snap) => {
       ospiti = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       render();
+      riallineaDatePrenotazioni();
       fbConnected = true;
       setSyncStatus('live');
       _dataReady = true;
@@ -965,6 +966,35 @@ async function startRealtimeSync() {
     console.error('Errore avvio sync:', e);
     setSyncStatus('error');
   }
+}
+
+// Se la prenotazione cambia data nel Calendario, il conto aperto collegato
+// (ospite.prenotazioneId) restava con check-in/check-out vecchi: qui li
+// riallineiamo. Si guardano solo i conti aperti, al massimo una volta ogni 60s.
+let _riallineaTs = 0, _riallineaInCorso = false;
+async function riallineaDatePrenotazioni() {
+  if (_riallineaInCorso || Date.now() - _riallineaTs < 60000) return;
+  const daControllare = ospiti.filter(o => o.prenotazioneId && !o.chiuso);
+  if (!daControllare.length) return;
+  _riallineaInCorso = true;
+  try {
+    await waitForFirebase();
+    const { db, doc, getDoc, setDoc } = window._fb;
+    for (const o of daControllare) {
+      const snap = await getDoc(doc(db, 'prenotazioni', o.prenotazioneId));
+      if (!snap.exists()) continue;
+      const p = snap.data();
+      const campi = {};
+      if (p.checkin && p.checkin !== o.checkin) campi.checkin = p.checkin;
+      if (p.checkout && p.checkout !== o.checkout) campi.checkout = p.checkout;
+      if (!Object.keys(campi).length) continue;
+      await setDoc(doc(db, 'ospiti', o.id), campi, { merge: true });
+      if (o.famigliaId) {
+        try { await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), campi, { merge: true }); } catch (e) { console.error(e); }
+      }
+    }
+  } catch (e) { console.error('Errore riallineamento date prenotazioni:', e); }
+  finally { _riallineaTs = Date.now(); _riallineaInCorso = false; }
 }
 
 // Refresh manuale/di sicurezza: rilegge tutto da Firestore con una query diretta.
