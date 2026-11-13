@@ -437,6 +437,19 @@
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
   .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
+  .ci-banner { background: linear-gradient(135deg, var(--green-700), var(--green-600, var(--green-700))); color: #fff; border-radius: 22px; padding: 18px 18px 6px; margin-top: 10px; box-shadow: var(--shadow) }
+  .ci-banner .tg { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .85 }
+  .ci-banner h2 { font-size: 19px; font-weight: 800; line-height: 1.25; margin: 2px 0 4px }
+  .ci-banner .ci-intro { font-size: 13.5px; line-height: 1.45; opacity: .95 }
+  .ci-banner details { margin-top: 12px }
+  .ci-banner summary { cursor: pointer; list-style: none; display: inline-block; background: rgba(255,255,255,.18); border-radius: 999px; padding: 8px 16px; font-weight: 800; font-size: 13.5px }
+  .ci-banner summary::-webkit-details-marker { display: none }
+  .ci-banner details[open] summary { margin-bottom: 6px }
+  .ci-sec { background: #fff; color: var(--gray-700); border-radius: 16px; padding: 12px 14px; margin: 10px 0 }
+  .ci-sec h3 { font-size: 14.5px; font-weight: 800; color: var(--gray-900); margin-bottom: 6px }
+  .ci-sec p, .ci-sec li { font-size: 13px; line-height: 1.5; color: var(--gray-700) } .ci-sec p + p { margin-top: 7px }
+  .ci-sec ul { margin: 6px 0 0 18px }
+  .ci-fine { text-align: center; font-weight: 700; font-size: 13.5px; padding: 6px 0 14px }
   .av.info { --c: var(--green-700); --t: var(--green-100) } .av.stop { --c: var(--red); --t: var(--red-bg) }
   .sera { margin-top: 12px; border-radius: 24px; background: var(--green-900); color: #fff; padding: 18px; position: relative; overflow: hidden; min-height: 176px; cursor: pointer }
   .sera::before { content: ''; position: absolute; right: -46px; top: -46px; width: 170px; height: 170px; border-radius: 50%; background: var(--grad-sun) }
@@ -543,6 +556,7 @@
 
   <div class="wrap">
     <div id="home-view">
+      <div id="home-checkin"></div>
       <div id="home-alerts"></div>
       <div id="home-sera"></div>
       <div id="home-oggi"></div>
@@ -952,7 +966,27 @@ async function caricaRistoHome() {
   try { const d = await ristoDati(); if (d && d.ok) { HOME_X.risto = d; renderHomeExtra(); renderHome(); } } catch (e) {}
 }
 
+// Banner principale con le informazioni utili per il check-in: da 5 giorni prima dell'arrivo fino al giorno stesso.
+function checkinInfoHtml() {
+  const n = giorniA((CFG.prenotazione || {}).checkin);
+  if (n === null || n < 0 || n > 5) return '';
+  const sec = (ic, tit, corpo) => `<div class="ci-sec"><h3>${ic} ${tit}</h3>${corpo}</div>`;
+  return `<div class="ci-banner"><div class="tg">${esc(t('Prima di partire'))}</div>
+    <h2>🌞 ${esc(t('Informazioni utili per il tuo arrivo'))}</h2>
+    <div class="ci-intro">${esc(t('Per rendere il vostro arrivo il più semplice possibile, vi invitiamo a leggere attentamente le seguenti informazioni.'))}</div>
+    <details open><summary>${esc(t('Mostra / nascondi le informazioni'))}</summary>
+    ${sec('🏡', esc(t('Check-in')), `<p>${esc(t('La consegna dell\'alloggio è prevista a partire dalle ore 16:00 del sabato di arrivo, a partire e non entro: l\'orario di consegna può infatti variare in base ai tempi necessari per la pulizia e la preparazione degli alloggi. Comprendiamo che, soprattutto dopo un lungo viaggio e in presenza di bambini, persone anziane o animali, l\'attesa possa essere scomoda e spiacevole. Purtroppo, però, non possiamo fare altrimenti: si tratta semplicemente dei tempi tecnici necessari per pulire e preparare tutti gli alloggi in arrivo. La nostra squadra di pulizie lavora ininterrottamente per rendere ogni appartamento disponibile il prima possibile, ma è umanamente impossibile riuscire a pulire e preparare tutti gli alloggi nell\'arco di poche ore. Vi ringraziamo per la comprensione e la collaborazione.'))}</p><p>🚗 ${esc(t('Se lo desiderate, potete arrivare anche in tarda mattinata. Al vostro arrivo effettueremo il check-in (registrazione dei documenti, saldo del soggiorno e consegna dei braccialetti), così potrete accedere subito al villaggio e usufruire dei servizi disponibili. Vi chiediamo però di tenere presente che l\'alloggio sarà disponibile solo nel pomeriggio/tardo pomeriggio, a partire dalle ore 16:00.'))}</p>`)}
+    ${sec('⏰', esc(t('Check-out')), `<p>${esc(t('Il giorno della partenza l\'alloggio dovrà essere lasciato entro le ore 10:00.'))}</p><p>🎟️ ${esc(t('Entro tale orario dovranno essere riconsegnati anche i braccialetti e sarà necessario lasciare il villaggio. Dopo il check-out non è possibile trattenersi all\'interno della struttura né continuare a usufruire dei servizi del villaggio.'))}</p>`)}
+    ${sec('🐶', esc(t('Ospiti con animali')), `<p>${esc(t('Chi soggiorna con il proprio amico a quattro zampe dovrà essere in possesso di un\'assicurazione che copra eventuali danni causati dal cane a persone e/o cose.'))}</p><p>🏖️ ${esc(t('Gli ospiti che hanno prenotato un ombrellone nella Dog Beach possono tenere il proprio cane sotto l\'ombrellone. Non è invece consentito far entrare il cane in acqua, come previsto dalle disposizioni comunali.'))}</p>`)}
+    ${sec('💳', esc(t('Modalità di pagamento')), `<p>${esc(t('Accettiamo i seguenti metodi di pagamento:'))}</p><ul><li>${esc(t('Contanti'))}</li><li>${esc(t('Carta di credito'))}</li><li>${esc(t('Bancomat'))}</li></ul><p>❌ ${esc(t('Non sono accettati assegni né bonifici il giorno dell\'arrivo.'))}</p>`)}
+    ${sec('🍽️', esc(t('Pensione completa e mezza pensione')), `<p>${esc(t('Gli ospiti che hanno prenotato il trattamento di pensione completa o mezza pensione e non lo hanno ancora fatto sono pregati di inviare le proprie scelte dei pasti tramite il link ricevuto su WhatsApp.'))}</p><p>${esc(t('Nb. qualora abbiate richiesto di mangiare allo stesso tavolo con qualche altra famiglia, vi informiamo che desideriamo accontentarvi, ma che dovrete arrivare ai pasti tutti allo stesso orario.'))}</p>`)}
+    ${sec('🛏️', esc(t('Biancheria')), `<p>${esc(t('Per le prenotazioni che comprendono la biancheria, ricordiamo che non viene fornita ai bambini di età inferiore ai 3 anni.'))}</p><p>${esc(t('Ricordiamo che forniremo i kit imbustati singolarmente di lenzuola e di asciugamani, ma non facciamo i letti.'))}</p>`)}
+    <div class="ci-fine">🙏 ${esc(t('Vi ringraziamo per la collaborazione e restiamo a disposizione per qualsiasi chiarimento.'))}<br>😊 ${esc(t('Vi auguriamo un piacevole soggiorno e non vediamo l\'ora di darvi il benvenuto!'))}</div>
+    </details></div>`;
+}
+
 function renderHomeExtra() {
+  const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
     const nome = (CFG.prenotazione || {}).nome_proprio || '';
