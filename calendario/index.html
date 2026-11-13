@@ -3855,6 +3855,9 @@ async function inviaAvvisoPulizie(alloggioId) {
     const { db, doc, updateDoc } = window._fb;
     await updateDoc(doc(db, 'alloggi', alloggioId), { avviso });
     showToast('Avviso inviato alle Pulizie');
+    // Telegram (gruppo Pulizie): fire-and-forget, l'avviso e' gia' salvato.
+    fetch('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evento: 'avviso_arrivo', alloggio_nome: a ? a.nome : '', ospite: nome, op: currentOperatore || 'Operatore' }) }).catch(() => {});
   } catch(e) {
     console.error('Errore invio avviso pulizie:', e);
     showToast('Errore durante l\'invio dell\'avviso');

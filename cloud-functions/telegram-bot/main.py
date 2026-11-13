@@ -198,6 +198,13 @@ def _evento(data):
              f"🕐 <b>Quando:</b> {quando}\n\n"
              f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
         return _invia(['manutenzione'], t)
+    if ev == 'avviso_arrivo':
+        quando = datetime.now(ZoneInfo('Europe/Rome')).strftime('%H:%M')
+        t = (f"🛎️ <b>Cliente arrivato in struttura</b>\n"
+             f"🏠 <b>Alloggio:</b> {_e(data.get('alloggio_nome'), 80) or '—'}\n"
+             f"👤 <b>Ospite:</b> {_e(data.get('ospite'), 80) or '—'}\n"
+             f"🕐 {quando} · segnalato da {_e(data.get('op'), 60) or 'Operatore'}")
+        return _invia(['pulizie'], t)
     if ev == 'cambio_stato':
         stato = data.get('nuovo_stato') or ''
         t = (f"{EMOJI_STATO.get(stato, '🏠')} <b>{_e(data.get('alloggio_nome'), 60) or 'Alloggio'}</b> · {_e(LABEL_STATO.get(stato, stato), 40)}"
