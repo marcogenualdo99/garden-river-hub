@@ -614,7 +614,7 @@ const SERVIZI = [
   { id: 'ristorazione', icon: 'RISTORAZIONE', title: 'Ristorazione',         foto: 'img/ristorazione.jpg' },
   { id: 'animazione',   icon: 'ANIMAZIONE',   title: 'Animazione',           foto: 'img/animazione.jpg' },
   { id: 'info',         icon: 'INFO',         title: 'Info utili',           foto: 'img/info.jpg' },
-  { id: 'assistenza',   icon: 'CHAT',         title: 'Richiesta assistenza', foto: 'img/assistenza.jpg' },
+  { id: 'manutenzione', icon: 'WRENCH',      title: 'Segnala un guasto',    foto: 'img/assistenza.jpg' },
 ];
 const FOTO_HOME = 'img/home.jpg';
 
@@ -712,7 +712,7 @@ const BANNER = {
   ristorazione: { img: 'img/banner/ristorazione.png', tema: 'arancio', deco: 'piatto', h: 185, r: -18, b: -12 },
   animazione:   { img: 'img/gardy.png',               tema: 'verde',   deco: 'sole',   h: 235, r: -86, b: -80 },
   info:         { img: 'img/banner/info.png',         tema: 'arancio', deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
-  assistenza:   { img: 'img/banner/assistenza.svg',   tema: 'verde',   deco: 'bolla',  h: 185, r: -14, b: 4 },
+  manutenzione: { img: 'img/banner/assistenza.svg',   tema: 'arancio', deco: 'bolla',  h: 185, r: -14, b: 4 },
 };
 function impostaBanner(id) {
   const b = BANNER[id] || BANNER.home, hd = $('#hero');
@@ -751,7 +751,6 @@ function haContenuto(id) {
   const t = CONTENUTI.testi;
   if (id === 'animazione') return anHaProgramma();
   if (id === 'info') return true;
-  if (id === 'assistenza') return !!(t.assistenza_testo || t.assistenza_telefono);
   return true;
 }
 
@@ -760,6 +759,7 @@ function sottotitoloServizio(id) {
     const attive = (CFG.navetta_corse || []).filter(c => c.data === oggiData() && c.stato === 'in_attesa' || c.stato === 'accettata').length;
     return attive ? `${attive} richiest${attive === 1 ? 'a' : 'e'} in corso` : 'Prenota il rientro dalla spiaggia';
   }
+  if (id === 'manutenzione') return 'Qualcosa non funziona nel tuo alloggio?';
   if (id === 'ristorazione') {
     const r = CFG.ristorazione;
     if (!r) return 'Menu e informazioni';
@@ -767,7 +767,6 @@ function sottotitoloServizio(id) {
   }
   if (id === 'animazione') return haContenuto(id) ? 'Il programma della settimana' : 'Disponibile a breve';
   if (id === 'info') return haContenuto(id) ? 'Orari e informazioni' : 'Disponibile a breve';
-  if (id === 'assistenza') return haContenuto(id) ? 'Chiedi aiuto alla reception' : 'Disponibile a breve';
   return '';
 }
 
@@ -816,6 +815,7 @@ const IC = {
   GO: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   X: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg>',
   STAR: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2 6.4 20.3l1.2-6.3L3 9.6l6.3-.8Z"/></svg>',
+  WRENCH: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4Z"/></svg>',
   TICKET: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 0 0 6v3a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-3a2 2 0 0 0 0-6V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1Z"/><path d="M13 5v2M13 11v2M13 17v2"/></svg>',
   MAP: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2Z"/><path d="M9 4v14M15 6v14"/></svg>',
   PLUS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -844,7 +844,7 @@ function chiudiAvviso(id) {
 const HOME_X = { risto: null, meteo: null };
 // Prima dell'arrivo il link si apre, ma solo con le informazioni di base.
 function preArrivo() { const d = giorniA((CFG.prenotazione || {}).checkin); return d !== null && d > 0; }
-const SOLO_DOPO_ARRIVO = ['navetta'];   // la Ristorazione e' aperta anche prima: si scelgono i pasti del giorno di arrivo
+const SOLO_DOPO_ARRIVO = ['navetta', 'manutenzione'];   // la Ristorazione e' aperta anche prima: si scelgono i pasti del giorno di arrivo
 // Cosa mostrare a chi deve arrivare ('pre') e a chi e' in struttura ('dentro'); null = non ha senso.
 // Le scelte arrivano dalle impostazioni (Gestione area ospite); questi sono i valori di partenza.
 const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: true, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
@@ -1271,7 +1271,7 @@ function apriServizio(id) {
   if (id === 'ristorazione') return renderRistorazione();
   if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; $('#titolo').textContent = 'Programma Animazione'; $('#sottotitolo').textContent = 'Ciao, sono Gardy! Cosa facciamo oggi?'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
   if (id === 'info') return renderInfo();
-  if (id === 'assistenza') return renderAssistenza(s);
+  if (id === 'manutenzione') return renderManutenzione();
 }
 
 // ── I tuoi dati e il conto (pulsante Info nell'header) ─────────────────────
@@ -1553,14 +1553,126 @@ function renderWhatsapp() {
     <span>Scrivici su WhatsApp</span></a>`;
 }
 
-function renderAssistenza(s) {
-  const t = CONTENUTI.testi;
-  if (!t.assistenza_testo && !t.assistenza_telefono) { $('#service-content').innerHTML = boxPresto(s); return; }
-  const tel = (t.assistenza_telefono || '').replace(/[^\d+]/g, '');
-  $('#service-content').innerHTML = `<div class="card"><h2>Richiesta assistenza</h2>
-    ${t.assistenza_testo ? `<div class="testo" style="margin-top:8px">${esc(t.assistenza_testo)}</div>` : ''}
-    ${tel ? `<a class="link-btn" href="tel:${esc(tel)}"><span data-icon="PHONE"></span>Chiama la reception</a>` : ''}</div>`;
+
+
+// ── Segnala un guasto (manutenzione) ──────────────────────────────────────
+// Percorso a passi come la navetta: alloggio e nome (gia' compilati) → categoria →
+// descrizione → accesso in assenza → conferma. Il ticket arriva allo staff
+// (Hub, push e gruppo Telegram Manutenzione) segnato come "dall'ospite".
+let _mn = {};
+const MN_CATEGORIE = [['Elettrico', '⚡'], ['Idraulico', '💧'], ['Climatizzazione', '❄️'], ['Altro', '🔧']];
+function renderManutenzione() {
+  const p = CFG.prenotazione || {};
+  _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, invio: false };
+  $('#service-content').innerHTML = `
+    <div class="card">
+      <h2>Segnala un guasto</h2>
+      <p class="hint">Qualcosa non funziona nell'alloggio? Compila i passaggi: il nostro tecnico riceve subito la segnalazione.</p>
+      ${(() => { const tel = ((CONTENUTI.testi || {}).assistenza_telefono || '').replace(/[^\d+]/g, ''); return tel ? `<a class="link-btn" href="tel:${esc(tel)}"><span data-icon="PHONE"></span>Urgente? Chiama la reception</a>` : ''; })()}
+    </div>
+    <div class="card" id="mn-form">
+      <div class="passo"><span class="n">1</span><h2>Alloggio e nome</h2></div>
+      <p class="guida">Controlla che i dati siano giusti.</p>
+      <div class="field"><label for="mn-alloggio">Alloggio</label>
+        <input type="text" id="mn-alloggio" value="${esc(_mn.alloggio)}" ${_mn.alloggio ? 'readonly' : 'placeholder="Es. Bungalow 12"'} oninput="_mn.alloggio=this.value.trim();mnAggiorna()"></div>
+      <div class="field"><label for="mn-nome">Nome e cognome</label>
+        <input type="text" id="mn-nome" value="${esc(_mn.nome)}" autocomplete="name" oninput="_mn.nome=this.value.trim();mnAggiorna()"></div>
+      <button type="button" class="submit" style="margin-top:6px" id="mn-avanti1" onclick="mnMostra('#mn-box-cat')">Avanti</button>
+
+      <div id="mn-box-cat" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">2</span><h2>Che tipo di guasto?</h2></div>
+        <p class="guida">Tocca la categoria che si avvicina di più.</p>
+        <div class="sp-grid" id="mn-cat-grid">${MN_CATEGORIE.map(([c, e]) => `<button type="button" class="sp-btn" data-c="${c}" onclick="mnCategoria(this.dataset.c)">${e} ${c}</button>`).join('')}</div>
+      </div>
+
+      <div id="mn-box-desc" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">3</span><h2>Cosa non funziona?</h2></div>
+        <p class="guida">Descrivi il problema in poche parole.</p>
+        <div class="field"><textarea id="mn-desc" rows="4" maxlength="1000" placeholder="Es. Il lavandino del bagno perde acqua" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius);font:inherit;font-size:16px;resize:vertical" oninput="_mn.descrizione=this.value.trim();mnAggiorna()"></textarea></div>
+        <button type="button" class="submit" style="margin-top:6px" id="mn-avanti3" onclick="mnMostra('#mn-box-acc')" disabled>Avanti</button>
+      </div>
+
+      <div id="mn-box-acc" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">4</span><h2>Il tecnico può entrare?</h2></div>
+        <p class="guida">Se non ci sei, possiamo entrare nell'alloggio per ripararlo?</p>
+        <div class="sp-grid" id="mn-acc-grid">
+          <button type="button" class="sp-btn" data-v="1" onclick="mnAccesso(true)">Sì, può entrare anche se non ci sono</button>
+          <button type="button" class="sp-btn" data-v="0" onclick="mnAccesso(false)">No, devo essere presente</button>
+        </div>
+      </div>
+
+      <div id="mn-box-conf" style="display:none">
+        <div class="passo" style="margin-top:30px"><span class="n">5</span><h2>Conferma</h2></div>
+        <div class="riepilogo" id="mn-riepilogo"></div>
+        <div class="errbox" id="mn-err"></div>
+        <button type="button" class="submit" id="mn-invia" onclick="mnInvia()">Invia la segnalazione</button>
+      </div>
+    </div>
+    <div class="card" id="mn-conferma" style="display:none"></div>`;
   hydrateIcons($('#service-content'));
+  mnAggiorna();
+}
+function mnMostra(sel) {
+  const el = $(sel), prima = el.style.display === 'none';
+  el.style.display = 'block';
+  if (prima) vaiA(sel);
+}
+function mnAggiorna() {
+  const ok1 = !!(_mn.alloggio && _mn.nome);
+  const b1 = $('#mn-avanti1'); if (b1) b1.disabled = !ok1;
+  const b3 = $('#mn-avanti3'); if (b3) b3.disabled = _mn.descrizione.length < 5;
+  const conf = $('#mn-box-conf');
+  if (conf && _mn.accesso !== null && _mn.categoria && _mn.descrizione.length >= 5 && ok1) {
+    const prima = conf.style.display === 'none';
+    conf.style.display = 'block';
+    $('#mn-riepilogo').innerHTML = `<div><span>Alloggio</span><b>${esc(_mn.alloggio)}</b></div>
+      <div><span>Ospite</span><b>${esc(_mn.nome)}</b></div>
+      <div><span>Guasto</span><b>${esc(_mn.categoria)}</b></div>
+      <div><span>Ingresso</span><b>${_mn.accesso ? 'Anche in tua assenza' : 'Solo se ci sei'}</b></div>
+      <div style="display:block"><span>Problema</span><br><b style="font-size:16px;font-weight:600">${esc(_mn.descrizione)}</b></div>`;
+    if (prima) vaiA('#mn-box-conf');
+  } else if (conf) conf.style.display = 'none';
+}
+function mnCategoria(c) {
+  _mn.categoria = c;
+  document.querySelectorAll('#mn-cat-grid .sp-btn').forEach(el => el.classList.toggle('selected', el.dataset.c === c));
+  mnMostra('#mn-box-desc');
+  mnAggiorna();
+}
+function mnAccesso(v) {
+  _mn.accesso = v;
+  document.querySelectorAll('#mn-acc-grid .sp-btn').forEach(el => el.classList.toggle('selected', (el.dataset.v === '1') === v));
+  mnAggiorna();
+}
+async function mnInvia() {
+  if (_mn.invio) return;
+  const box = $('#mn-err'), btn = $('#mn-invia');
+  box.style.display = 'none';
+  _mn.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
+  try {
+    const d = await chiama({ azione: 'manutenzione_segnala', nome: _mn.nome, alloggio_nome: _mn.alloggio, categoria: _mn.categoria, descrizione: _mn.descrizione, accesso: _mn.accesso === true });
+    if (d.ok) {
+      $('#mn-form').style.display = 'none';
+      const c = $('#mn-conferma');
+      c.style.display = 'block';
+      c.innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Segnalazione inviata</div>
+        <p style="font-size:16px;line-height:1.5;margin-top:8px">Abbiamo avvisato il nostro tecnico. ${_mn.accesso ? 'Potrà entrare nell\'alloggio anche se non ci sei.' : 'Ti contatteremo per concordare quando passare.'} Per un'urgenza chiama la reception.</p></div>
+        <button type="button" class="btn-secondary" onclick="renderManutenzione()">Segnala un altro guasto</button>`;
+      window.scrollTo(0, 0);
+      return;
+    }
+    box.textContent = d.errore === 'troppe_segnalazioni' ? 'Hai già inviato molte segnalazioni oggi. Per altro chiama la reception.'
+      : d.errore === 'descrizione_mancante' ? 'Descrivi un po\' meglio il problema.'
+      : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
+      : d.errore === 'non_ancora_arrivato' ? 'Potrai segnalare un guasto dal giorno del tuo arrivo.'
+      : 'Invio non riuscito. Riprova.';
+    box.style.display = 'block';
+  } catch (e) {
+    box.textContent = 'Connessione assente. Controlla la rete e riprova.';
+    box.style.display = 'block';
+  } finally {
+    _mn.invio = false; btn.disabled = false; btn.textContent = 'Invia la segnalazione';
+  }
 }
 
 // ── Ristorazione ──────────────────────────────────────────────────────────

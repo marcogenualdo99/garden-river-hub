@@ -63,6 +63,7 @@ un URL diverso, aggiornare quelle due righe.
 |---|---|---|
 | `carica` | `{ token }` | `{ ok, prenotazione:{nome,telefono,alloggio_nome,checkin,checkout}, spiaggia:{spiaggia_nome,ombrellone}\|null, fasce:[…] }` |
 | `navetta_prenota` | `{ token, nome, telefono, alloggio_nome, spiaggia_nome?, orario }` | `{ ok:true, id }` o `{ ok:false, errore }` |
+| `manutenzione_segnala` | `{ token, nome, categoria, descrizione, accesso }` | `{ ok:true, id }` o `{ ok:false, errore }` — crea il ticket in `maintenance_tickets` (origine `ospite`, max 5 al giorno per prenotazione) + Telegram + push |
 
 Il token è 16–64 hex. Lo genera l'hub (Calendario → "Area ospite"), stessa
 funzione `generaCheckinToken`/scadenza di `checkin_links` (checkout + 3

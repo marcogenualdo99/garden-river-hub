@@ -26,6 +26,8 @@ Azioni (campo "azione" nel corpo JSON):
            già fatte oggi da questo stesso ospite (per mostrargliene lo
            stato)
   - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
+  - manutenzione_segnala : { token, nome, categoria, descrizione, accesso }
+        -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram + push
   - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
   - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
   - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
@@ -1591,6 +1593,70 @@ def _azione_ristorazione_ordina(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
 
 
+def _push_manutenzione(doc_id, alloggio, categoria, descrizione):
+    """Push allo staff con notifiche attive (stessa CF dei ticket creati dall'Hub). Mai bloccante."""
+    try:
+        url = os.environ.get('NOTIFICHE_MANUTENZIONE_URL', 'https://notifiche-manutenzione-113994721180.europe-west1.run.app')
+        body = {'evento': 'ticket', 'doc_id': doc_id, 'housing_unit': alloggio, 'category': categoria,
+                'issue_description': f'[Da ospite] {descrizione}', 'priority': 'normale'}
+        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=8).read()
+    except Exception as ex:
+        print(f'Push manutenzione non inviata: {ex}')
+
+
+MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
+MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
+
+
+def _azione_manutenzione_segnala(db, origin, data):
+    """Segnalazione guasto dall'ospite: crea un ticket in `maintenance_tickets`
+    (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram + push."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    if _s(p.get('checkin'), 10) > _oggi_iso():
+        return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
+    categoria = _s(data.get('categoria'), 30)
+    if categoria not in MANUT_CATEGORIE:
+        return _json(origin, {'ok': False, 'errore': 'categoria_non_valida'}, 400)
+    descrizione = _s(data.get('descrizione'), 1000)
+    if len(descrizione) < 5:
+        return _json(origin, {'ok': False, 'errore': 'descrizione_mancante'}, 400)
+    nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
+    if not nome:
+        return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
+    # Nome alloggio reale (l'ospite puo' vederlo senza numero fino al giorno dopo il check-in).
+    alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
+    if not alloggio:
+        return _json(origin, {'ok': False, 'errore': 'alloggio_mancante'}, 400)
+    accesso = data.get('accesso') is True
+    oggi = _oggi_iso()
+    try:
+        gia = sum(1 for d in db.collection('maintenance_tickets').where('prenId', '==', pren_ref.id).stream()
+                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
+    except Exception as e:
+        print(f'Conteggio ticket ospite non riuscito: {e}')
+        gia = 0
+    if gia >= MANUT_MAX_AL_GIORNO:
+        return _json(origin, {'ok': False, 'errore': 'troppe_segnalazioni'}, 429)
+    telefono = _s(p.get('tel'), 40)
+    ref = db.collection('maintenance_tickets').document()
+    ref.set({
+        'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
+        'access_permission': accesso, 'priority': 'normale', 'status': False,
+        'notified': False,                      # il push parte qui sotto; il controllo periodico fa da rete di sicurezza
+        'user_id': f'Ospite · {nome}',
+        'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
+        'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
+    })
+    _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
+               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso,
+               'operatore': nome, 'telefono': telefono})
+    _push_manutenzione(ref.id, alloggio, categoria, descrizione)
+    return _json(origin, {'ok': True, 'id': ref.id})
+
+
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -1598,6 +1664,7 @@ AZIONI = {
     'navetta_prenota':         _azione_navetta_prenota,
     'navetta_modifica_orario': _azione_navetta_modifica_orario,
     'navetta_annulla':         _azione_navetta_annulla,
+    'manutenzione_segnala':    _azione_manutenzione_segnala,
     'staff_crea':              _azione_staff_crea,
     'staff_modifica':          _azione_staff_modifica,
     'staff_riapri':            _azione_staff_riapri,

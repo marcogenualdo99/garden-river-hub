@@ -218,15 +218,28 @@ def _evento(data):
     ev = data.get('evento')
     if ev == 'ticket':
         urgente = data.get('priority') == 'alta'
+        da_ospite = data.get('origine') == 'ospite'
         quando = datetime.now(ZoneInfo('Europe/Rome')).strftime('%d/%m/%Y %H:%M')
-        t = (f"{'🚨 <b>TICKET URGENTE</b>' if urgente else '🔧 <b>Nuovo ticket di manutenzione</b>'}\n\n"
-             f"🏠 <b>Alloggio:</b> {_e(data.get('housing_unit'), 80) or '—'}\n"
-             f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
-             f"⚡ <b>Priorità:</b> {'ALTA' if urgente else 'Normale'}\n"
-             f"🔑 <b>Accesso senza ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
-             f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
-             f"🕐 <b>Quando:</b> {quando}\n\n"
-             f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
+        if da_ospite:
+            tel = _e(data.get('telefono'), 40)
+            t = (f"🧑‍🌾 <b>Nuovo ticket di manutenzione DALL'OSPITE</b>\n"
+                 f"<i>Non arriva dalla reception: l'ha segnalato il cliente dall'Area ospite.</i>\n\n"
+                 f"🏠 <b>Alloggio:</b> {_e(data.get('housing_unit'), 80) or '—'}\n"
+                 f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
+                 f"🔑 <b>Si può entrare in assenza dell'ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+                 f"👤 <b>Ospite:</b> {_e(data.get('operatore'), 80) or '—'}\n"
+                 + (f"📞 <b>Telefono:</b> {tel}\n" if tel else '') +
+                 f"🕐 <b>Quando:</b> {quando}\n\n"
+                 f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
+        else:
+            t = (f"{'🚨 <b>TICKET URGENTE</b>' if urgente else '🔧 <b>Nuovo ticket di manutenzione</b>'}\n\n"
+                 f"🏠 <b>Alloggio:</b> {_e(data.get('housing_unit'), 80) or '—'}\n"
+                 f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
+                 f"⚡ <b>Priorità:</b> {'ALTA' if urgente else 'Normale'}\n"
+                 f"🔑 <b>Accesso senza ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+                 f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
+                 f"🕐 <b>Quando:</b> {quando}\n\n"
+                 f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
         doc_id = str(data.get('doc_id') or '')[:40]
         tastiera = [[{'text': '✅ Segna come risolto', 'callback_data': f'risolto:{doc_id}'}]] if doc_id else None
         return _invia(['manutenzione'], t, tastiera=tastiera)
