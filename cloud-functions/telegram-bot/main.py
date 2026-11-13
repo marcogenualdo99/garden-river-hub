@@ -101,7 +101,7 @@ def _scrivi_canale(reparto, chat_id, titolo='', autista=''):
     _doc().set({'canali': {reparto: valore if chat_id else firestore.DELETE_FIELD}}, merge=True)
 
 
-def _invia(reparti, testo, primo_disponibile=False):
+def _invia(reparti, testo, primo_disponibile=False, tastiera=None):
     """Manda `testo` (HTML) ai gruppi indicati (chiavi dei canali). Con
     primo_disponibile ci si ferma al primo gruppo collegato (es. gruppo
     dell'autista, altrimenti gruppo navetta generico). Ritorna i messaggi partiti."""
@@ -119,7 +119,10 @@ def _invia(reparti, testo, primo_disponibile=False):
             continue
         visti.add(chat)
         try:
-            _tg('sendMessage', {'chat_id': chat, 'text': testo, 'parse_mode': 'HTML', 'disable_web_page_preview': True})
+            payload = {'chat_id': chat, 'text': testo, 'parse_mode': 'HTML', 'disable_web_page_preview': True}
+            if tastiera:
+                payload['reply_markup'] = {'inline_keyboard': tastiera}
+            _tg('sendMessage', payload)
             inviati += 1
         except Exception as ex:
             print(f'Invio Telegram a {r} fallito: {ex}')
@@ -182,6 +185,33 @@ def _comando(msg):
         _risposta(chat_id, ('Questo gruppo riceve: ' + ', '.join(mio)) if mio else 'Questo gruppo non è collegato a nessun reparto.')
 
 
+# ── Pulsanti (callback) ────────────────────────────────────────────────────
+
+def _callback(cq):
+    """Pulsante 'Segna come risolto' sotto un ticket: aggiorna l'Hub."""
+    msg = cq.get('message') or {}
+    chat_id = (msg.get('chat') or {}).get('id')
+    dati = cq.get('data') or ''
+    cid = cq.get('id')
+    if dati == 'noop':
+        return _tg('answerCallbackQuery', {'callback_query_id': cid})
+    if not dati.startswith('risolto:'):
+        return _tg('answerCallbackQuery', {'callback_query_id': cid})
+    # Solo dal gruppo Manutenzione collegato: nessun altro chat puo' chiudere ticket.
+    if not chat_id or (_canali().get('manutenzione') or {}).get('chat_id') != chat_id:
+        return _tg('answerCallbackQuery', {'callback_query_id': cid, 'text': 'Non autorizzato', 'show_alert': True})
+    ticket_id = dati.split(':', 1)[1]
+    chi = ((cq.get('from') or {}).get('first_name') or 'Staff')[:40]
+    ref = firestore.client().collection('maintenance_tickets').document(ticket_id)
+    if not ref.get().exists:
+        return _tg('answerCallbackQuery', {'callback_query_id': cid, 'text': 'Ticket non trovato (forse eliminato)', 'show_alert': True})
+    ref.update({'status': True, 'risolto_da': f'{chi} (Telegram)', 'risolto_il': datetime.now(ZoneInfo('Europe/Rome')).isoformat()})
+    ora = datetime.now(ZoneInfo('Europe/Rome')).strftime('%H:%M')
+    _tg('answerCallbackQuery', {'callback_query_id': cid, 'text': 'Ticket segnato come risolto'})
+    _tg('editMessageReplyMarkup', {'chat_id': chat_id, 'message_id': msg.get('message_id'),
+        'reply_markup': {'inline_keyboard': [[{'text': f'✅ Risolto da {chi} · {ora}', 'callback_data': 'noop'}]]}})
+
+
 # ── Eventi dall'Hub ────────────────────────────────────────────────────────
 
 def _evento(data):
@@ -197,7 +227,9 @@ def _evento(data):
              f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
              f"🕐 <b>Quando:</b> {quando}\n\n"
              f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
-        return _invia(['manutenzione'], t)
+        doc_id = str(data.get('doc_id') or '')[:40]
+        tastiera = [[{'text': '✅ Segna come risolto', 'callback_data': f'risolto:{doc_id}'}]] if doc_id else None
+        return _invia(['manutenzione'], t, tastiera=tastiera)
     if ev == 'avviso_arrivo':
         quando = datetime.now(ZoneInfo('Europe/Rome')).strftime('%H:%M')
         t = (f"🛎️ <b>Cliente arrivato in struttura</b>\n"
@@ -252,7 +284,10 @@ def telegram_bot(request):
             return ('', 403)
         msg = data.get('message') or data.get('channel_post') or {}
         try:
-            _comando(msg)
+            if data.get('callback_query'):
+                _callback(data['callback_query'])
+            else:
+                _comando(msg)
         except Exception as ex:
             print(f'Errore comando: {ex}')
         return ('', 200)  # sempre 200, altrimenti Telegram riprova all'infinito

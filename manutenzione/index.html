@@ -838,7 +838,7 @@ async function submitTicket() {
 function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso) {
   // Telegram (gruppo Manutenzione): fire-and-forget, indipendente dal push.
   fetch('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento: 'ticket', housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, operatore: currentOperatore || '' }) }).catch(() => {});
+    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, operatore: currentOperatore || '' }) }).catch(() => {});
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 8000);
   return fetch('https://notifiche-manutenzione-113994721180.europe-west1.run.app', {
