@@ -24,7 +24,8 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      allow read:  if request.auth != null;
+      // Solo operatori con sessione PIN (claim 'operatore'), non gli anonimi.
+      allow read:  if request.auth != null && request.auth.token.operatore == true;
       allow write: if false;
     }
   }

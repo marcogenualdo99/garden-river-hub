@@ -10,7 +10,16 @@ Endpoint HTTP unico, azione nel corpo JSON:
   - verifica : { nome, pin }                -> { ok, ruolo } | { ok:false, errore }
   - imposta  : { nome, pin }                -> primo PIN (come "Imposta PIN per X")
   - reset    : { nome, adminNome, adminPin }-> un admin azzera il PIN di qualcuno
+  - rinnova  : { id_token }                 -> nuovo token di sessione (per le app Firebase
+                                               secondarie), solo se l'id_token è già di un operatore
   - migra    : { token[, pulisci] }         -> una tantum, dai PIN in chiaro agli hash
+
+SESSIONE: verifica/imposta/rinnova rispondono anche con `token`, un custom token
+Firebase (claim `operatore`, `ruolo`, `nome`). Il browser lo scambia con
+signInWithCustomToken: da quel momento le regole Firestore/Storage riconoscono
+l'operatore (`request.auth.token.operatore == true`). Gli accessi anonimi non
+hanno più accesso ai dati. Serve il ruolo IAM "Service Account Token Creator"
+sul service account della funzione (vedi README).
 """
 
 import base64
@@ -22,7 +31,7 @@ import secrets
 import time
 
 import firebase_admin
-from firebase_admin import firestore
+from firebase_admin import firestore, auth as fb_auth
 import functions_framework
 
 if not firebase_admin._apps:
@@ -91,6 +100,16 @@ def _nome_valido(nome):
     )
 
 
+def _token_sessione(db, nome):
+    """Custom token Firebase per l'operatore `nome`, con ruolo letto dal DB."""
+    ruolo = _ruolo(db, nome)
+    tok = fb_auth.create_custom_token(
+        'op:' + nome,
+        {'operatore': True, 'ruolo': ruolo, 'nome': nome},
+    )
+    return tok.decode('ascii') if isinstance(tok, bytes) else tok
+
+
 def _ruolo(db, nome):
     snap = db.collection('operatori').document(nome).get()
     if not snap.exists:
@@ -136,7 +155,8 @@ def _azione_verifica(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'nessun_pin'})
     esito, dettaglio = _verifica_pin(db, nome, pin)
     if esito == 'ok':
-        return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome)})
+        return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome),
+                              'token': _token_sessione(db, nome)})
     if esito == 'bloccato':
         return _json(origin, {'ok': False, 'errore': 'bloccato', 'minuti': dettaglio})
     if esito == 'nessun_pin':
@@ -158,7 +178,25 @@ def _azione_imposta(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'pin_gia_impostato'}, 409)
     ref.set(_nuovo_record(pin))
     db.collection('operatori').document(nome).update({'haPin': True})
-    return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome)})
+    return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome),
+                          'token': _token_sessione(db, nome)})
+
+
+def _azione_rinnova(db, origin, data):
+    """Nuovo custom token a chi ha già una sessione operatore valida. Serve alle
+    app Firebase con nome (ognuna ha la propria sessione). Rilegge l'operatore
+    dal DB: se è stato rimosso, non rinnova."""
+    try:
+        dec = fb_auth.verify_id_token(str(data.get('id_token') or '')[:4000])
+    except Exception:
+        return _json(origin, {'ok': False, 'errore': 'sessione_non_valida'}, 401)
+    nome = dec.get('nome')
+    if not dec.get('operatore') or not _nome_valido(nome):
+        return _json(origin, {'ok': False, 'errore': 'sessione_non_valida'}, 401)
+    if not db.collection('operatori').document(nome).get().exists:
+        return _json(origin, {'ok': False, 'errore': 'operatore_rimosso'}, 403)
+    return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome),
+                          'token': _token_sessione(db, nome)})
 
 
 def _azione_reset(db, origin, data):
@@ -211,6 +249,7 @@ AZIONI = {
     'verifica': _azione_verifica,
     'imposta':  _azione_imposta,
     'reset':    _azione_reset,
+    'rinnova':  _azione_rinnova,
     'migra':    _azione_migra,
 }
 

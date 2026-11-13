@@ -11,7 +11,7 @@ rules_version = '2';
 //   + aggiunte le collezioni migrate da garden-river-magazzino:
 //       prodotti, categorie
 //   ~ 'bici' passa da  `if true`  (aperta a CHIUNQUE, anche senza login!)
-//       a  `if request.auth != null`  — allineata a tutte le altre
+//       a  `if staff()`  — allineata a tutte le altre
 //   - rimosse le righe duplicate (ordini_ristorazione era ripetuta 3 volte)
 //
 // Tutto il resto è identico a prima. La sottocollezione prenotazioni/{id}/log
@@ -21,9 +21,12 @@ rules_version = '2';
 // ha fatto login non accede a nulla; le Cloud Function e GitHub Actions usano
 // un service account che bypassa queste regole.
 //
-// ⚠️ LIMITI NOTI: i dati Alloggiati Web in 'ospiti'/'prenotazioni' restano
-// leggibili da chi è autenticato (anche solo in anonimo). Chiusura completa =
-// login non anonimo / token di sessione firmato.
+// ✅ SESSIONE OPERATORE (11/2026): i dati sono accessibili solo con il claim
+// `operatore` (custom token rilasciato da 'auth-operatori' dopo il PIN). Gli
+// accessi anonimi leggono SOLO 'operatori' e 'permessi' (per la schermata di
+// login). Ruoli/permessi si scrivono solo con claim ruolo == 'admin'.
+// ⚠️ DA PUBBLICARE SOLO DOPO: deploy CF auth-operatori + area-ospite + push del
+// codice client (altrimenti nessuno riesce più ad entrare).
 //
 // ✅ PIN operatore: NON sono più in 'operatori'. La verifica avviene sulla
 // Cloud Function 'auth-operatori', che è l'unica a leggere/scrivere
@@ -34,9 +37,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Sessione operatore ─────────────────────────────────────────────────
+    // Il claim `operatore` lo mette SOLO la Cloud Function 'auth-operatori'
+    // (custom token) dopo la verifica del PIN. Un accesso anonimo NON lo ha.
+    function staff() {
+      return request.auth != null && request.auth.token.operatore == true;
+    }
+    function admin() {
+      return staff() && request.auth.token.ruolo == 'admin';
+    }
+    // Solo la schermata di login (accesso anonimo) legge l'elenco operatori.
+    function loggato() {
+      return request.auth != null;
+    }
+
     // ── ex garden-river-hub ────────────────────────────────────────────────
     match /operatori/{id} {
-      allow read, write: if request.auth != null;   // { nome, ruolo, haPin } — niente PIN qui
+      allow read: if loggato();        // { nome, ruolo, haPin } — niente PIN; serve al login
+      allow write: if admin();         // ruoli e anagrafica operatori: solo amministratori
     }
     // Hash salati dei PIN. Li gestisce SOLO la Cloud Function 'auth-operatori'
     // (Admin SDK, che ignora queste regole). Nessun client deve leggerli.
@@ -44,49 +62,55 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /permessi/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if loggato();        // letti all'avvio della Hub, prima del PIN
+      allow write: if admin();
     }
     match /home_layout/{id} {
-      allow read, write: if request.auth != null;   // id = nome operatore
+      allow read, write: if staff();   // id = nome operatore
     }
     match /meta/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── ex garden-river-magazzino ──────────────────────────────────────────
     match /prodotti/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     match /categorie/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Conti / pensioni ──────────────────────────────────────────────────
     match /ospiti/{id} {
-      allow read, write: if request.auth != null;   // ospiti pensione + dati Alloggiati Web
+      allow read, write: if staff();   // ospiti pensione + dati Alloggiati Web
     }
     match /ordini/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Calendario / prenotazioni ────────────────────────────────────────
     match /prenotazioni/{prenId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
       match /log/{logId} {
-        allow read, write: if request.auth != null;
+        allow read, write: if staff();
       }
     }
     // Copie delle prenotazioni cancellate — restano leggibili nello Storico
     // ospite del Calendario. Non si possono cancellare da client.
     match /prenotazioni_eliminate/{id} {
-      allow read, create, update: if request.auth != null;
+      allow read, create, update: if staff();
       allow delete: if false;
     }
     match /listini/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     match /impostazioni/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
+    }
+    // Letto dalla pagina ospite ristorazione (accesso anonimo) — vedi sotto.
+    match /impostazioni/ristorazione {
+      allow read: if loggato();
+      allow write: if staff();
     }
     // Check-in online: mappa token→prenotazione per il link pubblico
     // (https://gardenhub.it/checkin/?t=<token>). L'hub la CREA quando genera il
@@ -95,7 +119,7 @@ service cloud.firestore {
     // client deve poterla leggere: un token letto darebbe accesso al form di
     // un ospite altrui.
     match /checkin_links/{token} {
-      allow create: if request.auth != null;
+      allow create: if staff();
       allow read, update, delete: if false;
     }
     // Area ospite (mini-pannello): mappa token→prenotazione per il link
@@ -105,56 +129,61 @@ service cloud.firestore {
     // doc quando genera il link, solo la Cloud Function 'area-ospite'
     // (Admin SDK) lo risolve. Nessun client deve poterlo leggere.
     match /area_ospite_links/{token} {
-      allow create: if request.auth != null;
+      allow create: if staff();
       allow read, update, delete: if false;
     }
 
     // ── Pulizie / alloggi ────────────────────────────────────────────────
     match /alloggi/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Noleggio bici ────────────────────────────────────────────────────
     match /bici/{id} {
-      allow read, write: if request.auth != null;   // era `if true` — ORA richiede login
+      allow read, write: if staff();   // era `if true` — ORA richiede login
     }
 
     // ── Ristorazione ─────────────────────────────────────────────────────
+    // ⚠️ ECCEZIONE: la pagina OSPITE ristorazione/index.html legge/scrive queste
+    // tre collezioni direttamente da browser con accesso anonimo (famiglia che
+    // entra col proprio codice). Finché non passa da una Cloud Function (come
+    // l'Area ospite) restano aperte agli anonimi: è l'esposizione residua più
+    // importante (nomi/ordini delle famiglie). Da migrare.
     match /famiglie_ristorazione/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if loggato();
     }
     match /ordini_ristorazione/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if loggato();
     }
     match /menu_ristorazione/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if loggato();
     }
 
     // ── Manutenzione ─────────────────────────────────────────────────────
     match /maintenance_tickets/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Mense scolastiche ────────────────────────────────────────────────
     match /mense_sedi/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     match /mense_presenze/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     // Registro modifiche presenze: append-only, nessuna modifica o
     // cancellazione dai client (stesso pattern di 'scontrini_fiscali').
     match /mense_log/{id} {
-      allow read, create: if request.auth != null;
+      allow read, create: if staff();
       allow update, delete: if false;
     }
 
     // ── Spiaggia ─────────────────────────────────────────────────────────
     match /beach_spiagge/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     match /beach_prenotazioni/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Navetta spiaggia ─────────────────────────────────────────────────
@@ -162,23 +191,23 @@ service cloud.firestore {
     // 'area-ospite', Admin SDK — bypassa questa regola) e gestite dagli
     // autisti dalla dashboard Hub (client autenticato).
     match /navetta_prenotazioni/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
     // Elenco autisti in servizio, gestito dalla dashboard Navetta. Letto
     // anche dalla Cloud Function 'area-ospite' (Admin SDK) per il menu a
     // tendina "Autista" nel form di prenotazione del cliente.
     match /navetta_autisti/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Notifiche push ───────────────────────────────────────────────────
     match /staffTokens/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Verifica connessione ─────────────────────────────────────────────
     match /_test/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
 
     // ── Fiscalizzazione condivisa ────────────────────────────────────────
@@ -186,19 +215,19 @@ service cloud.firestore {
     // chiamare il proxy condiviso. Il token si imposta SOLO dalla console
     // (è un segreto): scrittura negata ai client.
     match /config/{id} {
-      allow read: if request.auth != null;
+      allow read: if staff();
       allow write: if false;
     }
     // Registro degli scontrini fiscali emessi: append-only, nessuna modifica
     // o cancellazione dai client.
     match /scontrini_fiscali/{id} {
-      allow read, create: if request.auth != null;
+      allow read, create: if staff();
       allow update, delete: if false;
     }
 
     // ── Legacy: nessun riferimento nel codice, candidato alla rimozione ──
     match /test_notifiche/{id} {
-      allow read, write: if request.auth != null;
+      allow read, write: if staff();
     }
   }
 }

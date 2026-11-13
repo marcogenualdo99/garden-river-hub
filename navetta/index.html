@@ -21,6 +21,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -44,7 +45,7 @@
     window.dispatchEvent(new Event('firebase-ready'));
   }
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
-  signInAnonymously(auth).catch(() => { window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); });
+  sessioneHub(auth).catch(() => { window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); });
   setTimeout(segnalaPronto, 8000);
 </script>
 
@@ -692,7 +693,7 @@ function hideLoadingScreen() {
 setTimeout(hideLoadingScreen, 12000);
 
 function doLogout() {
-  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_session'); try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
   sessionStorage.removeItem('gr_permessi');
   location.href = HUB_URL;
 }

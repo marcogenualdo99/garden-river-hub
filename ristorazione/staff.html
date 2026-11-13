@@ -19,6 +19,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const cfg = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -40,7 +41,7 @@
     window.dispatchEvent(new Event('firebase-ready'));
   }
   onAuthStateChanged(auth, u => { if (u) ready(); });
-  signInAnonymously(auth).catch(() => ready());
+  sessioneHub(auth).catch(() => ready());
   setTimeout(ready, 8000);
 </script>
 

@@ -20,6 +20,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -39,7 +40,7 @@
 
   function ok() { if(window._fbCucinaReady)return; window._fbCucinaReady=true; window.dispatchEvent(new Event('firebase-cucina-ready')); }
   onAuthStateChanged(auth, u => { if(u) ok(); });
-  signInAnonymously(auth).catch(() => ok());
+  sessioneHub(auth).catch(() => ok());
   setTimeout(ok, 8000);
 </script>
 

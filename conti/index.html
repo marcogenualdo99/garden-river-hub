@@ -21,6 +21,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -51,7 +52,7 @@
   // così possiamo chiudere il database alle richieste esterne mantenendo
   // intatta la gestione di operatori/PIN già fatta dentro l'app.
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
-  signInAnonymously(auth).catch((err) => {
+  sessioneHub(auth).catch((err) => {
     console.error('Errore login anonimo Firebase:', err);
     window._fbAuthError = true;
     // Non blocchiamo l'app a tempo indefinito: meglio mostrare un errore
@@ -1427,7 +1428,7 @@ function toggleStampaMenu() {
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
     'Esci', 'var(--red)', () => {
-      sessionStorage.removeItem('gr_session');
+      sessionStorage.removeItem('gr_session'); try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
       sessionStorage.removeItem('gr_permessi');
       location.href = HUB_URL;
     });

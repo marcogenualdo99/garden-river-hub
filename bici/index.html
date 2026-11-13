@@ -21,6 +21,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   // Stesso progetto Firestore già usato dalle altre app della suite: qui
   // usiamo solo una nuova collezione ("bici"), non serve nessun progetto
@@ -48,7 +49,7 @@
     window.dispatchEvent(new Event('firebase-ready'));
   }
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
-  signInAnonymously(auth).catch((err) => {
+  sessioneHub(auth).catch((err) => {
     console.error('Errore login anonimo Firebase:', err);
     window._fbAuthError = true;
     segnalaPronto();
@@ -957,7 +958,7 @@ setTimeout(async () => {
 }, 8000);
 setTimeout(hideLoadingScreen, 18000);
 function doLogout() {
-  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_session'); try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
   sessionStorage.removeItem('gr_permessi');
   location.href = HUB_URL;
 }

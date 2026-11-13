@@ -17,6 +17,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -33,7 +34,7 @@
   window._fbReady = false;
   function pronto() { if (window._fbReady) return; window._fbReady = true; window.dispatchEvent(new Event('firebase-ready')); }
   onAuthStateChanged(auth, (u) => { if (u) pronto(); });
-  signInAnonymously(auth).catch(() => pronto());
+  sessioneHub(auth).catch(() => pronto());
   setTimeout(pronto, 8000);
 </script>
 

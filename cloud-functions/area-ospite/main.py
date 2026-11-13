@@ -1194,7 +1194,9 @@ def _azione_navetta_annulla(db, origin, data):
 
 def _staff_autenticato(data):
     try:
-        return bool(fb_auth.verify_id_token(_s(data.get('id_token'), 4000)))
+        dec = fb_auth.verify_id_token(_s(data.get('id_token'), 4000))
+        # Solo operatori con sessione PIN: un token anonimo non basta più.
+        return bool(dec.get('operatore'))
     except Exception as e:
         print(f'Token staff non valido: {e}')
         return False

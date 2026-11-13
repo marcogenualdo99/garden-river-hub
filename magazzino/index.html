@@ -19,6 +19,7 @@
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   // Progetto Firebase unico della suite (ex "garden-river-magazzino": le
   // collezioni 'prodotti' e 'categorie' sono state migrate qui dentro).
@@ -47,7 +48,7 @@
 
   // Login anonimo: nessun account reale, serve solo per autenticare le richieste a Firestore
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
-  signInAnonymously(auth).catch((err) => {
+  sessioneHub(auth).catch((err) => {
     console.error('Errore login anonimo Firebase:', err);
     window._fbAuthError = true;
     segnalaPronto();
@@ -1254,7 +1255,7 @@ setTimeout(hideLoadingScreen, 18000);
 function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire e tornare alla Hub Garden River?',
     'Esci', 'var(--red)', () => {
-      sessionStorage.removeItem('gr_session');
+      sessionStorage.removeItem('gr_session'); try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
       sessionStorage.removeItem('gr_permessi');
       location.href = HUB_URL;
     });

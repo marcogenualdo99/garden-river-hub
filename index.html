@@ -180,7 +180,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged }
+  import { getAuth, signInAnonymously, signInWithCustomToken, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   // Progetto Firebase unico della suite. 'operatori', 'permessi', 'home_layout'
@@ -210,12 +210,32 @@
   }
 
   onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
-  signInAnonymously(auth).catch((err) => {
+  // L'accesso anonimo serve SOLO a mostrare l'elenco operatori nella schermata
+  // di login (le regole lo limitano a operatori/permessi in lettura). Se c'è
+  // già una sessione operatore persistita NON va sostituita con una anonima.
+  auth.authStateReady().then(() => {
+    if (auth.currentUser) return;
+    return signInAnonymously(auth);
+  }).catch((err) => {
     console.error('Errore login anonimo Firebase:', err);
     window._fbAuthError = true;
     segnalaPronto();
   });
   setTimeout(segnalaPronto, 8000);
+
+  // Dopo il PIN: la sessione diventa quella dell'operatore (claim 'operatore').
+  window._apriSessioneOperatore = async function(customToken) {
+    await signInWithCustomToken(auth, customToken);
+  };
+  window._chiudiSessioneOperatore = async function() {
+    try { await signOut(auth); } catch(e) {}
+    try { await signInAnonymously(auth); } catch(e) {}   // torna all'elenco operatori
+  };
+  // true solo se c'è una sessione operatore vera (non anonima) già ripristinata.
+  window._sessioneOperatoreAttiva = async function() {
+    await auth.authStateReady();
+    return !!(auth.currentUser && !auth.currentUser.isAnonymous);
+  };
 </script>
 <!-- Secondo collegamento Firebase: serve a leggere i dati di Conti / Alloggi / Bici
      per mostrare i numeri live nelle card della home, e a gestire le preferenze
@@ -224,8 +244,9 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged }
+  import { getAuth, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
   import { getMessaging, getToken, onMessage }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
@@ -255,12 +276,12 @@
     window.dispatchEvent(new Event('firebase-data-ready'));
   }
 
-  onAuthStateChanged(dataAuth, (user) => { if (user) segnalaDatiPronti(); });
-  signInAnonymously(dataAuth).catch((err) => {
-    console.error('Errore login anonimo dati suite:', err);
-    segnalaDatiPronti();
-  });
-  setTimeout(segnalaDatiPronti, 8000);
+  onAuthStateChanged(dataAuth, (user) => { if (user && !user.isAnonymous) segnalaDatiPronti(); });
+  // Nessun login anonimo: la sessione arriva dal PIN. Si prova all'avvio (sessione
+  // già persistita) e di nuovo subito dopo il login (window._collegaDatiSuite).
+  window._collegaDatiSuite = () => sessioneHub(dataAuth).catch(() => {});
+  window._scollegaDatiSuite = () => signOut(dataAuth).catch(() => {});
+  window._collegaDatiSuite();
 
   // ── Attiva notifiche FCM (unica attivazione per tutta la suite) ─────────
   window._abilitaNotifichePush = async function(operatoreNome) {
@@ -379,8 +400,9 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged }
+  import { getAuth, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
 
   const magazzinoFirebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -404,12 +426,10 @@
     window.dispatchEvent(new Event('firebase-magazzino-ready'));
   }
 
-  onAuthStateChanged(magAuth, (user) => { if (user) segnalaMagazzinoPronto(); });
-  signInAnonymously(magAuth).catch((err) => {
-    console.error('Errore login anonimo dati magazzino:', err);
-    segnalaMagazzinoPronto();
-  });
-  setTimeout(segnalaMagazzinoPronto, 8000);
+  onAuthStateChanged(magAuth, (user) => { if (user && !user.isAnonymous) segnalaMagazzinoPronto(); });
+  window._collegaMagazzino = () => sessioneHub(magAuth).catch(() => {});
+  window._scollegaMagazzino = () => signOut(magAuth).catch(() => {});
+  window._collegaMagazzino();
 </script>
 </head>
 <body>
@@ -1489,7 +1509,17 @@ async function checkPin() {
       r = await callAuth('verifica', { nome, pin });
     }
 
-    if (r.ok) { loginSuccess(nome, r.ruolo); return; }
+    if (r.ok) {
+      if (!r.token) { pinErrore('Sessione non disponibile — riprova'); return; }
+      // Il PIN è giusto: apri la sessione operatore (token firmato dal server)
+      // su tutte le connessioni Firebase della Hub, poi entra.
+      try { await window._apriSessioneOperatore(r.token); }
+      catch (e) { console.error('Apertura sessione fallita:', e); pinErrore('Accesso non riuscito — riprova'); return; }
+      if (window._collegaDatiSuite) window._collegaDatiSuite();
+      if (window._collegaMagazzino) window._collegaMagazzino();
+      loginSuccess(nome, r.ruolo);
+      return;
+    }
     if (r.errore === 'bloccato')       { pinErrore(`Troppi tentativi — riprova tra ${r.minuti} min`); return; }
     if (r.errore === 'pin_non_valido') { pinErrore('PIN non valido'); return; }
     if (r.errore === 'nessun_pin')     { opObj.haPin = false; pinErrore('Nessun PIN — reinseriscilo per impostarlo'); return; }
@@ -1508,6 +1538,12 @@ function loginSuccess(op, ruoloServer) {
   currentRuolo = ruoloServer || (opObj && opObj.ruolo) || 'operatore';
   sessionStorage.setItem('gr_session', JSON.stringify({ nome: op, ruolo: currentRuolo }));
   sessionStorage.setItem('gr_permessi', JSON.stringify(permessi[op] || {}));
+  // Ricorda l'operatore per 30 giorni: la sessione Firebase resta nel browser, quindi
+  // riaprendo l'app non serve rifare il PIN. Il logout (o la revoca) la cancella.
+  try {
+    localStorage.setItem('gr_session_persist', JSON.stringify({
+      nome: op, ruolo: currentRuolo, permessi: permessi[op] || {}, scade: Date.now() + 30*24*3600*1000 }));
+  } catch(e) {}
   document.getElementById('login-screen').classList.add('hidden');
   // Il listener keydown qui sotto intercetta Backspace/Delete SOLO quando
   // login-step-pin ha display:block. Senza questo reset, dopo un login
@@ -1531,6 +1567,10 @@ function doLogout() {
     if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
     sessionStorage.removeItem('gr_session');
     sessionStorage.removeItem('gr_permessi');
+    try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
+    if (window._scollegaDatiSuite) window._scollegaDatiSuite();
+    if (window._scollegaMagazzino) window._scollegaMagazzino();
+    if (window._chiudiSessioneOperatore) window._chiudiSessioneOperatore();
     pinBuffer = ''; loginTargetOp = null;
     document.getElementById('login-step-pin').style.display = 'none';
     document.getElementById('login-step-op').style.display  = 'block';
@@ -2664,6 +2704,17 @@ initSwipeBack(); // nella Hub non c'è "indietro" oltre la home: se non c'è un 
 async function start() {
   // Ripristina la sessione subito se già presente (es. ritorno da una sotto-app),
   // senza aspettare Firebase: evita il loading screen bloccato al ritorno dalla Hub.
+  // Riapertura dell'app (nuova scheda/finestra): ripristina l'operatore ricordato
+  // se non è scaduto. Poi sotto si verifica che la sessione Firebase sia viva.
+  if (!sessionStorage.getItem('gr_session')) {
+    try {
+      const pers = JSON.parse(localStorage.getItem('gr_session_persist') || 'null');
+      if (pers && pers.nome && pers.scade > Date.now()) {
+        sessionStorage.setItem('gr_session', JSON.stringify({ nome: pers.nome, ruolo: pers.ruolo }));
+        sessionStorage.setItem('gr_permessi', JSON.stringify(pers.permessi || {}));
+      } else if (pers) { localStorage.removeItem('gr_session_persist'); }
+    } catch(e) {}
+  }
   const savedSession = sessionStorage.getItem('gr_session');
   if (savedSession) {
     try {
@@ -2680,6 +2731,16 @@ async function start() {
   }
 
   await waitForFirebase();
+  // Una sessione "ricordata" ma senza vero login Firebase (es. aperta prima di
+  // questo aggiornamento, o sessione scaduta) non dà accesso ai dati: rifai il PIN.
+  if (currentOperatore && !(await window._sessioneOperatoreAttiva())) {
+    currentOperatore = null; currentRuolo = null;
+    sessionStorage.removeItem('gr_session');
+    sessionStorage.removeItem('gr_permessi');
+    try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
+    document.getElementById('login-screen').classList.remove('hidden');
+    hideLoadingScreen();
+  }
   if (window._fbAuthError) {
     showToast("Errore di accesso al database — attiva 'Anonymous' in Authentication su Firebase");
   }
