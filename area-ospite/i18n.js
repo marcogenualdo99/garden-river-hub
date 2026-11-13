@@ -189,11 +189,19 @@ const _LISTA = [
   _D('Per i bambini sotto i 3 anni la biancheria non è fornita.', 'Linen is not provided for children under 3.', 'Für Kinder unter 3 Jahren wird keine Bettwäsche bereitgestellt.'),
   _D('Consegniamo kit di lenzuola e asciugamani imbustati, ma i letti non li facciamo.', 'We provide bagged sheet and towel kits, but we do not make the beds.', 'Wir stellen verpackte Sets mit Bettlaken und Handtüchern bereit, die Betten beziehen wir nicht.'),
   _D('Per qualsiasi dubbio siamo a disposizione. Buon soggiorno!', 'We are here for any question. Enjoy your stay!', 'Bei Fragen sind wir gerne für Sie da. Einen angenehmen Aufenthalt!'),
-  _D('Scegli i pasti del giorno di arrivo', 'Choose your meals for the arrival day', 'Wählen Sie Ihre Mahlzeiten für den Anreisetag'),
   _D('Ti manca ancora: {x}. Puoi ordinare fino alle 8:30 del giorno di arrivo.', 'You still need to choose: {x}. You can order until 8:30 am on the arrival day.', 'Es fehlt noch: {x}. Sie können bis 8:30 Uhr am Anreisetag bestellen.'),
   _D('Scegli i pasti', 'Choose meals', 'Mahlzeiten wählen'),
   _D('Conferma ordine dell\'arrivo', 'Confirm arrival-day order', 'Bestellung für den Anreisetag bestätigen'),
   _D('Ordine dell\'arrivo', 'Arrival-day order', 'Bestellung für den Anreisetag'),
+  _D('Scegli i tuoi pasti', 'Choose your meals', 'Wählen Sie Ihre Mahlzeiten'),
+  _D('Ti manca ancora: {x} del giorno di arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', 'You still need to choose: {x} for the arrival day. You can order until 8:30 am that day.', 'Es fehlt noch: {x} für den Anreisetag. Sie können bis 8:30 Uhr an diesem Tag bestellen.'),
+  _D('Ti manca ancora: {x} del giorno dopo l\'arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', 'You still need to choose: {x} for the day after arrival. You can order until 8:30 am that day.', 'Es fehlt noch: {x} für den Tag nach der Anreise. Sie können bis 8:30 Uhr an diesem Tag bestellen.'),
+  _D('Conferma ordine del giorno dopo', 'Confirm next-day order', 'Bestellung für den Folgetag bestätigen'),
+  _D('Ordine del giorno dopo', 'Next-day order', 'Bestellung für den Folgetag'),
+  _D('Scegli i pasti del giorno dopo l\'arrivo', 'Choose your meals for the day after arrival', 'Wählen Sie Ihre Mahlzeiten für den Tag nach der Anreise'),
+  _D('Puoi già ordinare anche il giorno dopo l\'arrivo, entro le 8:30 di quella mattina.', 'You can also already order for the day after arrival, by 8:30 am that morning.', 'Sie können auch schon für den Tag nach der Anreise bestellen, bis 8:30 Uhr an diesem Morgen.'),
+  _D('Ordine del giorno dopo', 'Next-day order', 'Bestellung für den Folgetag'),
+  _D('Conferma ordine del giorno dopo', 'Confirm next-day order', 'Bestellung für den Folgetag bestätigen'),
 ];
 const DIZ = { en: {}, de: {} };
 _LISTA.forEach(e => { DIZ.en[e.it] = e.en; DIZ.de[e.it] = e.de; });

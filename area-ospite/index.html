@@ -853,10 +853,10 @@ function rsStatoPasti() {
   const domani = dom.toISOString().slice(0, 10);
   const oggiOk = d.giorni.includes(d.oggi) && (!d.famiglia.checkout || d.famiglia.checkout >= d.oggi);
   const domaniOk = d.giorni.includes(domani) && (!d.famiglia.checkout || d.famiglia.checkout > d.oggi);
-  // Prima dell'arrivo il menu parte dal giorno di arrivo: e' l'unico da compilare.
+  // Prima dell'arrivo il menu parte dal giorno di arrivo (e comprende il giorno dopo).
   const arrivo = d.giorni[0] > d.oggi ? d.giorni[0] : null;
-  if (arrivo) return { d, min, domani, arrivo, mArrivo: rsMancanti(d, arrivo), mOggi: [], mDomani: [] };
-  return { d, min, domani, arrivo: null, mArrivo: [], mOggi: oggiOk && !d.chiusura_oggi ? rsMancanti(d, d.oggi) : [], mDomani: domaniOk ? rsMancanti(d, domani) : [] };
+  if (arrivo) return { d, min, domani, arrivo, mArrivo: rsMancanti(d, arrivo), mDopo: rsMancanti(d, d.giorni[1]), mOggi: [], mDomani: [] };
+  return { d, min, domani, arrivo: null, mArrivo: [], mDopo: [], mOggi: oggiOk && !d.chiusura_oggi ? rsMancanti(d, d.oggi) : [], mDomani: domaniOk ? rsMancanti(d, domani) : [] };
 }
 
 function avvisiHome() {
@@ -871,10 +871,14 @@ function avvisiHome() {
     const n = giorniA(p.checkin);
     if (vis('benvenuto')) out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
     const Sa = vis('ordini') ? rsStatoPasti() : null;
-    if (Sa && Sa.mArrivo.length) {
-      const nomi = Sa.mArrivo.includes('pasto') ? t('un pasto') : Sa.mArrivo.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
-      out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i pasti del giorno di arrivo'), testo: t('Ti manca ancora: {x}. Puoi ordinare fino alle 8:30 del giorno di arrivo.', { x: nomi }), azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
+    if (Sa && (Sa.mArrivo.length || Sa.mDopo.length)) {
+      const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
+      const testo = Sa.mArrivo.length
+        ? t('Ti manca ancora: {x} del giorno di arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', { x: nomi(Sa.mArrivo) })
+        : t('Ti manca ancora: {x} del giorno dopo l\'arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', { x: nomi(Sa.mDopo) });
+      out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i tuoi pasti'), testo, azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
     }
+    if (Sa && Sa.mDomani.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i pasti del giorno dopo l\'arrivo'), testo: t('Puoi già ordinare anche il giorno dopo l\'arrivo, entro le 8:30 di quella mattina.'), azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
     staff();
     return filtra(out);
   }
@@ -1152,7 +1156,7 @@ function selPoi(id) {
 }
 
 function renderHome() {
-  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
+  const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + (S.mDopo.length ? 1 : 0) + S.mOggi.length + (S.mDomani.length ? 1 : 0)) : 0;
   const CARD = SERVIZI.filter(s => !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
   const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
   if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
@@ -1506,7 +1510,8 @@ function rsLabelData(iso) {
   const [y, m, g] = iso.split('-').map(Number), d = new Date(y, m - 1, g);
   const GG = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
   const MM = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
-  const pre = iso === RS.d.oggi ? 'Oggi' : (iso === rsDomani() ? 'Domani' : 'Arrivo');
+  const inArrivo = RS.d.famiglia.checkin && RS.d.famiglia.checkin > RS.d.oggi;   // non ancora arrivato: si parte dal giorno di arrivo
+  const pre = inArrivo ? (iso === RS.d.giorni[0] ? 'Arrivo' : 'Giorno dopo') : (iso === RS.d.oggi ? 'Oggi' : (iso === rsDomani() ? 'Domani' : 'Arrivo'));
   return `${pre} · ${GG[d.getDay()]} ${g} ${MM[m - 1]}`;
 }
 function rsRecupero() {
@@ -1634,7 +1639,7 @@ function rsDaInviare(data) {
   if (!rec.length && ts.length > 1 && f.trattamento === 'MP' && RS.mp[data]) ts = [RS.mp[data]];
   return ts.filter(t => !RS.d.ordini[`${data}_${t}`] && rsTotKey(`${data}_${t}`) > 0);
 }
-function rsEtichettaOrdine(data) { const pre = RS.d.famiglia.checkin && RS.d.famiglia.checkin > RS.d.oggi; return pre ? "dell'arrivo" : (data === RS.d.oggi ? 'di oggi' : 'di domani'); }
+function rsEtichettaOrdine(data) { const pre = RS.d.famiglia.checkin && RS.d.famiglia.checkin > RS.d.oggi; return pre ? (data === RS.d.giorni[0] ? "dell'arrivo" : 'del giorno dopo') : (data === RS.d.oggi ? 'di oggi' : 'di domani'); }
 function rsApriConferma(data) {
   const ts = rsDaInviare(data);
   if (!ts.length) { rsToast('Seleziona almeno un piatto prima di confermare'); return; }
