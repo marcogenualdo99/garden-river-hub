@@ -193,7 +193,7 @@
     </div>
     <div class="card">
       <h3>Contatti e social (in fondo alla home)</h3>
-      <div class="subtitle">Compaiono in fondo alla home dell'ospite. Il telefono reception della sezione Assistenza è già incluso come "Reception".</div>
+      <div class="subtitle">Compaiono in fondo alla home dell'ospite. Il telefono reception è già incluso come "Reception".</div>
       <div class="field"><label>Altri numeri di telefono (uno per riga: Nome | numero)</label>
         <textarea id="t-contatti_testo" style="min-height:90px" placeholder="Ristorante | 0734 000000&#10;Emergenze | 333 0000000"></textarea></div>
       <div class="field"><label>Facebook (link)</label><input id="t-social_facebook" type="url" placeholder="https://www.facebook.com/..."></div>
@@ -243,7 +243,7 @@
     </div>
 
     <div class="tabpane" id="tab-serv">
-      <p class="tab-intro">Foto e testi delle sezioni Navetta, Info utili e Assistenza. Tocca una voce per aprirla.</p>
+      <p class="tab-intro">Foto e testi delle sezioni Navetta, Info utili e contatti della reception. Tocca una voce per aprirla.</p>
     <div class="card">
       <h3>Foto dei servizi</h3>
       <div class="subtitle">Ogni servizio ha una foto nella sua card della home (le testate usano immagini ritagliate fisse). Carica una foto orizzontale o verticale: viene ridimensionata in automatico.</div>
@@ -260,9 +260,8 @@
       <div class="field"><textarea id="t-info_testo" placeholder="Reception: 8:00 - 20:00&#10;Piscina: 9:00 - 19:00&#10;..."></textarea></div>
     </div>
     <div class="card">
-      <h3>Richiesta assistenza</h3>
-      <div class="subtitle">Messaggio e numero da chiamare per chi ha bisogno di aiuto.</div>
-      <div class="field"><label>Messaggio</label><textarea id="t-assistenza_testo" style="min-height:90px" placeholder="Hai bisogno di aiuto? La reception è a tua disposizione."></textarea></div>
+      <h3>Contatti reception</h3>
+      <div class="subtitle">Numeri usati in fondo alla home e nella pagina «Segnala un guasto».</div>
       <div class="field"><label>Telefono reception</label><input id="t-assistenza_telefono" type="tel" placeholder="+39 ..."></div>
       <div class="field"><label>WhatsApp reception (pulsante in fondo alla pagina)</label><input id="t-assistenza_whatsapp" type="tel" placeholder="+39 ... (se vuoto usa il telefono reception)"></div>
     </div>
@@ -289,10 +288,9 @@ const SERVIZI_FOTO = [
   { id: 'ristorazione', nome: 'Ristorazione',   def: 'img/ristorazione.jpg' },
   { id: 'animazione',   nome: 'Animazione',     def: 'img/animazione.jpg' },
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
-  { id: 'assistenza',   nome: 'Assistenza',     def: 'img/assistenza.jpg' },
   { id: 'mappa_card',   nome: 'Mappa del villaggio (card in home)', def: 'img/mappa-teatro.jpg' },
 ];
-const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_testo', 'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo'];
+const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo'];
 const MAX_CHARS = 800000;   // doc Firestore max 1 MB; la Cloud Function tronca oltre 900k
 let fotoCorrenti = {};      // id -> data URL (se personalizzata)
 
@@ -727,7 +725,7 @@ async function chkSalva() {
 
 // ── Banner a fasce orarie ────────────────────────────────────────────────
 let FB = { attivo: true, secondi: 6, banner: [] }, FB_BOZZA = false;   // FB_BOZZA: sono i banner predefiniti, non ancora salvati
-const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['assistenza', 'Richiesta assistenza']];
+const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['manutenzione', 'Segnala un guasto']];
 const FB_MAX = 12, FB_IMG_MAX = 110000, FB_TOT_MAX = 800000;
 const fbTri = () => ({ it: '', en: '', de: '' });
 function fbCampo(i, campo, label, multi) {
@@ -902,7 +900,7 @@ const ACC_HINT = {
   'Contatti e social (in fondo alla home)': 'Telefoni, social e recensioni',
   '1 · Elenco delle attività': 'Le attività che puoi mettere nel programma', '2 · Programma settimanale': 'Le due settimane che si alternano', '3 · Serate e mappa': 'Dove si fanno le serate',
   'Foto dei servizi': 'Le foto delle card nella home', 'Foto degli autisti': 'Per «Chi ti ha accompagnato?»', 'Info utili': 'Orari e regole del villaggio',
-  'Richiesta assistenza': 'Messaggio e numeri della reception', 'Navetta': 'Testo introduttivo'
+  'Contatti reception': 'Telefono e WhatsApp', 'Navetta': 'Testo introduttivo'
 };
 function accordion() {
   document.querySelectorAll('.tabpane').forEach(p => {
