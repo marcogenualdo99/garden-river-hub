@@ -1,3 +1,4 @@
+import os
 import time
 import json
 
@@ -32,7 +33,7 @@ def _cors_headers(origin):
     return {
         'Access-Control-Allow-Origin':  allow,
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Internal-Token',
     }
 
 
@@ -101,6 +102,28 @@ def _messaggio_cambio_stato(alloggio, nuovo_stato, op):
     return title, body
 
 
+# ── Autorizzazione chiamate ────────────────────────────────────────────────
+# Un endpoint pubblico che manda notifiche reali non può accettare chiunque.
+# Accetta: (a) l'ID token Firebase di un operatore (claim `operatore`, header
+# Authorization: Bearer ...) — è come chiama la Hub dal browser; (b) il segreto
+# condiviso tra funzioni (header X-Internal-Token = env INTERNAL_TOKEN) — è come
+# chiamano le altre Cloud Function (area-ospite, checkin-online).
+def _autorizzato(request):
+    import hmac
+    from firebase_admin import auth as fb_auth
+    interno = os.environ.get('INTERNAL_TOKEN', '').strip()
+    t = request.headers.get('X-Internal-Token', '')
+    if interno and t and hmac.compare_digest(t, interno):
+        return True
+    h = request.headers.get('Authorization', '')
+    if h.startswith('Bearer '):
+        try:
+            return bool(fb_auth.verify_id_token(h[7:].strip()).get('operatore'))
+        except Exception as e:
+            print(f'ID token non valido: {e}')
+    return False
+
+
 @functions_framework.http
 def invia_notifica_pulizie(request):
     origin = request.headers.get('Origin', '')
@@ -110,6 +133,9 @@ def invia_notifica_pulizie(request):
 
     if request.method != 'POST':
         return _json_response(origin, {'ok': False, 'errore': 'metodo non permesso'}, 405)
+
+    if not _autorizzato(request):
+        return _json_response(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
 
     data     = request.get_json(silent=True) or {}
     evento   = data.get('evento')

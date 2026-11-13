@@ -18,6 +18,7 @@ Variabili d'ambiente di runtime:
 """
 
 import json
+import hmac
 import os
 from datetime import datetime, timezone
 
@@ -54,7 +55,7 @@ def backup_firestore(request):
                           'Access-Control-Allow-Headers': 'Content-Type, X-Backup-Token'})
 
     token = request.args.get('token') or request.headers.get('X-Backup-Token', '')
-    if not BACKUP_TOKEN or token != BACKUP_TOKEN:
+    if not BACKUP_TOKEN or not hmac.compare_digest(str(token), BACKUP_TOKEN):
         return (json.dumps({'ok': False, 'errore': 'non autorizzato'}), 403,
                 {'Content-Type': 'application/json'})
 

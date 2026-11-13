@@ -342,7 +342,7 @@ def _telegram(evento):
     try:
         import urllib.request
         url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
-        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json'})
+        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
         urllib.request.urlopen(req, timeout=5).read()
     except Exception as ex:
         print(f'Notifica Telegram non inviata: {ex}')
@@ -558,7 +558,8 @@ def _azione_cron(db, origin, data):
     un'email e non l'hanno ancora ricevuto. Con { dry_run: true } elenca
     soltanto, senza spedire."""
     atteso = os.environ.get('CRON_TOKEN', '')
-    if atteso and not hmac.compare_digest(_s(data.get('_cron_token')), atteso):
+    # Fail-closed: senza CRON_TOKEN configurato l'azione non è eseguibile da nessuno.
+    if not atteso or not hmac.compare_digest(_s(data.get('_cron_token')), atteso):
         return _json(origin, {'ok': False, 'errore': 'token_non_valido'}, 403)
 
     try:

@@ -55,7 +55,7 @@ def _cors(origin):
     return {
         'Access-Control-Allow-Origin':  origin if origin in ALLOWED_ORIGINS else 'https://gardenhub.it',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Internal-Token',
     }
 
 
@@ -464,6 +464,28 @@ def _riepilogo_mattina(dry_run=False, forza=False):
     return {'inviati': inviati}
 
 
+# ── Autorizzazione chiamate ────────────────────────────────────────────────
+# Un endpoint pubblico che manda notifiche reali non può accettare chiunque.
+# Accetta: (a) l'ID token Firebase di un operatore (claim `operatore`, header
+# Authorization: Bearer ...) — è come chiama la Hub dal browser; (b) il segreto
+# condiviso tra funzioni (header X-Internal-Token = env INTERNAL_TOKEN) — è come
+# chiamano le altre Cloud Function (area-ospite, checkin-online).
+def _autorizzato(request):
+    import hmac
+    from firebase_admin import auth as fb_auth
+    interno = os.environ.get('INTERNAL_TOKEN', '').strip()
+    t = request.headers.get('X-Internal-Token', '')
+    if interno and t and hmac.compare_digest(t, interno):
+        return True
+    h = request.headers.get('Authorization', '')
+    if h.startswith('Bearer '):
+        try:
+            return bool(fb_auth.verify_id_token(h[7:].strip()).get('operatore'))
+        except Exception as e:
+            print(f'ID token non valido: {e}')
+    return False
+
+
 @functions_framework.http
 def telegram_bot(request):
     origin = request.headers.get('Origin', '')
@@ -497,6 +519,9 @@ def telegram_bot(request):
         else:
             res = _riepilogo_mattina(dry, bool(data.get('forza')))
         return _json(origin, {'ok': True, **res})
+
+    if not _autorizzato(request):
+        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
 
     inviati = _evento(data)
     if inviati is None:

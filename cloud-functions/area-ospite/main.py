@@ -88,7 +88,7 @@ def _telegram(evento):
     try:
         import urllib.request
         url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
-        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json'})
+        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
         urllib.request.urlopen(req, timeout=5).read()
     except Exception as ex:
         print(f'Notifica Telegram non inviata: {ex}')
@@ -1489,7 +1489,7 @@ def _risto_notifica(payload):
     try:
         req = urllib.request.Request(
             RISTO_NOTIFICA_URL, data=json.dumps(payload).encode(),
-            headers={'Content-Type': 'application/json', 'Origin': 'https://gardenhub.it'}, method='POST')
+            headers={'Content-Type': 'application/json', 'Origin': 'https://gardenhub.it', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')}, method='POST')
         urllib.request.urlopen(req, timeout=8).read()
     except Exception as e:
         print(f'Notifica ristorazione non inviata: {e}')
@@ -1601,7 +1601,7 @@ def _push_manutenzione(doc_id, alloggio, categoria, descrizione):
         url = os.environ.get('NOTIFICHE_MANUTENZIONE_URL', 'https://notifiche-manutenzione-113994721180.europe-west1.run.app')
         body = {'evento': 'ticket', 'doc_id': doc_id, 'housing_unit': alloggio, 'category': categoria,
                 'issue_description': f'[Da ospite] {descrizione}', 'priority': 'normale'}
-        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
         urllib.request.urlopen(req, timeout=8).read()
     except Exception as ex:
         print(f'Push manutenzione non inviata: {ex}')

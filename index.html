@@ -1375,7 +1375,7 @@ function initLogin() {
   if (!sel) return;
   const prevValue = sel.value;
   sel.innerHTML = '<option value="">— Seleziona operatore —</option>' +
-    operatori.map(o => `<option value="${o.nome}">${o.nome}</option>`).join('');
+    operatori.map(o => `<option value="${esc(o.nome)}">${esc(o.nome)}</option>`).join('');
   if (operatori.some(o => o.nome === prevValue)) sel.value = prevValue;
 
   if (currentOperatore) return; // già loggato in questa sessione
@@ -1682,6 +1682,8 @@ function fmtDataBreve(iso) {
   const [, m, d] = iso.split('-');
   return `${d}/${m}`;
 }
+// Per valori dentro onclick="f(...)": stringa JS letterale, poi escape HTML dell'attributo.
+function jsq(s) { return esc(JSON.stringify(String(s == null ? '' : s))); }
 function esc(s) { return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function calcNotti(checkin, checkout) {
@@ -2474,7 +2476,7 @@ async function inviaNotificaTestHub() {
   const btn = document.getElementById('btn-test-notif');
   if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
   try {
-    const res = await fetch('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app', {
+    const res = await fetchStaff('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ evento: 'test', richiesto_da: currentOperatore || 'Staff' })
     });
@@ -2497,21 +2499,21 @@ function renderOperatoriList() {
     const hasPIN = !!o.haPin;
     const admin = o.ruolo === 'admin';
     return `<div class="op-row">
-      <div class="op-avatar" style="background:${admin?'var(--green-700)':'var(--gray-100)'};color:${admin?'var(--white)':'var(--gray-500)'}">${o.nome.slice(0,2).toUpperCase()}</div>
-      <span class="op-name">${o.nome}</span>
+      <div class="op-avatar" style="background:${admin?'var(--green-700)':'var(--gray-100)'};color:${admin?'var(--white)':'var(--gray-500)'}">${esc(o.nome.slice(0,2).toUpperCase())}</div>
+      <span class="op-name">${esc(o.nome)}</span>
       ${isSuper
         ? `<span style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase">Admin principale</span>`
-        : `<select class="op-ruolo-select" onchange="changeRuolo('${o.nome}', this.value)">
+        : `<select class="op-ruolo-select" onchange="changeRuolo(${jsq(o.nome)}, this.value)">
              <option value="operatore" ${!admin?'selected':''}>Operatore</option>
              <option value="admin" ${admin?'selected':''}>Amministratore</option>
            </select>`}
       <span class="op-pin-status" style="color:${hasPIN?'var(--green-ok)':'var(--amber)'}">${hasPIN?'PIN ok':'Nessun PIN'}</span>
-      ${hasPIN?`<button class="op-btn reset" onclick="resetPin('${o.nome}')">Reset PIN</button>`:''}
-      <button onclick="toggleNotificheOp('${o.nome}')" title="${staffTokensNotifiche[o.nome]?'Disattiva notifiche':'Attiva notifiche'}"
+      ${hasPIN?`<button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>`:''}
+      <button onclick="toggleNotificheOp(${jsq(o.nome)})" title="${staffTokensNotifiche[o.nome]?'Disattiva notifiche':'Attiva notifiche'}"
         style="width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;font-size:14px;flex-shrink:0;
                background:${staffTokensNotifiche[o.nome]?'var(--green-bg)':'var(--gray-100)'};
                color:${staffTokensNotifiche[o.nome]?'var(--green-ok)':'var(--gray-400)'}">🔔</button>
-      ${!isSuper?`<button class="op-del" onclick="deleteOperatore('${o.nome}')" title="Rimuovi">&#10005;</button>`:''}
+      ${!isSuper?`<button class="op-del" onclick="deleteOperatore(${jsq(o.nome)})" title="Rimuovi">&#10005;</button>`:''}
     </div>`;
   }).join('') || `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px 0">Nessun operatore.</p>`;
 }
@@ -2580,7 +2582,7 @@ function renderPermessiSelect() {
   const prev = sel.value;
   const eligibili = operatori.filter(o => o.ruolo !== 'admin');
   sel.innerHTML = '<option value="">— Seleziona operatore —</option>' +
-    eligibili.map(o => `<option value="${o.nome}">${o.nome}</option>`).join('');
+    eligibili.map(o => `<option value="${esc(o.nome)}">${esc(o.nome)}</option>`).join('');
   if (eligibili.some(o => o.nome === prev)) sel.value = prev;
   renderPermessiForm(sel.value);
 }
@@ -2615,7 +2617,7 @@ function renderPermessiForm(nome) {
       <div class="perm-module-title">Azioni</div>
       <label class="perm-row"><input type="checkbox" id="perm-azione-fiscalizza" ${userAzioni.fiscalizza!==false?'checked':''}> Può fiscalizzare (emettere scontrini reali)</label>
     </div>`
-    + `<button class="btn-primary" onclick="savePermessi('${nome}')">Salva permessi di ${nome}</button>`;
+    + `<button class="btn-primary" onclick="savePermessi(${jsq(nome)})">Salva permessi di ${esc(nome)}</button>`;
 }
 
 async function savePermessi(nome) {

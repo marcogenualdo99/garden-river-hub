@@ -28,7 +28,24 @@ function operatoreAutenticato(auth) {
   return u && !u.isAnonymous ? u : null;
 }
 
+let _authCorrente = null;
+
+// fetch verso le Cloud Function di notifica: aggiunge l'ID token dell'operatore
+// (Authorization: Bearer ...). Quelle funzioni rifiutano chi non è un operatore.
+export async function fetchStaff(url, opts = {}) {
+  let tok = '';
+  try {
+    const u = _authCorrente && _authCorrente.currentUser;
+    if (u && !u.isAnonymous) tok = await u.getIdToken();
+  } catch (e) { /* senza token la funzione risponderà 401 */ }
+  const headers = { ...(opts.headers || {}) };
+  if (tok) headers['Authorization'] = 'Bearer ' + tok;
+  return fetch(url, { ...opts, headers });
+}
+window.fetchStaff = fetchStaff;
+
 export async function sessioneHub(auth) {
+  _authCorrente = auth;
   await auth.authStateReady();
   const gia = operatoreAutenticato(auth);
   if (gia) return gia;
