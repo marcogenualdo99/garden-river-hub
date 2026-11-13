@@ -41,6 +41,7 @@ import re
 import time
 from datetime import datetime, timedelta
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
 import firebase_admin
@@ -109,6 +110,29 @@ def _oggi_iso():
 
 def _s(v, max_len=MAX_TESTO):
     return str(v).strip()[:max_len] if v is not None else ''
+
+
+# ── velocita': letture in parallelo e piccola cache in memoria ───────────────
+_POOL = ThreadPoolExecutor(max_workers=16)
+_CACHE = {}
+
+
+def _parallelo(**lavori):
+    """Esegue in parallelo funzioni senza argomenti {nome: callable} e ritorna {nome: risultato}.
+    Le letture Firestore sono indipendenti: in serie ogni una costa un viaggio di rete."""
+    futuri = {k: _POOL.submit(f) for k, f in lavori.items()}
+    return {k: f.result() for k, f in futuri.items()}
+
+
+def _con_cache(chiave, secondi, calcola):
+    """Dati che cambiano di rado (configurazione, contenuti, autisti): riletti al massimo ogni `secondi`."""
+    ora = time.time()
+    v = _CACHE.get(chiave)
+    if v and ora - v[0] < secondi:
+        return v[1]
+    r = calcola()
+    _CACHE[chiave] = (ora, r)
+    return r
 
 
 # ── configurazione (Firestore `impostazioni/...`, scritta dall'Hub) ──────────
@@ -277,30 +301,43 @@ def _avvisi(db):
 
 
 def _contenuti(db):
+    return _con_cache('contenuti', 30, lambda: _contenuti_leggi(db))
+
+
+def _contenuti_leggi(db):
     """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
     salvate in `impostazioni/area_ospite_foto_<servizio>`."""
-    out = {'testi': {}, 'foto': {}}
-    try:
-        snap = db.collection('impostazioni').document('area_ospite').get()
-        d = snap.to_dict() or {} if snap.exists else {}
-        for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
-                  'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo', 'contatti_testo',
-                  'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
-            out['testi'][k] = _s(d.get(k), 4000)
-    except Exception as e:
-        print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
-    out['animazione'] = _animazione(db)
-    out['avvisi'] = _avvisi(db)
-    out['avvisi_cfg'] = _avvisi_cfg(db)
-    for k in SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio', 'mappa_card'):
+    chiavi_foto = SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio', 'mappa_card')
+
+    def testi():
+        out = {}
         try:
-            snap = db.collection('impostazioni').document(f'area_ospite_foto_{k}').get()
-            url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''
-            if url.startswith('data:image/'):
-                out['foto'][k] = url
+            snap = db.collection('impostazioni').document('area_ospite').get()
+            d = snap.to_dict() or {} if snap.exists else {}
+            for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
+                      'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo', 'contatti_testo',
+                      'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
+                out[k] = _s(d.get(k), 4000)
         except Exception as e:
-            print(f'Lettura foto {k} non riuscita: {e}')
-    return out
+            print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
+        return out
+
+    def foto():
+        out = {}
+        try:
+            # una sola chiamata per tutte le foto
+            refs = [db.collection('impostazioni').document(f'area_ospite_foto_{k}') for k in chiavi_foto]
+            for k, snap in zip(chiavi_foto, db.get_all(refs)):
+                url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''
+                if url.startswith('data:image/'):
+                    out[k] = url
+        except Exception as e:
+            print(f'Lettura foto non riuscita: {e}')
+        return out
+
+    r = _parallelo(testi=testi, foto=foto, animazione=lambda: _animazione(db),
+                   avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db))
+    return r
 
 
 def _persone_prenotazione(p):
@@ -372,6 +409,10 @@ def _risolvi_token(db, token):
 
 
 def _spiagge_disponibili(db):
+    return _con_cache('spiagge', 60, lambda: _spiagge_leggi(db))
+
+
+def _spiagge_leggi(db):
     """Elenco spiagge configurate nel modulo Spiaggia (beach_spiagge), per il
     menu a tendina lato ospite — niente più campo libero."""
     try:
@@ -385,6 +426,11 @@ def _spiagge_disponibili(db):
 
 
 def _autisti_elenco(db, con_foto=True):
+    tutti = _con_cache('autisti', 60, lambda: _autisti_leggi(db))
+    return tutti if con_foto else [{**a, 'foto': ''} for a in tutti]
+
+
+def _autisti_leggi(db, con_foto=True):
     """Autisti configurati (collezione navetta_autisti, gestita dalla
     dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
     giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
@@ -859,8 +905,19 @@ def _azione_carica(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg = _cfg_navetta(db)
-    attive = _corse_attive_oggi(db)
+    pid = pren_ref.id
+    r = _parallelo(
+        cfg=lambda: _cfg_navetta(db),
+        attive=lambda: _corse_attive_oggi(db),
+        conto=lambda: _conto_con_spese(db, pid, p),
+        bici=lambda: _bici_attive(db, pid),
+        spiaggia=lambda: _spiaggia_assegnata(db, pid, p),
+        spiagge=lambda: _spiagge_disponibili(db),
+        autisti=lambda: _autisti_elenco(db),
+        risto=lambda: _ristorazione_disponibile(db, pid, p),
+        corse=lambda: _navetta_corse_cliente(db, pid),
+    )
+    cfg, attive = r['cfg'], r['attive']
 
     return _json(origin, {
         'ok': True,
@@ -873,13 +930,13 @@ def _azione_carica(db, origin, data):
             'checkin':       _s(p.get('checkin')),
             'checkout':      _s(p.get('checkout')),
         },
-        'conto': _conto_con_spese(db, pren_ref.id, p),
-        'bici_attive': _bici_attive(db, pren_ref.id),
-        'spiaggia': _spiaggia_assegnata(db, pren_ref.id, p),
-        'spiagge': _spiagge_disponibili(db),
-        'autisti': _autisti_elenco(db),
-        'ristorazione': _ristorazione_disponibile(db, pren_ref.id, p),
-        'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
+        'conto': r['conto'],
+        'bici_attive': r['bici'],
+        'spiaggia': r['spiaggia'],
+        'spiagge': r['spiagge'],
+        'autisti': r['autisti'],
+        'ristorazione': r['risto'],
+        'navetta_corse': r['corse'],
         'orari_occupati': _orari_occupati(attive, cfg),
         'posti_occupati': _posti_occupati(attive, cfg),
         'posti_pulmino': cfg['posti_pulmino'],
