@@ -1180,6 +1180,7 @@ def _azione_navetta_annulla(db, origin, data):
     if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
         return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
     ref.update({'stato': 'annullata', 'annullata_il': _now_iso(), 'annullata_da': 'ospite', 'aggiornato_il': _now_iso()})
+    _telegram({'evento': 'navetta_annullata', 'orario': c.get('orario'), 'nome': c.get('nome'), 'alloggio_nome': c.get('alloggio_nome'), 'spiaggia_nome': c.get('spiaggia_nome'), 'autista_nome': c.get('autista_nome'), 'annullata_da': 'Ospite'})
     return _json(origin, {'ok': True, 'id': snap.id})
 
 

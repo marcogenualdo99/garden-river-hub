@@ -220,6 +220,12 @@ def _evento(data):
              f"Spiaggia: {_e(data.get('spiaggia_nome'), 60) or '—'}" + (f"\n{extra}" if extra else ''))
         # Gruppo dell'autista; se non ne ha uno, gruppo navetta generico.
         return _invia([f"navetta:{_norm(data.get('autista_nome'))}", 'navetta'], t, primo_disponibile=True)
+    if ev == 'navetta_annullata':
+        t = (f"❌ <b>Corsa navetta ANNULLATA · {_e(data.get('orario'), 5)}</b>\n"
+             f"{_e(data.get('nome'), 60)} · {_e(data.get('alloggio_nome'), 40) or '—'}\n"
+             f"Spiaggia: {_e(data.get('spiaggia_nome'), 60) or '—'}\n"
+             f"Annullata da: {_e(data.get('annullata_da'), 60) or '—'}")
+        return _invia([f"navetta:{_norm(data.get('autista_nome'))}", 'navetta'], t, primo_disponibile=True)
     if ev == 'checkin':
         t = (f"🛎️ <b>Check-in online ricevuto</b>\n{_e(data.get('nome'), 60)} · {_e(data.get('alloggio_nome'), 40) or '—'}\n"
              f"{_e(data.get('persone'), 3)} persone — verifica i documenti nel Calendario\n{SITE_URL}/calendario/")

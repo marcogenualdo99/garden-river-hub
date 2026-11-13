@@ -903,6 +903,11 @@ async function cambiaStato(id, nuovoStato) {
     }
     if (c) { Object.assign(c, patch); renderCorse(); }
     await updateDoc(doc(db, 'navetta_prenotazioni', id), patch);
+    if (nuovoStato === 'annullata' && c) {
+      // Telegram: avvisa l'autista della corsa (fire-and-forget).
+      fetch('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ evento: 'navetta_annullata', orario: c.orario, nome: c.nome, alloggio_nome: c.alloggio_nome, spiaggia_nome: c.spiaggia_nome, autista_nome: c.autista_nome, annullata_da: currentOperatore || 'Staff' }) }).catch(() => {});
+    }
   } catch(e) {
     console.error('Errore aggiornamento stato navetta:', e);
     showToast('Errore aggiornamento stato');
