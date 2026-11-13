@@ -36,3 +36,16 @@ Altri comandi: `/stato`, `/scollega <codice>`.
 `https://telegram-bot-113994721180.europe-west1.run.app`.
 
 Prova: `curl -X POST <URL_FUNZIONE> -H 'Content-Type: application/json' -d '{"evento":"test","richiesto_da":"Prova"}'`
+
+## 6. Eventi programmati (Cloud Scheduler)
+Due eventi partono da Cloud Scheduler, non dall'Hub. Servono la variabile d'ambiente **`CRON_TOKEN`** (stringa casuale) sulla funzione: senza, vengono rifiutati.
+
+| Evento | Gruppo | Cosa fa | Frequenza consigliata |
+|---|---|---|---|
+| `promemoria_ticket` | manutenzione | Ricorda i ticket ancora aperti: urgenti ogni 2 h, normali ogni 24 h, bassa priorità ogni 72 h (con pulsante "Segna come risolto"). Solo tra le 8 e le 21, max 8 messaggi per giro. Segna `ultimo_promemoria` sul ticket. | ogni ora: `0 * * * *` |
+| `riepilogo_mattina` | reception | Arrivi, partenze, alloggi non ancora pronti per chi arriva, ticket urgenti aperti. Una sola volta al giorno (doc `impostazioni/telegram_cron`). | ogni giorno alle 8: `0 8 * * *` |
+
+Scheduler → job HTTP POST, fuso **Europe/Rome**, URL della funzione, header `Content-Type: application/json`, corpo:
+`{"evento":"promemoria_ticket","_cron_token":"<CRON_TOKEN>"}` (idem con `riepilogo_mattina`).
+
+Prova senza inviare nulla: aggiungi `"dry_run":true` al corpo, la risposta contiene l'anteprima. Per rimandare il riepilogo già inviato oggi: `"forza":true`.

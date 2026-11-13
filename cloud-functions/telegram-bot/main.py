@@ -11,16 +11,19 @@ Un unico entry point HTTP (`telegram_bot`) fa due cose:
   2. Eventi dall'Hub (POST JSON con "evento"): il messaggio e' formattato qui,
      il chiamante non puo' mandare testo libero.
 
-Env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_SETUP_CODE.
+Env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_SETUP_CODE, CRON_TOKEN
+(CRON_TOKEN: segreto che Cloud Scheduler passa in `_cron_token` per gli eventi
+programmati `promemoria_ticket` e `riepilogo_mattina`; senza, questi eventi sono rifiutati).
 """
 
+import hmac
 import html
 import json
 import os
 import re
 import unicodedata
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import firebase_admin
@@ -284,6 +287,183 @@ def _evento(data):
     return None
 
 
+# ── Eventi programmati (Cloud Scheduler) ───────────────────────────────────
+
+CRON_EVENTI = ('promemoria_ticket', 'riepilogo_mattina')
+TZ = ZoneInfo('Europe/Rome')
+
+# Ogni quante ore ripetere il promemoria di un ticket ancora aperto, per priorità.
+# Il primo promemoria arriva dopo lo stesso intervallo dalla creazione.
+PROMEMORIA_ORE = {'alta': 2, 'normale': 24, 'bassa': 72}
+PROMEMORIA_DALLE, PROMEMORIA_ALLE = 8, 21   # niente messaggi di notte
+PROMEMORIA_MAX_PER_GIRO = 8                 # oltre, un solo messaggio riassuntivo
+
+
+def _cron_autorizzato(data):
+    atteso = os.environ.get('CRON_TOKEN', '').strip()
+    if not atteso:
+        return False
+    return hmac.compare_digest(str(data.get('_cron_token') or ''), atteso)
+
+
+def _eta_leggibile(delta):
+    ore = int(delta.total_seconds() // 3600)
+    if ore < 1:
+        return 'meno di 1 ora'
+    if ore < 48:
+        return f'{ore} ore'
+    return f'{ore // 24} giorni'
+
+
+def _promemoria_ticket(dry_run=False):
+    """Ricorda al gruppo Manutenzione i ticket ancora aperti da troppo tempo.
+    Un messaggio per ticket (con il pulsante 'Segna come risolto'); dopo averlo
+    mandato segna `ultimo_promemoria` sul ticket, cosi' il giro successivo
+    aspetta di nuovo l'intervallo completo."""
+    adesso = datetime.now(timezone.utc)
+    if not dry_run and not (PROMEMORIA_DALLE <= datetime.now(TZ).hour < PROMEMORIA_ALLE):
+        return {'inviati': 0, 'motivo': 'fuori_orario'}
+    db = firestore.client()
+    scaduti = []
+    diagnosi = []  # solo per dry_run: tutti i ticket aperti e perche' (non) sono scaduti
+    for snap in db.collection('maintenance_tickets').where('status', '==', False).stream():
+        t = snap.to_dict() or {}
+        creato = t.get('created_at')
+        if not isinstance(creato, datetime):
+            diagnosi.append(f"{snap.id}: {t.get('housing_unit')} — SALTATO, created_at non valido ({type(creato).__name__})")
+            continue  # serverTimestamp non ancora risolto o dato anomalo
+        if creato.tzinfo is None:
+            creato = creato.replace(tzinfo=timezone.utc)
+        prio = t.get('priority') if t.get('priority') in PROMEMORIA_ORE else 'normale'
+        ultimo = t.get('ultimo_promemoria')
+        if isinstance(ultimo, datetime):
+            if ultimo.tzinfo is None:
+                ultimo = ultimo.replace(tzinfo=timezone.utc)
+        else:
+            ultimo = None
+        riferimento = max(creato, ultimo) if ultimo else creato
+        scade = adesso - riferimento >= timedelta(hours=PROMEMORIA_ORE[prio])
+        diagnosi.append(f"{snap.id}: {t.get('housing_unit')} · {prio} · aperto da {_eta_leggibile(adesso - creato)}"
+                        f" · soglia {PROMEMORIA_ORE[prio]}h · {'DA RICORDARE' if scade else 'non ancora'}")
+        if scade:
+            scaduti.append((prio != 'alta', creato, snap, t, prio, adesso - creato))
+    scaduti.sort(key=lambda x: (x[0], x[1]))  # urgenti prima, poi i piu' vecchi
+
+    inviati = 0
+    anteprima = []
+    for _, _, snap, t, prio, eta in scaduti[:PROMEMORIA_MAX_PER_GIRO]:
+        intestazione = '🚨 <b>Ticket URGENTE ancora aperto</b>' if prio == 'alta' else '⏰ <b>Ticket ancora aperto</b>'
+        testo = (f"{intestazione} da {_eta_leggibile(eta)}\n\n"
+                 f"🏠 <b>Alloggio:</b> {_e(t.get('housing_unit'), 80) or '—'}\n"
+                 f"🏷️ <b>Categoria:</b> {_e(t.get('category'), 80) or '—'}\n\n"
+                 f"📝 {_e(t.get('issue_description'), 400) or '—'}")
+        if dry_run:
+            anteprima.append(testo)
+            continue
+        tastiera = [[{'text': '✅ Segna come risolto', 'callback_data': f'risolto:{snap.id}'}]]
+        if _invia(['manutenzione'], testo, tastiera=tastiera):
+            inviati += 1
+            try:
+                snap.reference.update({'ultimo_promemoria': firestore.SERVER_TIMESTAMP})
+            except Exception as ex:
+                print(f'Marcatura ultimo_promemoria fallita per {snap.id}: {ex}')
+    resto = len(scaduti) - PROMEMORIA_MAX_PER_GIRO
+    if resto > 0:
+        if dry_run:
+            anteprima.append(f'… e altri {resto}')
+        else:
+            _invia(['manutenzione'], f'⏰ Altri <b>{resto}</b> ticket aperti da troppo tempo: apri {SITE_URL}/manutenzione/')
+            for _, _, snap, _, _, _ in scaduti[PROMEMORIA_MAX_PER_GIRO:]:
+                try:
+                    snap.reference.update({'ultimo_promemoria': firestore.SERVER_TIMESTAMP})
+                except Exception as ex:
+                    print(f'Marcatura ultimo_promemoria fallita per {snap.id}: {ex}')
+    return {'inviati': inviati, 'scaduti': len(scaduti), **({'anteprima': anteprima, 'ticket_aperti': diagnosi} if dry_run else {})}
+
+
+def _persone_pren(p):
+    try:
+        n = sum(int(p.get(k) or 0) for k in ('adulti', 'bambini_0_2', 'bambini_3_4', 'bambini_5_9', 'bambini_10_17'))
+    except (TypeError, ValueError):
+        n = 0
+    return n if n > 0 else len([o for o in (p.get('ospiti') or []) if o])
+
+
+def _riepilogo_mattina(dry_run=False, forza=False):
+    """Riepilogo del giorno per la Reception: arrivi, partenze, alloggi non
+    ancora pronti per chi arriva, ticket urgenti aperti."""
+    adesso = datetime.now(TZ)
+    oggi = adesso.date().isoformat()
+    db = firestore.client()
+
+    ref_stato = db.collection('impostazioni').document('telegram_cron')
+    if not dry_run and not forza:
+        snap = ref_stato.get()
+        if snap.exists and (snap.to_dict() or {}).get('riepilogo_mattina') == oggi:
+            return {'inviati': 0, 'motivo': 'gia_inviato_oggi'}
+
+    alloggi = {d.id: (d.to_dict() or {}) for d in db.collection('alloggi').stream()}
+    arrivi = [d.to_dict() or {} for d in db.collection('prenotazioni').where('checkin', '==', oggi).stream()]
+    partenze = [d.to_dict() or {} for d in db.collection('prenotazioni').where('checkout', '==', oggi).stream()]
+    urgenti = [d.to_dict() or {} for d in db.collection('maintenance_tickets')
+               .where('status', '==', False).where('priority', '==', 'alta').stream()]
+
+    def chiave(p):
+        return (str(p.get('alloggio_nome') or '~').lower(), str(p.get('nome') or '').lower())
+    arrivi.sort(key=chiave)
+    partenze.sort(key=chiave)
+
+    MAX = 25
+    righe = [f"☀️ <b>Buongiorno! Riepilogo di oggi</b> · {adesso.strftime('%d/%m/%Y')}"]
+
+    righe.append(f"\n🛬 <b>Arrivi ({len(arrivi)})</b>")
+    if not arrivi:
+        righe.append('Nessun arrivo previsto.')
+    non_pronti = 0
+    for p in arrivi[:MAX]:
+        stato = (alloggi.get(p.get('alloggio_id')) or {}).get('stato')
+        pers = _persone_pren(p)
+        riga = f"• {_e(p.get('alloggio_nome'), 40) or 'Alloggio da assegnare'} — {_e(p.get('nome'), 50) or '—'}"
+        if pers:
+            riga += f" ({pers} pers.)"
+        if p.get('checkin_fatto'):
+            riga += ' ✔️ già arrivato'
+        elif p.get('alloggio_id') and stato and stato != 'pronta':
+            non_pronti += 1
+            riga += f" {EMOJI_STATO.get(stato, '⚠️')} {_e(LABEL_STATO.get(stato, stato), 30)}"
+        righe.append(riga)
+    if len(arrivi) > MAX:
+        righe.append(f'… e altri {len(arrivi) - MAX}')
+    if non_pronti:
+        righe.append(f"⚠️ <i>{non_pronti} alloggio/i di chi arriva non ancora pronti.</i>")
+
+    righe.append(f"\n🛫 <b>Partenze ({len(partenze)})</b>")
+    if not partenze:
+        righe.append('Nessuna partenza prevista.')
+    for p in partenze[:MAX]:
+        riga = f"• {_e(p.get('alloggio_nome'), 40) or '—'} — {_e(p.get('nome'), 50) or '—'}"
+        if p.get('checkout_fatto'):
+            riga += ' ✔️ già partito'
+        righe.append(riga)
+    if len(partenze) > MAX:
+        righe.append(f'… e altre {len(partenze) - MAX}')
+
+    if urgenti:
+        righe.append(f"\n🚨 <b>Ticket urgenti aperti ({len(urgenti)})</b>")
+        for t in urgenti[:10]:
+            righe.append(f"• {_e(t.get('housing_unit'), 40) or '—'} — {_e(t.get('category'), 40) or '—'}: {_e(t.get('issue_description'), 80)}")
+        if len(urgenti) > 10:
+            righe.append(f'… e altri {len(urgenti) - 10}')
+
+    testo = '\n'.join(righe)
+    if dry_run:
+        return {'inviati': 0, 'anteprima': testo}
+    inviati = _invia(['reception'], testo)
+    if inviati:
+        ref_stato.set({'riepilogo_mattina': oggi}, merge=True)
+    return {'inviati': inviati}
+
+
 @functions_framework.http
 def telegram_bot(request):
     origin = request.headers.get('Origin', '')
@@ -307,6 +487,16 @@ def telegram_bot(request):
         except Exception as ex:
             print(f'Errore comando: {ex}')
         return ('', 200)  # sempre 200, altrimenti Telegram riprova all'infinito
+
+    if data.get('evento') in CRON_EVENTI:
+        if not _cron_autorizzato(data):
+            return _json(origin, {'ok': False, 'errore': 'token_non_valido'}, 403)
+        dry = bool(data.get('dry_run'))
+        if data['evento'] == 'promemoria_ticket':
+            res = _promemoria_ticket(dry)
+        else:
+            res = _riepilogo_mattina(dry, bool(data.get('forza')))
+        return _json(origin, {'ok': True, **res})
 
     inviati = _evento(data)
     if inviati is None:
