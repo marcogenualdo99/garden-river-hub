@@ -442,7 +442,7 @@
   .ci-banner h2 { font-size: 18px; font-weight: 800; line-height: 1.25; color: var(--gray-900); margin: 2px 4px 12px }
   .ci-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
   .ci-tile { background: var(--green-100); border-radius: 16px; padding: 10px 8px; text-align: center }
-  .ci-tile .e { font-size: 20px; line-height: 1 } .ci-tile .k { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--green-700); margin-top: 6px }
+  .ci-tile .k { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--green-700) }
   .ci-tile .v { font-size: 13px; font-weight: 800; color: var(--gray-900); line-height: 1.25; margin-top: 2px }
   .ci-hint { font-size: 12px; color: var(--gray-500); margin: 12px 4px 4px }
   .ci-banner details { border-top: 1px solid var(--gray-100); padding: 0 4px }
@@ -451,8 +451,7 @@
   .ci-banner summary::-webkit-details-marker { display: none }
   .ci-banner summary::after { content: '›'; margin-left: auto; font-size: 20px; color: var(--gray-500); transition: transform .2s }
   .ci-banner details[open] summary::after { transform: rotate(90deg) }
-  .ci-banner summary .e { font-size: 18px }
-  .ci-body { padding: 0 0 12px 28px }
+  .ci-body { padding: 0 0 12px }
   .ci-body p { font-size: 13px; line-height: 1.5; color: var(--gray-700) } .ci-body p + p { margin-top: 7px }
   .ci-body ul { margin: 6px 0 0 18px; font-size: 13px; line-height: 1.5; color: var(--gray-700) }
   .ci-fine { text-align: center; font-weight: 700; font-size: 13px; color: var(--gray-700); padding: 10px 6px 12px; border-top: 1px solid var(--gray-100) }
@@ -1001,19 +1000,19 @@ async function caricaRistoHome() {
 function checkinInfoHtml() {
   const n = giorniA((CFG.prenotazione || {}).checkin);
   if (n === null || n < 0 || n > 5) return '';
-  const sec = (ic, tit, corpo) => `<details><summary><span class="e">${ic}</span>${tit}</summary><div class="ci-body">${corpo}</div></details>`;
-  const tile = (e, k, v) => `<div class="ci-tile"><div class="e">${e}</div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  const sec = (tit, corpo) => `<details><summary>${tit}</summary><div class="ci-body">${corpo}</div></details>`;
+  const tile = (k, v) => `<div class="ci-tile"><div class="k">${k}</div><div class="v">${v}</div></div>`;
   return `<div class="ci-banner"><div class="tg">${esc(t('Prima di partire'))}</div>
     <h2>${esc(t('Il tuo arrivo in breve'))}</h2>
-    <div class="ci-tiles">${tile('🏡', esc(t('Check-in')), esc(t('dalle 16:00')))}${tile('⏰', esc(t('Check-out')), esc(t('entro le 10:00')))}${tile('💳', esc(t('Pagamenti')), esc(t('Contanti, carta, Bancomat')))}</div>
+    <div class="ci-tiles">${tile(esc(t('Check-in')), esc(t('dalle 16:00')))}${tile(esc(t('Check-out')), esc(t('entro le 10:00')))}${tile(esc(t('Pagamenti')), esc(t('Contanti, carta, Bancomat')))}</div>
     <div class="ci-hint">${esc(t('Tocca una voce per leggere i dettagli'))}</div>
-    ${sec('🏡', esc(t('Check-in')), `<p>${esc(t('La consegna dell\'alloggio è prevista a partire dalle ore 16:00 del sabato di arrivo, a partire e non entro: l\'orario di consegna può infatti variare in base ai tempi necessari per la pulizia e la preparazione degli alloggi. Comprendiamo che, soprattutto dopo un lungo viaggio e in presenza di bambini, persone anziane o animali, l\'attesa possa essere scomoda e spiacevole. Purtroppo, però, non possiamo fare altrimenti: si tratta semplicemente dei tempi tecnici necessari per pulire e preparare tutti gli alloggi in arrivo. La nostra squadra di pulizie lavora ininterrottamente per rendere ogni appartamento disponibile il prima possibile, ma è umanamente impossibile riuscire a pulire e preparare tutti gli alloggi nell\'arco di poche ore. Vi ringraziamo per la comprensione e la collaborazione.'))}</p><p>🚗 ${esc(t('Se lo desiderate, potete arrivare anche in tarda mattinata. Al vostro arrivo effettueremo il check-in (registrazione dei documenti, saldo del soggiorno e consegna dei braccialetti), così potrete accedere subito al villaggio e usufruire dei servizi disponibili. Vi chiediamo però di tenere presente che l\'alloggio sarà disponibile solo nel pomeriggio/tardo pomeriggio, a partire dalle ore 16:00.'))}</p>`)}
-    ${sec('⏰', esc(t('Check-out')), `<p>${esc(t('Il giorno della partenza l\'alloggio dovrà essere lasciato entro le ore 10:00.'))}</p><p>🎟️ ${esc(t('Entro tale orario dovranno essere riconsegnati anche i braccialetti e sarà necessario lasciare il villaggio. Dopo il check-out non è possibile trattenersi all\'interno della struttura né continuare a usufruire dei servizi del villaggio.'))}</p>`)}
-    ${sec('🐶', esc(t('Ospiti con animali')), `<p>${esc(t('Chi soggiorna con il proprio amico a quattro zampe dovrà essere in possesso di un\'assicurazione che copra eventuali danni causati dal cane a persone e/o cose.'))}</p><p>🏖️ ${esc(t('Gli ospiti che hanno prenotato un ombrellone nella Dog Beach possono tenere il proprio cane sotto l\'ombrellone. Non è invece consentito far entrare il cane in acqua, come previsto dalle disposizioni comunali.'))}</p>`)}
-    ${sec('💳', esc(t('Modalità di pagamento')), `<p>${esc(t('Accettiamo i seguenti metodi di pagamento:'))}</p><ul><li>${esc(t('Contanti'))}</li><li>${esc(t('Carta di credito'))}</li><li>${esc(t('Bancomat'))}</li></ul><p>❌ ${esc(t('Non sono accettati assegni né bonifici il giorno dell\'arrivo.'))}</p>`)}
-    ${sec('🍽️', esc(t('Pensione completa e mezza pensione')), `<p>${esc(t('Gli ospiti che hanno prenotato il trattamento di pensione completa o mezza pensione e non lo hanno ancora fatto sono pregati di inviare le proprie scelte dei pasti tramite il link ricevuto su WhatsApp.'))}</p><p>${esc(t('Nb. qualora abbiate richiesto di mangiare allo stesso tavolo con qualche altra famiglia, vi informiamo che desideriamo accontentarvi, ma che dovrete arrivare ai pasti tutti allo stesso orario.'))}</p>`)}
-    ${sec('🛏️', esc(t('Biancheria')), `<p>${esc(t('Per le prenotazioni che comprendono la biancheria, ricordiamo che non viene fornita ai bambini di età inferiore ai 3 anni.'))}</p><p>${esc(t('Ricordiamo che forniremo i kit imbustati singolarmente di lenzuola e di asciugamani, ma non facciamo i letti.'))}</p>`)}
-    <div class="ci-fine">🙏 ${esc(t('Vi ringraziamo per la collaborazione e restiamo a disposizione per qualsiasi chiarimento.'))}<br>😊 ${esc(t('Vi auguriamo un piacevole soggiorno e non vediamo l\'ora di darvi il benvenuto!'))}</div></div>`;
+    ${sec(esc(t('Check-in')), `<p>${esc(t('L\'alloggio è disponibile dalle 16:00 del giorno di arrivo. L\'orario può variare in base ai tempi di pulizia e preparazione.'))}</p><p>${esc(t('Puoi arrivare anche in tarda mattinata: faremo subito il check-in (documenti, saldo, braccialetti) e potrai usare i servizi del villaggio. L\'alloggio sarà pronto dalle 16:00.'))}</p>`)}
+    ${sec(esc(t('Check-out')), `<p>${esc(t('Lascia l\'alloggio entro le 10:00 e riconsegna i braccialetti.'))}</p><p>${esc(t('Dopo il check-out non è possibile restare nel villaggio né usare i servizi.'))}</p>`)}
+    ${sec(esc(t('Ospiti con animali')), `<p>${esc(t('Serve un\'assicurazione che copra i danni causati dal cane a persone o cose.'))}</p><p>${esc(t('Con l\'ombrellone nella Dog Beach il cane può stare sotto l\'ombrellone, ma non entrare in acqua.'))}</p>`)}
+    ${sec(esc(t('Modalità di pagamento')), `<p>${esc(t('Accettiamo:'))}</p><ul><li>${esc(t('Contanti'))}</li><li>${esc(t('Carta di credito'))}</li><li>${esc(t('Bancomat'))}</li></ul><p>${esc(t('Non accettiamo assegni né bonifici il giorno dell\'arrivo.'))}</p>`)}
+    ${sec(esc(t('Pensione completa e mezza pensione')), `<p>${esc(t('Se hai la pensione completa o la mezza pensione, invia le scelte dei pasti dal link ricevuto su WhatsApp.'))}</p><p>${esc(t('Se hai chiesto di mangiare con un\'altra famiglia, arrivate ai pasti allo stesso orario.'))}</p>`)}
+    ${sec(esc(t('Biancheria')), `<p>${esc(t('Per i bambini sotto i 3 anni la biancheria non è fornita.'))}</p><p>${esc(t('Consegniamo kit di lenzuola e asciugamani imbustati, ma i letti non li facciamo.'))}</p>`)}
+    <div class="ci-fine">${esc(t('Per qualsiasi dubbio siamo a disposizione. Buon soggiorno!'))}</div></div>`;
 }
 
 function renderHomeExtra() {
