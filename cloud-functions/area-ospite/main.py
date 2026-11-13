@@ -362,9 +362,14 @@ def _contenuti_leggi(db):
         try:
             # una sola chiamata per tutte le foto
             refs = [db.collection('impostazioni').document(f'area_ospite_foto_{k}') for k in chiavi_foto]
-            for k, snap in zip(chiavi_foto, db.get_all(refs)):
-                url = _s((snap.to_dict() or {}).get('data_url'), 900000) if snap.exists else ''
-                if url.startswith('data:image/'):
+            # get_all NON restituisce i documenti nell'ordine richiesto: la chiave si ricava dall'id.
+            for snap in db.get_all(refs):
+                if not snap.exists:
+                    continue
+                k = snap.id[len('area_ospite_foto_'):]
+                url = str((snap.to_dict() or {}).get('data_url') or '').strip()
+                # una foto troncata sarebbe rovinata: se e' troppo grande si scarta
+                if k in chiavi_foto and url.startswith('data:image/') and len(url) <= 900000:
                     out[k] = url
         except Exception as e:
             print(f'Lettura foto non riuscita: {e}')
