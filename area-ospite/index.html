@@ -438,21 +438,27 @@
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
   .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
-  .fb { margin-top: 10px; position: relative }
-  .fb-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 22px; box-shadow: var(--shadow) }
+  .fb { margin-top: 12px; position: relative }
+  .fb-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 24px; box-shadow: var(--shadow) }
   .fb-track::-webkit-scrollbar { display: none }
-  .fb-slide { flex: 0 0 100%; scroll-snap-align: start; background: var(--green-700); color: #fff; display: flex; flex-direction: column }
-  .fb-slide.arancio { background: var(--orange) }
-  .fb-body { padding: 16px 16px 12px }
-  .fb-slide h2 { font-size: 18px; font-weight: 800; line-height: 1.25; margin: 0; color: #fff }
-  .fb-slide p { font-size: 13.5px; line-height: 1.4; margin: 6px 0 0; opacity: .94 }
-  .fb-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; background: #fff; color: var(--green-700); border: none; border-radius: 999px; padding: 10px 16px; font-weight: 800; font-size: 14px; font-family: var(--font); cursor: pointer; text-decoration: none }
-  .fb-btn svg { width: 15px; height: 15px }
-  .fb-slide.arancio .fb-btn { color: #B4531A }
-  .fb-img { display: block; width: 100%; height: 150px; object-fit: cover; margin-top: 4px }
-  .fb-dots { display: flex; justify-content: center; gap: 6px; padding: 8px 0 0 }
-  .fb-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-200, #d4d9d6); transition: all .2s }
-  .fb-dots i.on { background: var(--green-700); width: 18px; border-radius: 4px }
+  .fb-slide { flex: 0 0 100%; scroll-snap-align: start; position: relative; overflow: hidden; min-height: 176px; padding: 18px 18px 30px; background: var(--green-900) center / cover; color: #fff }
+  .fb-slide.arancio { background-color: var(--orange) }
+  .fb-slide::before { content: ''; position: absolute; right: -46px; top: -46px; width: 170px; height: 170px; border-radius: 50%; background: var(--grad-sun) }
+  .fb-slide.arancio::before { background: rgba(255,255,255,.2) }
+  .fb-slide.foto::before { inset: 0; width: auto; height: auto; border-radius: 0; background: linear-gradient(90deg, rgba(6,40,28,.82) 0%, rgba(6,40,28,.45) 55%, rgba(6,40,28,.12) 100%) }
+  .fb-slide.foto.arancio::before { background: linear-gradient(90deg, rgba(90,30,5,.78) 0%, rgba(90,30,5,.4) 55%, rgba(90,30,5,.1) 100%) }
+  .fb-slide > * { position: relative; z-index: 1 }
+  .fb-k { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--orange-lt); display: flex; align-items: center; gap: 8px }
+  .fb-k i { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: anPulse 1.4s infinite }
+  .fb-slide.arancio .fb-k { color: #fff } .fb-slide.arancio .fb-k i { background: #fff }
+  .fb-slide h3 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.05; margin: 8px 0 6px; max-width: 72% }
+  .fb-slide p { font-size: 13.5px; line-height: 1.4; margin: 0; opacity: .92; max-width: 68% }
+  .fb-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; height: 40px; padding: 0 14px 0 18px; border: none; border-radius: 999px; background: var(--orange); color: #fff; font: 800 13.5px var(--font); cursor: pointer }
+  .fb-slide.arancio .fb-btn { background: #fff; color: #B4531A }
+  .fb-btn svg { width: 16px; height: 16px }
+  .fb-dots { position: absolute; right: 16px; bottom: 12px; display: flex; gap: 6px; z-index: 2 }
+  .fb-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.5); transition: all .2s }
+  .fb-dots i.on { background: #fff; width: 18px; border-radius: 4px }
   .ci-banner { background: #fff; border-radius: 22px; padding: 16px 14px 8px; margin-top: 10px; box-shadow: var(--shadow) }
   .ci-banner .tg { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--green-700); padding: 0 4px }
   .ci-banner h2 { font-size: 18px; font-weight: 800; line-height: 1.25; color: var(--gray-900); margin: 2px 4px 12px }
@@ -485,22 +491,23 @@
   .sera.foto::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,40,28,.82) 0%, rgba(6,40,28,.45) 55%, rgba(6,40,28,.12) 100%) }
   .sera.foto h3, .sera.foto .w { max-width: 80% }
   .sera img { position: absolute; right: -14px; bottom: -34px; height: 190px; width: auto; z-index: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.3)); transform-origin: 50% 100%; animation: anBob 3s ease-in-out infinite }
-  .oggi { background: #fff; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden }
-  .oggi .r { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-bottom: 1px solid var(--gray-100); cursor: pointer; -webkit-tap-highlight-color: transparent } .oggi .r:last-child { border: none } .oggi .r:active { background: var(--gray-50) }
+  .oggi { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px 2px 6px; margin: 0 -2px }
+  .oggi::-webkit-scrollbar { display: none }
+  .oggi-dots { display: flex; justify-content: center; gap: 6px; margin-top: 2px } .oggi-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--gray-200, #d4d9d6); transition: all .2s } .oggi-dots i.on { background: var(--green-700); width: 18px; border-radius: 4px }
+  .oggi .r { flex: 0 0 88%; scroll-snap-align: start; background: #fff; border-radius: 22px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 13px; padding: 16px 15px; cursor: pointer; -webkit-tap-highlight-color: transparent } .oggi .r:only-child { flex-basis: 100% } .oggi .r:active { background: var(--gray-50) }
   .oggi .e { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--t); color: var(--c) } .oggi .e svg { width: 22px; height: 22px }
   .oggi .t { flex: 1; min-width: 0 } .oggi .t small { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray-500) } .oggi .t b { font-size: 15px; font-weight: 800 } .oggi .t span { display: block; font-size: 12.5px; color: var(--gray-500) }
   .oggi .go { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0 } .pill { font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 4px 10px; background: var(--orange-bg); color: var(--orange); white-space: nowrap }
   .oggi .r.a { --c: var(--orange); --t: var(--orange-bg) } .oggi .r.p { --c: var(--green-700); --t: var(--green-100) } .oggi .r.n { --c: var(--blue); --t: var(--blue-bg) } .oggi .r.s { --c: #0E7490; --t: #E0F5FA }
   .service-card .pill-soon.todo { background: var(--orange); color: #fff } .service-card.wide { grid-column: 1 / -1; min-height: 140px }
-  .adesso { background: #fff; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden }
-  .meteo { display: flex; align-items: center; gap: 14px; padding: 16px; border-bottom: 1px solid var(--gray-100) }
-  .meteo .mi { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #FFF3D6; color: #E8A21A }
-  .meteo .mi.nube { background: #EEF1F5; color: #64748B } .meteo .mi.acqua { background: #E8EEF8; color: #3B6FB6 } .meteo .mi svg { width: 32px; height: 32px }
-  .meteo .mt b { font-size: 30px; font-weight: 800; display: block; line-height: 1; letter-spacing: -.02em } .meteo .mt small { font-size: 13px; color: var(--gray-500); font-weight: 600 }
-  .meteo .md { margin-left: auto; text-align: center; border: 1.5px solid var(--gray-100); border-radius: 14px; padding: 8px 12px } .meteo .md small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gray-500) } .meteo .md b { font-size: 14.5px; font-weight: 800 }
-  .ore { display: grid; grid-template-columns: 1fr; } .ore .o { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--gray-100) } .ore .o:last-child { border: none }
-  .ore i { width: 10px; height: 10px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0 } .ore i.on { background: var(--green-ok); box-shadow: 0 0 0 4px rgba(22,163,74,.18) }
-  .ore b { display: block; font-size: 14.5px; font-weight: 800 } .ore small { font-size: 12.5px; color: var(--gray-500) }
+  .adesso-s { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: 12px; padding: 2px 2px 6px }
+  .adesso-s::-webkit-scrollbar { display: none }
+  .adesso-s .ch { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 999px; box-shadow: var(--shadow); padding: 8px 14px 8px 10px; white-space: nowrap }
+  .ch b { font-size: 14px; font-weight: 800; color: var(--gray-900) } .ch small { font-size: 12.5px; color: var(--gray-500); font-weight: 600 }
+  .ch em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--gray-500); border-left: 1.5px solid var(--gray-100); padding-left: 8px }
+  .ch .mi { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #FFF3D6; color: #E8A21A } .ch .mi svg { width: 18px; height: 18px }
+  .ch .mi.nube { background: #EEF1F5; color: #64748B } .ch .mi.acqua { background: #E8EEF8; color: #3B6FB6 }
+  .ch i { width: 9px; height: 9px; border-radius: 50%; background: var(--gray-300); flex-shrink: 0 } .ch i.on { background: var(--green-ok); box-shadow: 0 0 0 3px rgba(22,163,74,.18) }
   .tk { position: relative; background: #fff; border-radius: 24px; box-shadow: var(--shadow-lg); padding: 20px 20px 16px; margin-top: 14px; overflow: hidden; border: 2px dashed var(--green-200) }
   .tk::before, .tk::after { content: ''; position: absolute; top: 56%; width: 26px; height: 26px; border-radius: 50%; background: var(--gray-50) }
   .tk::before { left: -14px } .tk::after { right: -14px }
@@ -580,11 +587,9 @@
       <div id="home-fasce-alto"></div>
       <div id="home-checkin"></div>
       <div id="home-alerts"></div>
-      <div id="home-fasce-centro"></div>
       <div id="home-sera"></div>
       <div id="home-oggi"></div>
       <div id="home-adesso"></div>
-      <div id="home-fasce-basso"></div>
       <div class="sez" data-sez="villaggio">Tutto il villaggio</div>
       <div class="service-grid" id="service-grid" style="margin-top:0"></div>
       <div id="home-footer"></div>
@@ -978,7 +983,9 @@ function renderOggi() {
   const el = $('#home-oggi'); if (!el) return;
   if (!vis('oggi')) { el.innerHTML = ''; return; }
   const r = righeOggi();
-  el.innerHTML = r.length ? `<div class="sez">${esc(t('Oggi per te'))}</div><div class="oggi">${r.map(x => `<div class="r ${x.c}" onclick="${x.fn}"><span class="e">${x.icon}</span><div class="t"><small>${esc(x.k)}</small><b>${esc(x.b)}</b>${x.s ? `<span>${esc(x.s)}</span>` : ''}</div>${x.pill ? `<span class="pill">${esc(x.pill)}</span>` : `<span class="go">${GO}</span>`}</div>`).join('')}</div>` : '';
+  el.innerHTML = r.length ? `<div class="sez">${esc(t('Oggi per te'))}</div><div class="oggi">${r.map(x => `<div class="r ${x.c}" onclick="${x.fn}"><span class="e">${x.icon}</span><div class="t"><small>${esc(x.k)}</small><b>${esc(x.b)}</b>${x.s ? `<span>${esc(x.s)}</span>` : ''}</div>${x.pill ? `<span class="pill">${esc(x.pill)}</span>` : `<span class="go">${GO}</span>`}</div>`).join('')}</div>${r.length > 1 ? `<div class="oggi-dots">${r.map((_, i) => `<i${i ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}` : '';
+  const tr = el.querySelector('.oggi'), dots = [...el.querySelectorAll('.oggi-dots i')];
+  if (tr && dots.length) tr.addEventListener('scroll', () => { const c = tr.children[0], w = c ? c.offsetWidth + 10 : 1, i = Math.min(dots.length - 1, Math.round(tr.scrollLeft / w)); dots.forEach((d, k) => d.classList.toggle('on', k === i)); }, { passive: true });
 }
 
 // Orari "adesso" (fissi, gli stessi delle Info utili) + meteo
@@ -1006,10 +1013,9 @@ function renderAdesso() {
   const righe = mostraOrari ? [['Piscina', statoOrari(ORARI_V.piscina)], ['Ristorante', statoRistorante()]] : [];
   if (mostraOrari && fasce.length) righe.push(['Navetta', statoOrari(fasce)]);
   if (!m && !righe.length) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="sez">${esc(t(mostraOrari ? 'Adesso al villaggio' : 'Meteo'))}</div><div class="adesso">
-    ${m ? `<div class="meteo"><span class="mi ${WMO(m.codice)[2]}">${WMO(m.codice)[0]}</span><div class="mt"><b>${Math.round(m.temp)}°</b><small>${esc(t(WMO(m.codice)[1]))}</small></div>
-      <div class="md"><small>${esc(t('Domani'))}</small><b>${Math.round(m.dom_min)}° · ${Math.round(m.dom_max)}°</b></div></div>` : ''}
-    ${righe.length ? `<div class="ore">${righe.map(([n, s]) => `<div class="o"><i class="${s.on ? 'on' : ''}"></i><span><b>${esc(t(n))}</b><small>${esc(s.txt)}</small></span></div>`).join('')}</div>` : ''}</div>`;
+  el.innerHTML = `<div class="adesso-s">
+    ${m ? `<span class="ch"><span class="mi ${WMO(m.codice)[2]}">${WMO(m.codice)[0]}</span><b>${Math.round(m.temp)}°</b><small>${esc(t(WMO(m.codice)[1]))}</small><em>${esc(t('Domani'))} ${Math.round(m.dom_min)}° · ${Math.round(m.dom_max)}°</em></span>` : ''}
+    ${righe.map(([n, s]) => `<span class="ch"><i class="${s.on ? 'on' : ''}"></i><b>${esc(t(n))}</b><small>${esc(s.txt)}</small></span>`).join('')}</div>`;
 }
 async function caricaMeteo() {
   if (HOME_X.meteo || HOME_X._meteoProvato) return;
@@ -1048,13 +1054,13 @@ function checkinInfoHtml() {
 
 // ── Banner a fasce orarie (gestiti da Gestione area ospite) ───────────────
 // Piu' banner attivi nella stessa posizione e nello stesso momento scorrono in automatico.
-const FB_POS = ['alto', 'centro', 'basso'];
+const FB_POS = ['alto'];   // un solo carosello, sempre sopra a tutto
 const _fbSig = {}, _fbTimer = {};
 function fbAttivi(pos) {
   const f = CONTENUTI && CONTENUTI.fasce_banner; if (!f || f.attivo === false) return [];
   const m = adessoMin();
   return (f.banner || []).filter(b => {
-    if (b.posizione !== pos || !pubblicoOk(b)) return false;
+    if (!pubblicoOk(b)) return false;
     const a = minDa(b.dalle), z = minDa(b.alle); if (a === null || z === null) return false;
     if (!(b.titolo.it || b.testo.it || b.grafica)) return false;
     return a <= z ? (m >= a && m < z) : (m >= a || m < z);   // fascia a cavallo della mezzanotte
@@ -1063,11 +1069,12 @@ function fbAttivi(pos) {
 function fbHtml(l) {
   const L = x => !x ? '' : ((LANG !== 'it' && x[LANG]) || x.it || '');
   const slide = b => {
-    const az = b.azione || {}, et = L(az.etichetta);
-    return `<div class="fb-slide ${b.tema === 'arancio' ? 'arancio' : ''}"><div class="fb-body">
-      ${L(b.titolo) ? `<h2>${esc(L(b.titolo))}</h2>` : ''}${L(b.testo) ? `<p>${esc(L(b.testo))}</p>` : ''}
-      ${az.tipo !== 'nessuno' && et ? `<button class="fb-btn" data-fb="${esc(b.id)}">${esc(et)} ${GO}</button>` : ''}</div>
-      ${b.grafica ? `<img class="fb-img" src="${esc(b.grafica)}" alt="">` : ''}</div>`;
+    const az = b.azione || {}, et = L(az.etichetta), gf = b.grafica || '';
+    const fino = b.alle ? ' · ' + t('fino alle {o}', { o: b.alle.replace(/^0/, '') }) : '';
+    return `<div class="fb-slide${gf ? ' foto' : ''}${b.tema === 'arancio' ? ' arancio' : ''}"${gf ? ` style="background-image:url('${esc(gf)}')"` : ''}>
+      <div class="fb-k"><i></i>${esc(t('Adesso') + fino)}</div>
+      ${L(b.titolo) ? `<h3>${esc(L(b.titolo))}</h3>` : ''}${L(b.testo) ? `<p>${esc(L(b.testo))}</p>` : ''}
+      ${az.tipo !== 'nessuno' && et ? `<button class="fb-btn" data-fb="${esc(b.id)}">${esc(et)} ${GO}</button>` : ''}</div>`;
   };
   return `<div class="fb"><div class="fb-track">${l.map(slide).join('')}</div>${l.length > 1 ? `<div class="fb-dots">${l.map((_, i) => `<i${i ? '' : ' class="on"'}></i>`).join('')}</div>` : ''}</div>`;
 }

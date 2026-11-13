@@ -166,7 +166,7 @@
 
     <div class="card">
       <h3>Banner a fasce orarie</h3>
-      <div class="subtitle">Banner promozionali che compaiono nella home solo negli orari che scegli (colazione, pranzo, pane fresco…). Se nella stessa posizione e nello stesso orario ce n'è più di uno, scorrono in automatico. Titolo, testo e grafica compaiono nell'ordine: titolo, testo, pulsante, grafica sotto. Le traduzioni sono facoltative.</div>
+      <div class="subtitle">Banner promozionali che compaiono in cima alla home solo negli orari che scegli (colazione, pranzo, pane fresco…). Se nello stesso orario ce n'è più di uno, scorrono in automatico. Come il banner «Stasera»: la grafica è lo sfondo e sopra ci sono titolo, testo e pulsante. Senza grafica resta il fondo colorato. Le traduzioni sono facoltative.</div>
       <div id="fb-box"></div>
       <div class="an-row-btns"><button class="btn ghost" onclick="fbAggiungi()">+ Aggiungi banner</button><button class="btn primary" id="btn-salva-fb" onclick="fbSalva()">Salva banner a fasce</button></div>
     </div>
@@ -747,12 +747,11 @@ function fbRender() {
         <span><button class="an-x" aria-label="Su" onclick="fbSposta(${i},-1)">↑</button> <button class="an-x" aria-label="Giù" onclick="fbSposta(${i},1)">↓</button> <button class="an-x" aria-label="Elimina" onclick="if(confirm('Eliminare questo banner?')){FB.banner.splice(${i},1);fbRender()}">✕</button></span></div>
         ${fbCampo(i, 'titolo', 'Titolo (es. Pane fresco appena sfornato)')}${fbCampo(i, 'testo', 'Testo', true)}
         <div class="r2"><label>Dalle<input type="time" value="${esc(b.dalle)}" onchange="FB.banner[${i}].dalle=this.value"></label><label>Alle<input type="time" value="${esc(b.alle)}" onchange="FB.banner[${i}].alle=this.value"></label></div>
-        <div class="r2"><label>Posizione nella home<select onchange="FB.banner[${i}].posizione=this.value">${opt('alto', b.posizione, 'In alto (sopra tutto)')}${opt('centro', b.posizione, 'Al centro (dopo gli avvisi)')}${opt('basso', b.posizione, 'In basso (dopo «Adesso»)')}</select></label>
-          <label>Chi lo vede<select onchange="FB.banner[${i}].pubblico=this.value">${opt('dentro', b.pubblico, 'Solo chi è in struttura')}${opt('tutti', b.pubblico, 'Tutti')}${opt('prima', b.pubblico, 'Solo chi deve arrivare')}</select></label>
+        <div class="r2">          <label>Chi lo vede<select onchange="FB.banner[${i}].pubblico=this.value">${opt('dentro', b.pubblico, 'Solo chi è in struttura')}${opt('tutti', b.pubblico, 'Tutti')}${opt('prima', b.pubblico, 'Solo chi deve arrivare')}</select></label>
           <label>Colore<select onchange="FB.banner[${i}].tema=this.value">${opt('verde', b.tema, 'Verde')}${opt('arancio', b.tema, 'Arancio')}</select></label></div>
         <div class="r2"><label>Cosa fa il pulsante<select onchange="FB.banner[${i}].azione.tipo=this.value;fbRender()">${opt('nessuno', az.tipo, 'Nessun pulsante')}${opt('servizio', az.tipo, 'Apre un servizio')}${opt('link', az.tipo, 'Apre un link')}${opt('telefono', az.tipo, 'Chiama un numero')}</select></label>${val ? `<label>${az.tipo === 'servizio' ? 'Servizio' : az.tipo === 'link' ? 'Indirizzo' : 'Numero'}${val}</label>` : ''}</div>
         ${az.tipo !== 'nessuno' ? fbCampoAz(i) : ''}
-        <div class="field"><label>Grafica (compare sotto il testo)</label>
+        <div class="field"><label>Grafica di sfondo (il testo compare sopra, meglio una foto con la zona sinistra poco affollata)</label>
           ${b.grafica ? `<img src="${esc(b.grafica)}" alt="" style="width:100%;max-height:120px;object-fit:cover;border-radius:12px;margin-bottom:6px">` : ''}
           <div class="an-row-btns" style="margin:0"><button class="btn ghost" onclick="fbScegliGrafica(${i})">${b.grafica ? 'Cambia grafica' : 'Carica grafica'}</button>${b.grafica ? `<button class="btn ghost" onclick="FB.banner[${i}].grafica='';fbRender()">Togli</button>` : ''}</div></div></div>`;
     }).join('') || '<p class="nota">Nessun banner. Aggiungine uno.</p>');

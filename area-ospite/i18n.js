@@ -35,7 +35,7 @@ const _LISTA = [
   _D('La tua corsa delle {o} è confermata', 'Your ride at {o} is confirmed', 'Deine Fahrt um {o} ist bestätigt'), _D('Richiesta navetta delle {o} in attesa', 'Shuttle request for {o} pending', 'Shuttle-Anfrage für {o} ausstehend'), _D('Autista: {n}', 'Driver: {n}', 'Fahrer: {n}'),
   _D('Possibile pioggia oggi', 'Rain possible today', 'Heute möglicherweise Regen'),
   _D("Alcune attività all'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.", 'Some outdoor activities may move indoors: ask the entertainment team.', 'Einige Outdoor-Aktivitäten könnten nach drinnen verlegt werden: frag das Animationsteam.'),
-  _D('Stasera · ore {o}', 'Tonight · {o}', 'Heute Abend · {o} Uhr'), _D('Vedi il programma', 'See the programme', 'Programm ansehen'),
+  _D('Stasera · ore {o}', 'Tonight · {o}', 'Heute Abend · {o} Uhr'), _D('Vedi il programma', 'See the programme', 'Programm ansehen'), _D('Adesso', 'Now', 'Jetzt'), _D('fino alle {o}', 'until {o}', 'bis {o} Uhr'),
   _D('Prossima attività', 'Next activity', 'Nächste Aktivität'), _D('alle {o}', 'at {o}', 'um {o}'), _D('poi {n} alle {o}', 'then {n} at {o}', 'danach {n} um {o}'),
   _D('I tuoi pasti', 'Your meals', 'Deine Mahlzeiten'), _D('{p} ordinato', '{p} ordered', '{p} bestellt'), _D('Nessun pasto ordinato oggi', 'No meal ordered today', 'Heute noch nichts bestellt'), _D('Pasti inclusi', 'Meals included', 'Mahlzeiten inklusive'),
   _D('Domani da ordinare', 'Tomorrow still to order', 'Morgen noch zu bestellen'), _D('{n} da fare', '{n} to do', '{n} offen'),
