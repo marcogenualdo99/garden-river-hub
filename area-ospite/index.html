@@ -437,19 +437,25 @@
   .av .x { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 }
   .av .x svg { width: 13px; height: 13px }
   .av-lista { list-style: none; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px } .av-lista li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.4; color: var(--gray-700) } .av-lista svg { width: 17px; height: 17px; color: var(--green-ok); flex-shrink: 0; margin-top: 1px }
-  .ci-banner { background: linear-gradient(135deg, var(--green-700), var(--green-600, var(--green-700))); color: #fff; border-radius: 22px; padding: 18px 18px 6px; margin-top: 10px; box-shadow: var(--shadow) }
-  .ci-banner .tg { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .85 }
-  .ci-banner h2 { font-size: 19px; font-weight: 800; line-height: 1.25; margin: 2px 0 4px }
-  .ci-banner .ci-intro { font-size: 13.5px; line-height: 1.45; opacity: .95 }
-  .ci-banner details { margin-top: 12px }
-  .ci-banner summary { cursor: pointer; list-style: none; display: inline-block; background: rgba(255,255,255,.18); border-radius: 999px; padding: 8px 16px; font-weight: 800; font-size: 13.5px }
+  .ci-banner { background: #fff; border-radius: 22px; padding: 16px 14px 8px; margin-top: 10px; box-shadow: var(--shadow) }
+  .ci-banner .tg { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--green-700); padding: 0 4px }
+  .ci-banner h2 { font-size: 18px; font-weight: 800; line-height: 1.25; color: var(--gray-900); margin: 2px 4px 12px }
+  .ci-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+  .ci-tile { background: var(--green-100); border-radius: 16px; padding: 10px 8px; text-align: center }
+  .ci-tile .e { font-size: 20px; line-height: 1 } .ci-tile .k { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--green-700); margin-top: 6px }
+  .ci-tile .v { font-size: 13px; font-weight: 800; color: var(--gray-900); line-height: 1.25; margin-top: 2px }
+  .ci-hint { font-size: 12px; color: var(--gray-500); margin: 12px 4px 4px }
+  .ci-banner details { border-top: 1px solid var(--gray-100); padding: 0 4px }
+  .ci-banner details:first-of-type { margin-top: 0 }
+  .ci-banner summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; padding: 12px 0; font-weight: 700; font-size: 14.5px; color: var(--gray-900) }
   .ci-banner summary::-webkit-details-marker { display: none }
-  .ci-banner details[open] summary { margin-bottom: 6px }
-  .ci-sec { background: #fff; color: var(--gray-700); border-radius: 16px; padding: 12px 14px; margin: 10px 0 }
-  .ci-sec h3 { font-size: 14.5px; font-weight: 800; color: var(--gray-900); margin-bottom: 6px }
-  .ci-sec p, .ci-sec li { font-size: 13px; line-height: 1.5; color: var(--gray-700) } .ci-sec p + p { margin-top: 7px }
-  .ci-sec ul { margin: 6px 0 0 18px }
-  .ci-fine { text-align: center; font-weight: 700; font-size: 13.5px; padding: 6px 0 14px }
+  .ci-banner summary::after { content: '›'; margin-left: auto; font-size: 20px; color: var(--gray-500); transition: transform .2s }
+  .ci-banner details[open] summary::after { transform: rotate(90deg) }
+  .ci-banner summary .e { font-size: 18px }
+  .ci-body { padding: 0 0 12px 28px }
+  .ci-body p { font-size: 13px; line-height: 1.5; color: var(--gray-700) } .ci-body p + p { margin-top: 7px }
+  .ci-body ul { margin: 6px 0 0 18px; font-size: 13px; line-height: 1.5; color: var(--gray-700) }
+  .ci-fine { text-align: center; font-weight: 700; font-size: 13px; color: var(--gray-700); padding: 10px 6px 12px; border-top: 1px solid var(--gray-100) }
   .av.info { --c: var(--green-700); --t: var(--green-100) } .av.stop { --c: var(--red); --t: var(--red-bg) }
   .sera { margin-top: 12px; border-radius: 24px; background: var(--green-900); color: #fff; padding: 18px; position: relative; overflow: hidden; min-height: 176px; cursor: pointer }
   .sera::before { content: ''; position: absolute; right: -46px; top: -46px; width: 170px; height: 170px; border-radius: 50%; background: var(--grad-sun) }
@@ -605,33 +611,58 @@ const $ = sel => document.querySelector(sel);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const token = new URLSearchParams(location.search).get('t') || '';
 
-async function chiama(body) {
-  const r = await fetch(AREA_OSPITE_FN_URL, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ token, ...body }),
-  });
-  return r.json();
+// Chiamata alla funzione: scade dopo `ms` e, se richiesto, riprova (solo per le letture).
+async function chiama(body, { ms = 0, tentativi = 1 } = {}) {
+  let ultimo;
+  for (let i = 0; i < tentativi; i++) {
+    const ac = ms && typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const tm = ac ? setTimeout(() => ac.abort(), ms) : null;
+    try {
+      const r = await fetch(AREA_OSPITE_FN_URL, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, ...body }), signal: ac ? ac.signal : undefined,
+      });
+      if (r.status >= 500 && i < tentativi - 1) throw new Error('http ' + r.status);
+      return await r.json();
+    } catch (e) {
+      ultimo = e;
+      if (i < tentativi - 1) await new Promise(res => setTimeout(res, 1200));
+    } finally { if (tm) clearTimeout(tm); }
+  }
+  throw ultimo;
+}
+
+// Se il caricamento e' lento (rete debole, funzione appena riavviata) lo diciamo e offriamo di riprovare.
+function avvisoCaricamentoLento() {
+  setTimeout(() => {
+    const st = $('#stato-caricamento'); if (!st || st.style.display === 'none' || st.querySelector('.lento')) return;
+    st.insertAdjacentHTML('beforeend', '<p class="lento" style="margin-top:10px;font-size:13px">Ci sta mettendo più del solito…</p><button type="button" class="lento" onclick="location.reload()" style="margin-top:10px;border:none;border-radius:999px;padding:10px 20px;font:800 14px var(--font);background:var(--green-700);color:#fff;cursor:pointer">Riprova</button>');
+  }, 10000);
 }
 
 async function carica() {
   hydrateIcons();
   if (!token) return mostraErrore('Link non valido', 'Manca il codice nel link. Usa il link completo che ti ha dato la struttura.');
+  avvisoCaricamentoLento();
   try {
-    const [d, c] = await Promise.all([
-      chiama({ azione: 'carica' }),
-      chiama({ azione: 'contenuti' }).catch(() => null),
-    ]);
+    // I contenuti (testi, foto, avvisi) partono in parallelo ma non bloccano la home: se tardano arrivano dopo.
+    const pc = chiama({ azione: 'contenuti' }, { ms: 20000, tentativi: 2 }).catch(() => null);
+    const d = await chiama({ azione: 'carica' }, { ms: 20000, tentativi: 3 });
     if (!d.ok) {
       if (d.errore === 'link_non_valido') return mostraErrore('Link non valido o scaduto', 'Questo link non è più attivo. Contatta la struttura per riceverne uno nuovo.');
       return mostraErrore('Qualcosa non va', 'Riprova tra poco. Se il problema resta, contatta la struttura.');
     }
     CFG = d;
     if (!CFG.navetta_corse) CFG.navetta_corse = (CFG.navetta_oggi || []).map(c => ({ data: oggiData(), ...c }));
-    if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {} };
+    const applica = c => { if (c && c.ok) CONTENUTI = { testi: c.testi || {}, foto: c.foto || {}, animazione: c.animazione || null, avvisi: c.avvisi || [], avvisi_cfg: c.avvisi_cfg || {} }; return !!(c && c.ok); };
+    const c = await Promise.race([pc, new Promise(res => setTimeout(() => res('tardi'), 2500))]);
+    const inTempo = c !== 'tardi';
+    if (inTempo) applica(c);
     render();
     renderWhatsapp();
     avviaTraduzione();
     avviaAggiornamentoStato();
+    if (!inTempo) pc.then(x => { if (applica(x) && !_servizioAperto) render(); });
   } catch (e) {
     mostraErrore('Connessione assente', 'Controlla la connessione e ricarica la pagina.');
   }
@@ -970,19 +1001,19 @@ async function caricaRistoHome() {
 function checkinInfoHtml() {
   const n = giorniA((CFG.prenotazione || {}).checkin);
   if (n === null || n < 0 || n > 5) return '';
-  const sec = (ic, tit, corpo) => `<div class="ci-sec"><h3>${ic} ${tit}</h3>${corpo}</div>`;
+  const sec = (ic, tit, corpo) => `<details><summary><span class="e">${ic}</span>${tit}</summary><div class="ci-body">${corpo}</div></details>`;
+  const tile = (e, k, v) => `<div class="ci-tile"><div class="e">${e}</div><div class="k">${k}</div><div class="v">${v}</div></div>`;
   return `<div class="ci-banner"><div class="tg">${esc(t('Prima di partire'))}</div>
-    <h2>🌞 ${esc(t('Informazioni utili per il tuo arrivo'))}</h2>
-    <div class="ci-intro">${esc(t('Per rendere il vostro arrivo il più semplice possibile, vi invitiamo a leggere attentamente le seguenti informazioni.'))}</div>
-    <details open><summary>${esc(t('Mostra / nascondi le informazioni'))}</summary>
+    <h2>${esc(t('Il tuo arrivo in breve'))}</h2>
+    <div class="ci-tiles">${tile('🏡', esc(t('Check-in')), esc(t('dalle 16:00')))}${tile('⏰', esc(t('Check-out')), esc(t('entro le 10:00')))}${tile('💳', esc(t('Pagamenti')), esc(t('Contanti, carta, Bancomat')))}</div>
+    <div class="ci-hint">${esc(t('Tocca una voce per leggere i dettagli'))}</div>
     ${sec('🏡', esc(t('Check-in')), `<p>${esc(t('La consegna dell\'alloggio è prevista a partire dalle ore 16:00 del sabato di arrivo, a partire e non entro: l\'orario di consegna può infatti variare in base ai tempi necessari per la pulizia e la preparazione degli alloggi. Comprendiamo che, soprattutto dopo un lungo viaggio e in presenza di bambini, persone anziane o animali, l\'attesa possa essere scomoda e spiacevole. Purtroppo, però, non possiamo fare altrimenti: si tratta semplicemente dei tempi tecnici necessari per pulire e preparare tutti gli alloggi in arrivo. La nostra squadra di pulizie lavora ininterrottamente per rendere ogni appartamento disponibile il prima possibile, ma è umanamente impossibile riuscire a pulire e preparare tutti gli alloggi nell\'arco di poche ore. Vi ringraziamo per la comprensione e la collaborazione.'))}</p><p>🚗 ${esc(t('Se lo desiderate, potete arrivare anche in tarda mattinata. Al vostro arrivo effettueremo il check-in (registrazione dei documenti, saldo del soggiorno e consegna dei braccialetti), così potrete accedere subito al villaggio e usufruire dei servizi disponibili. Vi chiediamo però di tenere presente che l\'alloggio sarà disponibile solo nel pomeriggio/tardo pomeriggio, a partire dalle ore 16:00.'))}</p>`)}
     ${sec('⏰', esc(t('Check-out')), `<p>${esc(t('Il giorno della partenza l\'alloggio dovrà essere lasciato entro le ore 10:00.'))}</p><p>🎟️ ${esc(t('Entro tale orario dovranno essere riconsegnati anche i braccialetti e sarà necessario lasciare il villaggio. Dopo il check-out non è possibile trattenersi all\'interno della struttura né continuare a usufruire dei servizi del villaggio.'))}</p>`)}
     ${sec('🐶', esc(t('Ospiti con animali')), `<p>${esc(t('Chi soggiorna con il proprio amico a quattro zampe dovrà essere in possesso di un\'assicurazione che copra eventuali danni causati dal cane a persone e/o cose.'))}</p><p>🏖️ ${esc(t('Gli ospiti che hanno prenotato un ombrellone nella Dog Beach possono tenere il proprio cane sotto l\'ombrellone. Non è invece consentito far entrare il cane in acqua, come previsto dalle disposizioni comunali.'))}</p>`)}
     ${sec('💳', esc(t('Modalità di pagamento')), `<p>${esc(t('Accettiamo i seguenti metodi di pagamento:'))}</p><ul><li>${esc(t('Contanti'))}</li><li>${esc(t('Carta di credito'))}</li><li>${esc(t('Bancomat'))}</li></ul><p>❌ ${esc(t('Non sono accettati assegni né bonifici il giorno dell\'arrivo.'))}</p>`)}
     ${sec('🍽️', esc(t('Pensione completa e mezza pensione')), `<p>${esc(t('Gli ospiti che hanno prenotato il trattamento di pensione completa o mezza pensione e non lo hanno ancora fatto sono pregati di inviare le proprie scelte dei pasti tramite il link ricevuto su WhatsApp.'))}</p><p>${esc(t('Nb. qualora abbiate richiesto di mangiare allo stesso tavolo con qualche altra famiglia, vi informiamo che desideriamo accontentarvi, ma che dovrete arrivare ai pasti tutti allo stesso orario.'))}</p>`)}
     ${sec('🛏️', esc(t('Biancheria')), `<p>${esc(t('Per le prenotazioni che comprendono la biancheria, ricordiamo che non viene fornita ai bambini di età inferiore ai 3 anni.'))}</p><p>${esc(t('Ricordiamo che forniremo i kit imbustati singolarmente di lenzuola e di asciugamani, ma non facciamo i letti.'))}</p>`)}
-    <div class="ci-fine">🙏 ${esc(t('Vi ringraziamo per la collaborazione e restiamo a disposizione per qualsiasi chiarimento.'))}<br>😊 ${esc(t('Vi auguriamo un piacevole soggiorno e non vediamo l\'ora di darvi il benvenuto!'))}</div>
-    </details></div>`;
+    <div class="ci-fine">🙏 ${esc(t('Vi ringraziamo per la collaborazione e restiamo a disposizione per qualsiasi chiarimento.'))}<br>😊 ${esc(t('Vi auguriamo un piacevole soggiorno e non vediamo l\'ora di darvi il benvenuto!'))}</div></div>`;
 }
 
 function renderHomeExtra() {

@@ -185,6 +185,12 @@ const _LISTA = [
   _D('Ricordiamo che forniremo i kit imbustati singolarmente di lenzuola e di asciugamani, ma non facciamo i letti.', 'We will provide individually bagged kits of sheets and towels, but we do not make the beds.', 'Wir stellen einzeln verpackte Sets mit Bettlaken und Handtüchern bereit, beziehen die Betten aber nicht.'),
   _D('Vi ringraziamo per la collaborazione e restiamo a disposizione per qualsiasi chiarimento.', 'Thank you for your cooperation; we remain at your disposal for any clarification.', 'Wir danken Ihnen für Ihre Mithilfe und stehen für Rückfragen gerne zur Verfügung.'),
   _D('Vi auguriamo un piacevole soggiorno e non vediamo l\'ora di darvi il benvenuto!', 'We wish you a pleasant stay and can\'t wait to welcome you!', 'Wir wünschen Ihnen einen angenehmen Aufenthalt und freuen uns darauf, Sie willkommen zu heißen!'),
+  _D('Il tuo arrivo in breve', 'Your arrival at a glance', 'Ihre Anreise im Überblick'),
+  _D('dalle 16:00', 'from 4:00 pm', 'ab 16:00 Uhr'),
+  _D('entro le 10:00', 'by 10:00 am', 'bis 10:00 Uhr'),
+  _D('Pagamenti', 'Payments', 'Zahlung'),
+  _D('Contanti, carta, Bancomat', 'Cash, card, Bancomat', 'Bar, Karte, Bancomat'),
+  _D('Tocca una voce per leggere i dettagli', 'Tap an item to read the details', 'Tippen Sie auf einen Punkt für Details'),
 ];
 const DIZ = { en: {}, de: {} };
 _LISTA.forEach(e => { DIZ.en[e.it] = e.en; DIZ.de[e.it] = e.de; });
