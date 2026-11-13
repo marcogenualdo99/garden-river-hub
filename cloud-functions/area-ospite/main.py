@@ -37,6 +37,7 @@ Azioni (campo "azione" nel corpo JSON):
 """
 
 import json
+import os
 import re
 import time
 from datetime import datetime, timedelta
@@ -78,6 +79,17 @@ MAX_TESTO = 120
 # questi minuti non conta piu' come attiva (l'autista si e' dimenticato di
 # chiuderla): non blocca il cliente ne' occupa posti.
 SCADENZA_CORSA_MINUTI = 60
+
+
+def _telegram(evento):
+    """Avvisa il bot Telegram (cloud-functions/telegram-bot). Mai bloccante: un errore qui non deve far fallire l'azione."""
+    try:
+        import urllib.request
+        url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
+        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=5).read()
+    except Exception as ex:
+        print(f'Notifica Telegram non inviata: {ex}')
 
 
 # ── CORS / risposta ────────────────────────────────────────────────────────
@@ -1114,6 +1126,7 @@ def _azione_navetta_prenota(db, origin, data):
     err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome, totale=_persone_prenotazione(p))
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
+    _telegram({'evento': 'navetta', 'orario': orario, 'nome': nome, 'alloggio_nome': alloggio_nome, 'spiaggia_nome': spiaggia_nome, 'persone': persone, 'autista_nome': autista_nome})
     return _json(origin, {'ok': True, 'id': ref.id})
 
 
@@ -1232,6 +1245,7 @@ def _azione_staff_crea(db, origin, data):
                             autista=campi['autista_nome'] or '', persone=campi['persone'], spiaggia=campi['spiaggia_nome'])
     if err:
         return _json(origin, {'ok': False, 'errore': err}, 409)
+    _telegram({'evento': 'navetta', 'orario': orario, 'nome': campi['nome'], 'alloggio_nome': campi.get('alloggio_nome', ''), 'spiaggia_nome': campi.get('spiaggia_nome', ''), 'persone': campi['persone'], 'autista_nome': campi['autista_nome']})
     return _json(origin, {'ok': True, 'id': ref.id})
 
 

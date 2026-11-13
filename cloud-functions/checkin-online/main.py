@@ -337,7 +337,19 @@ def _invia_email(dest, oggetto, corpo_txt):
             srv.send_message(msg)
 
 
+def _telegram(evento):
+    """Avvisa il bot Telegram (cloud-functions/telegram-bot). Mai bloccante: un errore qui non deve far fallire l'azione."""
+    try:
+        import urllib.request
+        url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
+        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json'})
+        urllib.request.urlopen(req, timeout=5).read()
+    except Exception as ex:
+        print(f'Notifica Telegram non inviata: {ex}')
+
+
 def _notifica_reception(p, ospiti, pren_id):
+    _telegram({'evento': 'checkin', 'nome': _s(p.get('nome')), 'alloggio_nome': _s(p.get('alloggio_nome')), 'persone': len(ospiti)})
     dest = os.environ.get('MAIL_RECEPTION', '')
     if not dest:
         print('MAIL_RECEPTION non configurato: notifica email saltata')
