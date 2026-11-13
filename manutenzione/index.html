@@ -815,7 +815,7 @@ async function submitTicket() {
     // Pulizie e Ristorazione — v. cloud-functions/notifiche-manutenzione).
     // Si aspetta la fetch (con timeout di sicurezza) prima di procedere: un
     // reset del form troppo rapido non deve interrompere la chiamata a metà.
-    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority);
+    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn);
     // Reset form
     document.getElementById('sel-unit').value = '';
     document.getElementById('sel-cat').value  = '';
@@ -835,10 +835,10 @@ async function submitTicket() {
   }
 }
 
-function notificaNuovoTicket(docId, unit, cat, desc, priority) {
+function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso) {
   // Telegram (gruppo Manutenzione): fire-and-forget, indipendente dal push.
   fetch('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento: 'ticket', housing_unit: unit, category: cat, issue_description: desc, priority: priority }) }).catch(() => {});
+    body: JSON.stringify({ evento: 'ticket', housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, operatore: currentOperatore || '' }) }).catch(() => {});
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 8000);
   return fetch('https://notifiche-manutenzione-113994721180.europe-west1.run.app', {

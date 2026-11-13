@@ -17,7 +17,11 @@ Env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_SETUP_CODE.
 import html
 import json
 import os
+import re
+import unicodedata
 import urllib.request
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import firebase_admin
 from firebase_admin import firestore
@@ -56,6 +60,18 @@ def _json(origin, payload, status=200):
     return (json.dumps(payload), status, {**_cors(origin), 'Content-Type': 'application/json'})
 
 
+def _norm(v):
+    """Nome autista -> chiave stabile (minuscole, solo lettere/numeri)."""
+    s = unicodedata.normalize('NFKD', str(v or '')).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]', '', s)
+
+
+def _etichetta(chiave, c):
+    if chiave.startswith('navetta:'):
+        return f"🚐 Navetta · {(c or {}).get('autista') or chiave[8:]}"
+    return REPARTI.get(chiave, chiave)
+
+
 def _e(v, n=200):
     """Testo dell'utente -> sicuro per parse_mode HTML, accorciato."""
     return html.escape(str(v or '').strip()[:n])
@@ -78,17 +94,26 @@ def _canali():
     return ((snap.to_dict() or {}).get('canali') or {}) if snap.exists else {}
 
 
-def _scrivi_canale(reparto, chat_id, titolo=''):
-    _doc().set({'canali': {reparto: {'chat_id': chat_id, 'titolo': titolo} if chat_id else firestore.DELETE_FIELD}}, merge=True)
+def _scrivi_canale(reparto, chat_id, titolo='', autista=''):
+    valore = {'chat_id': chat_id, 'titolo': titolo}
+    if autista:
+        valore['autista'] = autista
+    _doc().set({'canali': {reparto: valore if chat_id else firestore.DELETE_FIELD}}, merge=True)
 
 
-def _invia(reparti, testo):
-    """Manda `testo` (HTML) ai gruppi dei reparti indicati. Ritorna quanti messaggi sono partiti."""
+def _invia(reparti, testo, primo_disponibile=False):
+    """Manda `testo` (HTML) ai gruppi indicati (chiavi dei canali). Con
+    primo_disponibile ci si ferma al primo gruppo collegato (es. gruppo
+    dell'autista, altrimenti gruppo navetta generico). Ritorna i messaggi partiti."""
     if not BOT_TOKEN:
         print('TELEGRAM_BOT_TOKEN non configurato')
         return 0
     canali, inviati, visti = _canali(), 0, set()
+    if primo_disponibile:
+        reparti = [next((r for r in reparti if (canali.get(r) or {}).get('chat_id')), None)]
     for r in reparti:
+        if r is None:
+            continue
         chat = (canali.get(r) or {}).get('chat_id')
         if not chat or chat in visti:
             continue
@@ -122,18 +147,28 @@ def _comando(msg):
 
     if cmd in ('/start', '/help'):
         _risposta(chat_id, 'Bot Garden Hub.\nIn un gruppo scrivi <code>/collega &lt;reparto&gt; &lt;codice&gt;</code>\n'
-                           f'Reparti: {elenco}\nAltri comandi: /stato, /scollega')
+                           f'Reparti: {elenco}\nAltri comandi: /stato, /scollega\nNavetta di un autista: <code>/collega navetta &lt;codice&gt; &lt;Nome autista&gt;</code>')
     elif cmd == '/collega':
         if chat.get('type') == 'private':
             return _risposta(chat_id, 'Il collegamento va fatto dentro il gruppo del reparto, non in privato.')
         reparto = (parti[1] if len(parti) > 1 else '').lower()
         codice = parti[2] if len(parti) > 2 else ''
+        autista = ' '.join(parti[3:]).strip()
         if reparto not in REPARTI:
             return _risposta(chat_id, f'Reparto non valido. Scegli tra: {elenco}')
         if not SETUP_CODE or codice != SETUP_CODE:
             return _risposta(chat_id, 'Codice di collegamento errato.')
+        if autista and reparto != 'navetta':
+            return _risposta(chat_id, 'Il nome dell\'autista si indica solo per la navetta.')
+        if autista:
+            chiave = f'navetta:{_norm(autista)}'
+            if chiave == 'navetta:':
+                return _risposta(chat_id, 'Nome autista non valido.')
+            _scrivi_canale(chiave, chat_id, chat.get('title', ''), autista)
+            return _risposta(chat_id, f'✅ Gruppo collegato alla navetta di <b>{_e(autista, 40)}</b>. Qui arrivano solo le sue corse.')
         _scrivi_canale(reparto, chat_id, chat.get('title', ''))
-        _risposta(chat_id, f'✅ Gruppo collegato a <b>{REPARTI[reparto]}</b>. Da ora le notifiche arrivano qui.')
+        extra = ' (riceve le corse degli autisti che non hanno un gruppo proprio)' if reparto == 'navetta' else ''
+        _risposta(chat_id, f'✅ Gruppo collegato a <b>{REPARTI[reparto]}</b>{extra}. Da ora le notifiche arrivano qui.')
     elif cmd == '/scollega':
         codice = parti[1] if len(parti) > 1 else ''
         if not SETUP_CODE or codice != SETUP_CODE:
@@ -143,7 +178,7 @@ def _comando(msg):
             _scrivi_canale(r, None)
         _risposta(chat_id, 'Gruppo scollegato.' if tolti else 'Questo gruppo non era collegato.')
     elif cmd == '/stato':
-        mio = [REPARTI[r] for r, c in _canali().items() if (c or {}).get('chat_id') == chat_id and r in REPARTI]
+        mio = [_etichetta(r, c) for r, c in _canali().items() if (c or {}).get('chat_id') == chat_id]
         _risposta(chat_id, ('Questo gruppo riceve: ' + ', '.join(mio)) if mio else 'Questo gruppo non è collegato a nessun reparto.')
 
 
@@ -153,8 +188,15 @@ def _evento(data):
     ev = data.get('evento')
     if ev == 'ticket':
         urgente = data.get('priority') == 'alta'
-        riga = ' — '.join(x for x in (_e(data.get('category'), 60), _e(data.get('issue_description'), 300)) if x)
-        t = f"{'🚨 <b>URGENTE</b> · ' if urgente else '🔧 '}<b>Nuovo ticket: {_e(data.get('housing_unit'), 60) or 'Alloggio'}</b>\n{riga}\n{SITE_URL}/manutenzione/"
+        quando = datetime.now(ZoneInfo('Europe/Rome')).strftime('%d/%m/%Y %H:%M')
+        t = (f"{'🚨 <b>TICKET URGENTE</b>' if urgente else '🔧 <b>Nuovo ticket di manutenzione</b>'}\n\n"
+             f"🏠 <b>Alloggio:</b> {_e(data.get('housing_unit'), 80) or '—'}\n"
+             f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
+             f"⚡ <b>Priorità:</b> {'ALTA' if urgente else 'Normale'}\n"
+             f"🔑 <b>Accesso senza ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+             f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
+             f"🕐 <b>Quando:</b> {quando}\n\n"
+             f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
         return _invia(['manutenzione'], t)
     if ev == 'cambio_stato':
         stato = data.get('nuovo_stato') or ''
@@ -169,14 +211,15 @@ def _evento(data):
         t = (f"🚐 <b>Corsa navetta {_e(data.get('orario'), 5)}</b>\n"
              f"{_e(data.get('nome'), 60)} · {_e(data.get('alloggio_nome'), 40) or '—'}\n"
              f"Spiaggia: {_e(data.get('spiaggia_nome'), 60) or '—'}" + (f"\n{extra}" if extra else ''))
-        return _invia(['navetta'], t)
+        # Gruppo dell'autista; se non ne ha uno, gruppo navetta generico.
+        return _invia([f"navetta:{_norm(data.get('autista_nome'))}", 'navetta'], t, primo_disponibile=True)
     if ev == 'checkin':
         t = (f"🛎️ <b>Check-in online ricevuto</b>\n{_e(data.get('nome'), 60)} · {_e(data.get('alloggio_nome'), 40) or '—'}\n"
              f"{_e(data.get('persone'), 3)} persone — verifica i documenti nel Calendario\n{SITE_URL}/calendario/")
         return _invia(['reception'], t)
     if ev == 'test':
         t = f"🔔 Notifica di test (richiesta da {_e(data.get('richiesto_da'), 40) or 'Staff'})"
-        return _invia(list(REPARTI), t)
+        return _invia(list(_canali()), t)
     return None
 
 

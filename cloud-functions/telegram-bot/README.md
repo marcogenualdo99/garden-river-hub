@@ -28,6 +28,7 @@ Apri nel browser (sostituisci i valori):
 ## 4. Crea i 4 gruppi e collegali
 Crea un gruppo per reparto, aggiungi il bot e scrivi nel gruppo:
 `/collega manutenzione <codice>` (idem `navetta`, `pulizie`, `reception`).
+Navetta per autista: `/collega navetta <codice> <Nome autista>` (il nome come in Navetta > Impostazioni). Ogni corsa va al gruppo del suo autista; se non ne ha uno, al gruppo `/collega navetta <codice>` generico.
 Altri comandi: `/stato`, `/scollega <codice>`.
 
 ## 5. Redeploy delle CF che inviano eventi

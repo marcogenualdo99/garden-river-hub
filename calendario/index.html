@@ -2618,7 +2618,7 @@ function chiediInvioNotificaCambioStato(alloggioId, alloggioNome, nuovoStato) {
   const label = meta ? meta.label : nuovoStato;
   apriModaleConferma(
     'Inviare la notifica?',
-    `Hai impostato <b>${esc(alloggioNome)}</b> su "<b>${esc(label)}</b>". Vuoi avvisare lo staff con una notifica push?`,
+    `Hai impostato <b>${esc(alloggioNome)}</b> su "<b>${esc(label)}</b>". Vuoi avvisare lo staff con una notifica push e sul gruppo Telegram delle pulizie?`,
     () => notificaCambioStatoAlloggio(alloggioId, alloggioNome, nuovoStato),
     'Invia notifica',
     false
