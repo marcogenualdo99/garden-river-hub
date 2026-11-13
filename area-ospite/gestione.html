@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css">
 <script src="../assets/icons.js"></script>
+<script src="checkin-default.js"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -156,6 +157,13 @@
 
     <div class="tabpane on" id="tab-home">
       <p class="tab-intro">Quello che gli ospiti vedono in cima e in fondo alla home.</p>
+    <div class="card">
+      <h3>Banner informazioni di arrivo</h3>
+      <div class="subtitle">Il riquadro in cima alla home con le informazioni utili per il check-in. Compare solo prima dell'arrivo. Nel testo, una riga vuota separa i paragrafi e le righe che iniziano con «- » diventano un elenco. Le traduzioni sono facoltative: senza, gli ospiti stranieri vedono l'italiano.</div>
+      <div id="chk-box"></div>
+      <div class="an-row-btns"><button class="btn ghost" onclick="chkRipristina()">Ripristina testi predefiniti</button><button class="btn primary" id="btn-salva-chk" onclick="chkSalva()">Salva banner</button></div>
+    </div>
+
     <div class="card">
       <h3>Quali avvisi mostrare</h3>
       <div class="subtitle">Scegli cosa vedono gli ospiti che devono ancora arrivare e quelli già in struttura. Una casella con il trattino non ha senso in quella fase. Dopo la partenza il link mostra sempre il ringraziamento con le recensioni.</div>
@@ -647,6 +655,62 @@ function vaiTab(n) {
 
 // ── Avvisi in home ──────────────────────────────────
 
+// ── Banner informazioni di arrivo ────────────────────────────────────────
+let CHK = null;
+const chkCopia = o => JSON.parse(JSON.stringify(o));
+// campo in tre lingue: percorso (es. 'sezioni.2.titolo'), etichetta, riga singola o area di testo
+function chkCampo(path, label, multi) {
+  const v = path.split('.').reduce((o, k) => o && o[k], CHK) || {};
+  const el = (lng, ph) => multi
+    ? `<textarea style="min-height:${lng === 'it' ? 110 : 80}px" placeholder="${ph}" oninput="chkSet('${path}','${lng}',this.value)">${esc(v[lng])}</textarea>`
+    : `<input value="${esc(v[lng])}" placeholder="${ph}" oninput="chkSet('${path}','${lng}',this.value)">`;
+  return `<div class="field"><label>${esc(label)}</label>${el('it', '')}
+    <details><summary>Traduzioni (inglese e tedesco)</summary><div style="margin-top:6px">${el('en', 'English')}</div><div style="margin-top:6px">${el('de', 'Deutsch')}</div></details></div>`;
+}
+function chkSet(path, lng, val) {
+  const k = path.split('.'); let o = CHK; k.forEach(x => { o = o[x]; }); o[lng] = val;
+}
+function chkRender() {
+  if (!CHK) return;
+  const c = CHK;
+  $('#chk-box').innerHTML = `
+    <div class="av-row" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <label class="chk" style="display:flex;gap:6px;align-items:center;font-weight:700"><input type="checkbox" style="width:auto"${c.attivo !== false ? ' checked' : ''} onchange="CHK.attivo=this.checked"> Mostra il banner</label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:13px;font-weight:700">Da quanti giorni prima dell'arrivo <input type="number" min="1" max="30" style="width:64px" value="${esc(c.giorni || 5)}" oninput="CHK.giorni=+this.value||5"></label>
+    </div>
+    <div class="av-row">${chkCampo('titolo', 'Titolo del banner')}</div>
+    <div class="nota" style="margin-top:14px"><b>Riquadri in evidenza</b> (le cose essenziali, in breve)</div>
+    ${(c.riquadri || []).map((r, i) => `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">Riquadro ${i + 1}</b><button class="an-x" aria-label="Elimina" onclick="CHK.riquadri.splice(${i},1);chkRender()">✕</button></div>
+      ${chkCampo('riquadri.' + i + '.k', 'Etichetta (es. Check-in)')}${chkCampo('riquadri.' + i + '.v', 'Valore (es. dalle 16:00)')}</div>`).join('')}
+    ${(c.riquadri || []).length < 4 ? '<div class="an-row-btns"><button class="btn ghost" onclick="CHK.riquadri.push({k:{it:\'\',en:\'\',de:\'\'},v:{it:\'\',en:\'\',de:\'\'}});chkRender()">+ Aggiungi riquadro</button></div>' : ''}
+    <div class="nota" style="margin-top:14px"><b>Voci a tendina</b> (i dettagli, uno per argomento)</div>
+    ${(c.sezioni || []).map((r, i) => `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b style="font-size:13px">Voce ${i + 1}</b>
+      <span><button class="an-x" aria-label="Su" onclick="chkSposta(${i},-1)">↑</button> <button class="an-x" aria-label="Giù" onclick="chkSposta(${i},1)">↓</button> <button class="an-x" aria-label="Elimina" onclick="CHK.sezioni.splice(${i},1);chkRender()">✕</button></span></div>
+      ${chkCampo('sezioni.' + i + '.titolo', 'Titolo')}${chkCampo('sezioni.' + i + '.testo', 'Testo', true)}</div>`).join('')}
+    <div class="an-row-btns"><button class="btn ghost" onclick="CHK.sezioni.push({titolo:{it:'',en:'',de:''},testo:{it:'',en:'',de:''}});chkRender()">+ Aggiungi voce</button></div>
+    <div class="av-row" style="margin-top:14px">${chkCampo('chiusura', 'Frase finale (facoltativa)')}</div>`;
+}
+function chkSposta(i, d) {
+  const l = CHK.sezioni, j = i + d; if (j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]]; chkRender();
+}
+function chkRipristina() {
+  if (!confirm('Ripristinare i testi predefiniti? Le modifiche non salvate andranno perse.')) return;
+  CHK = chkCopia(CHECKIN_DEF); chkRender();
+}
+async function chkSalva() {
+  const b = $('#btn-salva-chk'); b.disabled = true;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    const c = chkCopia(CHK);
+    c.sezioni = (c.sezioni || []).filter(s => (s.titolo.it || '').trim() || (s.testo.it || '').trim());
+    c.riquadri = (c.riquadri || []).filter(r => (r.k.it || '').trim() || (r.v.it || '').trim());
+    await setDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'), { checkin: c, aggiornato_il: new Date().toISOString() }, { merge: true });
+    CHK = c; chkRender(); toast('Banner salvato');
+  } catch (e) { console.error(e); toast('Errore salvataggio'); }
+  b.disabled = false;
+}
+
 // ── Quali avvisi mostrare: prima dell'arrivo / in struttura ──────────────
 const AUTO_DEF = {
   benvenuto: { l: 'Benvenuto «Ti aspettiamo tra N giorni»', pre: true, dentro: null },
@@ -714,9 +778,11 @@ async function avCarica() {
     const s = await getDoc(doc(db, 'impostazioni', 'area_ospite_avvisi'));
     AVVISI = (s.exists() ? s.data().avvisi : null) || [];
     AUTO = (s.exists() ? s.data().auto : null) || {};
+    CHK = (s.exists() && s.data().checkin) || chkCopia(CHECKIN_DEF);
+    chkRender();
     autoRender();
     avRender();
-  } catch (e) { console.error('Avvisi:', e); avRender(); }
+  } catch (e) { console.error('Avvisi:', e); CHK = CHK || chkCopia(CHECKIN_DEF); chkRender(); avRender(); }
 }
 
 (function avvio() {

@@ -300,6 +300,41 @@ def _avvisi(db):
     return out
 
 
+def _tri(x, mx):
+    """Testo in tre lingue {it, en, de}; accetta anche una semplice stringa."""
+    if isinstance(x, str):
+        x = {'it': x}
+    x = x if isinstance(x, dict) else {}
+    return {k: _s(x.get(k), mx) for k in ('it', 'en', 'de')}
+
+
+def _checkin_info(db):
+    """Banner con le informazioni di arrivo (impostazioni/area_ospite_avvisi -> checkin).
+    None se lo staff non l'ha mai modificato: la pagina usa allora i testi predefiniti."""
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+        c = ((snap.to_dict() or {}).get('checkin')) if snap.exists else None
+        if not isinstance(c, dict):
+            return None
+        try:
+            giorni = max(1, min(30, int(c.get('giorni') or 5)))
+        except (TypeError, ValueError):
+            giorni = 5
+        return {
+            'attivo': c.get('attivo') is not False,
+            'giorni': giorni,
+            'titolo': _tri(c.get('titolo'), 120),
+            'riquadri': [{'k': _tri(r.get('k'), 40), 'v': _tri(r.get('v'), 60)}
+                         for r in (c.get('riquadri') or [])[:4] if isinstance(r, dict)],
+            'sezioni': [{'titolo': _tri(r.get('titolo'), 100), 'testo': _tri(r.get('testo'), 3000)}
+                        for r in (c.get('sezioni') or [])[:12] if isinstance(r, dict)],
+            'chiusura': _tri(c.get('chiusura'), 300),
+        }
+    except Exception as e:
+        print(f'Lettura banner check-in non riuscita: {e}')
+        return None
+
+
 def _contenuti(db):
     return _con_cache('contenuti', 30, lambda: _contenuti_leggi(db))
 
@@ -336,7 +371,8 @@ def _contenuti_leggi(db):
         return out
 
     r = _parallelo(testi=testi, foto=foto, animazione=lambda: _animazione(db),
-                   avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db))
+                   avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db),
+                   checkin=lambda: _checkin_info(db))
     return r
 
 
