@@ -975,16 +975,24 @@ async function startRealtimeSync() {
 // (ospite.prenotazioneId) restava con check-in/check-out vecchi: qui li
 // riallineiamo. Si guardano solo i conti aperti, al massimo una volta ogni 60s.
 let _riallineaTs = 0, _riallineaInCorso = false;
+// Id della prenotazione collegata al conto. I conti creati dal Calendario non hanno il
+// campo prenotazioneId ma un id deterministico (osp_cal_<id>, famigliaId cal_<id>).
+function prenotazioneDelConto(o) {
+  if (o.prenotazioneId) return o.prenotazioneId;
+  if (o.famigliaId && o.famigliaId.startsWith('cal_')) return o.famigliaId.slice(4);
+  if (o.id && o.id.startsWith('osp_cal_')) return o.id.slice(8);
+  return '';
+}
 async function riallineaDatePrenotazioni() {
   if (_riallineaInCorso || Date.now() - _riallineaTs < 60000) return;
-  const daControllare = ospiti.filter(o => o.prenotazioneId && !o.chiuso);
+  const daControllare = ospiti.filter(o => prenotazioneDelConto(o) && !o.chiuso);
   if (!daControllare.length) return;
   _riallineaInCorso = true;
   try {
     await waitForFirebase();
     const { db, doc, getDoc, setDoc } = window._fb;
     for (const o of daControllare) {
-      const snap = await getDoc(doc(db, 'prenotazioni', o.prenotazioneId));
+      const snap = await getDoc(doc(db, 'prenotazioni', prenotazioneDelConto(o)));
       if (!snap.exists()) continue;
       const p = snap.data();
       const campi = {};
@@ -1018,6 +1026,7 @@ async function forceRefresh(silent) {
     alloggiList = snapAl.docs.map(d => ({ id: d.id, ...d.data() }));
     refreshAlloggioSelects();
     render();
+    riallineaDatePrenotazioni();
     if (document.getElementById('sec-dettaglio').classList.contains('active')) renderDettaglio();
     fbConnected = true;
     setSyncStatus('live');
@@ -2188,7 +2197,7 @@ function goModificaOspite() {
   document.getElementById('mo-piano').value    = o.piano || 'mezza';
   document.getElementById('mo-checkout').value = o.checkout;
   document.getElementById('mo-tel').value      = o.tel || '';
-  document.getElementById('mo-richiama').style.display = o.prenotazioneId ? '' : 'none';
+  document.getElementById('mo-richiama').style.display = prenotazioneDelConto(o) ? '' : 'none';
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-modifica-ospite').classList.add('active');
 }
@@ -2196,11 +2205,11 @@ function goModificaOspite() {
 // Riallinea il conto all'anagrafica della prenotazione (nome, alloggio, piano, check-out, telefono)
 // senza salvare: i campi si compilano e l'operatore conferma con "Salva modifiche".
 async function richiamaDaPrenotazione() {
-  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o || !o.prenotazioneId) return;
+  const o = ospiti.find(x=>x.id===currentOspiteId); if (!o || !prenotazioneDelConto(o)) return;
   try {
     await waitForFirebase();
     const { db, doc, getDoc } = window._fb;
-    const snap = await getDoc(doc(db, 'prenotazioni', o.prenotazioneId));
+    const snap = await getDoc(doc(db, 'prenotazioni', prenotazioneDelConto(o)));
     if (!snap.exists()) { showToast('Prenotazione non trovata'); return; }
     const p = snap.data(), parti = (p.nome || '').trim().split(/\s+/);
     document.getElementById('mo-nome').value = parti[0] || '';

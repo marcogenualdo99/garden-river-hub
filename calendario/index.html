@@ -2925,6 +2925,9 @@ function onDragMouseUp(ev) {
       }
       await updateDoc(doc(db, 'prenotazioni', ctx.id), patch);
       showToast('Prenotazione spostata');
+      // Allinea subito famiglia Ristorazione e conto in Conti alle nuove date/alloggio.
+      const prenSpostata = prenotazioni.find(x => x.id === ctx.id);
+      if (prenSpostata) sincronizzaFamigliaRistorazione(ctx.id, { ...prenSpostata, ...patch });
       // Spostare le date (o l'alloggio) può cambiare la tariffa da listino:
       // se il conto salvato non corrisponde più a quanto calcolato per il
       // nuovo periodo, lo segnaliamo e chiediamo se aggiornarlo — senza mai
@@ -6287,7 +6290,7 @@ async function sincronizzaContoPensioneDaCalendario(famigliaId, fam, datiEsisten
   const nome = parti[0] || '';
   const cognome = parti.slice(1).join(' ');
   const piano = fam.trattamento === 'PC' ? 'completa' : 'mezza';
-  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId };
+  const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId, prenotazioneId: prenotazioneId || '' };
   try {
     let ospiteId = ospiteIdEsistente;
     let chiuso = false;
