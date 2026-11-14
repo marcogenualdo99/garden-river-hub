@@ -307,7 +307,7 @@
   @keyframes anSpin { to { transform: rotate(360deg) } }
   @keyframes anBob { 50% { transform: translateY(-5px) rotate(-2deg) } }
   .an-now { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 13px 15px; display: flex; align-items: center; gap: 13px; margin-top: 12px }
-  .an-now .ico { width: 46px; height: 46px; border-radius: 15px; background: var(--orange-bg); display: flex; align-items: center; justify-content: center; color: var(--orange); flex-shrink: 0 } .an-now .ico svg { width: 26px; height: 26px }
+  .an-now .ico { width: 46px; height: 46px; border-radius: 15px; background: var(--orange-bg); display: flex; align-items: center; justify-content: center; font-size: 25px; flex-shrink: 0 }
   .an-now .lab { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--orange); display: flex; align-items: center; gap: 6px }
   .an-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: anPulse 1.4s infinite }
   @keyframes anPulse { 0% { box-shadow: 0 0 0 0 rgba(242,112,42,.5) } 100% { box-shadow: 0 0 0 9px rgba(242,112,42,0) } }
@@ -317,7 +317,7 @@
   .an-days::-webkit-scrollbar { display: none }
   .an-day { flex: 0 0 auto; width: 56px; padding: 8px 0 7px; border-radius: 18px; border: 1.5px solid var(--green-200); background: var(--white); text-align: center; font-family: var(--font); cursor: pointer; color: var(--green-700) }
   .an-day b { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase }
-  .an-day i { display: none }
+  .an-day i { display: block; font-style: normal; font-size: 19px; margin-top: 2px }
   .an-day small { display: block; font-size: 10px; font-weight: 700; color: var(--orange); height: 12px }
   .an-day.on { background: var(--green-700); color: #fff; border-color: var(--green-700); transform: translateY(-2px) }
   .an-day.on small { color: var(--orange-lt) }
@@ -331,16 +331,16 @@
   .an-star .k { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
   .an-star .t { font-family: var(--font-display); font-size: 22px; margin: 4px 0 2px; line-height: 1.1; padding-right: 60px }
   .an-star .h { font-size: 13px; opacity: .85 }
-  .an-star .big { position: absolute; right: 14px; bottom: 8px; opacity: .35 } .an-star .big svg { width: 46px; height: 46px }
+  .an-star .big { position: absolute; right: 14px; bottom: 8px; font-size: 46px }
   .an-fase { margin-top: 20px }
   .an-fase h3 { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700) }
-  .an-fase h3 .b { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--green-100) } .an-fase h3 .b svg { width: 17px; height: 17px }
+  .an-fase h3 .b { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--green-100) }
   .an-fase h3 em { font-style: normal; font-family: var(--font); font-size: 11px; font-weight: 800; background: var(--orange-bg); color: var(--orange); border-radius: 999px; padding: 3px 9px; margin-left: auto }
   .an-tl { margin-top: 10px; position: relative; padding-left: 18px }
   .an-tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--green-200); border-radius: 2px }
   .an-it { position: relative; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 11px; box-shadow: var(--shadow-sm) }
   .an-it::before { content: ''; position: absolute; left: -17px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--white); border: 2.5px solid var(--green-500) }
-  .an-it .em { width: 32px; display: flex; justify-content: center; color: var(--green-700) } .an-it .em svg { width: 22px; height: 22px }
+  .an-it .em { font-size: 23px; width: 32px; text-align: center }
   .an-it .nm { font-weight: 700; font-size: 14.5px; flex: 1; line-height: 1.25 }
   .an-it .nm small { display: block; font-weight: 600; font-size: 11.5px; color: var(--gray-500) }
   .an-it .ora { font-weight: 800; font-size: 13.5px; color: var(--green-700); background: var(--green-50); border-radius: 10px; padding: 5px 9px; white-space: nowrap }
@@ -1342,8 +1342,8 @@ function tornaHome() {
 
 
 // ── Animazione: programma strutturato (catalogo + giorni scelti dall'Hub) ──
-const AN_GIORNI = [['sab','Sab','Sabato'],['dom','Dom','Domenica'],['lun','Lun','Lunedì'],['mar','Mar','Martedì'],['mer','Mer','Mercoledì'],['gio','Gio','Giovedì'],['ven','Ven','Venerdì']];
-const AN_FASI = [['d','Diurno',ICONS.SUN,''],['m','Mini club',ICONS.SPARKLES,'4-10 anni'],['t','Teen club',ICONS.ANIMAZIONE,'11-17 anni'],['s','Serale',ICONS.MOON,'']];
+const AN_GIORNI = [['sab','Sab','Sabato','🎉'],['dom','Dom','Domenica','🧘'],['lun','Lun','Lunedì','⚽'],['mar','Mar','Martedì','🏐'],['mer','Mer','Mercoledì','🫧'],['gio','Gio','Giovedì','🎬'],['ven','Ven','Venerdì','🤍']];
+const AN_FASI = [['d','Diurno','☀️',''],['m','Mini club','🧸','4-10 anni'],['t','Teen club','🎧','11-17 anni'],['s','Serale','🌙','']];
 const AN_JS = ['dom','lun','mar','mer','gio','ven','sab'];
 let _anGiorno = null, _anFiltro = 'tutti';
 function anSettimane(a) { return a.settimane || { 1: a.programma || {} }; }
@@ -1404,7 +1404,7 @@ function renderAnimazione(s) {
   const fasi = AN_FASI.filter(([f]) => (_anFiltro === 'tutti' || _anFiltro === f) && voci(f).length);
   const riga = v => {
     const pass = isOggi && anMin(v.ora) < nowM && v !== prossima, adesso = v === prossima;
-    return `<div class="an-it ${v.speciale ? 'speciale' : ''} ${pass ? 'passato' : ''} ${adesso ? 'adesso' : ''}"><span class="em">${ICONS.STAR}</span><span class="nm">${esc(v.nome)}${v.speciale ? '<small>Evento speciale</small>' : ''}</span><span class="ora">${esc(String(v.ora || '').replace('–', ' – '))}</span></div>`;
+    return `<div class="an-it ${v.speciale ? 'speciale' : ''} ${pass ? 'passato' : ''} ${adesso ? 'adesso' : ''}"><span class="em">${esc(v.emoji || '⭐')}</span><span class="nm">${esc(v.nome)}${v.speciale ? '<small>Evento speciale</small>' : ''}</span><span class="ora">${esc(String(v.ora || '').replace('–', ' – '))}</span></div>`;
   };
   const mapPers = CONTENUTI.foto.mappa_villaggio;
   const mapImg = mapPers || 'img/mappa-teatro.jpg';
@@ -1414,11 +1414,11 @@ function renderAnimazione(s) {
        <div class="an-mappa"><img src="${esc(mapImg)}" alt="Mappa del villaggio: ${esc(luogo || 'Teatro')}"><span class="an-pin" style="left:${pin.x}%;top:${pin.y}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>` : '';
   $('#service-content').innerHTML = `
     <div class="an-now">${prossima
-      ? `<div class="ico">${ICONS.STAR}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
+      ? `<div class="ico">${esc(prossima.emoji || '⭐')}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
       : `<div class="ico">${g[3]}</div><div><div class="lab">${isOggi ? 'Per oggi è tutto' : 'Programma del giorno'}</div><div class="tit">${g[2]} ${dd.getDate()}/${dd.getMonth() + 1}</div><div class="sub">${tutte.length} attività in programma</div></div>`}</div>
-    <div class="an-days">${date.map(iso => { const d = new Date(iso + 'T12:00:00'), w = AN_GIORNI.find(x => x[0] === AN_JS[d.getDay()]); return `<button class="an-day ${iso === _anGiorno ? 'on' : ''}" onclick="_anGiorno='${iso}';renderAnimazione()"><b>${w[1]}</b><small>${iso === oggiIso ? 'OGGI' : d.getDate() + '/' + (d.getMonth() + 1)}</small></button>`; }).join('')}</div>
+    <div class="an-days">${date.map(iso => { const d = new Date(iso + 'T12:00:00'), w = AN_GIORNI.find(x => x[0] === AN_JS[d.getDay()]); return `<button class="an-day ${iso === _anGiorno ? 'on' : ''}" onclick="_anGiorno='${iso}';renderAnimazione()"><b>${w[1]}</b><i>${w[3]}</i><small>${iso === oggiIso ? 'OGGI' : d.getDate() + '/' + (d.getMonth() + 1)}</small></button>`; }).join('')}</div>
     <div class="an-chips">${[['tutti', 'Tutto'], ['d', 'Diurno'], ['m', 'Mini club'], ['t', 'Teen'], ['s', 'Serale']].map(([k, l]) => `<button class="an-chip ${_anFiltro === k ? 'on' : ''}" onclick="_anFiltro='${k}';renderAnimazione()">${l}</button>`).join('')}</div>
-    ${serata ? `<div class="an-star${serata.grafica ? ' foto' : ''}"${serata.grafica ? ` style="background-image:url('${esc(serata.grafica)}')"` : ''}><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div>${serata.grafica ? '' : `<div class="big">${ICONS.STAR}</div>`}</div>` : ''}
+    ${serata ? `<div class="an-star${serata.grafica ? ' foto' : ''}"${serata.grafica ? ` style="background-image:url('${esc(serata.grafica)}')"` : ''}><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div>${serata.grafica ? '' : `<div class="big">${esc(serata.emoji || '⭐')}</div>`}</div>` : ''}
     ${fasi.map(([f, nome, ic, eta]) => `<section class="an-fase ${f === 'm' ? 'an-mini' : ''}"><h3><span class="b">${ic}</span>${nome}${eta ? `<em>${eta}</em>` : ''}</h3><div class="an-tl">${voci(f).map(riga).join('')}</div></section>`).join('')
       || '<p class="hint" style="margin-top:24px;text-align:center">Nessuna attività per questa selezione.</p>'}
     ${mappa}
