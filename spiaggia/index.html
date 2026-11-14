@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="../logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="../logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Spiaggia">
@@ -51,39 +51,10 @@
   });
   setTimeout(segnalaPronto, 8000);
 </script>
+<link rel="stylesheet" href="../assets/theme.css">
+<script src="../assets/icons.js"></script>
 <style>
-:root {
-  --green-900: #0D2B1E;
-  --green-700: #1B4332;
-  --green-500: #2D6A4F;
-  --green-400: #40916C;
-  --green-200: #95D5B2;
-  --green-100: #D8F3DC;
-  --green-50:  #F0FAF4;
-  --gray-900:  #111827;
-  --gray-700:  #374151;
-  --gray-500:  #6B7280;
-  --gray-400:  #9CA3AF;
-  --gray-300:  #D1D5DB;
-  --gray-200:  #E5E7EB;
-  --gray-100:  #F3F4F6;
-  --gray-50:   #F9FAFB;
-  --white:     #FFFFFF;
-  --orange:    #E07B00;
-  --orange-bg: #FFF8F0;
-  --red:       #DC2626; --red-bg: #FEF2F2; --red-bd: #FECACA;
-  --amber:     #D97706; --amber-bg: #FFFBEB; --amber-bd: #FDE68A;
-  --green-ok:  #16A34A; --green-bg: #F0FAF4; --green-bd: #BBF7D0;
-  --blue:      #2563EB; --blue-bg: #EFF6FF; --blue-bd: #BFDBFE;
-  --radius-sm: 12px;
-  --radius:    16px;
-  --radius-lg: 22px;
-  --radius-xl: 32px;
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.07);
-  --shadow:    0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 36px rgba(0,0,0,0.14);
-  --font: 'Inter', -apple-system, sans-serif;
-}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
 body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
@@ -322,6 +293,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 @keyframes gr-spin { to { transform: rotate(360deg) } }
 @keyframes gr-shimmer { 0%,100% { opacity:.15 } 50% { opacity:.38 } }
 </style>
+<link rel="stylesheet" href="../assets/restyle.css?v=2">
 </head>
 <body>
 
@@ -358,8 +330,121 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 </div>
 
 <!-- ══ HEADER PRINCIPALE ════════════════════════════════════════════════════ -->
+<div class="app-shell">
+<div class="nav-zone">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Spiaggia</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item active" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item active" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../navetta/"><span data-icon="NAVETTA"></span><span>Navetta</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <a class="rail-item" href="../mense/"><span data-icon="MENSE"></span><span>Mense</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Spiaggia</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item active" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
+
+<div class="main-col">
+
 <div class="top-bar" id="top-bar-main">
   <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
     <div class="header-left">
       <div class="header-avatar" id="header-avatar"></div>
       <div>
@@ -524,6 +609,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 
 <div class="toast" id="toast"></div>
 
+</div><!-- /main-col --></div><!-- /app-shell -->
+<script src="../assets/nav.js"></script>
 <script>
 const HUB_URL     = '../';
 const MODULE_ID   = 'spiaggia';
