@@ -77,3 +77,30 @@ body { background: var(--white); }
   .drawer, .sidebar, .drawer-overlay, .nav-item, .nav-group-header, .sidebar-brand > * { transition: none !important; animation: none !important; transform: none; }
   .drawer:not(.open) { transform: translateX(-100%); }
 }
+
+/* ══ CONTATORI IN ALTO — pannello verde come la home della Hub ══════════════
+   Vale per Pulizie, Magazzino, Conti (.alert-grid) e Spiaggia (.stats-row).
+   Numeri grandi in Dela Gothic, etichette in maiuscoletto, un puntino
+   colorato indica lo stato (rosso / arancio / verde). */
+.alert-grid, .stats-row { position: relative; overflow: hidden; display: grid; gap: 0; padding: 8px;
+  background: var(--grad-forest); border-radius: var(--radius-xl); box-shadow: var(--soft-shadow); margin-bottom: 18px; }
+.alert-grid { grid-template-columns: repeat(3, 1fr); }
+.stats-row { grid-template-columns: repeat(2, 1fr); flex-wrap: initial; }
+@media (min-width: 640px) { .stats-row { grid-template-columns: repeat(4, 1fr); } }
+.alert-grid::before, .stats-row::before { content: ''; position: absolute; right: -44px; top: -54px; width: 120px; height: 120px;
+  border-radius: 50%; background: var(--grad-sun); opacity: .9; pointer-events: none; }
+.alert-grid::after, .stats-row::after { content: ''; position: absolute; right: -62px; top: -72px; width: 156px; height: 156px;
+  border-radius: 50%; border: 3px dashed rgba(245,148,95,.5); pointer-events: none; }
+.alert-grid .alert-card, .stats-row .stat-chip { position: relative; z-index: 1; background: transparent; border: none; box-shadow: none;
+  border-radius: var(--radius); padding: 20px 8px 18px; text-align: center; color: #fff; min-width: 0; transition: background .15s; }
+.alert-grid .alert-card:hover, .stats-row .stat-chip:hover { background: rgba(255,255,255,.09); }
+.alert-grid .alert-card .num, .stats-row .stat-chip .n { font-family: var(--font-display); font-weight: 400; font-size: 36px; line-height: 1;
+  letter-spacing: -.01em; color: #fff !important; }
+.alert-grid .alert-card .lbl, .stats-row .stat-chip .l { margin-top: 10px; font-size: 10.5px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: rgba(255,255,255,.8) !important; }
+.alert-grid .alert-card .lbl::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: #fff; }
+.alert-grid .alert-card.red .lbl::before   { background: #FF8A7A; }
+.alert-grid .alert-card.amber .lbl::before { background: var(--terracotta-2); }
+.alert-grid .alert-card.green .lbl::before { background: #86E0AE; }
+.alert-grid .alert-card.active-filter, .alert-grid .alert-card.red.active-filter, .alert-grid .alert-card.amber.active-filter, .alert-grid .alert-card.green.active-filter {
+  background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); }

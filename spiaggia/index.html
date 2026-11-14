@@ -292,8 +292,60 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .hidden { display: none !important; }
 @keyframes gr-spin { to { transform: rotate(360deg) } }
 @keyframes gr-shimmer { 0%,100% { opacity:.15 } 50% { opacity:.38 } }
+
+/* ══ ALLINEAMENTO AL PLANNING DEL CALENDARIO ═══════════════════════════════
+   Stessa griglia: intestazione con giorno "oggi" in cerchio, weekend grigi,
+   zone come le categorie del Calendario, barre arrotondate con ombra leggera. */
+.controls-bar { border: 1px solid var(--green-100); box-shadow: var(--soft-shadow); border-radius: var(--radius-xl); padding: 10px 16px; }
+.beach-selector { border-radius: 999px; border-color: var(--green-200); height: 38px; padding: 0 16px; }
+.beach-selector-wrap label { color: var(--green-700); }
+.month-btn { width: 34px; height: 34px; border-radius: 50%; border-color: var(--gray-200); color: var(--gray-700); }
+.month-btn:hover { border-color: var(--green-400); color: var(--green-700); background: var(--green-50); }
+.month-label { font-family: var(--font); font-weight: 800; }
+.divider-v { background: var(--green-100); }
+
+.tl-container { border: 1px solid var(--green-100); border-radius: var(--radius-lg); box-shadow: var(--soft-shadow); }
+.tl-head { border-bottom: 2px solid var(--gray-200); }
+.tl-head-label { background: var(--white); border-right: 1px solid var(--gray-200); color: var(--green-700); }
+.tl-head-label { font-weight: 800 !important; color: var(--green-700) !important; letter-spacing: .06em !important; }
+.tl-day { padding: 6px 0; font-size: 10px; color: var(--gray-500); font-weight: 700; border-right: 1px solid var(--gray-100); }
+.tl-day .dow { font-size: 9px; letter-spacing: .03em; color: var(--gray-400); margin-bottom: 2px; }
+.tl-day .num { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; font-size: 13px; font-weight: 800; color: var(--gray-900); border-radius: 50%; }
+.tl-day.weekend { background: var(--gray-50); color: var(--gray-500); }
+.tl-day.today { background: transparent; }
+.tl-day.today .dow { color: var(--green-700); }
+.tl-day.today .num { background: var(--green-700); color: #fff; }
+
+.zone-head { background: var(--green-50); border-bottom: 1px solid var(--gray-100); }
+.zone-head-label { background: var(--green-50); color: var(--green-700); font-size: 11px; padding: 7px 12px; border-right: 1px solid var(--gray-200); }
+
+.tl-row { min-height: 48px; border-bottom: 1px solid var(--gray-100); }
+.tl-row:hover { background: transparent; }
+.row-label { min-height: 48px; border-right: 1px solid var(--gray-200); font-size: 12px; font-weight: 800; color: var(--green-900); }
+.tl-cell { height: 48px; border-right: 1px solid var(--gray-100); }
+.tl-cell:hover { background: var(--green-50); opacity: 1; }
+.tl-cell.weekend { background: rgba(148,163,184,.08); }
+.tl-cell.today { background: rgba(9,92,72,.07); }
+.tl-row.drop-target { background: rgba(9,92,72,.08); outline: 2px dashed var(--green-500); }
+
+.booking-block { top: 6px; height: 36px; border-radius: 10px; box-shadow: var(--shadow-sm); font-weight: 700; }
+.booking-block:hover { box-shadow: 0 6px 16px rgba(9,92,72,.25); }
+.col-blue   { background: #2E7463; }
+.col-amber  { background: #F2702A; }
+.col-purple { background: #053328; }
+.col-green  { background: #5F9588; }
+.col-teal   { background: #2563EB; }
+
+.legend-row { gap: 12px; }
+.leg-item { font-weight: 600; }
+
+/* ── finestre e form ── */
+.modal-box, .modal-confirm-box, .print-panel { border-radius: var(--radius-xl); }
+.form-input, .form-select, .form-textarea { border-radius: var(--radius); background: var(--white); }
+.modal-btn-cancel, .modal-btn-save, .btn-print-all-confirm, .btn-close-print { border-radius: 999px; }
+.stato-opt.selected { border-color: var(--green-700); background: var(--green-50); }
 </style>
-<link rel="stylesheet" href="../assets/restyle.css?v=2">
+<link rel="stylesheet" href="../assets/restyle.css?v=3">
 </head>
 <body>
 
@@ -618,12 +670,12 @@ const SECTION_IDS = ['spiaggia'];
 
 // ── STATI PRENOTAZIONE (ogni stato ha colore fisso) ──────────────────────────
 const STATI = [
-  { id:'confermata', label:'Confermata', colore:'blue',   hex:'#2563EB' },
-  { id:'opzione',    label:'Opzione',    colore:'amber',  hex:'#D97706' },
-  { id:'vip',        label:'VIP',        colore:'purple', hex:'#7C3AED' },
-  { id:'stagionale', label:'Stagionale', colore:'green',  hex:'#059669' },
+  { id:'confermata', label:'Confermata', colore:'blue',   hex:'#2E7463' },
+  { id:'opzione',    label:'Opzione',    colore:'amber',  hex:'#F2702A' },
+  { id:'vip',        label:'VIP',        colore:'purple', hex:'#053328' },
+  { id:'stagionale', label:'Stagionale', colore:'green',  hex:'#5F9588' },
   { id:'annullata',  label:'Annullata',  colore:'red',    hex:'#DC2626' },
-  { id:'gruppo',     label:'Gruppo',     colore:'teal',   hex:'#0891B2' },
+  { id:'gruppo',     label:'Gruppo',     colore:'teal',   hex:'#2563EB' },
 ];
 const COLORS = STATI.map(s => ({ id: s.colore, hex: s.hex, label: s.label }));
 const colorHex   = colore => (STATI.find(s=>s.colore===colore)||STATI[0]).hex;
@@ -867,7 +919,7 @@ function renderTimeline() {
   html += `<div class="tl-head-label" style="padding:5px 0;font-size:10px;font-weight:800;color:var(--gray-400);text-transform:uppercase;letter-spacing:.04em">${MONTHS[m]}</div>`;
   for (let d=1; d<=days; d++) {
     const we = isWeekend(y,m,d), td = isToday(y,m,d);
-    html += `<div class="tl-day${we?' weekend':''}${td?' today':''}"><span class="dow">${DOW[dayOfWeek(y,m,d)]}</span>${d}</div>`;
+    html += `<div class="tl-day${we?' weekend':''}${td?' today':''}"><span class="dow">${DOW[dayOfWeek(y,m,d)]}</span><span class="num">${d}</span></div>`;
   }
   html += '</div>';
 
