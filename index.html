@@ -350,8 +350,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   };
 </script>
 <!-- Secondo collegamento Firebase: serve a leggere i dati di Conti / Alloggi / Bici
-     per mostrare i numeri live nelle card della home, e a gestire le preferenze
-     di notifica degli operatori (staffTokens). -->
+     per mostrare i numeri live nelle card della home, -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
@@ -359,8 +358,6 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   import { getAuth, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { sessioneHub } from "/assets/auth-suite.js";
-  import { getMessaging, getToken, onMessage }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
   const dataFirebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
@@ -374,10 +371,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   const dataApp   = initializeApp(dataFirebaseConfig, "datiSuite");
   const dataDb    = getFirestore(dataApp);
   const dataAuth  = getAuth(dataApp);
-  const messaging = getMessaging(dataApp);
 
-  // VAPID key pubblica del progetto garden-river-conti-febed (stessa usata in tutta la suite)
-  const VAPID_KEY = 'BP-AgxjbkXx7Td2xCTPms3HEwlCooDMWexxc0moTVvNPz053wFpWS6NjpODS6AX_q3hmfI7maWOKJfNT7tTm3Fg';
 
   window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
   window._fbDataReady = false;
@@ -394,113 +388,6 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   window._collegaDatiSuite = () => sessioneHub(dataAuth).catch(() => {});
   window._scollegaDatiSuite = () => signOut(dataAuth).catch(() => {});
   window._collegaDatiSuite();
-
-  // ── Attiva notifiche FCM (unica attivazione per tutta la suite) ─────────
-  window._abilitaNotifichePush = async function(operatoreNome) {
-    try {
-      if (!('Notification' in window)) return { ok: false, motivo: 'non-supportato' };
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return { ok: false, motivo: 'negato' };
-
-      const reg   = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-      if (!token) return { ok: false, motivo: 'nessun-token' };
-
-      const { arrayRemove, arrayUnion: arrUnion, setDoc: setDocFn } =
-        await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-
-      const vecchioToken = localStorage.getItem('gcm_token');
-      const vecchioOp    = localStorage.getItem('gcm_operatore');
-
-      if (vecchioToken && vecchioToken !== token) {
-        const opDaRipulire = vecchioOp || operatoreNome;
-        try { await updateDoc(doc(dataDb, 'staffTokens', opDaRipulire), { tokens: arrayRemove(vecchioToken) }); } catch(e) {}
-      }
-      if (vecchioOp && vecchioOp !== operatoreNome) {
-        try { await updateDoc(doc(dataDb, 'staffTokens', vecchioOp), { tokens: arrayRemove(token) }); } catch(e) {}
-      }
-
-      await setDocFn(doc(dataDb, 'staffTokens', operatoreNome), {
-        tokens: arrUnion(token),
-        notifiche: true,
-        aggiornato: Date.now()
-      }, { merge: true });
-
-      localStorage.setItem('gcm_token',     token);
-      localStorage.setItem('gcm_operatore', operatoreNome);
-      return { ok: true };
-    } catch(e) {
-      console.error('Errore attivazione notifiche push:', e);
-      return { ok: false, motivo: 'errore', dettaglio: e.message };
-    }
-  };
-
-  // ── Rinnovo automatico silenzioso (login, ritorno in foreground, ecc.) ──
-  // A differenza di _abilitaNotifichePush (chiamata esplicita dall'utente, con
-  // toast di esito), questa gira in background e non deve MAI dare l'illusione
-  // che le notifiche siano attive quando in realtà il rinnovo fallisce da
-  // giorni: dopo qualche fallimento consecutivo azzera lo stato locale così
-  // l'interfaccia torna a mostrare onestamente "non attive" e l'operatore
-  // viene guidato a riattivarle, invece di scoprirlo solo perdendo un ordine.
-  let _refreshInCorso = false;
-  window._verificaTokenPush = async function() {
-    if (_refreshInCorso) return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    // gcm_operatore viene sempre scritto insieme a gcm_token (v. _abilitaNotifichePush
-    // e la pulizia sotto), quindi basta leggerlo da qui senza altri fallback.
-    const operatore = localStorage.getItem('gcm_operatore');
-    if (!localStorage.getItem('gcm_token') || !operatore) return;
-
-    _refreshInCorso = true;
-    try {
-      const res = await window._abilitaNotifichePush(operatore);
-      if (res.ok) {
-        localStorage.setItem('gcm_fail_streak', '0');
-        localStorage.setItem('gcm_last_ok', String(Date.now()));
-      } else {
-        const falliti = (parseInt(localStorage.getItem('gcm_fail_streak'), 10) || 0) + 1;
-        localStorage.setItem('gcm_fail_streak', String(falliti));
-        console.warn(`Rinnovo token push fallito (${falliti}° tentativo consecutivo):`, res.motivo, res.dettaglio || '');
-        if (falliti >= 3) {
-          const tokenMorto = localStorage.getItem('gcm_token');
-          console.error('Token push considerato morto dopo 3 rinnovi falliti, ripristino stato "non attive".');
-          if (tokenMorto && operatore) {
-            try {
-              const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-              await updateDoc(doc(dataDb, 'staffTokens', operatore), { tokens: arrayRemove(tokenMorto) });
-            } catch(e) {}
-          }
-          localStorage.removeItem('gcm_token');
-          localStorage.removeItem('gcm_operatore');
-          localStorage.removeItem('gcm_fail_streak');
-          if (typeof aggiornaStatoNotifiche === 'function') aggiornaStatoNotifiche();
-        }
-      }
-    } finally {
-      _refreshInCorso = false;
-    }
-  };
-
-  // L'apertura completa (login) è già coperta da applyHeader(); questo copre
-  // il caso, molto più frequente su mobile, in cui l'app torna in foreground
-  // da background/lucchetto SENZA un vero reload della pagina — l'unico
-  // momento in cui possiamo davvero accorgerci che il token è morto prima che
-  // sia troppo tardi.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') window._verificaTokenPush();
-  });
-  window.addEventListener('pageshow', () => window._verificaTokenPush());
-
-  // Quando la Hub è aperta e in primo piano, FCM non mostra la notifica in automatico
-  // (si aspetta che sia la pagina a gestirla) — la mostriamo qui a mano.
-  onMessage(messaging, (payload) => {
-    const title = payload.notification?.title || 'Notifica';
-    const body  = payload.notification?.body || '';
-    navigator.serviceWorker.getRegistration().then(reg => {
-      if (reg) reg.showNotification(title, { body, icon: 'logo-hub-app.jpg', badge: 'logo-hub-app.jpg' });
-      else if (Notification.permission === 'granted') new Notification(title, { body });
-    });
-  });
 </script>
 <!-- Terzo collegamento Firebase: legge "prodotti" (scorte sotto soglia) e
      "categorie" del Magazzino Bar. Queste collezioni, prima sul progetto
@@ -807,12 +694,9 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     </div>
 
     <div class="card">
-      <h3>Notifiche push</h3>
-      <p class="subtitle">Ricevi un avviso su questo dispositivo per ordini di ristorazione, ticket di manutenzione e checkout in scadenza — un'unica attivazione vale per tutta la suite.</p>
-      <p id="notif-status-txt" style="font-size:13px;color:var(--gray-500);margin-bottom:12px">Verifica in corso…</p>
-      <button id="btn-notif" onclick="attivaNotificheHub()" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Attiva notifiche</button>
-      <button id="btn-disattiva-notif" onclick="disattivaNotificheHub()" style="width:100%;height:44px;margin-top:8px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Disattiva notifiche</button>
-      <button id="btn-test-notif" onclick="inviaNotificaTestHub()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);display:none">Invia notifica di test</button>
+      <h3>Notifiche su Telegram</h3>
+      <p class="subtitle">Tutti gli avvisi (ordini di ristorazione, ticket di manutenzione, pulizie, navetta, check-in) arrivano nei gruppi Telegram di reparto. Per riceverli entra nel gruppo del tuo reparto.</p>
+      <button id="btn-test-notif" onclick="inviaNotificaTestHub()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Invia notifica di test</button>
     </div>
   </div>
 
@@ -1085,7 +969,6 @@ const SUPER_ADMIN_NAME = 'Marco';
 
 let operatori               = [];   // [{ nome, ruolo, pin }]
 let permessi                = {};   // { [nome]: { moduli: {...} } }
-let staffTokensNotifiche    = {};   // { [nome]: boolean }
 let currentOperatore        = null;
 let currentRuolo      = null;
 let loginTargetOp     = null;
@@ -1339,11 +1222,6 @@ async function startHomeStatsSync() {
       homeStats.ristorazione = { ordiniOggi: snap.size };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche ristorazione:', err));
-    onSnapshot(collection(db, 'staffTokens'), (snap) => {
-      staffTokensNotifiche = {};
-      snap.docs.forEach(d => { staffTokensNotifiche[d.id] = !!d.data().notifiche; });
-      renderOperatoriList();
-    }, (err) => console.error('Errore listener staffTokens:', err));
 
     // ── Manutenzione: badge aperti + notifica in-app per admin/gestione ──
     let _manutenzioneSeenIds = null; // null = prima snapshot non ancora ricevuta
@@ -1725,15 +1603,6 @@ function applyHeader() {
   const homeTitle   = document.getElementById('home-title');
   if (homeEyebrow) homeEyebrow.textContent = dataOggi();
   if (homeTitle)   homeTitle.textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
-
-  // Rinnova silenziosamente il token push ad ogni apertura della Hub, se le
-  // notifiche erano già attive su questo dispositivo — i token FCM possono
-  // invalidarsi in qualsiasi momento (aggiornamento del browser, pulizia dati,
-  // ecc.) quindi non ha senso limitare il refresh a una volta al giorno: la
-  // chiamata è leggera e ci assicura che il token su Firestore sia sempre
-  // quello corrente, invece di scoprire che è morto solo quando un ordine
-  // non genera notifica.
-  if (window._verificaTokenPush) window._verificaTokenPush();
 }
 
 function maybeOpenDeepLink() {
@@ -2350,7 +2219,6 @@ function closeSettings() {
 function openNotifiche() {
   document.getElementById('sec-home').classList.remove('active');
   document.getElementById('sec-notifiche').classList.add('active');
-  aggiornaStatoNotifiche();
 }
 function closeNotifiche() {
   document.getElementById('sec-notifiche').classList.remove('active');
@@ -2522,82 +2390,17 @@ function escHtml(s) {
   return (s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-function aggiornaStatoNotifiche() {
-  const el     = document.getElementById('notif-status-txt');
-  const btn    = document.getElementById('btn-notif');
-  const btnDis = document.getElementById('btn-disattiva-notif');
-  const btnTest = document.getElementById('btn-test-notif');
-  if (!el) return;
-  if (!('Notification' in window)) {
-    el.textContent = 'Non supportate su questo browser.';
-    if (btn) btn.style.display = 'none';
-    if (btnTest) btnTest.style.display = 'none';
-    return;
-  }
-  const attive = Notification.permission === 'granted' && !!localStorage.getItem('gcm_token');
-  if (attive) {
-    const ultimoOk = parseInt(localStorage.getItem('gcm_last_ok'), 10);
-    el.textContent = ultimoOk
-      ? `✓ Attive · verificate ${new Date(ultimoOk).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
-      : '✓ Attive su questo dispositivo';
-  } else {
-    el.textContent = 'Non ancora attive su questo dispositivo.';
-  }
-  el.style.color = attive ? 'var(--green-ok, #16A34A)' : 'var(--gray-500)';
-  if (btn) btn.style.display = attive ? 'none' : '';
-  if (btnDis) btnDis.style.display = attive ? '' : 'none';
-  if (btnTest) btnTest.style.display = attive ? '' : 'none';
-}
-
-async function attivaNotificheHub() {
-  const btn = document.getElementById('btn-notif');
-  if (btn) { btn.disabled = true; btn.textContent = 'Attivazione in corso…'; }
-  const res = await window._abilitaNotifichePush(currentOperatore || 'Staff');
-  if (res.ok) {
-    localStorage.setItem('gcm_fail_streak', '0');
-    localStorage.setItem('gcm_last_ok', String(Date.now()));
-    showToast('Notifiche attivate!');
-  } else {
-    const msg = {
-      'negato':         'Permesso negato — abilitalo nelle impostazioni del browser',
-      'non-supportato': 'Il tuo browser non supporta le notifiche push',
-      'nessun-token':   'Impossibile registrare il dispositivo, riprova',
-    };
-    showToast(msg[res.motivo] || 'Errore, riprova');
-  }
-  aggiornaStatoNotifiche();
-  if (btn) { btn.disabled = false; btn.textContent = 'Attiva notifiche'; }
-}
-
-async function disattivaNotificheHub() {
-  const token = localStorage.getItem('gcm_token');
-  const operatore = localStorage.getItem('gcm_operatore');
-  if (token && operatore) {
-    try {
-      const { db, doc, updateDoc } = window._fbData;
-      const { arrayRemove } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await updateDoc(doc(db, 'staffTokens', operatore), { tokens: arrayRemove(token) });
-    } catch(e) { console.warn('Errore rimozione token remoto:', e); }
-  }
-  localStorage.removeItem('gcm_token');
-  localStorage.removeItem('gcm_operatore');
-  localStorage.removeItem('gcm_fail_streak');
-  localStorage.removeItem('gcm_last_ok');
-  showToast('Notifiche disattivate');
-  aggiornaStatoNotifiche();
-}
-
 async function inviaNotificaTestHub() {
   const btn = document.getElementById('btn-test-notif');
   if (btn) { btn.disabled = true; btn.textContent = 'Invio in corso…'; }
   try {
-    const res = await fetchStaff('https://invia-notifica-ristorazione-113994721180.europe-west1.run.app', {
+    const res = await fetchStaff('https://telegram-bot-113994721180.europe-west1.run.app', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ evento: 'test', richiesto_da: currentOperatore || 'Staff' })
     });
     const out = await res.json().catch(() => ({}));
     if (res.ok && out.ok) {
-      showToast(out.inviate > 0 ? `Notifica inviata a ${out.inviate} dispositivo/i` : 'Nessun operatore con notifiche attive');
+      showToast(out.inviati > 0 ? `Notifica inviata a ${out.inviati} gruppo/i Telegram` : 'Nessun gruppo Telegram collegato');
     } else {
       showToast('Errore invio test');
     }
@@ -2624,23 +2427,9 @@ function renderOperatoriList() {
            </select>`}
       <span class="op-pin-status" style="color:${hasPIN?'var(--green-ok)':'var(--amber)'}">${hasPIN?'PIN ok':'Nessun PIN'}</span>
       ${hasPIN?`<button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>`:''}
-      <button onclick="toggleNotificheOp(${jsq(o.nome)})" title="${staffTokensNotifiche[o.nome]?'Disattiva notifiche':'Attiva notifiche'}"
-        style="width:28px;height:28px;border:none;border-radius:50%;cursor:pointer;font-size:14px;flex-shrink:0;
-               background:${staffTokensNotifiche[o.nome]?'var(--green-bg)':'var(--gray-100)'};
-               color:${staffTokensNotifiche[o.nome]?'var(--green-ok)':'var(--gray-400)'}">🔔</button>
       ${!isSuper?`<button class="op-del" onclick="deleteOperatore(${jsq(o.nome)})" title="Rimuovi">&#10005;</button>`:''}
     </div>`;
   }).join('') || `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px 0">Nessun operatore.</p>`;
-}
-
-async function toggleNotificheOp(nome) {
-  const { db, doc, updateDoc } = window._fbData;
-  const attuale = !!staffTokensNotifiche[nome];
-  try {
-    await updateDoc(doc(db, 'staffTokens', nome), { notifiche: !attuale });
-  } catch(e) {
-    showToast(attuale ? 'Notifiche disattivate' : 'Token non trovato — l\'operatore deve attivare le notifiche da Conti');
-  }
 }
 
 async function addOperatore() {

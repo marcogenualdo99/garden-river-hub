@@ -1,6 +1,6 @@
 """Bot Telegram Garden Hub — notifiche su chat separate per reparto.
 
-Un solo bot, quattro gruppi Telegram: manutenzione, navetta, pulizie, reception.
+Un solo bot, cinque gruppi Telegram: manutenzione, navetta, pulizie, reception, ristorazione.
 Ogni gruppo si collega scrivendo nel gruppo:   /collega <reparto> <codice>
 Il collegamento (reparto -> chat_id) vive in Firestore, doc `impostazioni/telegram`
 (scritto solo da questa funzione, Admin SDK).
@@ -13,7 +13,7 @@ Un unico entry point HTTP (`telegram_bot`) fa due cose:
 
 Env: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_SETUP_CODE, CRON_TOKEN
 (CRON_TOKEN: segreto che Cloud Scheduler passa in `_cron_token` per gli eventi
-programmati `promemoria_ticket` e `riepilogo_mattina`; senza, questi eventi sono rifiutati).
+programmati `promemoria_ticket`, `riepilogo_mattina`, `ordini_pendenti`, `risto_sollecito`, `risto_riepilogo` e `risto_domani`; senza, questi eventi sono rifiutati).
 """
 
 import hmac
@@ -44,6 +44,7 @@ REPARTI = {
     'navetta':      '🚐 Navetta',
     'pulizie':      '🧹 Pulizie',
     'reception':    '🛎️ Reception',
+    'ristorazione': '🍽️ Ristorazione',
 }
 
 EMOJI_STATO = {'checkout_ok': '🧹', 'da_pulire': '🧹', 'pronta': '✅', 'occupata': '🛏️', 'non_disponibile': '🚫'}
@@ -281,15 +282,131 @@ def _evento(data):
         t = (f"🛎️ <b>Check-in online ricevuto</b>\n{_e(data.get('nome'), 60)} · {_e(data.get('alloggio_nome'), 40) or '—'}\n"
              f"{_e(data.get('persone'), 3)} persone — verifica i documenti nel Calendario\n{SITE_URL}/calendario/")
         return _invia(['reception'], t)
+    if ev == 'ordine':
+        return _notifica_ordine(firestore.client(), str(data.get('doc_id') or '')[:120], data.get('famiglia_nome'), data.get('tipo'), data.get('data'),
+                              data.get('piatti') if isinstance(data.get('piatti'), list) else None, data.get('note'), data.get('unita'))
     if ev == 'test':
         t = f"🔔 Notifica di test (richiesta da {_e(data.get('richiesto_da'), 40) or 'Staff'})"
         return _invia(list(_canali()), t)
     return None
 
 
+# ── Ordini ristorazione ────────────────────────────────────────────────────
+
+def _label_giorno(data_iso):
+    try:
+        target = datetime.strptime(data_iso, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return data_iso or ''
+    oggi = datetime.now(ZoneInfo('Europe/Rome')).date()
+    if target == oggi:
+        return 'oggi'
+    if target == oggi + timedelta(days=1):
+        return 'domani'
+    return target.strftime('%d/%m')
+
+
+def _famiglie_mancanti(db, target_date, tipo):
+    altro = 'cena' if tipo == 'pranzo' else 'pranzo'
+    famiglie = [d.to_dict() | {'id': d.id} for d in db.collection('famiglie_ristorazione').stream()]
+
+    def _ids(t):
+        return {(o.to_dict() or {}).get('famiglia_id')
+                for o in db.collection('ordini_ristorazione').where('data', '==', target_date).where('tipo', '==', t).stream()}
+    correnti, altri = _ids(tipo), _ids(altro)
+    mancanti = []
+    for f in famiglie:
+        checkin, checkout = f.get('checkin'), f.get('checkout')
+        if checkin and checkin > target_date:
+            continue
+        if checkout and checkout <= target_date:
+            continue
+        if checkin == target_date and ((f.get('ora_arrivo') == 'dopo_pranzo' and tipo == 'pranzo') or f.get('ora_arrivo') == 'sera'):
+            continue
+        if f.get('trattamento') == 'MP':
+            if f['id'] not in correnti and f['id'] not in altri:
+                mancanti.append(f)
+        elif f['id'] not in correnti:
+            mancanti.append(f)
+    return mancanti
+
+
+def _famiglie_senza_ordine(db, target_date, tipo):
+    return len(_famiglie_mancanti(db, target_date, tipo))
+
+
+ALLERGIE = ('glutine', 'celiac', 'lattosio', 'allerg', 'intolleran', 'arachid', 'noci', 'frutta a guscio',
+            'uova', 'pesce', 'crostacei', 'molluschi', 'soia', 'sesamo', 'sedano', 'senape', 'solfiti', 'vegan', 'vegetarian')
+
+
+def _nota_delicata(note):
+    n = (note or '').lower()
+    return any(k in n for k in ALLERGIE)
+
+
+def _righe_piatti(piatti, note=''):
+    out = []
+    for r in (piatti or [])[:25]:
+        if isinstance(r, dict) and r.get('piatto'):
+            out.append(f"• {_e(r.get('quantita') or 1, 4)}× {_e(r.get('piatto'), 60)}")
+    if note:
+        out.append(f"{'⚠️ <b>ALLERGIE/NOTE</b>:' if _nota_delicata(note) else '📝'} <i>{_e(note, 200)}</i>")
+    return ('\n' + '\n'.join(out)) if out else ''
+
+
+def _testo_ordine(db, famiglia, tipo, giorno, piatti=None, note='', unita=''):
+    pasto = {'pranzo': 'Pranzo', 'cena': 'Cena'}.get(tipo, tipo or 'Pasto')
+    dettaglio = _righe_piatti(piatti, note)
+    intest = f"🍽️ <b>Nuovo ordine: {_e(famiglia, 120)}</b>" + (f" · {_e(unita, 40)}" if unita else '')
+    if not giorno:
+        return f"{intest}\n{_e(pasto, 20)} — nuovo ordine ricevuto{dettaglio}"
+    mancanti = _famiglie_senza_ordine(db, giorno, tipo)
+    quando = _label_giorno(giorno)
+    if mancanti == 0:
+        riga = f"{pasto} di {quando} — tutte le famiglie hanno ordinato ✓"
+    else:
+        riga = f"{pasto} di {quando} — mancano ancora {mancanti} famigli{'a' if mancanti == 1 else 'e'} all'appello"
+    return f"{intest}\n{_e(riga, 200)}{dettaglio}"
+
+
+def _notifica_ordine(db, doc_id, famiglia, tipo, giorno, piatti=None, note='', unita=''):
+    inviati = _invia(['ristorazione'], _testo_ordine(db, famiglia or 'Ospite sconosciuto', tipo, giorno, piatti, note, unita))
+    if doc_id:
+        try:
+            db.collection('ordini_ristorazione').document(doc_id).update({'notified': True})
+        except Exception as ex:
+            print(f'Errore marcatura notified per {doc_id}: {ex}')
+    return inviati
+
+
+def _ordini_pendenti(dry_run=False):
+    """Rete di sicurezza: manda al gruppo Ristorazione gli ordini con notified=false
+    (es. scritti dalla vecchia pagina Ristorazione, che non chiama il bot).
+    Solo ordini per oggi o per giorni futuri: quelli di date passate vengono
+    segnati come notificati senza inviare nulla (storico mai marcato)."""
+    db = firestore.client()
+    oggi = datetime.now(TZ).date().isoformat()
+    pendenti = list(db.collection('ordini_ristorazione').where('notified', '==', False).limit(200).stream())
+    attuali = [d for d in pendenti if str((d.to_dict() or {}).get('data') or '') >= oggi]
+    vecchi = [d for d in pendenti if d not in attuali]
+    if dry_run:
+        return {'pendenti': len(attuali), 'vecchi_da_archiviare': len(vecchi)}
+    for d in vecchi:
+        try:
+            d.reference.update({'notified': True})
+        except Exception as ex:
+            print(f'Errore archiviazione {d.id}: {ex}')
+    inviati = 0
+    for d in attuali[:20]:
+        o = d.to_dict() or {}
+        inviati += _notifica_ordine(db, d.id, o.get('famiglia_nome'), o.get('tipo'), o.get('data'), o.get('piatti'), o.get('note'), o.get('unita'))
+    return {'pendenti': len(attuali), 'inviati': inviati, 'vecchi_archiviati': len(vecchi)}
+
+
 # ── Eventi programmati (Cloud Scheduler) ───────────────────────────────────
 
-CRON_EVENTI = ('promemoria_ticket', 'riepilogo_mattina')
+CRON_EVENTI = ('promemoria_ticket', 'riepilogo_mattina', 'ordini_pendenti',
+               'risto_sollecito', 'risto_riepilogo', 'risto_domani')
 TZ = ZoneInfo('Europe/Rome')
 
 # Ogni quante ore ripetere il promemoria di un ticket ancora aperto, per priorità.
@@ -464,6 +581,108 @@ def _riepilogo_mattina(dry_run=False, forza=False):
     return {'inviati': inviati}
 
 
+def _gia_inviato(db, chiave, oggi, dry_run, forza):
+    """Una sola volta al giorno per chiave (doc `impostazioni/telegram_cron`)."""
+    ref = db.collection('impostazioni').document('telegram_cron')
+    if not dry_run and not forza:
+        snap = ref.get()
+        if snap.exists and (snap.to_dict() or {}).get(chiave) == oggi:
+            return ref, True
+    return ref, False
+
+
+def _risto_sollecito(dry_run=False, forza=False):
+    """Poco prima delle 8:30 (chiusura ordini ospiti): chi non ha ancora ordinato oggi."""
+    oggi = datetime.now(TZ).date().isoformat()
+    db = firestore.client()
+    ref, fatto = _gia_inviato(db, 'risto_sollecito', oggi, dry_run, forza)
+    if fatto:
+        return {'inviati': 0, 'motivo': 'gia_inviato_oggi'}
+    righe, totale = ['⏰ <b>Ordini ancora aperti: si chiude alle 8:30</b>'], 0
+    for tipo, etichetta in (('pranzo', 'Pranzo'), ('cena', 'Cena')):
+        mancanti = sorted(_famiglie_mancanti(db, oggi, tipo), key=lambda f: str(f.get('nome') or '').lower())
+        totale += len(mancanti)
+        if not mancanti:
+            continue
+        righe.append(f"\n<b>{etichetta}</b> — mancano {len(mancanti)}:")
+        for f in mancanti[:20]:
+            righe.append(f"• {_e(f.get('nome'), 60) or '—'}" + (f" · {_e(f.get('unita'), 30)}" if f.get('unita') else ''))
+        if len(mancanti) > 20:
+            righe.append(f'… e altre {len(mancanti) - 20}')
+    if not totale:
+        return {'inviati': 0, 'motivo': 'tutti_hanno_ordinato'}
+    righe.append("\n<i>Dopo le 8:30 solo lo staff può sbloccare l'ordine dalla Ristorazione.</i>")
+    testo = '\n'.join(righe)
+    if dry_run:
+        return {'inviati': 0, 'anteprima': testo}
+    inviati = _invia(['ristorazione'], testo)
+    if inviati:
+        ref.set({'risto_sollecito': oggi}, merge=True)
+    return {'inviati': inviati}
+
+
+def _corpo_riepilogo(db, giorno, tipo):
+    """(testo senza intestazione, n. ordini) delle quantita' ordinate per `giorno`/`tipo`."""
+    ordini = [d.to_dict() or {} for d in db.collection('ordini_ristorazione')
+              .where('data', '==', giorno).where('tipo', '==', tipo).stream()]
+    per_cat, note, allergie = {}, [], []
+    for o in ordini:
+        for r in (o.get('piatti') or []):
+            if isinstance(r, dict) and r.get('piatto'):
+                cat = str(r.get('categoria') or 'Altro')
+                per_cat.setdefault(cat, {})
+                per_cat[cat][r['piatto']] = per_cat[cat].get(r['piatto'], 0) + int(r.get('quantita') or 0)
+        if o.get('note'):
+            riga = f"• {_e(o.get('famiglia_nome'), 50)}: {_e(o.get('note'), 150)}"
+            (allergie if _nota_delicata(o.get('note')) else note).append(riga)
+    righe = [f"{len(ordini)} ordini ricevuti"]
+    for cat in sorted(per_cat, key=lambda c: (c == 'Menu Bambini', c)):
+        righe.append(f"\n<b>{_e(cat, 40)}</b>")
+        for piatto, q in sorted(per_cat[cat].items(), key=lambda x: (-x[1], x[0])):
+            righe.append(f"• {q}× {_e(piatto, 60)}")
+    if allergie:
+        righe.append('\n⚠️ <b>Allergie / intolleranze</b>')
+        righe.extend(allergie[:15])
+    if note:
+        righe.append('\n📝 <b>Note</b>')
+        righe.extend(note[:15])
+    return '\n'.join(righe), len(ordini)
+
+
+def _risto_riepilogo(tipo, dry_run=False, forza=False, domani=False):
+    """Riepilogo quantita' da preparare: pasto di oggi (pranzo/cena) oppure, con
+    domani=True, gli ordini gia' arrivati per domani (pranzo e cena)."""
+    if not domani and tipo not in ('pranzo', 'cena'):
+        return {'inviati': 0, 'motivo': 'pasto_non_valido'}
+    adesso = datetime.now(TZ)
+    oggi = adesso.date().isoformat()
+    giorno = (adesso.date() + timedelta(days=1)).isoformat() if domani else oggi
+    db = firestore.client()
+    chiave = 'risto_domani' if domani else f'risto_riepilogo_{tipo}'
+    ref, fatto = _gia_inviato(db, chiave, oggi, dry_run, forza)
+    if fatto:
+        return {'inviati': 0, 'motivo': 'gia_inviato_oggi'}
+    tipi = ('pranzo', 'cena') if domani else (tipo,)
+    righe = [f"📅 <b>Ordini per domani</b> · {_label_giorno(giorno)} {giorno[8:]}/{giorno[5:7]}"] if domani else \
+            [f"{'☀️' if tipo == 'pranzo' else '🌙'} <b>{'Pranzo' if tipo == 'pranzo' else 'Cena'} di oggi — riepilogo</b>"]
+    for t in tipi:
+        corpo, n = _corpo_riepilogo(db, giorno, t)
+        mancanti = _famiglie_mancanti(db, giorno, t)
+        if domani:
+            righe.append(f"\n{'☀️ <b>Pranzo</b>' if t == 'pranzo' else '🌙 <b>Cena</b>'}")
+        righe.append(corpo if n else 'Nessun ordine ricevuto.')
+        if mancanti:
+            righe.append(f"\n⚠️ <i>{len(mancanti)} {'famiglia non ha' if len(mancanti) == 1 else 'famiglie non hanno'} ancora ordinato"
+                         + (f": {', '.join(_e(f.get('nome'), 30) for f in mancanti[:8])}" if domani else '.') + '</i>')
+    testo = '\n'.join(righe)
+    if dry_run:
+        return {'inviati': 0, 'anteprima': testo}
+    inviati = _invia(['ristorazione'], testo)
+    if inviati:
+        ref.set({chiave: oggi}, merge=True)
+    return {'inviati': inviati}
+
+
 # ── Autorizzazione chiamate ────────────────────────────────────────────────
 # Un endpoint pubblico che manda notifiche reali non può accettare chiunque.
 # Accetta: (a) l'ID token Firebase di un operatore (claim `operatore`, header
@@ -494,7 +713,7 @@ def telegram_bot(request):
     if request.method != 'POST':
         return _json(origin, {'ok': False, 'errore': 'metodo non permesso'}, 405)
 
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(force=True, silent=True) or {}
 
     secret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
     if secret is not None:  # chiamata di Telegram
@@ -516,6 +735,14 @@ def telegram_bot(request):
         dry = bool(data.get('dry_run'))
         if data['evento'] == 'promemoria_ticket':
             res = _promemoria_ticket(dry)
+        elif data['evento'] == 'risto_sollecito':
+            res = _risto_sollecito(dry, bool(data.get('forza')))
+        elif data['evento'] == 'risto_riepilogo':
+            res = _risto_riepilogo(str(data.get('pasto') or ''), dry, bool(data.get('forza')))
+        elif data['evento'] == 'risto_domani':
+            res = _risto_riepilogo('', dry, bool(data.get('forza')), domani=True)
+        elif data['evento'] == 'ordini_pendenti':
+            res = _ordini_pendenti(dry)
         else:
             res = _riepilogo_mattina(dry, bool(data.get('forza')))
         return _json(origin, {'ok': True, **res})

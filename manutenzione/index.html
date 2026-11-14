@@ -803,21 +803,7 @@ async function submitTicket() {
       created_at:        serverTimestamp(),
     });
     showToast('✓ Segnalazione inviata!');
-    // Notifica push via ntfy.sh
-    fetch('https://ntfy.sh/garden-hub-manut-grh2024', {
-      method: 'POST',
-      headers: {
-        'Title': 'Nuovo ticket manutenzione',
-        'Priority': 'high',
-        'Tags': 'wrench',
-        'Click': 'https://marcogenualdo99.github.io/garden-river-hub/manutenzione/',
-      },
-      body: `${unit} — ${cat}\n${desc.slice(0, 100)}`,
-    }).catch(() => {});
-    // Notifica push allo staff con notifiche attive (stessa infrastruttura di
-    // Pulizie e Ristorazione — v. cloud-functions/notifiche-manutenzione).
-    // Si aspetta la fetch (con timeout di sicurezza) prima di procedere: un
-    // reset del form troppo rapido non deve interrompere la chiamata a metà.
+    // Avviso al gruppo Telegram Manutenzione (fire-and-forget).
     await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn);
     // Reset form
     document.getElementById('sel-unit').value = '';
@@ -839,16 +825,9 @@ async function submitTicket() {
 }
 
 function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso) {
-  // Telegram (gruppo Manutenzione): fire-and-forget, indipendente dal push.
+  // Telegram (gruppo Manutenzione): fire-and-forget.
   fetchStaff('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, operatore: currentOperatore || '' }) }).catch(() => {});
-  const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 8000);
-  return fetchStaff('https://notifiche-manutenzione-113994721180.europe-west1.run.app', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority }),
-    signal: ctrl.signal,
-  }).catch(() => {}).finally(() => clearTimeout(timeout));
 }
 
 function shakeField(id) {

@@ -5,7 +5,7 @@ Dà all'ospite un link personale per prenotazione
 sezioni. Per ora è operativa solo **Servizio navetta**: l'ospite prenota il
 rientro dalla spiaggia scegliendo un orario tra le fasce attive, la richiesta
 finisce in `navetta_prenotazioni` e la vedono gli autisti nella dashboard Hub
-(`navetta/`, aggiornamento in tempo reale, nessuna notifica push).
+(`navetta/`, aggiornamento in tempo reale, nessuna notifica push; gli avvisi vanno su Telegram).
 
 Il browser dell'ospite non tocca mai Firestore: parla solo con questa
 funzione (Admin SDK). Il collegamento `token → prenotazione` vive nella

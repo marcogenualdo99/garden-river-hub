@@ -27,7 +27,7 @@ Azioni (campo "azione" nel corpo JSON):
            stato)
   - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
   - manutenzione_segnala : { token, nome, categoria, descrizione, accesso }
-        -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram + push
+        -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram
   - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
   - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
   - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
@@ -1329,7 +1329,6 @@ def _azione_staff_riapri(db, origin, data):
 # che controlla tutte le regole lato server (quote, mezza pensione, orario
 # limite) e manda la notifica allo staff.
 
-RISTO_NOTIFICA_URL = 'https://invia-notifica-ristorazione-113994721180.europe-west1.run.app'
 RISTO_CAT_DEFAULT = ['Antipasti', 'Primi Carne', 'Primi Pesce', 'Secondi Carne',
                      'Secondi Pesce', 'Contorni', 'Dessert']
 RISTO_BAMBINI_DEFAULT = ['Cotoletta', 'Patatine', 'Pasta in bianco', 'Pasta al pomodoro',
@@ -1485,14 +1484,8 @@ def _azione_ristorazione_menu(db, origin, data):
 
 
 def _risto_notifica(payload):
-    """Notifica push allo staff (stessa funzione che chiamava la vecchia pagina)."""
-    try:
-        req = urllib.request.Request(
-            RISTO_NOTIFICA_URL, data=json.dumps(payload).encode(),
-            headers={'Content-Type': 'application/json', 'Origin': 'https://gardenhub.it', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')}, method='POST')
-        urllib.request.urlopen(req, timeout=8).read()
-    except Exception as e:
-        print(f'Notifica ristorazione non inviata: {e}')
+    """Avvisa il gruppo Telegram Ristorazione (cloud-functions/telegram-bot)."""
+    _telegram(payload)
 
 
 def _azione_ristorazione_ordina(db, origin, data):
@@ -1595,25 +1588,13 @@ def _azione_ristorazione_ordina(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
 
 
-def _push_manutenzione(doc_id, alloggio, categoria, descrizione):
-    """Push allo staff con notifiche attive (stessa CF dei ticket creati dall'Hub). Mai bloccante."""
-    try:
-        url = os.environ.get('NOTIFICHE_MANUTENZIONE_URL', 'https://notifiche-manutenzione-113994721180.europe-west1.run.app')
-        body = {'evento': 'ticket', 'doc_id': doc_id, 'housing_unit': alloggio, 'category': categoria,
-                'issue_description': f'[Da ospite] {descrizione}', 'priority': 'normale'}
-        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
-        urllib.request.urlopen(req, timeout=8).read()
-    except Exception as ex:
-        print(f'Push manutenzione non inviata: {ex}')
-
-
 MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
 MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
 
 
 def _azione_manutenzione_segnala(db, origin, data):
     """Segnalazione guasto dall'ospite: crea un ticket in `maintenance_tickets`
-    (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram + push."""
+    (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram."""
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
@@ -1647,7 +1628,6 @@ def _azione_manutenzione_segnala(db, origin, data):
     ref.set({
         'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
         'access_permission': accesso, 'priority': 'normale', 'status': False,
-        'notified': False,                      # il push parte qui sotto; il controllo periodico fa da rete di sicurezza
         'user_id': f'Ospite · {nome}',
         'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
         'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
@@ -1655,7 +1635,6 @@ def _azione_manutenzione_segnala(db, origin, data):
     _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
                'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso,
                'operatore': nome, 'telefono': telefono})
-    _push_manutenzione(ref.id, alloggio, categoria, descrizione)
     return _json(origin, {'ok': True, 'id': ref.id})
 
 

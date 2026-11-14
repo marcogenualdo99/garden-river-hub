@@ -773,17 +773,12 @@ async function setStato(id, nuovoStato) {
     showToast('Errore di salvataggio — riprova');
   }
 }
-// Notifica push allo staff con notifiche attive (stessa infrastruttura di
-// Ristorazione — v. cloud-functions/notifiche-pulizie). "Fire and forget":
+// Notifica Telegram al gruppo Pulizie (v. cloud-functions/telegram-bot). "Fire and forget":
 // un errore di rete qui non deve mai far sembrare fallito il cambio di
 // stato, che a questo punto è già salvato su Firestore.
 function notificaCambioStato(alloggioId, alloggioNome, nuovoStato) {
   fetchStaff('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ evento:'cambio_stato', alloggio_nome:alloggioNome, nuovo_stato:nuovoStato, op:currentOperatore || 'Operatore' }) }).catch(() => {});
-  fetchStaff('https://invia-notifica-pulizie-113994721180.europe-west1.run.app', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento:'cambio_stato', alloggio_id:alloggioId, alloggio_nome:alloggioNome, nuovo_stato:nuovoStato, op:currentOperatore || 'Operatore' }),
-  }).catch(() => {});
 }
 function toggleCat(key) { expanded[key] = !expanded[key]; render(); }
 function toggleLog(id)  { logOpen[id] = !logOpen[id]; render(); }
