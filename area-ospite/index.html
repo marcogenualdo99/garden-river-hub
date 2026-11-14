@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <script src="i18n.js"></script>
 <script src="checkin-default.js"></script>
 <style>
@@ -127,7 +127,7 @@
     font-family: var(--font); -webkit-tap-highlight-color: transparent; }
   .info-row:last-child { border-bottom: none }
   .info-row:active { background: var(--gray-50) }
-  .info-row .emoji { font-size: 19px; flex-shrink: 0 }
+  .info-row .emoji { flex-shrink: 0; display: flex; color: var(--green-700) } .info-row .emoji svg { width: 22px; height: 22px } .ico-sm { display: inline-flex; vertical-align: -3px; margin-right: 6px } .ico-sm svg { width: 17px; height: 17px }
   .info-row .titolo { flex: 1; font-size: 14.5px; font-weight: 700; color: var(--gray-900) }
   .info-row svg { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0 }
   .carta-pagine { margin: 10px -16px 0; display: flex; flex-direction: column; gap: 4px }
@@ -307,7 +307,7 @@
   @keyframes anSpin { to { transform: rotate(360deg) } }
   @keyframes anBob { 50% { transform: translateY(-5px) rotate(-2deg) } }
   .an-now { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 13px 15px; display: flex; align-items: center; gap: 13px; margin-top: 12px }
-  .an-now .ico { width: 46px; height: 46px; border-radius: 15px; background: var(--orange-bg); display: flex; align-items: center; justify-content: center; font-size: 25px; flex-shrink: 0 }
+  .an-now .ico { width: 46px; height: 46px; border-radius: 15px; background: var(--orange-bg); display: flex; align-items: center; justify-content: center; color: var(--orange); flex-shrink: 0 } .an-now .ico svg { width: 26px; height: 26px }
   .an-now .lab { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--orange); display: flex; align-items: center; gap: 6px }
   .an-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: anPulse 1.4s infinite }
   @keyframes anPulse { 0% { box-shadow: 0 0 0 0 rgba(242,112,42,.5) } 100% { box-shadow: 0 0 0 9px rgba(242,112,42,0) } }
@@ -317,7 +317,7 @@
   .an-days::-webkit-scrollbar { display: none }
   .an-day { flex: 0 0 auto; width: 56px; padding: 8px 0 7px; border-radius: 18px; border: 1.5px solid var(--green-200); background: var(--white); text-align: center; font-family: var(--font); cursor: pointer; color: var(--green-700) }
   .an-day b { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase }
-  .an-day i { display: block; font-style: normal; font-size: 19px; margin-top: 2px }
+  .an-day i { display: none }
   .an-day small { display: block; font-size: 10px; font-weight: 700; color: var(--orange); height: 12px }
   .an-day.on { background: var(--green-700); color: #fff; border-color: var(--green-700); transform: translateY(-2px) }
   .an-day.on small { color: var(--orange-lt) }
@@ -331,16 +331,16 @@
   .an-star .k { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
   .an-star .t { font-family: var(--font-display); font-size: 22px; margin: 4px 0 2px; line-height: 1.1; padding-right: 60px }
   .an-star .h { font-size: 13px; opacity: .85 }
-  .an-star .big { position: absolute; right: 14px; bottom: 8px; font-size: 46px }
+  .an-star .big { position: absolute; right: 14px; bottom: 8px; opacity: .35 } .an-star .big svg { width: 46px; height: 46px }
   .an-fase { margin-top: 20px }
   .an-fase h3 { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700) }
-  .an-fase h3 .b { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--green-100) }
+  .an-fase h3 .b { width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; background: var(--green-100) } .an-fase h3 .b svg { width: 17px; height: 17px }
   .an-fase h3 em { font-style: normal; font-family: var(--font); font-size: 11px; font-weight: 800; background: var(--orange-bg); color: var(--orange); border-radius: 999px; padding: 3px 9px; margin-left: auto }
   .an-tl { margin-top: 10px; position: relative; padding-left: 18px }
   .an-tl::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px; width: 2px; background: var(--green-200); border-radius: 2px }
   .an-it { position: relative; background: var(--white); border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 11px; box-shadow: var(--shadow-sm) }
   .an-it::before { content: ''; position: absolute; left: -17px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--white); border: 2.5px solid var(--green-500) }
-  .an-it .em { font-size: 23px; width: 32px; text-align: center }
+  .an-it .em { width: 32px; display: flex; justify-content: center; color: var(--green-700) } .an-it .em svg { width: 22px; height: 22px }
   .an-it .nm { font-weight: 700; font-size: 14.5px; flex: 1; line-height: 1.25 }
   .an-it .nm small { display: block; font-weight: 600; font-size: 11.5px; color: var(--gray-500) }
   .an-it .ora { font-weight: 800; font-size: 13.5px; color: var(--green-700); background: var(--green-50); border-radius: 10px; padding: 5px 9px; white-space: nowrap }
@@ -367,7 +367,7 @@
   @keyframes rsDot { 0%, 80%, 100% { transform: scale(.5); opacity: .4 } 40% { transform: scale(1); opacity: 1 } }
   .rs-retry { margin-top: 12px; height: 44px; padding: 0 22px; border-radius: 999px; border: none; background: var(--green-700); color: #fff; font: 800 14px var(--font); cursor: pointer }
   .rs-carta { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--orange-bg); border: 1.5px solid #F9C9AD; text-decoration: none; color: var(--gray-900) }
-  .rs-carta .ic { font-size: 26px } .rs-carta .tx { flex: 1; display: flex; flex-direction: column } .rs-carta b { font-size: 15px; font-weight: 800 }
+  .rs-carta .ic { display: flex; color: var(--green-700) } .rs-carta .ic svg { width: 26px; height: 26px } .rs-carta .tx { flex: 1; display: flex; flex-direction: column } .rs-carta b { font-size: 15px; font-weight: 800 }
   .rs-carta small { font-size: 12px; color: var(--gray-500) } .rs-carta .go { font-weight: 800; color: var(--orange); font-size: 14px }
   h2.rs-day { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700); margin: 24px 2px 4px }
   .rs-note { font-size: 13px; color: var(--gray-500); line-height: 1.5; margin: 4px 2px 8px }
@@ -375,11 +375,11 @@
   .rs-selwrap > small { display: block; font-size: 12.5px; color: var(--gray-500); margin: 0 2px 8px; line-height: 1.45 }
   .rs-selbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
   .rs-sel { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 8px; border-radius: var(--radius); border: 2px solid var(--gray-100); background: var(--white); font-family: var(--font); cursor: pointer; color: var(--gray-700) }
-  .rs-sel .i { font-size: 22px } .rs-sel b { font-size: 15px; font-weight: 800 } .rs-sel small { font-size: 11.5px; color: var(--gray-500); font-weight: 700 }
+  .rs-sel .i { display: flex } .rs-sel .i svg { width: 24px; height: 24px } .rs-sel b { font-size: 15px; font-weight: 800 } .rs-sel small { font-size: 11.5px; color: var(--gray-500); font-weight: 700 }
   .rs-sel.on { border-color: var(--orange); background: var(--orange-bg) } .rs-sel.cena.on { border-color: var(--green-700); background: var(--green-50) }
   .rs-sel:disabled { opacity: .45; cursor: not-allowed }
   .rs-card { padding: 0; overflow: hidden } .rs-card.locked { background: var(--gray-50) }
-  .rs-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px } .rs-head .i { font-size: 24px } .rs-head div { flex: 1; display: flex; flex-direction: column }
+  .rs-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px } .rs-head .i { display: flex } .rs-head .i svg { width: 24px; height: 24px } .rs-head div { flex: 1; display: flex; flex-direction: column }
   .rs-head b { font-size: 16px; font-weight: 800 } .rs-head small { font-size: 11.5px; opacity: .8 }
   .rs-head.pranzo { background: var(--amber-bg); color: #92400E } .rs-head.cena { background: var(--green-50); color: var(--green-700) }
   .rs-lock { font-size: 11.5px; font-weight: 800; background: var(--green-bg); color: var(--green-ok); border: 1px solid var(--green-bd); border-radius: 999px; padding: 3px 10px }
@@ -1321,7 +1321,7 @@ function renderPrenotazioneInfo() {
       <h2>Il tuo conto</h2>
       <div class="conto-list" style="margin-top:6px">${righeHtml}</div>
       ${c.voci.length ? `<div class="conto-tot"><span>Totale soggiorno</span><strong>€ ${c.totale.toFixed(2)}</strong></div>
-      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${saldato ? 'Saldato' : 'Da pagare'}</span><strong>${saldato ? '✓ Nessun residuo' : '€ ' + c.da_pagare.toFixed(2)}</strong></div>` : ''}
+      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${saldato ? 'Saldato' : 'Da pagare'}</span><strong>${saldato ? 'Nessun residuo' : '€ ' + c.da_pagare.toFixed(2)}</strong></div>` : ''}
     </div>`;
 }
 
@@ -1342,8 +1342,8 @@ function tornaHome() {
 
 
 // ── Animazione: programma strutturato (catalogo + giorni scelti dall'Hub) ──
-const AN_GIORNI = [['sab','Sab','Sabato','🎉'],['dom','Dom','Domenica','🧘'],['lun','Lun','Lunedì','⚽'],['mar','Mar','Martedì','🏐'],['mer','Mer','Mercoledì','🫧'],['gio','Gio','Giovedì','🎬'],['ven','Ven','Venerdì','🤍']];
-const AN_FASI = [['d','Diurno','☀️',''],['m','Mini club','🧸','4-10 anni'],['t','Teen club','🎧','11-17 anni'],['s','Serale','🌙','']];
+const AN_GIORNI = [['sab','Sab','Sabato'],['dom','Dom','Domenica'],['lun','Lun','Lunedì'],['mar','Mar','Martedì'],['mer','Mer','Mercoledì'],['gio','Gio','Giovedì'],['ven','Ven','Venerdì']];
+const AN_FASI = [['d','Diurno',ICONS.SUN,''],['m','Mini club',ICONS.SPARKLES,'4-10 anni'],['t','Teen club',ICONS.ANIMAZIONE,'11-17 anni'],['s','Serale',ICONS.MOON,'']];
 const AN_JS = ['dom','lun','mar','mer','gio','ven','sab'];
 let _anGiorno = null, _anFiltro = 'tutti';
 function anSettimane(a) { return a.settimane || { 1: a.programma || {} }; }
@@ -1404,7 +1404,7 @@ function renderAnimazione(s) {
   const fasi = AN_FASI.filter(([f]) => (_anFiltro === 'tutti' || _anFiltro === f) && voci(f).length);
   const riga = v => {
     const pass = isOggi && anMin(v.ora) < nowM && v !== prossima, adesso = v === prossima;
-    return `<div class="an-it ${v.speciale ? 'speciale' : ''} ${pass ? 'passato' : ''} ${adesso ? 'adesso' : ''}"><span class="em">${esc(v.emoji || '⭐')}</span><span class="nm">${esc(v.nome)}${v.speciale ? '<small>Evento speciale</small>' : ''}</span><span class="ora">${esc(String(v.ora || '').replace('–', ' – '))}</span></div>`;
+    return `<div class="an-it ${v.speciale ? 'speciale' : ''} ${pass ? 'passato' : ''} ${adesso ? 'adesso' : ''}"><span class="em">${ICONS.STAR}</span><span class="nm">${esc(v.nome)}${v.speciale ? '<small>Evento speciale</small>' : ''}</span><span class="ora">${esc(String(v.ora || '').replace('–', ' – '))}</span></div>`;
   };
   const mapPers = CONTENUTI.foto.mappa_villaggio;
   const mapImg = mapPers || 'img/mappa-teatro.jpg';
@@ -1414,11 +1414,11 @@ function renderAnimazione(s) {
        <div class="an-mappa"><img src="${esc(mapImg)}" alt="Mappa del villaggio: ${esc(luogo || 'Teatro')}"><span class="an-pin" style="left:${pin.x}%;top:${pin.y}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>` : '';
   $('#service-content').innerHTML = `
     <div class="an-now">${prossima
-      ? `<div class="ico">${esc(prossima.emoji || '⭐')}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
+      ? `<div class="ico">${ICONS.STAR}</div><div><div class="lab"><span class="an-dot"></span>Prossima attività</div><div class="tit">${esc(prossima.nome)}</div><div class="sub">alle ${esc(String(prossima.ora).split('–')[0])}</div></div>`
       : `<div class="ico">${g[3]}</div><div><div class="lab">${isOggi ? 'Per oggi è tutto' : 'Programma del giorno'}</div><div class="tit">${g[2]} ${dd.getDate()}/${dd.getMonth() + 1}</div><div class="sub">${tutte.length} attività in programma</div></div>`}</div>
-    <div class="an-days">${date.map(iso => { const d = new Date(iso + 'T12:00:00'), w = AN_GIORNI.find(x => x[0] === AN_JS[d.getDay()]); return `<button class="an-day ${iso === _anGiorno ? 'on' : ''}" onclick="_anGiorno='${iso}';renderAnimazione()"><b>${w[1]}</b><i>${w[3]}</i><small>${iso === oggiIso ? 'OGGI' : d.getDate() + '/' + (d.getMonth() + 1)}</small></button>`; }).join('')}</div>
+    <div class="an-days">${date.map(iso => { const d = new Date(iso + 'T12:00:00'), w = AN_GIORNI.find(x => x[0] === AN_JS[d.getDay()]); return `<button class="an-day ${iso === _anGiorno ? 'on' : ''}" onclick="_anGiorno='${iso}';renderAnimazione()"><b>${w[1]}</b><small>${iso === oggiIso ? 'OGGI' : d.getDate() + '/' + (d.getMonth() + 1)}</small></button>`; }).join('')}</div>
     <div class="an-chips">${[['tutti', 'Tutto'], ['d', 'Diurno'], ['m', 'Mini club'], ['t', 'Teen'], ['s', 'Serale']].map(([k, l]) => `<button class="an-chip ${_anFiltro === k ? 'on' : ''}" onclick="_anFiltro='${k}';renderAnimazione()">${l}</button>`).join('')}</div>
-    ${serata ? `<div class="an-star${serata.grafica ? ' foto' : ''}"${serata.grafica ? ` style="background-image:url('${esc(serata.grafica)}')"` : ''}><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div>${serata.grafica ? '' : `<div class="big">${esc(serata.emoji || '⭐')}</div>`}</div>` : ''}
+    ${serata ? `<div class="an-star${serata.grafica ? ' foto' : ''}"${serata.grafica ? ` style="background-image:url('${esc(serata.grafica)}')"` : ''}><div class="k">La serata di ${esc(g[2].toLowerCase())}</div><div class="t">${esc(serata.nome)}</div><div class="h">Ore ${esc(serata.ora)}${luogo ? ' · ' + esc(luogo) : ''}</div>${serata.grafica ? '' : `<div class="big">${ICONS.STAR}</div>`}</div>` : ''}
     ${fasi.map(([f, nome, ic, eta]) => `<section class="an-fase ${f === 'm' ? 'an-mini' : ''}"><h3><span class="b">${ic}</span>${nome}${eta ? `<em>${eta}</em>` : ''}</h3><div class="an-tl">${voci(f).map(riga).join('')}</div></section>`).join('')
       || '<p class="hint" style="margin-top:24px;text-align:center">Nessuna attività per questa selezione.</p>'}
     ${mappa}
@@ -1431,7 +1431,7 @@ function boxPresto(s) {
 }
 // ── Info utili: sotto-argomenti (contenuti fissi, portati dal sito) ────────
 const INFO_TOPICS = [
-  { id: 'orari', emoji: '🕒', title: 'Orari e regole del villaggio', html: `
+  { id: 'orari', icona: 'CLOCK', title: 'Orari e regole del villaggio', html: `
     <h3>Check-in e check-out</h3>
     <p>Check-in dalle 9:00 alle 21:00 (alloggio pronto dalle ore 16:00). Check-out entro le ore 10:00: prima di lasciare l'alloggio telefona in reception per concordare il controllo finale e lascia la biancheria usata in una federa fuori dalla porta.</p>
     <h3>Orario del silenzio</h3>
@@ -1447,7 +1447,7 @@ const INFO_TOPICS = [
     </ul>
     <p>Si prenotano in reception: dotazione standard 1 ombrellone e 2 lettini (lettini extra da richiedere e pagare direttamente in spiaggia).</p>
     <p><a href="https://stay.gardenriver.it/source/regolamento.pdf" target="_blank" rel="noopener">Regolamento del villaggio</a></p>` },
-  { id: 'piscina', emoji: '🏊‍♂️', title: 'Piscina', html: `
+  { id: 'piscina', icona: 'WAVES', title: 'Piscina', html: `
     <p>Due vasche: una per adulti, profonda fino a 180&nbsp;cm, e una per bambini con acquascivoli, alta 90&nbsp;cm. Wi-Fi gratuito in zona piscina.</p>
     <h3>Orari di apertura</h3>
     <ul>
@@ -1457,7 +1457,7 @@ const INFO_TOPICS = [
     <p>Fuori da questi orari l'accesso a vasca e solarium non è consentito.</p>
     <h3>Chiosco bar a bordo vasca</h3>
     <p>Aperto per colazione, gelati e cocktail senza allontanarti dall'acqua.</p>` },
-  { id: 'petfriendly', emoji: '🐕', title: 'Pet Friendly', html: `
+  { id: 'petfriendly', icona: 'PAW', title: 'Pet Friendly', html: `
     <p>I cani di tutte le taglie sono benvenuti! Molti alloggi hanno verande con cancelletto o recintate. All'arrivo il tuo cane riceve un kit di benvenuto.</p>
     <h3>Servizi dedicati</h3>
     <ul>
@@ -1474,22 +1474,22 @@ const INFO_TOPICS = [
     <p>Clinica Veterinaria Città di Fermo — Via Garda 1, 63813 Monte Urano (FM)<br><a href="tel:+390734224718">0734 224718</a></p>
     <h3>Shop convenzionato</h3>
     <p>Zampettando, Pedaso — prodotti, antiparassitari, lettiere e accessori per animali.</p>` },
-  { id: 'market', emoji: '🛒', title: 'Market', html: `
+  { id: 'market', icona: 'CART', title: 'Market', html: `
     <p>Nel Market &amp; Bazar del villaggio trovi alimentari, bevande, prodotti per il mare e generi di prima necessità.</p>
     <h3>Spesa a domicilio</h3>
     <p>Ordina online e paga con carta: ti portiamo la spesa direttamente in alloggio, all'orario stabilito.</p>
     <p><a class="link-btn" href="https://gardenriver.qromo.it/15046/" target="_blank" rel="noopener">Ordina online</a></p>` },
-  { id: 'lavanderia', emoji: '🧺', title: 'Lavanderia', html: `
+  { id: 'lavanderia', icona: 'SHIRT', title: 'Lavanderia', html: `
     <p>All'interno del villaggio trovi un'area lavanderia con lavatrici e asciugatrici a gettoni.</p>
     <p>Per la posizione esatta consulta la <a href="https://stay.gardenriver.it/source/mappa.pdf" target="_blank" rel="noopener">mappa del villaggio</a>.</p>` },
-  { id: 'farmacia', emoji: '💊', title: 'Farmacia e Guardia medica', html: `
+  { id: 'farmacia', icona: 'PHARMACY', title: 'Farmacia e Guardia medica', html: `
     <h3>Farmacia Lunerti</h3>
     <p>Via Del Molino 10, 63824 Marina di Altidona (FM) — aperta fino alle 20:00<br><a href="tel:+390734932180">0734 932180</a></p>
     <h3>Farmacia Marconi Dr. Luigi</h3>
     <p>Via Giacomo Leopardi 19, 63827 Pedaso (FM) — aperta fino alle 20:00<br><a href="tel:+390734931342">0734 931342</a></p>
     <h3>Ospedale Augusto Murri</h3>
     <p>Via Augusto Murri 21, 63900 Fermo (FM)</p>` },
-  { id: 'negozi', emoji: '🛍️', title: 'Negozi e servizi vicini', html: `
+  { id: 'negozi', icona: 'BAG', title: 'Negozi e servizi vicini', html: `
     <h3>Salute e benessere</h3>
     <ul><li><strong>Èlegance</strong> (parrucchiere) — 3 min in auto / 10-15 min a piedi. <a href="https://share.google/xLwZ5ffR23g0y8Sqt" target="_blank" rel="noopener">Indicazioni</a></li></ul>
     <h3>Sportelli ATM</h3>
@@ -1529,11 +1529,11 @@ function renderInfo() {
   }
   const mappa = `<button type="button" class="info-row" onclick="apriMappa()"><span class="emoji" style="width:22px;height:22px;color:var(--green-700)">${IC.MAP}</span><span class="titolo">Mappa del villaggio</span><span data-icon="CHEVRON"></span></button>`;
   const extra0 = CONTENUTI.testi.info_testo
-    ? `<button type="button" class="info-row" onclick="apriInfoSub('extra')"><span class="emoji">📌</span><span class="titolo">Dalla reception</span><span data-icon="CHEVRON"></span></button>`
+    ? `<button type="button" class="info-row" onclick="apriInfoSub('extra')"><span class="emoji">${ICONS.PIN}</span><span class="titolo">Dalla reception</span><span data-icon="CHEVRON"></span></button>`
     : '';
   const extra = mappa + extra0;
   panel.innerHTML = `<div class="card"><div class="info-list">${extra}` +
-    INFO_TOPICS.map(t => `<button type="button" class="info-row" onclick="apriInfoSub('${t.id}')"><span class="emoji">${t.emoji}</span><span class="titolo">${esc(t.title)}</span><span data-icon="CHEVRON"></span></button>`).join('') +
+    INFO_TOPICS.map(t => `<button type="button" class="info-row" onclick="apriInfoSub('${t.id}')"><span class="emoji">${ICONS[t.icona] || ICONS.INFO}</span><span class="titolo">${esc(t.title)}</span><span data-icon="CHEVRON"></span></button>`).join('') +
     `</div></div>`;
   hydrateIcons(panel);
 }
@@ -1560,7 +1560,7 @@ function renderWhatsapp() {
 // descrizione → accesso in assenza → conferma. Il ticket arriva allo staff
 // (Hub, push e gruppo Telegram Manutenzione) segnato come "dall'ospite".
 let _mn = {};
-const MN_CATEGORIE = [['Elettrico', '⚡'], ['Idraulico', '💧'], ['Climatizzazione', '❄️'], ['Altro', '🔧']];
+const MN_CATEGORIE = [['Elettrico', ICONS.BOLT], ['Idraulico', ICONS.DROP], ['Climatizzazione', ICONS.SNOW], ['Altro', ICONS.WRENCH]];
 function renderManutenzione() {
   const p = CFG.prenotazione || {};
   _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, invio: false };
@@ -1582,7 +1582,7 @@ function renderManutenzione() {
       <div id="mn-box-cat" style="display:none">
         <div class="passo" style="margin-top:30px"><span class="n">2</span><h2>Che tipo di guasto?</h2></div>
         <p class="guida">Tocca la categoria che si avvicina di più.</p>
-        <div class="sp-grid" id="mn-cat-grid">${MN_CATEGORIE.map(([c, e]) => `<button type="button" class="sp-btn" data-c="${c}" onclick="mnCategoria(this.dataset.c)">${e} ${c}</button>`).join('')}</div>
+        <div class="sp-grid" id="mn-cat-grid">${MN_CATEGORIE.map(([c, e]) => `<button type="button" class="sp-btn" data-c="${c}" onclick="mnCategoria(this.dataset.c)"><span class="ico-sm">${e}</span>${c}</button>`).join('')}</div>
       </div>
 
       <div id="mn-box-desc" style="display:none">
@@ -1743,7 +1743,7 @@ function rsDisegna() {
   const giorni = rec.length ? [d.oggi] : d.giorni.filter((g, i) => i === 0 || !d.famiglia.checkout || d.famiglia.checkout > d.oggi);
   $('#service-content').innerHTML = `
     <a class="rs-carta" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">
-      <span class="ic">📖</span><span class="tx"><b>Menu alla carta</b><small>Sempre disponibile · tocca per sfogliarlo</small></span><span class="go">Apri ›</span></a>
+      <span class="ic">${ICONS.BOOK}</span><span class="tx"><b>Menu alla carta</b><small>Sempre disponibile · tocca per sfogliarlo</small></span><span class="go">Apri ›</span></a>
     <div id="rs-root">${giorni.map(g => `<section id="rs-day-${g}">${rsGiorno(g)}</section>`).join('')}</div>
     <div class="card rs-orari"><h2>Orari del ristorante</h2>
       <p><b>Colazione</b> 8:00 – 10:00 · <b>Pranzo</b> 13:00 – 14:30 · <b>Cena</b> 20:00 – 22:00</p>
@@ -1765,12 +1765,12 @@ function rsGiorno(data) {
     const sc = RS.mp[data];
     const btn = (t, ic, nome) => {
       const altroOrd = esclusivo && ord(t === 'pranzo' ? 'cena' : 'pranzo');
-      const n = rsTotKey(`${data}_${t}`), st = ord(t) ? '✓ Ordinato' : (n ? `${n} ${n === 1 ? 'portata' : 'portate'}` : (t === 'pranzo' ? 'Mezzogiorno' : 'Sera'));
+      const n = rsTotKey(`${data}_${t}`), st = ord(t) ? 'Ordinato' : (n ? `${n} ${n === 1 ? 'portata' : 'portate'}` : (t === 'pranzo' ? 'Mezzogiorno' : 'Sera'));
       return `<button type="button" class="rs-sel ${t}${sc === t ? ' on' : ''}" ${altroOrd ? 'disabled' : ''} onclick="rsScegli('${data}','${t}')"><span class="i">${ic}</span><b>${nome}</b><small>${st}</small></button>`;
     };
     html += `<div class="rs-selwrap"><p>${esclusivo ? 'Mezza pensione · scegli un pasto' : 'Pensione completa · ordina pranzo e cena'}</p>
       ${esclusivo && !sc ? '<small>Con la mezza pensione puoi ordinare <b>pranzo oppure cena</b>, non entrambi.</small>' : ''}
-      <div class="rs-selbtns">${btn('pranzo', '☀️', 'Pranzo')}${btn('cena', '🌙', 'Cena')}</div></div>`;
+      <div class="rs-selbtns">${btn('pranzo', ICONS.SUN, 'Pranzo')}${btn('cena', ICONS.MOON, 'Cena')}</div></div>`;
     mostra = sc ? [sc] : [];
   }
   html += mostra.map(t => rsCard(data, t)).join('');
@@ -1788,9 +1788,9 @@ function rsScegli(data, tipo) {
 function rsCard(data, tipo) {
   const key = `${data}_${tipo}`, piatti = rsTipi(data)[tipo] || [], ord = RS.d.ordini[key], max = RS.d.famiglia.max_ospiti;
   const scaduto = !ord && rsScaduto(data), sel = rsSel(key);
-  const ic = tipo === 'pranzo' ? '☀️' : '🌙', nome = tipo === 'pranzo' ? 'Pranzo' : 'Cena';
+  const ic = tipo === 'pranzo' ? ICONS.SUN : ICONS.MOON, nome = tipo === 'pranzo' ? 'Pranzo' : 'Cena';
   const head = `<div class="rs-head ${tipo}"><span class="i">${ic}</span><div><b>${nome}</b><small>${tipo === 'pranzo' ? 'Mezzogiorno' : 'Sera'} · ordina entro le 8:30</small></div>
-    ${ord ? '<span class="rs-lock">✓ Confermato</span>' : (scaduto ? '<span class="rs-lock off">⏱ Scaduto</span>' : '')}</div>`;
+    ${ord ? '<span class="rs-lock">Confermato</span>' : (scaduto ? '<span class="rs-lock off">Scaduto</span>' : '')}</div>`;
   let body = '';
   if (ord) {
     const per = {}; ord.piatti.forEach(p => { (per[p.categoria || 'Altro'] = per[p.categoria || 'Altro'] || []).push(p); });
@@ -1872,7 +1872,7 @@ async function rsInvia(data) {
     }
     Object.assign(RS.d.ordini, r.ordini);
     ts.forEach(t => { delete RS.sel[`${data}_${t}`]; });
-    rsChiudiConferma(); rsToast('Ordine inviato ✓'); rsRidisegna(data);
+    rsChiudiConferma(); rsToast('Ordine inviato'); rsRidisegna(data);
   } catch (e) { rsChiudiConferma(); rsToast('Connessione assente, riprova'); }
 }
 

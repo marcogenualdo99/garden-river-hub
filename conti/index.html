@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
-<script src="../assets/icons.js?v=1794520000"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Conti Aperti">
@@ -239,9 +239,12 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
 
 .scadenza-row { background: var(--white); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 12px; }
 
-.scadenza-row.urgente { border-left: 4px solid var(--orange); }
 
-.scadenza-row.oggi    { border-left: 4px solid var(--red);    }
+.ospite-avatar.oggi { background: var(--red-bg); color: var(--red); }
+#btn-refresh svg { width: 17px; height: 17px; display: block; }
+.ico-inline { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
+.ico-inline svg { width: 13px; height: 13px; }
+.del-btn svg { width: 14px; height: 14px; }
 
 .scadenza-info  { flex: 1; min-width: 0; }
 
@@ -289,6 +292,73 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
 
 .divider { height: 1px; background: var(--gray-100); margin: 14px 0; }
 
+
+/* ══ LAYOUT SCHERMI LARGHI ═══════════════════════════════════════════════════
+   Sotto i 700px resta la colonna singola da telefono. Da tablet in su le liste
+   diventano griglie di schede, il dettaglio conto si divide in due colonne
+   (ordini a sinistra, azioni e note a destra) e i moduli restano centrati. */
+@media (max-width: 600px) {
+  /* intestazione del dettaglio: nome su una riga, azioni e totale sotto */
+  #sec-dettaglio .back-header { flex-wrap: wrap; row-gap: 10px; }
+  #sec-dettaglio .back-header > div[style*="flex:1"] { flex: 1 0 calc(100% - 60px); min-width: 0; }
+  #sec-dettaglio .back-header > div[style*="text-align:right"] { margin-left: auto; }
+}
+.det-grid { display: block; }
+.det-top  { display: flex; gap: 10px; margin-bottom: 16px; }
+.det-chiudi { display: flex; gap: 10px; margin-top: 16px; }
+.det-note textarea { height: 110px; resize: vertical; }
+.ospiti-top { display: block; }
+.empty { grid-column: 1 / -1; }
+
+@media (min-width: 700px) {
+  main { max-width: 980px; padding: 22px 28px 100px; }
+  .nav-inner { max-width: 980px; padding: 10px 28px; }
+  #ospiti-list, #in-arrivo-list, #chiusi-list, #scadenze-list, #no-lista {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+  #ospiti-list .ospite-card, #in-arrivo-list .ospite-card, #chiusi-list .ospite-card,
+  #scadenze-list .scadenza-row, #no-lista .ospite-card { margin-bottom: 0; }
+  #chiusi-list > p, #no-lista > p { grid-column: 1 / -1; }
+  .ospite-card { transition: box-shadow .15s, transform .15s; }
+  .ospite-card:hover { box-shadow: var(--soft-shadow, var(--shadow)); transform: translateY(-1px); }
+  .scadenza-row:hover { box-shadow: var(--shadow); }
+}
+
+@media (min-width: 1024px) {
+  main { max-width: 1280px; padding: 26px 36px 100px; }
+  .nav-inner { max-width: 1280px; padding: 10px 36px; }
+  .tab { padding: 9px 20px; font-size: 14px; }
+
+  /* Ospiti: contatori a sinistra, ricerca e "+ Ospite" a destra */
+  .ospiti-top { display: flex; gap: 22px; align-items: center; margin-bottom: 22px; }
+  .ospiti-top .alert-grid { flex: 0 0 540px; margin-bottom: 0; }
+  .ospiti-tools { flex: 1; min-width: 0; }
+  .ospiti-tools .search-row { margin-bottom: 8px; }
+  .ospiti-tools .filter-bar { margin-bottom: 0; }
+  #ospiti-list, #in-arrivo-list, #chiusi-list, #no-lista { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 18px; }
+
+  /* Scadenze: totale fisso a sinistra, elenco a destra */
+  #sec-scadenze.active { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 26px; align-items: start; }
+  #sec-scadenze .scadenze-hero { position: sticky; top: 96px; margin-bottom: 0; }
+  #scadenze-list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+
+  /* Dettaglio conto: ordini a sinistra, azioni e note a destra */
+  #sec-dettaglio .det-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0 26px; align-items: start; }
+  #sec-dettaglio .det-main   { grid-column: 1; grid-row: 1 / span 2; }
+  #sec-dettaglio .det-top    { grid-column: 2; grid-row: 1; margin-bottom: 14px; position: sticky; top: 96px; z-index: 2; }
+  #sec-dettaglio .det-bottom { grid-column: 2; grid-row: 2; position: sticky; top: 160px; }
+  #sec-dettaglio .det-bottom .card { margin-bottom: 0; }
+  #sec-dettaglio .det-chiudi { margin-top: 14px; }
+  .ordine-block { margin-bottom: 16px; }
+
+  /* Schermate con un solo modulo: centrate e a larghezza leggibile */
+  #sec-nuovo-ordine, #sec-modifica-ospite, #sec-report, #sec-dettaglio-chiuso { max-width: 720px; margin-left: auto; margin-right: auto; }
+  #sec-nuovo-ospite { max-width: 1000px; margin-left: auto; margin-right: auto; }
+
+  /* Impostazioni: schede su due colonne */
+  #sec-setup.active { display: block; column-count: 2; column-gap: 22px; }
+  #sec-setup .card { break-inside: avoid; }
+  #sec-setup .back-header { column-span: all; }
+}
 
 @media print {
   .top-bar,.nav-wrap,.back-header,.btn-action,.no-print { display: none !important; }
@@ -480,7 +550,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
         <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
         <span id="sync-label" style="display:none"></span>
       </div>
-      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora" id="btn-refresh">&#8635;</button>
+      <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora" id="btn-refresh"><span data-icon="REFRESH"></span></button>
     </div>
   </div>
   <div class="nav-wrap">
@@ -496,6 +566,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
 
   <!-- OSPITI -->
   <div id="sec-ospiti" class="section active">
+    <div class="ospiti-top">
     <div class="alert-grid">
       <div class="alert-card red"   id="card-oggi"   onclick="filterByCard('oggi')">
         <div class="num" id="cnt-oggi">–</div>
@@ -510,9 +581,10 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
         <div class="lbl">Conti aperti</div>
       </div>
     </div>
+    <div class="ospiti-tools">
     <div class="search-row">
       <div class="search-wrap">
-        <span class="search-icon">&#9906;</span>
+        <span class="search-icon" data-icon="SEARCH"></span>
         <input type="text" id="search-input" placeholder="Cerca per nome o per alloggio" oninput="renderOspiti()">
       </div>
       <button class="add-btn" id="btn-add-ospite" onclick="goNuovoOspite()">+ Ospite</button>
@@ -520,6 +592,8 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
     <div id="filter-bar" class="filter-bar hidden">
       <span class="filter-label" id="filter-label"></span>
       <span class="filter-clear" onclick="clearFilter()">Mostra tutti</span>
+    </div>
+    </div>
     </div>
     <div id="ospiti-list"></div>
     <div id="in-arrivo-wrap" style="display:none;margin-top:22px">
@@ -546,7 +620,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
   <!-- DETTAGLIO CONTO CHIUSO -->
   <div id="sec-dettaglio-chiuso" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('chiusi')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('chiusi')"><span data-icon="BACK"></span></button>
       <div style="flex:1">
         <div class="back-title" id="chdet-nome">—</div>
         <div class="back-sub"   id="chdet-sub">—</div>
@@ -564,13 +638,14 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
       </div>
       <button id="btn-ripristina" onclick="ripristinaConto()" style="height:36px;padding:0 14px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd);border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;flex-shrink:0">Ripristina</button>
     </div>
+    <div id="chdet-nota" class="card" style="display:none"></div>
     <div id="chdet-ordini-list"></div>
   </div>
 
   <!-- DETTAGLIO OSPITE -->
   <div id="sec-dettaglio" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('ospiti')"><span data-icon="BACK"></span></button>
       <div style="flex:1">
         <div class="back-title" id="det-nome">—</div>
         <div class="back-sub"   id="det-sub">—</div>
@@ -588,21 +663,31 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
         <div style="font-size:10px;color:var(--gray-500)">totale conto</div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px">
-      <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
-      <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
-    </div>
-    <div id="ordini-list"></div>
-    <div style="display:flex;gap:10px;margin-top:16px">
-      <button class="btn-action" id="btn-azzera-conto" onclick="azzeraConto()" style="border-radius:var(--radius-xl);background:#FEF3C7;color:#B45309">Segna come pagato</button>
-      <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
+    <div class="det-grid">
+      <div class="det-top">
+        <button class="btn-action primary" onclick="goNuovoOrdine()" style="flex:2;border-radius:var(--radius-xl)">+ Aggiungi ordine</button>
+        <button class="btn-action ghost" onclick="goReport()" style="border-radius:var(--radius-xl)">Resoconto</button>
+      </div>
+      <div class="det-main" id="ordini-list"></div>
+      <div class="det-bottom">
+        <div class="card det-note">
+          <h3>Note del conto</h3>
+          <p class="subtitle">Interne: le vedono solo Conti e la scheda prenotazione del Calendario.</p>
+          <div class="form-group" style="margin-bottom:10px"><textarea id="det-note" placeholder="Es. paga in contanti alla partenza, sconto concordato, spese da addebitare…"></textarea></div>
+          <button class="btn-action ghost" id="btn-salva-nota" onclick="salvaNotaConto()" style="width:100%;flex:none">Salva nota</button>
+        </div>
+        <div class="det-chiudi">
+          <button class="btn-action" id="btn-azzera-conto" onclick="azzeraConto()" style="border-radius:var(--radius-xl);background:#FEF3C7;color:#B45309">Segna come pagato</button>
+          <button class="btn-action" id="btn-chiudi-conto" onclick="chiudiConto()" style="border-radius:var(--radius-xl);background:#FEE2E2;color:#DC2626">Chiudi conto</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- REPORT -->
   <div id="sec-report" class="section">
     <div class="back-header no-print">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('dettaglio')"><span data-icon="BACK"></span></button>
       <div><div class="back-title">Resoconto conto</div></div>
       <button onclick="stampaReport()" class="no-print" style="height:36px;padding:0 14px;background:var(--gray-100);color:var(--gray-700);border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto;font-family:var(--font)">Stampa / Condividi</button>
     </div>
@@ -612,13 +697,13 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
   <!-- NUOVO OSPITE -->
   <div id="sec-nuovo-ospite" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('ospiti')"><span data-icon="BACK"></span></button>
       <div><div class="back-title">Apri conto</div><div class="back-sub" id="no-sub">Ospiti presenti in struttura</div></div>
     </div>
     <div class="card">
       <p class="subtitle">I conti si aprono solo per chi è in struttura: scegli l'ospite dalle prenotazioni del Calendario. Nome, alloggio, piano pasti, telefono e check-out si compilano da soli.</p>
       <div class="search-wrap" style="margin-top:10px">
-        <span class="search-icon">&#9906;</span>
+        <span class="search-icon" data-icon="SEARCH"></span>
         <input type="text" id="no-cerca" placeholder="Cerca per nome o alloggio" oninput="renderPresenti()">
       </div>
     </div>
@@ -628,7 +713,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
   <!-- MODIFICA OSPITE -->
   <div id="sec-modifica-ospite" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('dettaglio')"><span data-icon="BACK"></span></button>
       <div><div class="back-title">Modifica anagrafica</div></div>
     </div>
     <div class="card">
@@ -659,7 +744,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
   <!-- NUOVO ORDINE -->
   <div id="sec-nuovo-ordine" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('dettaglio')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('dettaglio')"><span data-icon="BACK"></span></button>
       <div>
         <div class="back-title">Nuovo ordine</div>
         <div class="back-sub" id="no2-sub">—</div>
@@ -690,7 +775,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
   <!-- SETUP -->
   <div id="sec-setup" class="section">
     <div class="back-header">
-      <button class="back-btn" onclick="switchTab('ospiti')">&#8592;</button>
+      <button class="back-btn" onclick="switchTab('ospiti')"><span data-icon="BACK"></span></button>
       <div><div class="back-title">Impostazioni</div></div>
     </div>
     <div class="card">
@@ -721,7 +806,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
     <div class="card">
       <h3>Utenti e permessi</h3>
       <p class="subtitle">Operatori, ruoli e permessi di accesso sono gestiti centralmente dalla Hub Garden River — non più da qui.</p>
-      <button onclick="location.href=HUB_URL+'?go=permessi'" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Apri Hub → Utenti e permessi</button>
+      <button onclick="location.href=HUB_URL+'?go=permessi'" style="width:100%;height:48px;background:var(--green-700);color:white;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Apri Utenti e permessi nella Hub</button>
     </div>
   </div>
 
@@ -746,7 +831,7 @@ main { max-width: 760px; margin: 0 auto; padding: 16px 16px 100px; }
 
 <script>
 // ── COSTANTI ─────────────────────────────────────────────────────────────────
-// 👉 Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
+// Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
 //    Deve trovarsi sullo STESSO DOMINIO di questa app, altrimenti il login
 //    automatico (single sign-on) non può funzionare (sessionStorage è legato
 //    all'origine — protocollo+dominio+porta).
@@ -975,6 +1060,14 @@ async function startRealtimeSync() {
 // (ospite.prenotazioneId) restava con check-in/check-out vecchi: qui li
 // riallineiamo. Si guardano solo i conti aperti, al massimo una volta ogni 60s.
 let _riallineaTs = 0, _riallineaInCorso = false;
+// Nota interna del conto = nota di categoria "Conti" della prenotazione (array `note`
+// del Calendario). Non la mostra nessun altro modulo.
+const CAT_NOTA_CONTI = 'Conti';
+let _noteContoCache = {};          // id conto -> testo della nota
+function notaContiDa(p) {
+  const n = (p.note || []).find(x => x && x.categoria === CAT_NOTA_CONTI);
+  return n ? String(n.testo || '') : '';
+}
 // Id della prenotazione collegata al conto. I conti creati dal Calendario non hanno il
 // campo prenotazioneId ma un id deterministico (osp_cal_<id>, famigliaId cal_<id>).
 function prenotazioneDelConto(o) {
@@ -983,6 +1076,10 @@ function prenotazioneDelConto(o) {
   if (o.id && o.id.startsWith('osp_cal_')) return o.id.slice(8);
   return '';
 }
+// Se la prenotazione cambia nel Calendario, il conto aperto collegato restava indietro.
+// Qui lo riallineiamo: sempre le date; nome, alloggio, piano e telefono solo per i conti
+// che non passano dalla famiglia Ristorazione (per quelli ci pensa la sincronizzazione del
+// Calendario a ogni salvataggio). Si guardano solo i conti aperti, al massimo ogni 60s.
 async function riallineaDatePrenotazioni() {
   if (_riallineaInCorso || Date.now() - _riallineaTs < 60000) return;
   const daControllare = ospiti.filter(o => prenotazioneDelConto(o) && !o.chiuso);
@@ -995,16 +1092,34 @@ async function riallineaDatePrenotazioni() {
       const snap = await getDoc(doc(db, 'prenotazioni', prenotazioneDelConto(o)));
       if (!snap.exists()) continue;
       const p = snap.data();
+      _noteContoCache[o.id] = notaContiDa(p);
       const campi = {};
       if (p.checkin && p.checkin !== o.checkin) campi.checkin = p.checkin;
       if (p.checkout && p.checkout !== o.checkout) campi.checkout = p.checkout;
+      if (!o.famigliaId) {
+        if (p.alloggio_nome && p.alloggio_nome !== o.alloggio) campi.alloggio = p.alloggio_nome;
+        if (typeof p.trattamento_ristorazione === 'string') {
+          const piano = pianoDaTrattamento(p.trattamento_ristorazione);
+          if (piano !== (o.piano || 'nessuno')) campi.piano = piano;
+        }
+        if (p.tel && p.tel !== o.tel) campi.tel = p.tel;
+        if ((p.nome || '').trim()) {
+          const parti = p.nome.trim().split(/\s+/);
+          if ((parti[0] || '') !== o.nome) campi.nome = parti[0] || '';
+          if (parti.slice(1).join(' ') !== o.cognome) campi.cognome = parti.slice(1).join(' ');
+        }
+      }
       if (!Object.keys(campi).length) continue;
       await setDoc(doc(db, 'ospiti', o.id), campi, { merge: true });
-      if (o.famigliaId) {
-        try { await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), campi, { merge: true }); } catch (e) { console.error(e); }
+      const date = {};
+      if (campi.checkin) date.checkin = campi.checkin;
+      if (campi.checkout) date.checkout = campi.checkout;
+      if (o.famigliaId && Object.keys(date).length) {
+        try { await setDoc(doc(db, 'famiglie_ristorazione', o.famigliaId), date, { merge: true }); } catch (e) { console.error(e); }
       }
     }
-  } catch (e) { console.error('Errore riallineamento date prenotazioni:', e); }
+    render();
+  } catch (e) { console.error('Errore riallineamento prenotazioni:', e); }
   finally { _riallineaTs = Date.now(); _riallineaInCorso = false; }
 }
 
@@ -1216,7 +1331,7 @@ function controllaDuplicatiSync() {
     if (!altri.length) return null; // nessun possibile duplicato per questo conto
     const nOrdini = ordini.filter(x => x.ospiteId === o.id).length;
     const sicuro = nOrdini === 0;
-    return `<div class="ospite-card" style="border-left:4px solid var(--orange)">
+    return `<div class="ospite-card">
       <div class="ospite-header">
         <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
         <div class="ospite-info">
@@ -1259,7 +1374,7 @@ function controllaContiScaduti() {
       const tot = totOspite(o.id);
       const nOrdini = ordiniAttivi(o.id).length;
       const vuoto = nOrdini === 0;
-      return `<div class="ospite-card" style="border-left:4px solid var(--red)">
+      return `<div class="ospite-card">
         <div class="ospite-header">
           <div class="ospite-avatar" style="background:var(--gray-100);color:var(--gray-500)">${initials(o)}</div>
           <div class="ospite-info">
@@ -1531,15 +1646,14 @@ function renderOspiti() {
       const g = giorniA(o.checkout); const tot = totOspite(o.id);
       const nOrd = ordiniAttivi(o.id).length;
       const urgente = g>=0&&g<=2; const isOggi = g===0;
-      const borderLeft = isOggi?'4px solid var(--red)':urgente?'4px solid var(--orange)':'none';
       const badgeChk = isOggi
         ? `<span class="badge red">Checkout oggi</span>`
         : urgente ? `<span class="badge orange">Checkout tra ${g} gg</span>`
         : `<span class="badge green">Checkout ${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</span>`;
-      const badgePiano = pianoBadgeHtml(o.piano);
-      return `<div class="ospite-card" style="border-left:${borderLeft}">
+      const badgePiano = pianoBadgeHtml(o.piano) + (_noteContoCache[o.id] ? '<span class="badge blue" title="Il conto ha una nota">Nota</span>' : '');
+      return `<div class="ospite-card">
         <div class="ospite-header" onclick="goDettaglio('${escJs(o.id)}')">
-          <div class="ospite-avatar ${urgente?'urgente':''}">${initials(o)}</div>
+          <div class="ospite-avatar ${isOggi?'oggi':urgente?'urgente':''}">${initials(o)}</div>
           <div class="ospite-info">
             <div class="ospite-nome">${o.cognome} ${o.nome}</div>
             <div class="ospite-sub">${o.alloggio}</div>
@@ -1595,7 +1709,7 @@ function renderScadenze() {
     const cls=g===0?'oggi':g<=2?'urgente':'';
     const badge=g===0?`<span class="badge red">Checkout oggi</span>`:g<=2?`<span class="badge orange">Tra ${g} giorni</span>`:`<span class="badge gray">Tra ${g} giorni</span>`;
     return `<div class="scadenza-row ${cls}" onclick="goDettaglio('${escJs(o.id)}')" style="cursor:pointer">
-      <div class="ospite-avatar ${cls?'urgente':''}">${initials(o)}</div>
+      <div class="ospite-avatar ${cls}">${initials(o)}</div>
       <div class="scadenza-info"><div class="scadenza-nome">${o.cognome} ${o.nome}</div><div class="scadenza-sub">${o.alloggio}</div><div style="margin-top:5px">${badge}</div></div>
       <div class="scadenza-destra"><div class="importo">${fmt(tot)}</div><div class="data">${new Date(o.checkout).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>
     </div>`;
@@ -1625,7 +1739,7 @@ function renderChiusi() {
             <div class="importo" style="color:var(--gray-400);text-decoration:line-through">${fmt(tot)}</div>
             <div class="n-ordini">${nOrd} ordini</div>
           </div>
-          ${isAdmin() ? `<button onclick="event.stopPropagation();eliminaContoChiuso('${escJs(o.id)}')" title="Elimina definitivamente" style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px">&#10005;</button>` : ''}
+          ${isAdmin() ? `<button class="del-btn" onclick="event.stopPropagation();eliminaContoChiuso('${escJs(o.id)}')" title="Elimina definitivamente" style="margin-left:6px">${ICONS.CLOSE}</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -1659,6 +1773,13 @@ function goDettaglioChiuso(id) {
   document.getElementById('chdet-sub').textContent    = o.alloggio;
   document.getElementById('chdet-totale').textContent = fmt(totOspiteStorico(o.id));
   document.getElementById('btn-ripristina').style.display = '';
+  const boxNota = document.getElementById('chdet-nota');
+  boxNota.style.display = 'none';
+  leggiNotaConto(o).then(t => {
+    if (currentOspiteId !== id || !t) return;
+    boxNota.innerHTML = `<h3>Note del conto</h3><p style="font-size:14px;color:var(--gray-700);white-space:pre-wrap;margin-top:6px">${escHtml(t)}</p>`;
+    boxNota.style.display = '';
+  }).catch(() => {});
   const miei = ordini.filter(x=>x.ospiteId===o.id);
   if (!miei.length) {
     document.getElementById('chdet-ordini-list').innerHTML = '<div class="empty">Nessun ordine registrato per questo conto.</div>';
@@ -1705,7 +1826,7 @@ function renderDettaglio() {
   const o = ospiti.find(x=>x.id===currentOspiteId);
   if (!o) return;
   document.getElementById('det-nome').textContent   = `${o.cognome} ${o.nome}`;
-  document.getElementById('det-sub').textContent    = o.alloggio + (o.tel ? ' · 📞 ' + o.tel : '');
+  document.getElementById('det-sub').innerHTML = escHtml(o.alloggio || '') + (o.tel ? ` · <span class="ico-inline">${ICONS.PHONE}</span>${escHtml(o.tel)}` : '');
   document.getElementById('det-totale').textContent = fmt(totOspite(o.id));
   document.getElementById('btn-chiudi-conto').style.display = '';
   document.getElementById('btn-edit-ospite').style.display  = '';
@@ -1730,7 +1851,7 @@ function renderDettaglio() {
         </div>
         <div class="ordine-destra">
           <span class="ordine-importo">${fmt(ord.importo)}</span>
-          <button class="del-btn" onclick="deleteOrdine('${escJs(ord.id)}')">&#10005;</button>
+          <button class="del-btn" onclick="deleteOrdine('${escJs(ord.id)}')">${ICONS.CLOSE}</button>
         </div>
       </div>`).join('')}
     </div>`;
@@ -2095,9 +2216,55 @@ function switchTab(id) {
   if (id==='chiusi')   renderChiusi();
 }
 
+// ── NOTA DEL CONTO (categoria "Conti" delle note della prenotazione) ─────────────
+async function leggiNotaConto(o) {
+  const pid = prenotazioneDelConto(o);
+  if (!pid) return String(o.note_conto || '');
+  await waitForFirebase();
+  const { db, doc, getDoc } = window._fb;
+  const snap = await getDoc(doc(db, 'prenotazioni', pid));
+  return snap.exists() ? notaContiDa(snap.data()) : String(o.note_conto || '');
+}
+async function caricaNotaConto(id) {
+  const o = ospiti.find(x => x.id === id); if (!o) return;
+  const ta = document.getElementById('det-note');
+  ta.value = _noteContoCache[id] || '';
+  try {
+    const testo = await leggiNotaConto(o);
+    if (currentOspiteId !== id) return;
+    ta.value = testo; _noteContoCache[id] = testo;
+  } catch (e) { console.error('Errore lettura nota conto:', e); }
+}
+async function salvaNotaConto() {
+  const o = ospiti.find(x => x.id === currentOspiteId); if (!o) return;
+  const testo = document.getElementById('det-note').value.trim();
+  const btn = document.getElementById('btn-salva-nota');
+  btn.disabled = true;
+  try {
+    await waitForFirebase();
+    const { db, doc, getDoc, updateDoc } = window._fb;
+    const pid = prenotazioneDelConto(o);
+    if (pid) {
+      // Rilegge la prenotazione per non sovrascrivere le note delle altre categorie.
+      const snap = await getDoc(doc(db, 'prenotazioni', pid));
+      if (!snap.exists()) { showToast('Prenotazione non trovata'); return; }
+      const note = (snap.data().note || []).filter(n => n && n.categoria !== CAT_NOTA_CONTI);
+      if (testo) note.push({ categoria: CAT_NOTA_CONTI, testo });
+      await updateDoc(doc(db, 'prenotazioni', pid), { note });
+    } else {
+      await updateDoc(doc(db, 'ospiti', o.id), { note_conto: testo });
+    }
+    _noteContoCache[o.id] = testo;
+    showToast(testo ? 'Nota salvata' : 'Nota eliminata');
+    renderOspiti();
+  } catch (e) { console.error(e); showToast('Errore salvataggio nota'); }
+  finally { btn.disabled = false; }
+}
+
 function goDettaglio(id) {
   currentOspiteId = id;
   renderDettaglio();
+  caricaNotaConto(id);
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-dettaglio').classList.add('active');
 }

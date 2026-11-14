@@ -57,7 +57,7 @@
 
 /* ── ERRORE CODICE ── */
 #error-screen{position:fixed;inset:0;z-index:999;background:var(--green-700);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
-.error-icon{font-size:48px;margin-bottom:16px}
+.error-icon{margin-bottom:16px;color:var(--gray-400)}.error-icon svg{width:48px;height:48px}
 .error-title{font-size:20px;font-weight:800;color:var(--white);margin-bottom:8px}
 .error-sub{font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6}
 
@@ -175,7 +175,7 @@ body.embed-mode main{padding-top:20px}
 /* Menu alla carta: PDF sempre raggiungibile in cima, pulsante grande per il telefono */
 .carta-card{display:flex;align-items:center;gap:14px;min-height:72px;padding:14px 16px;margin:4px 0 8px;background:var(--orange);color:#fff;text-decoration:none;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);-webkit-tap-highlight-color:transparent}
 .carta-card:active{transform:scale(.98)}
-.carta-icon{font-size:30px;line-height:1}
+.carta-icon{line-height:1;display:flex}.carta-icon svg{width:30px;height:30px}.settings-close svg{width:16px;height:16px}
 .carta-txt{flex:1;display:flex;flex-direction:column;gap:3px}
 .carta-txt strong{font-size:18px;font-weight:800}
 .carta-txt small{font-size:13px;opacity:.92}
@@ -189,7 +189,7 @@ body.embed-mode main{padding-top:20px}
 .mp-selector-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mp-sel-btn{min-height:80px;padding:8px 4px;border:2px solid var(--gray-200);border-radius:14px;background:var(--gray-50);cursor:pointer;font-family:var(--font);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:background .15s,border-color .15s,transform .1s;-webkit-tap-highlight-color:transparent}
 .mp-sel-btn:active{transform:scale(.97)}
-.mp-sel-btn .mp-sel-icon{font-size:24px;line-height:1}
+.mp-sel-btn .mp-sel-icon{line-height:1;display:flex}.mp-sel-btn .mp-sel-icon svg{width:26px;height:26px}.meal-card-header svg{width:20px;height:20px;vertical-align:-4px}
 .mp-sel-btn .mp-sel-txt{font-size:15px;font-weight:800;color:var(--gray-500)}
 .mp-sel-btn.active.pranzo{background:var(--green-700);border-color:var(--green-700)}
 .mp-sel-btn.active.pranzo .mp-sel-txt{color:#fff}
@@ -205,13 +205,14 @@ body.embed-mode main{padding-top:20px}
 .toast{position:fixed;top:calc(env(safe-area-inset-top) + 16px);left:50%;transform:translateX(-50%) translateY(-10px);background:var(--green-700);color:var(--white);padding:11px 20px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999;box-shadow:var(--shadow-lg)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<script src="../assets/icons.js?v=1794700100"></script>
 </head>
 <body>
 
 <div id="loading-screen"><div class="gr-spinner"></div></div>
 
 <div id="error-screen" class="hidden">
-  <div class="error-icon">🍽️</div>
+  <div class="error-icon" data-icon="UTENSILS"></div>
   <div class="error-title">Accesso non valido</div>
   <div class="error-sub">Il link non è valido o è scaduto.<br>Contatta lo staff per ricevere un nuovo link.</div>
 </div>
@@ -235,7 +236,7 @@ body.embed-mode main{padding-top:20px}
 
 <main class="hidden" id="app-main">
   <a class="carta-card" href="menu-alla-carta.pdf" target="_blank" rel="noopener">
-    <span class="carta-icon">📖</span>
+    <span class="carta-icon" data-icon="BOOK"></span>
     <span class="carta-txt"><strong>Menu alla carta</strong><small>Sempre disponibile · tocca per sfogliarlo</small></span>
     <span class="carta-go">Apri ›</span>
   </a>
@@ -258,7 +259,7 @@ body.embed-mode main{padding-top:20px}
 <div id="settings-panel" role="dialog" aria-label="Informazioni famiglia">
   <div class="settings-header">
     <h2>Informazioni</h2>
-    <button class="settings-close" onclick="closeSettings()">✕</button>
+    <button class="settings-close" onclick="closeSettings()" data-icon="CLOSE"></button>
   </div>
   <div class="settings-body">
     <div class="settings-section">
@@ -554,7 +555,7 @@ function renderMenu(){
     // Giorno di partenza con recupero pasti: mostra solo i pasti da recuperare
     const banner=document.createElement('div');
     banner.className='day-label';
-    banner.style.cssText='background:#FFF8E7;border-left:4px solid #D97706;color:#92400E;padding-left:14px';
+    banner.style.cssText='background:#FFF8E7;border:1px solid #F5D78A;color:#92400E;padding-left:14px';
     banner.textContent='Recupero pasti — Giorno di partenza';
     c.appendChild(banner);
     const note=document.createElement('div');
@@ -625,8 +626,8 @@ function renderGiornoMP(c,data,tipi){
       ? (!scelta?'<div class="mp-selector-hint">Con la mezza pensione puoi ordinare <strong>pranzo oppure cena</strong>, non entrambi. Seleziona quale vuoi ordinare oggi.</div>':'')
       : '<div class="mp-selector-hint">Tocca <strong>Pranzo</strong> o <strong>Cena</strong> per scegliere i piatti di ciascun pasto, poi conferma l\'ordine.</div>'}
     <div class="mp-selector-btns">
-      ${btn('pranzo','☀️','Pranzo')}
-      ${btn('cena','🌙','Cena')}
+      ${btn('pranzo',ICONS.SUN,'Pranzo')}
+      ${btn('cena',ICONS.MOON,'Cena')}
     </div>
     ${esclusivo&&scelta&&!pranzoLocked&&!cenaLocked?`<button class="mp-change-btn" onclick="cambiaPasto('${data}')">Cambia scelta</button>`:''}`;
   c.appendChild(wrap);
@@ -642,7 +643,7 @@ function renderGiornoMP(c,data,tipi){
 // Riga di stato sotto il nome del pasto nel selettore.
 function statoPasto(data,tipo){
   const key=`${data}_${tipo}`;
-  if(ordiniEsistenti[key]) return '✓ Ordinato';
+  if(ordiniEsistenti[key]) return 'Ordinato';
   const n=totaleKeyPiatti(key);
   if(n>0) return `${n} ${n===1?'portata':'portate'}`;
   return tipo==='pranzo'?'Mezzogiorno':'Sera';
@@ -730,7 +731,7 @@ function buildMealCard(data,tipo,piatti){
 
   const card=document.createElement('div');
   card.className='meal-card'+(isLocked?' locked':'');
-  const tipoIcon =tipo==='pranzo'?'☀️':'🌙';
+  const tipoIcon =tipo==='pranzo'?ICONS.SUN:ICONS.MOON;
   const tipoNome =tipo==='pranzo'?'Pranzo':'Cena';
   const tipoSub  =tipo==='pranzo'?'Mezzogiorno · ordina entro le 8:30':'Sera · ordina entro le 8:30';
   // Calcola lock MP iniziale
@@ -747,7 +748,7 @@ function buildMealCard(data,tipo,piatti){
           <div class="meal-badge-sub">${tipoSub}</div>
         </div>
       </span>
-      ${isLocked?(ordiniEsistenti[key]?'<span class="lock-badge">✓ Confermato</span>':'<span class="lock-badge" style="background:var(--gray-100);color:var(--gray-500);border-color:var(--gray-200)">⏱ Scaduto</span>'):''}
+      ${isLocked?(ordiniEsistenti[key]?'<span class="lock-badge">Confermato</span>':'<span class="lock-badge" style="background:var(--gray-100);color:var(--gray-500);border-color:var(--gray-200)">Scaduto</span>'):''}
     </div>
     <div class="meal-card-body${isMPLocked?' mp-locked':''}" id="meal-body-${key}">
       <div id="piatti-${key}"></div>
@@ -939,7 +940,7 @@ function apriConfermaOrdine(data){
       const key = `${data}_${tipo}`;
       return ordiniEsistenti[key] || !selezioni[key];
     });
-    showToast(tuttiConfermati ? 'Ordine già confermato ✓' : 'Seleziona almeno un piatto prima di confermare');
+    showToast(tuttiConfermati ? 'Ordine già confermato' : 'Seleziona almeno un piatto prima di confermare');
     return;
   }
 
@@ -995,7 +996,7 @@ async function salvaOrdini(targetData){
     if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
     await Promise.all(promises);
     // La notifica a Telegram parte dal controllo periodico degli ordini con notified=false (telegram-bot, evento ordini_pendenti).
-    showToast('Ordine salvato ✓');
+    showToast('Ordine salvato');
     setTimeout(()=>location.reload(), 400);
   }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
 }
@@ -1031,5 +1032,6 @@ function mostraErrore(){ document.getElementById('loading-screen').style.display
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 let _tt; function showToast(m){ const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),2800); }
 </script>
+<script>if(window.hydrateIcons)hydrateIcons();</script>
 </body>
 </html>

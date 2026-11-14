@@ -52,7 +52,7 @@
   setTimeout(segnalaPronto, 8000);
 </script>
 <link rel="stylesheet" href="../assets/theme.css">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <style>
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -229,6 +229,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .modal-btn-cancel  { flex: 1; height: 48px; background: var(--gray-100); color: var(--gray-700); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 .modal-btn-save    { flex: 2; height: 48px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
 .modal-btn-save:active { opacity: .85; }
+.modal-btn-delete svg { width: 18px; height: 18px }
 .modal-btn-delete  { height: 48px; width: 48px; background: var(--red-bg); color: var(--red); border: none; border-radius: 50%; font-size: 16px; cursor: pointer; flex-shrink: 0; font-family: var(--font); }
 .stato-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-bottom: 14px; }
 .stato-opt { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: var(--radius-sm); border: 2px solid var(--gray-200); cursor: pointer; transition: border-color .15s, background .15s; font-size: 12px; font-weight: 700; color: var(--gray-700); }
@@ -612,10 +613,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
     <label class="form-label">Stato prenotazione</label>
     <div class="stato-grid" id="stato-grid"></div>
 
-    <div class="conflict-msg" id="conflict-msg">⚠ Ombrellone già occupato in questo periodo</div>
+    <div class="conflict-msg" id="conflict-msg">Ombrellone già occupato in questo periodo</div>
 
     <div class="modal-btns">
-      <button class="modal-btn-delete hidden" id="modal-btn-delete" onclick="deleteBooking()" title="Elimina">🗑</button>
+      <button class="modal-btn-delete hidden" id="modal-btn-delete" onclick="deleteBooking()" title="Elimina" data-icon="TRASH"></button>
       <button class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
       <button class="modal-btn-save" onclick="saveBooking()">Salva</button>
     </div>
@@ -645,7 +646,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
       <input type="date" id="pp-filter-dal" class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
       <span style="font-size:12px;color:var(--gray-400)">→</span>
       <input type="date" id="pp-filter-al"  class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
-      <button class="btn-close-print" style="height:32px;padding:0 10px;font-size:11px" onclick="resetPrintFilter()">✕ Reset</button>
+      <button class="btn-close-print" style="height:32px;padding:0 10px;font-size:11px" onclick="resetPrintFilter()"><span data-icon="CLOSE" style="display:inline-flex;vertical-align:-2px;margin-right:4px"></span>Reset</button>
     </div>
     <div class="tickets-grid" id="pp-grid"></div>
     <div class="print-panel-btns">
@@ -993,7 +994,7 @@ function placeBookingBlock(rowEl, b, y, m, days) {
 
   el.innerHTML = `
     <span class="b-name">${b.cliente}</span>
-    <button class="b-print" data-id="${b.id}" title="Stampa tagliandino" onclick="event.stopPropagation();printSingle('${b.id}')">🖨</button>
+    <button class="b-print" data-id="${b.id}" title="Stampa tagliandino" onclick="event.stopPropagation();printSingle('${b.id}')">${ICON('PRINT',14)}</button>
   `;
   el.title = `${b.cliente} · ${fmtDate(b.dal)} → ${fmtDate(isoAddDays(b.al,1))}${b.note ? '\n'+b.note : ''}`;
 
@@ -1057,7 +1058,7 @@ function setupDrag(el, b) {
       const newAl  = dateChanged ? fmt(new Date(ay,am,ad+dCols)) : b.al;
 
       if (hasConflict(newOmbr, newDal, newAl, b.id)) {
-        showToast('⚠ Conflitto: ombrellone già occupato in quel periodo');
+        showToast('Conflitto: ombrellone già occupato in quel periodo');
         renderTimeline(); return;
       }
 
@@ -1070,7 +1071,7 @@ function setupDrag(el, b) {
         const { db, doc, updateDoc } = window._fb;
         await updateDoc(doc(db, 'beach_prenotazioni', b.id), { dal: newDal, al: newAl, ombrellone: newOmbr });
         setSyncStatus('live');
-        showToast(`✓ ${b.cliente} → ${newOmbr}${dateChanged ? ', '+fmtDate(newDal) : ''}`);
+        showToast(`${b.cliente} → ${newOmbr}${dateChanged ? ', '+fmtDate(newDal) : ''}`);
       } catch(err) { console.error(err); showToast('Errore di salvataggio'); setSyncStatus('error'); }
     };
 
@@ -1163,7 +1164,7 @@ async function saveBooking() {
     setSyncStatus('live');
     closeModal();
     renderTimeline(); renderStats();
-    showToast(editingId ? '✓ Prenotazione aggiornata' : '✓ Prenotazione salvata');
+    showToast(editingId ? 'Prenotazione aggiornata' : 'Prenotazione salvata');
   } catch(e) { console.error(e); showToast('Errore di salvataggio'); setSyncStatus('error'); }
 }
 
@@ -1204,12 +1205,12 @@ function buildTicketHTML(b) {
         <span class="ticket-id" style="position:static;margin-left:auto">#${b.id.slice(-4).toUpperCase()}</span>
       </div>
       <div class="ticket-name">${b.cliente}</div>
-      <div class="ticket-ombr">☂ ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
+      <div class="ticket-ombr">Ombrellone ${b.ombrellone}${s ? ' · '+s.nome : ''}</div>
       <div class="ticket-dates">
         <span>▶ Arrivo: <strong>${fmtDate(b.dal)}</strong></span>
         <span>◀ Partenza: <strong>${fmtDate(isoAddDays(b.al,1))}</strong></span>
       </div>
-      ${b.note ? `<div class="ticket-note">📝 ${b.note}</div>` : ''}
+      ${b.note ? `<div class="ticket-note">Note: ${b.note}</div>` : ''}
     </div>`;
 }
 
@@ -1480,13 +1481,13 @@ function renderSettings() {
         <div class="zone-block">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
             <div class="zone-label" style="margin:0;flex:1">${z.label}</div>
-            <button style="height:26px;padding:0 10px;border:none;border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--red-bg);color:var(--red)" onclick="deleteZone('${s.id}','${z.id}')">✕ Zona</button>
+            <button style="height:26px;padding:0 10px;border:none;border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--red-bg);color:var(--red)" onclick="deleteZone('${s.id}','${z.id}')">${ICON('CLOSE',12)} Zona</button>
           </div>
           <!-- Ombrelloni della zona -->
           <div class="pill-list" id="pills-${s.id}-${z.id}">
             ${(z.ombrelloni||[]).map(o => { const n=normalizeOmbr(o); return `
               <div class="pill">${n.id}${n.dal||n.al ? `<span style="font-size:10px;font-weight:400;opacity:.7;margin-left:4px">${n.dal||''}→${n.al||''}</span>` : ''}
-                <button onclick="deleteOmbrellone('${s.id}','${z.id}','${n.id}')" title="Rimuovi">✕</button>
+                <button onclick="deleteOmbrellone('${s.id}','${z.id}','${n.id}')" title="Rimuovi">${ICON('CLOSE',14)}</button>
               </div>`;}).join('')}
           </div>
           <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
@@ -1517,13 +1518,13 @@ async function addSpiaggia() {
     const ref = await addDoc(collection(db, 'beach_spiagge'), { nome, zone: [], createdAt: new Date().toISOString() });
     spiagge[ref.id] = { id: ref.id, nome, zone: [] };
     document.getElementById('new-beach-nome').value = '';
-    renderBeachSelect(); renderSettings(); showToast(`✓ Spiaggia "${nome}" creata`);
+    renderBeachSelect(); renderSettings(); showToast(`Spiaggia "${nome}" creata`);
   } catch(e) { console.error(e); showToast('Errore'); }
 }
 
 async function deleteSpiaggia(id) {
   const prenAssociate = Object.values(prenotazioni).filter(p => p.spiaggia_id === id).length;
-  if (prenAssociate > 0) { showToast(`⚠ Impossibile eliminare: ${prenAssociate} prenotazioni associate`); return; }
+  if (prenAssociate > 0) { showToast(`Impossibile eliminare: ${prenAssociate} prenotazioni associate`); return; }
   document.getElementById('confirm-title').textContent = 'Elimina spiaggia';
   document.getElementById('confirm-body').textContent  = `Eliminare "${spiagge[id]?.nome}"? L'operazione è irreversibile.`;
   document.getElementById('confirm-action').onclick = async () => {
@@ -1551,7 +1552,7 @@ async function addZone(spId) {
     await updateDoc(doc(db, 'beach_spiagge', spId), { zone });
     s.zone = zone;
     document.getElementById(`new-zone-nome-${spId}`).value = '';
-    renderSettings(); showToast(`✓ Zona "${label}" aggiunta`);
+    renderSettings(); showToast(`Zona "${label}" aggiunta`);
   } catch(e) { console.error(e); showToast('Errore'); }
 }
 
@@ -1584,13 +1585,13 @@ async function addOmbrellone(spId, zId) {
     await updateDoc(doc(db, 'beach_spiagge', spId), { zone });
     s.zone = zone;
     document.getElementById(`new-ombr-${spId}-${zId}`).value = '';
-    renderSettings(); renderTimeline(); showToast(`✓ Ombrellone ${nome} aggiunto`);
+    renderSettings(); renderTimeline(); showToast(`Ombrellone ${nome} aggiunto`);
   } catch(e) { console.error(e); showToast('Errore'); }
 }
 
 async function deleteOmbrellone(spId, zId, nome) {
   const prenAssociate = Object.values(prenotazioni).filter(p => p.spiaggia_id===spId && p.ombrellone===nome).length;
-  if (prenAssociate > 0) { showToast(`⚠ Impossibile: ${prenAssociate} prenotazioni su ${nome}`); return; }
+  if (prenAssociate > 0) { showToast(`Impossibile: ${prenAssociate} prenotazioni su ${nome}`); return; }
   const s = spiagge[spId]; if (!s) return;
   const zone = (s.zone||[]).map(z => {
     if (z.id !== zId) return z;

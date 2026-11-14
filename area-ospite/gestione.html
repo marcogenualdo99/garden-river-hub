@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <script src="checkin-default.js"></script>
 <script src="banner-default.js"></script>
 
@@ -73,12 +73,11 @@
   .nota { font-size: 12px; color: var(--gray-500); line-height: 1.5; margin-top: 8px }
   .login-gate { text-align: center; padding: 80px 24px; color: var(--gray-700); line-height: 1.6 }
 
-  .an-cat-row { display: grid; grid-template-columns: 52px 1fr 116px auto auto; gap: 6px; align-items: center; margin-bottom: 6px }
+  .an-cat-row { display: grid; grid-template-columns: 1fr 116px auto auto; gap: 6px; align-items: center; margin-bottom: 6px }
   .an-cat-row input, .an-cat-row select, .an-vrow input, .an-vrow select { height: 38px; border: 1.5px solid var(--gray-300); border-radius: 10px; padding: 0 8px; font: 600 13.5px var(--font); min-width: 0; width: 100%; background: #fff }
-  .an-cat-row .em { text-align: center; font-size: 18px }
   .an-cat-row label { font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px; white-space: nowrap }
   .an-cat-row label input { width: auto; height: auto }
-  .an-x { border: none; background: var(--gray-100); border-radius: 10px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: var(--gray-700) }
+  .an-x { border: none; background: var(--gray-100); border-radius: 10px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; color: var(--gray-700); display: inline-flex; align-items: center; justify-content: center } .an-x svg { width: 15px; height: 15px }
   .an-tabs { display: flex; gap: 6px; background: var(--gray-100); border-radius: 14px; padding: 4px; margin-top: 4px }
   .an-tabs button { flex: 1; height: 40px; border: none; border-radius: 11px; background: transparent; font: 800 14px var(--font); color: var(--gray-500); cursor: pointer }
   .an-tabs button.on { background: var(--green-700); color: #fff }
@@ -100,6 +99,7 @@
   .an-gfx img { height: 56px; width: 100px; object-fit: cover; border-radius: 6px }
   .an-mappa { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--gray-300); cursor: crosshair }
   .an-mappa img { width: 100%; display: block }
+  .an-pin svg { width: 18px; height: 18px; color: #F2702A }
   .an-pin { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(242,112,42,.28); border: 3px solid #F2702A; pointer-events: none; display: flex; align-items: center; justify-content: center; font-size: 15px }
 
   .av-row { border: 1.5px solid var(--green-200); border-radius: 14px; padding: 12px; margin-top: 10px }
@@ -210,7 +210,7 @@
       <p class="tab-intro">Tre passi (tocca una voce per aprirla): scrivi le attività, mettile nel programma delle due settimane, indica dove sono le serate. Poi salva.</p>
     <div class="card">
       <h3>1 · Elenco delle attività</h3>
-      <div class="subtitle">L'elenco delle attività che puoi mettere nel programma: scrivi il nome, scegli l'emoji e la fascia. Si compila una volta sola.</div>
+      <div class="subtitle">L'elenco delle attività che puoi mettere nel programma: scrivi il nome, scegli la fascia. Si compila una volta sola.</div>
       <div id="an-cat"></div>
       <div class="an-row-btns">
         <button class="btn ghost" onclick="anAggiungiAttivita()">+ Aggiungi attività</button>
@@ -480,8 +480,6 @@ const AN_FASCE = [['d','Diurno'],['m','Mini club (4-10 anni)'],['t','Teen club (
 let AN = { catalogo: [], settimane: { 1: {}, 2: {} }, data_inizio: '', luogo_serate: '', pin: null };
 let anSett = 1;
 const anAperti = new Set();
-const AN_EMOJI = [['zeling','😂'],['stars','🌟'],['mini show','🎭'],['surprise','🎁'],['slime','🟢'],['art attack','🖌️'],['pasta di sale','🧂'],['fattoria','🐄'],['buongiorno','☀️'],['risveglio','💪'],['acquagym','🏊'],['ping pong','🏓'],['aperitivo','🍹'],['freccette','🎯'],['yoga','🧘'],['pool','🎲'],['calcio','⚽'],['football','🤽'],['zumba','💃'],['beach','🏐'],['schiuma','🫧'],['step','👟'],['accoglienza','👋'],['baby','🕺'],['welcome','🎤'],['balli','🪩'],['circus','🎪'],['yin','☯️'],['michael','🧤'],['cervellone','🧠'],['showman','🎩'],['white','🤍'],['carta','🪪'],['body paint','🎨'],['acqua','💦'],['giochi','💦'],['cooking','🍳'],['medusa','🪼'],['garden green','🌿'],['gioiello','💎'],['cinofila','🐕'],['brucomela','🍎'],['compleanno','🎂'],['teen','📸'],['uno','🃏'],['caso','🔍'],['selfie','🤳'],['battle','🌈'],['calcetto','⚽']];
-function anEmoji(n) { n = n.toLowerCase(); for (const [k, v] of AN_EMOJI) if (n.includes(k)) return v; return '⭐'; }
 function anSlug(s) { return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || ('a' + Date.now()); }
 function anProg(g, f) { const w = (AN.settimane[anSett] = AN.settimane[anSett] || {}); w[g] = w[g] || {}; return (w[g][f] = w[g][f] || []); }
 function anSettimana(n) { anSett = n; anRenderProg(); }
@@ -522,11 +520,10 @@ function anScegliGrafica(i) {
 }
 function anRender() {
   const riga = (a, i) => `<div class="an-cat-row">
-    <input class="em" value="${esc(a.emoji)}" maxlength="4" onchange="AN.catalogo[${i}].emoji=this.value.trim()">
     <input value="${esc(a.nome)}" placeholder="Nome attività" onchange="AN.catalogo[${i}].nome=this.value.trim();anRenderProg()">
     <select onchange="AN.catalogo[${i}].fascia=this.value;anRender()">${AN_FASCE.map(([k, n]) => `<option value="${k}"${a.fascia === k ? ' selected' : ''}>${esc(n.split(' (')[0])}</option>`).join('')}</select>
     <label><input type="checkbox"${a.speciale ? ' checked' : ''} onchange="AN.catalogo[${i}].speciale=this.checked">Speciale</label>
-    <button class="an-x" aria-label="Elimina" onclick="anEliminaAttivita(${i})">✕</button></div>${a.speciale ? `<div class="an-gfx">
+    <button class="an-x" aria-label="Elimina" onclick="anEliminaAttivita(${i})">${ICONS.CLOSE}</button></div>${a.speciale ? `<div class="an-gfx">
       ${a.grafica ? `<img src="${esc(a.grafica)}" alt="">` : '<span class="nota">Nessuna foto: nella card «Stasera» compare Gardy.</span>'}
       <button class="btn ghost" onclick="anScegliGrafica(${i})">${a.grafica ? 'Cambia foto' : 'Carica foto'}</button>
       ${a.grafica ? `<button class="btn danger" onclick="AN.catalogo[${i}].grafica='';anRender()">Rimuovi</button>` : ''}</div>` : ''}`;
@@ -548,24 +545,24 @@ function anRenderPin() {
   const p = AN.pin, ok = p && fotoCorrenti.mappa_villaggio;
   $('#an-pin').style.display = ok ? 'flex' : 'none';
   $('#an-pin-del').style.display = p ? '' : 'none';
-  if (ok) { $('#an-pin').style.left = p.x + '%'; $('#an-pin').style.top = p.y + '%'; $('#an-pin').textContent = '📍'; }
+  if (ok) { $('#an-pin').style.left = p.x + '%'; $('#an-pin').style.top = p.y + '%'; $('#an-pin').innerHTML = ICONS.PIN; }
 }
 function anPin(p) { AN.pin = p; anRenderPin(); }
 function anRenderProg() {
   [1, 2].forEach(n => $('#an-tab-' + n).classList.toggle('on', n === anSett));
   $('#an-copia-sett').textContent = 'Copia dalla Settimana ' + (anSett === 1 ? 2 : 1);
   const opz = (f, sel) => '<option value="">— scegli —</option>' + AN.catalogo.filter(a => a.fascia === f).map(a =>
-    `<option value="${esc(a.id)}"${a.id === sel ? ' selected' : ''}>${esc((a.emoji || '') + ' ' + a.nome)}</option>`).join('');
+    `<option value="${esc(a.id)}"${a.id === sel ? ' selected' : ''}>${esc(a.nome)}</option>`).join('');
   $('#an-prog').innerHTML = AN_GIORNI.map(([g, nome]) => `<div class="an-day"><h4>${nome}
     <select onchange="anCopiaGiorno('${g}',this.value);this.value=''"><option value="">Copia da…</option>${AN_GIORNI.filter(x => x[0] !== g).map(x => `<option value="${x[0]}">${x[1]}</option>`).join('')}</select></h4>
     ${AN_FASCE.map(([f, fn]) => `<div class="an-fase"><div class="t">${fn}</div>
       ${anProg(g, f).map((v, i) => `<div class="an-vrow">
         <select onchange="anProg('${g}','${f}')[${i}].a=this.value">${opz(f, v.a)}</select>
         <input value="${esc(v.ora)}" placeholder="10.00" onchange="anProg('${g}','${f}')[${i}].ora=this.value.trim()">
-        <button class="an-x" aria-label="Rimuovi" onclick="anProg('${g}','${f}').splice(${i},1);anRenderProg()">✕</button></div>`).join('')}
+        <button class="an-x" aria-label="Rimuovi" onclick="anProg('${g}','${f}').splice(${i},1);anRenderProg()">${ICONS.CLOSE}</button></div>`).join('')}
       <button class="an-add" onclick="anProg('${g}','${f}').push({a:'',ora:''});anRenderProg()">+ Aggiungi</button></div>`).join('')}</div>`).join('');
 }
-function anAggiungiAttivita() { AN.catalogo.push({ id: 'a' + Date.now(), nome: '', emoji: '⭐', fascia: 'd', speciale: false }); anAperti.add('d'); anRender(); }
+function anAggiungiAttivita() { AN.catalogo.push({ id: 'a' + Date.now(), nome: '', fascia: 'd', speciale: false }); anAperti.add('d'); anRender(); }
 function anEliminaAttivita(i) {
   const a = AN.catalogo[i];
   if (!confirm(`Eliminare "${a.nome || 'attività'}"? Sparirà anche dal programma.`)) return;
@@ -625,7 +622,7 @@ function anCaricaDati2026() {
       Object.entries(fasi).forEach(([f, voci]) => {
         prog[g][f] = voci.map(([nome, ora, sp]) => {
           const chiave = f + '|' + nome.toLowerCase();
-          if (!cat[chiave]) cat[chiave] = { id: f + '-' + anSlug(nome), nome, emoji: anEmoji(nome), fascia: f, speciale: !!sp };
+          if (!cat[chiave]) cat[chiave] = { id: f + '-' + anSlug(nome), nome, fascia: f, speciale: !!sp };
           else if (sp) cat[chiave].speciale = true;
           return { a: cat[chiave].id, ora };
         });
@@ -694,12 +691,12 @@ function chkRender() {
     </div>
     <div class="av-row">${chkCampo('titolo', 'Titolo del banner')}</div>
     <div class="nota" style="margin-top:14px"><b>Riquadri in evidenza</b> (le cose essenziali, in breve)</div>
-    ${(c.riquadri || []).map((r, i) => `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">Riquadro ${i + 1}</b><button class="an-x" aria-label="Elimina" onclick="CHK.riquadri.splice(${i},1);chkRender()">✕</button></div>
+    ${(c.riquadri || []).map((r, i) => `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">Riquadro ${i + 1}</b><button class="an-x" aria-label="Elimina" onclick="CHK.riquadri.splice(${i},1);chkRender()">${ICONS.CLOSE}</button></div>
       ${chkCampo('riquadri.' + i + '.k', 'Etichetta (es. Check-in)')}${chkCampo('riquadri.' + i + '.v', 'Valore (es. dalle 16:00)')}</div>`).join('')}
     ${(c.riquadri || []).length < 4 ? '<div class="an-row-btns"><button class="btn ghost" onclick="CHK.riquadri.push({k:{it:\'\',en:\'\',de:\'\'},v:{it:\'\',en:\'\',de:\'\'}});chkRender()">+ Aggiungi riquadro</button></div>' : ''}
     <div class="nota" style="margin-top:14px"><b>Voci a tendina</b> (i dettagli, uno per argomento)</div>
     ${(c.sezioni || []).map((r, i) => `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b style="font-size:13px">Voce ${i + 1}</b>
-      <span><button class="an-x" aria-label="Su" onclick="chkSposta(${i},-1)">↑</button> <button class="an-x" aria-label="Giù" onclick="chkSposta(${i},1)">↓</button> <button class="an-x" aria-label="Elimina" onclick="CHK.sezioni.splice(${i},1);chkRender()">✕</button></span></div>
+      <span><button class="an-x" aria-label="Su" onclick="chkSposta(${i},-1)">${ICONS.ARROWUP}</button> <button class="an-x" aria-label="Giù" onclick="chkSposta(${i},1)">${ICONS.ARROWDOWN}</button> <button class="an-x" aria-label="Elimina" onclick="CHK.sezioni.splice(${i},1);chkRender()">${ICONS.CLOSE}</button></span></div>
       ${chkCampo('sezioni.' + i + '.titolo', 'Titolo')}${chkCampo('sezioni.' + i + '.testo', 'Testo', true)}</div>`).join('')}
     <div class="an-row-btns"><button class="btn ghost" onclick="CHK.sezioni.push({titolo:{it:'',en:'',de:''},testo:{it:'',en:'',de:''}});chkRender()">+ Aggiungi voce</button></div>
     <div class="av-row" style="margin-top:14px">${chkCampo('chiusura', 'Frase finale (facoltativa)')}</div>`;
@@ -755,7 +752,7 @@ function fbRender() {
         : az.tipo === 'link' ? `<input type="url" placeholder="https://..." value="${esc(az.valore)}" oninput="FB.banner[${i}].azione.valore=this.value">`
         : az.tipo === 'telefono' ? `<input type="tel" placeholder="+39 0734 000000" value="${esc(az.valore)}" oninput="FB.banner[${i}].azione.valore=this.value">` : '';
       return `<div class="av-row"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><label class="chk" style="display:flex;gap:6px;align-items:center;font-weight:700;font-size:13px"><input type="checkbox" style="width:auto"${b.attivo !== false ? ' checked' : ''} onchange="FB.banner[${i}].attivo=this.checked"> Banner ${i + 1}</label>
-        <span><button class="an-x" aria-label="Su" onclick="fbSposta(${i},-1)">↑</button> <button class="an-x" aria-label="Giù" onclick="fbSposta(${i},1)">↓</button> <button class="an-x" aria-label="Elimina" onclick="if(confirm('Eliminare questo banner?')){FB.banner.splice(${i},1);fbRender()}">✕</button></span></div>
+        <span><button class="an-x" aria-label="Su" onclick="fbSposta(${i},-1)">${ICONS.ARROWUP}</button> <button class="an-x" aria-label="Giù" onclick="fbSposta(${i},1)">${ICONS.ARROWDOWN}</button> <button class="an-x" aria-label="Elimina" onclick="if(confirm('Eliminare questo banner?')){FB.banner.splice(${i},1);fbRender()}">${ICONS.CLOSE}</button></span></div>
         ${fbCampo(i, 'titolo', 'Titolo (es. Pane fresco appena sfornato)')}${fbCampo(i, 'testo', 'Testo', true)}
         <div class="r2"><label>Dalle<input type="time" value="${esc(b.dalle)}" onchange="FB.banner[${i}].dalle=this.value"></label><label>Alle<input type="time" value="${esc(b.alle)}" onchange="FB.banner[${i}].alle=this.value"></label></div>
         <div class="r2">          <label>Chi lo vede<select onchange="FB.banner[${i}].pubblico=this.value">${opt('dentro', b.pubblico, 'Solo chi è in struttura')}${opt('tutti', b.pubblico, 'Tutti')}${opt('prima', b.pubblico, 'Solo chi deve arrivare')}</select></label>
@@ -857,7 +854,7 @@ function avRender() {
   $('#av-list').innerHTML = AVVISI.map((a, i) => `<div class="av-row">
     <div class="r1"><select onchange="AVVISI[${i}].tipo=this.value"><option value="info"${a.tipo === 'info' ? ' selected' : ''}>Informazione</option><option value="importante"${a.tipo === 'importante' ? ' selected' : ''}>Importante</option></select>
       <input value="${esc(a.titolo)}" placeholder="Titolo (es. Piscina chiusa fino alle 11)" oninput="AVVISI[${i}].titolo=this.value">
-      <button class="an-x" aria-label="Elimina" onclick="AVVISI.splice(${i},1);avRender()">✕</button></div>
+      <button class="an-x" aria-label="Elimina" onclick="AVVISI.splice(${i},1);avRender()">${ICONS.CLOSE}</button></div>
     <textarea placeholder="Testo (facoltativo)" oninput="AVVISI[${i}].testo=this.value">${esc(a.testo)}</textarea>
     <div class="r2"><label>Chi lo vede<select onchange="AVVISI[${i}].pubblico=this.value"><option value="tutti"${(a.pubblico || 'tutti') === 'tutti' ? ' selected' : ''}>Tutti</option><option value="prima"${a.pubblico === 'prima' ? ' selected' : ''}>Solo chi deve arrivare</option><option value="dentro"${a.pubblico === 'dentro' ? ' selected' : ''}>Solo chi è in struttura</option></select></label></div>
     <div class="r2"><label>Dal<input type="date" value="${esc(a.dal)}" onchange="AVVISI[${i}].dal=this.value"></label><label>Al<input type="date" value="${esc(a.al)}" onchange="AVVISI[${i}].al=this.value"></label>

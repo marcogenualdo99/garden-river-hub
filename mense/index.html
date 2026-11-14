@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mense">
@@ -1529,7 +1529,7 @@ function renderReport(sedeFiltro) {
 
   const missingEntries = Object.entries(missingBySede);
   if (missingEntries.length) {
-    html += `<div class="warn-banner">⚠️ Giorni di servizio senza presenze inserite:<br>` +
+    html += `<div class="warn-banner">Giorni di servizio senza presenze inserite:<br>` +
       missingEntries.map(([nome, dates]) => `<b>${escHtml(nome)}</b>: ${dates.slice(0,10).map(d=>fmtDateIt(d,{day:'2-digit',month:'2-digit'})).join(', ')}${dates.length>10?` … (+${dates.length-10})`:''}`).join('<br>') +
       `</div>`;
   }
@@ -1808,7 +1808,7 @@ function renderSediList() {
       </div>
       <div style="display:flex;gap:6px">
         <button class="op-btn reset" onclick="apriSedeForm('${s.id}')">Modifica</button>
-        <button class="op-del" onclick="eliminaSede('${s.id}')" title="Elimina">✕</button>
+        <button class="op-del" onclick="eliminaSede('${s.id}')" title="Elimina">${ICONS.CLOSE}</button>
       </div>
     </div>`).join('');
 }
@@ -1959,13 +1959,13 @@ function renderTariffeRows() {
   if (!d.tariffe.length) return '<p class="perm-hint" style="padding:6px 0">Nessuna tariffa impostata.</p>';
   return d.tariffe.slice().sort((a,b)=>a.dal<b.dal?1:-1).map((t) => {
     const i = d.tariffe.indexOf(t);
-    return `<div class="tariffa-row"><span>dal ${fmtDateIt(t.dal)} — ${fmtEUR(t.prezzo)} (IVA ${t.iva_pct}%)</span><button class="sm-del" onclick="sfRimuoviTariffa(${i})">✕</button></div>`;
+    return `<div class="tariffa-row"><span>dal ${fmtDateIt(t.dal)} — ${fmtEUR(t.prezzo)} (IVA ${t.iva_pct}%)</span><button class="sm-del" onclick="sfRimuoviTariffa(${i})">${ICONS.CLOSE}</button></div>`;
   }).join('');
 }
 function renderChiusureRows() {
   const d = _sedeEditDraft;
   if (!d.chiusure.length) return '<p class="perm-hint" style="padding:6px 0">Nessun periodo di chiusura.</p>';
-  return d.chiusure.map((c,i) => `<div class="chiusura-row"><span>${fmtDateIt(c.dal)} → ${fmtDateIt(c.al)} — ${escHtml(c.motivo||'')}</span><button class="sm-del" onclick="sfRimuoviChiusura(${i})">✕</button></div>`).join('');
+  return d.chiusure.map((c,i) => `<div class="chiusura-row"><span>${fmtDateIt(c.dal)} → ${fmtDateIt(c.al)} — ${escHtml(c.motivo||'')}</span><button class="sm-del" onclick="sfRimuoviChiusura(${i})">${ICONS.CLOSE}</button></div>`).join('');
 }
 function sfToggleOrdine(id, checked) {
   const d = _sedeEditDraft;
@@ -2065,7 +2065,7 @@ async function salvaSede() {
     } else {
       await addDoc(collection(db, 'mense_sedi'), { ...dati, creato_il: serverTimestamp(), aggiornato_il: serverTimestamp() });
     }
-    showToast('✓ Sede salvata');
+    showToast('Sede salvata');
     chiudiSedeForm();
   } catch(e) { console.error('Errore salvataggio sede:', e); showToast('Errore salvataggio sede'); }
 }
@@ -2102,7 +2102,7 @@ function renderCategorieGlobaliList() {
     <div class="op-row">
       <input class="rename-input" value="${escHtml(c.nome)}" onchange="rinominaCategoriaGlobale(${i}, this.value)" aria-label="Nome categoria">
       <button class="toggle-switch${c.attivo!==false?' on':''}" onclick="toggleCategoriaGlobale(${i})" title="${c.attivo!==false?'Disattiva':'Riattiva'}"></button>
-      <button class="sm-del" onclick="eliminaCategoriaGlobale(${i})" title="Elimina categoria">✕</button>
+      <button class="sm-del" onclick="eliminaCategoriaGlobale(${i})" title="Elimina categoria">${ICONS.CLOSE}</button>
     </div>`).join('');
 }
 async function salvaImpostazioniMense() {
@@ -2123,13 +2123,13 @@ async function rinominaOrdineGlobale(i, nome) {
   nome = nome.trim();
   if (!nome || nome === ORDINI[i].nome) { renderOrdiniGlobaliList(); return; }
   ORDINI[i].nome = nome;
-  try { await salvaImpostazioniMense(); showToast('✓ Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
+  try { await salvaImpostazioniMense(); showToast('Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
 }
 async function rinominaCategoriaGlobale(i, nome) {
   nome = nome.trim();
   if (!nome || nome === CATEGORIE[i].nome) { renderCategorieGlobaliList(); return; }
   CATEGORIE[i].nome = nome;
-  try { await salvaImpostazioniMense(); showToast('✓ Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
+  try { await salvaImpostazioniMense(); showToast('Rinominato'); } catch(e) { showToast('Errore salvataggio'); }
 }
 function eliminaCategoriaGlobale(i) {
   if (CATEGORIE.length <= 1) { showToast('Deve restare almeno una categoria'); return; }
@@ -2149,7 +2149,7 @@ async function aggiungiOrdineGlobale() {
   ORDINI.push({ id, nome, attivo: true });
   inp.value = '';
   renderOrdiniGlobaliList();
-  try { await salvaImpostazioniMense(); showToast('✓ Ordine aggiunto'); } catch(e) { showToast('Errore salvataggio'); }
+  try { await salvaImpostazioniMense(); showToast('Ordine aggiunto'); } catch(e) { showToast('Errore salvataggio'); }
 }
 async function aggiungiCategoriaGlobale() {
   const inp = document.getElementById('inp-nuova-categoria');
@@ -2160,7 +2160,7 @@ async function aggiungiCategoriaGlobale() {
   CATEGORIE.push({ id, nome, attivo: true });
   inp.value = '';
   renderCategorieGlobaliList();
-  try { await salvaImpostazioniMense(); showToast('✓ Categoria aggiunta'); } catch(e) { showToast('Errore salvataggio'); }
+  try { await salvaImpostazioniMense(); showToast('Categoria aggiunta'); } catch(e) { showToast('Errore salvataggio'); }
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────

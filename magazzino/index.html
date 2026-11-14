@@ -56,7 +56,7 @@
   setTimeout(segnalaPronto, 8000);
 </script>
 <link rel="stylesheet" href="../assets/theme.css">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <style>
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -500,7 +500,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
             style="height:42px;padding:0 12px;border:1.5px solid var(--green-400);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);outline:none;width:100%">
           <div style="display:flex;gap:6px">
             <button type="button" onclick="confirmNewCatForm()"
-              style="flex:1;height:36px;background:var(--green-500);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✓ Aggiungi</button>
+              style="flex:1;height:36px;background:var(--green-500);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Aggiungi</button>
             <button type="button" onclick="cancelNewCatForm()"
               style="height:36px;padding:0 14px;background:var(--white);border:1.5px solid var(--gray-300);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:var(--font)">Annulla</button>
           </div>
@@ -598,7 +598,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 <script src="../assets/nav.js"></script>
 <script>
 // ── COSTANTI ─────────────────────────────────────────────────────────────────
-// 👉 Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
+// Se la Hub è ospitata in un percorso diverso, aggiorna questo URL.
 //    Deve trovarsi sullo STESSO DOMINIO di questa app, altrimenti il login
 //    automatico (single sign-on) non può funzionare (sessionStorage è legato
 //    all'origine — protocollo+dominio+porta).
@@ -629,6 +629,8 @@ const EXTRA_COLORS = [
   {h:"558B2F", e:"F1F8E9", o:"DCEDC8"},
 ];
 const DEFAULT_CATS = Object.keys(CAT_COLORS);
+// Le chiavi delle categorie gia' salvate possono iniziare con un'emoji: si mostrano senza.
+const catLabel = c => String(c || '').replace(/^[^\p{L}\p{N}]+/u, '');
 
 // ── STATO ─────────────────────────────────────────────────────────────────────
 let products         = [];
@@ -932,11 +934,11 @@ function renderGiacenze() {
       <div class="cat-header" style="background:#${cc.h}18" onclick="toggleCat(this)">
         <div class="cat-header-left">
           <div class="cat-dot" style="background:#${cc.h}"></div>
-          <span class="cat-name" style="color:#${cc.h}">${cat.replace(/^\S+\s/,'')}</span>
+          <span class="cat-name" style="color:#${cc.h}">${catLabel(cat)}</span>
         </div>
         ${critico > 0
-          ? `<span class="cat-badge" style="background:#${cc.h}22;color:#${cc.h}">⚠ ${critico}</span>`
-          : `<span class="cat-badge" style="background:var(--green-bg);color:var(--green-ok)">✓ ok</span>`}
+          ? `<span class="cat-badge" style="background:#${cc.h}22;color:#${cc.h}">${critico}</span>`
+          : `<span class="cat-badge" style="background:var(--green-bg);color:var(--green-ok)">ok</span>`}
       </div>
       <div class="product-list">`;
     bycat[cat].forEach(p => {
@@ -958,7 +960,7 @@ function renderGiacenze() {
             onchange="setQty('${p.id}', this.value)">
           <span class="qty-unit">pz</span>
           <button class="qty-btn" onclick="changeQty('${p.id}',+1)">+</button>
-          <button class="del-btn" onclick="deleteProduct('${p.id}')" title="Elimina">🗑</button>
+          <button class="del-btn" onclick="deleteProduct('${p.id}')" title="Elimina">${ICON('TRASH',15)}</button>
         </div>
       </div>`;
     });
@@ -972,7 +974,7 @@ function renderOrdine() {
   const critici = products.filter(p => stato(p) !== 'green');
   if (critici.length === 0) {
     document.getElementById('ordine-list').innerHTML =
-      `<div class="empty">🟢 Tutto ok — nessun prodotto da ordinare!</div>`;
+      `<div class="empty">Tutto ok — nessun prodotto da ordinare!</div>`;
     return;
   }
   const byForn = {};
@@ -985,13 +987,13 @@ function renderOrdine() {
     const fornId = forn.replace(/\s+/g,'_');
     html += `<div class="ordine-block">
       <div class="ordine-block-header">
-        <span class="ordine-block-title">📦 ${forn}</span>
+        <span class="ordine-block-title">${forn}</span>
         <span class="ordine-block-count">${prods.length} prodotti</span>
       </div>`;
     prods.forEach(p => {
       const cart = cartoniFabbisogno(p);
       const isRed = stato(p)==='red';
-      const label = isRed ? '🔴 ESAURITO' : `🟠 ${cart} carton${cart===1?'e':'i'}`;
+      const label = isRed ? 'ESAURITO' : `${cart} carton${cart===1?'e':'i'}`;
       html += `<div class="ordine-row">
         <div class="ordine-info">
           <div class="ordine-desc">${p.name}</div>
@@ -1035,7 +1037,7 @@ function deleteProduct(id) {
   if (!p) return;
   showModal('Elimina prodotto', `Eliminare "${p.name}" dal magazzino?`, 'Elimina', 'var(--red)',
     async () => {
-      try { await fsDeleteProduct(id); showToast(`🗑 "${p.name}" eliminato`); }
+      try { await fsDeleteProduct(id); showToast(`"${p.name}" eliminato`); }
       catch(e) { showToast('Errore eliminazione'); }
     });
 }
@@ -1050,10 +1052,10 @@ async function addProduct() {
   const pxc  = parseInt(document.getElementById('new-pxc').value) || 1;
   const forn = document.getElementById('new-fornitore').value.trim() || 'Altro';
   const pz   = parseInt(document.getElementById('new-pezzi').value) || 0;
-  if (!name) { showToast('⚠️ Inserisci il nome del prodotto'); return; }
-  if (!cat || cat === '__new__') { showToast('⚠️ Seleziona una categoria'); return; }
+  if (!name) { showToast('Inserisci il nome del prodotto'); return; }
+  if (!cat || cat === '__new__') { showToast('Seleziona una categoria'); return; }
   const dup = products.some(p => p.cat === cat && p.name.trim().toLowerCase() === name.toLowerCase());
-  if (dup) { showToast(`⚠️ "${name}" esiste già in questa categoria`); return; }
+  if (dup) { showToast(`"${name}" esiste già in questa categoria`); return; }
   const newP = { id: uid(), name, cat, min, pxc, pz, forn };
   const btn = document.getElementById('add-product-btn');
   _addingProduct = true;
@@ -1064,7 +1066,7 @@ async function addProduct() {
     document.getElementById('new-min').value  = '';
     document.getElementById('new-pxc').value  = '';
     document.getElementById('new-pezzi').value = '0';
-    showToast(`✅ "${name}" aggiunto!`);
+    showToast(`"${name}" aggiunto!`);
     switchTab('giacenze');
   } catch(e) { showToast('Errore salvataggio'); }
   finally {
@@ -1078,7 +1080,7 @@ function populateCatSelect() {
   if (!sel) return;
   const current = sel.value;
   const cats = getAllCategories();
-  sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('') +
+  sel.innerHTML = cats.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('') +
     `<option value="__new__">+ Nuova categoria…</option>`;
   if (cats.includes(current)) sel.value = current;
 }
@@ -1095,13 +1097,13 @@ document.addEventListener('change', e => {
 async function confirmNewCatForm() {
   const inp = document.getElementById('new-cat-input');
   const name = inp.value.trim();
-  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
+  if (!name) { showToast('Inserisci un nome'); return; }
   try {
     await fsAddCategoria(name);
     inp.value = '';
     document.getElementById('new-cat-wrap').style.display = 'none';
     setTimeout(() => { document.getElementById('new-cat').value = name; }, 300);
-    showToast(`✅ Categoria "${name}" aggiunta!`);
+    showToast(`Categoria "${name}" aggiunta!`);
   } catch(e) { showToast('Errore salvataggio categoria'); }
 }
 function cancelNewCatForm() {
@@ -1132,7 +1134,7 @@ function renderImpostazioni() {
           <div class="imp-field">
             <label>Categoria</label>
             <select data-id="${p.id}" data-field="cat" class="imp-select" onchange="saveImpField(this)">
-              ${order.map(o => `<option value="${o}" ${o===p.cat?'selected':''}>${o}</option>`).join('')}
+              ${order.map(o => `<option value="${o}" ${o===p.cat?'selected':''}>${catLabel(o)}</option>`).join('')}
             </select>
           </div>
           <div class="imp-field">
@@ -1166,7 +1168,7 @@ async function saveImpField(el) {
   // Minimi stessa, dal blocco della vecchia categoria a quello della nuova.
   if (field === 'cat') renderImpostazioni();
 
-  try { await fsSetProduct(p); showToast('✅ Salvato'); }
+  try { await fsSetProduct(p); showToast('Salvato'); }
   catch(e) { showToast('Errore salvataggio'); }
 }
 
@@ -1179,7 +1181,7 @@ function renderCatManager() {
       const c = getCatColor(cat);
       html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
         <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
-        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${catLabel(cat)}</span>
         <span style="font-size:11px;color:var(--gray-500)">${products.filter(p=>p.cat===cat).length} prodotti</span>
       </div>`;
     });
@@ -1191,10 +1193,10 @@ function renderCatManager() {
       const count = products.filter(p=>p.cat===cat).length;
       html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100)">
         <div style="width:10px;height:10px;border-radius:50%;background:#${c.h};flex-shrink:0"></div>
-        <span style="flex:1;font-size:13px;font-weight:600">${cat}</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${catLabel(cat)}</span>
         <span style="font-size:11px;color:var(--gray-500);margin-right:4px">${count} prodotti</span>
         <button onclick="deleteCat('${cat}')"
-          style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+          style="width:30px;height:30px;border:none;background:var(--red-bg);color:var(--red);border-radius:50%;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">${ICON('TRASH',15)}</button>
       </div>`;
     });
   } else {
@@ -1206,19 +1208,19 @@ function renderCatManager() {
 async function addCatFromManager() {
   const inp = document.getElementById('cat-new-input');
   const name = inp.value.trim();
-  if (!name) { showToast('⚠️ Inserisci un nome'); return; }
-  if (DEFAULT_CATS.includes(name)) { showToast('⚠️ Categoria già esistente'); return; }
+  if (!name) { showToast('Inserisci un nome'); return; }
+  if (DEFAULT_CATS.includes(name)) { showToast('Categoria già esistente'); return; }
   try {
     await fsAddCategoria(name);
     inp.value = '';
-    showToast(`✅ Categoria "${name}" aggiunta!`);
+    showToast(`Categoria "${name}" aggiunta!`);
   } catch(e) { showToast('Errore salvataggio'); }
 }
 
 function deleteCat(cat) {
   const count = products.filter(p => p.cat === cat).length;
   const msg = count > 0
-    ? `Eliminare la categoria "${cat}"? I ${count} prodotti associati verranno spostati in "🥤 Bibite".`
+    ? `Eliminare la categoria "${catLabel(cat)}"? I ${count} prodotti associati verranno spostati in "Bibite".`
     : `Eliminare la categoria "${cat}"?`;
   showModal('Elimina categoria', msg, 'Elimina', 'var(--red)', async () => {
     try {
@@ -1227,7 +1229,7 @@ function deleteCat(cat) {
         for (const p of toMove) { p.cat = '🥤 Bibite'; await fsSetProduct(p); }
       }
       await fsDeleteCategoria(cat);
-      showToast('🗑 Categoria eliminata');
+      showToast('Categoria eliminata');
     } catch(e) { showToast('Errore eliminazione'); }
   });
 }

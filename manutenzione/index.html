@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Manutenzione">
@@ -409,10 +409,10 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <label class="field-label" for="sel-cat">Categoria <span>*</span></label>
         <select class="field-select" id="sel-cat">
           <option value="">— Seleziona categoria —</option>
-          <option value="Elettrico">⚡ Elettrico</option>
-          <option value="Idraulico">💧 Idraulico</option>
-          <option value="Climatizzazione">❄️ Climatizzazione</option>
-          <option value="Altro">🔧 Altro</option>
+          <option value="Elettrico">Elettrico</option>
+          <option value="Idraulico">Idraulico</option>
+          <option value="Climatizzazione">Climatizzazione</option>
+          <option value="Altro">Altro</option>
         </select>
       </div>
 
@@ -421,7 +421,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <div class="priority-row" id="priority-row">
           <button type="button" class="priority-chip" data-priority="bassa" onclick="setPriority('bassa')">Bassa</button>
           <button type="button" class="priority-chip active" data-priority="normale" onclick="setPriority('normale')">Normale</button>
-          <button type="button" class="priority-chip" data-priority="alta" onclick="setPriority('alta')">🚨 Urgente</button>
+          <button type="button" class="priority-chip" data-priority="alta" onclick="setPriority('alta')">Urgente</button>
         </div>
       </div>
 
@@ -543,7 +543,7 @@ function catInfo(cat) {
 }
 
 const PRIORITY_RANK  = { alta: 0, normale: 1, bassa: 2 };
-const PRIORITY_BADGE = { alta: '🚨 Urgente', bassa: 'Bassa priorità' };
+const PRIORITY_BADGE = { alta: 'Urgente', bassa: 'Bassa priorità' };
 function priorityBadgeHtml(p) {
   if (p !== 'alta' && p !== 'bassa') return ''; // 'normale' resta silenziosa, non serve un badge
   return `<span class="priority-badge ${p}">${PRIORITY_BADGE[p]}</span>`;
@@ -802,7 +802,7 @@ async function submitTicket() {
       user_id:           currentOperatore,
       created_at:        serverTimestamp(),
     });
-    showToast('✓ Segnalazione inviata!');
+    showToast('Segnalazione inviata!');
     // Avviso al gruppo Telegram Manutenzione (fire-and-forget).
     await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn);
     // Reset form
@@ -961,7 +961,7 @@ async function changeStatus(id, solved) {
       const t = allTickets.find(x => x.id === id);
       if (t) { t.status = solved; renderTickets(); }
       await updateDoc(doc(db, 'maintenance_tickets', id), { status: solved });
-      showToast(solved ? '✓ Ticket risolto' : '↩ Ticket riaperto');
+      showToast(solved ? 'Ticket risolto' : 'Ticket riaperto');
     } catch(e) {
       const t = allTickets.find(x => x.id === id);
       if (t) { t.status = !solved; renderTickets(); }

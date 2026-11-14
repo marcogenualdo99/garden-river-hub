@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
-<script src="../assets/icons.js"></script>
+<script src="../assets/icons.js?v=1794700100"></script>
 <!-- Comuni/province/paesi per l'autocompletamento dei campi Alloggiati Web. -->
 <script src="../assets/dati-alloggiati.js?v=1786056020"></script>
 <!-- Solo per leggere in locale il file .xls/.xlsx dell'agenzia in "Importa arrivi" — non tocca Firebase. -->
@@ -400,8 +400,8 @@
 .section-hint { font-size: 11.5px; color: var(--gray-500); line-height: 1.5; margin-bottom: 10px; }
 .f-label .req { color: var(--red); margin-left: 2px; }
 
-.ospite-card { background: var(--white); border: 1.5px solid var(--gray-200); border-left: 3px solid var(--gray-300); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin-bottom: 10px; }
-.ospite-card.capo { border-left-color: var(--green-ok); background: var(--green-bg); }
+.ospite-card { background: var(--white); border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin-bottom: 10px; }
+.ospite-card.capo { border-color: var(--green-ok); background: var(--green-bg); }
 .ospite-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .ospite-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .ospite-badge.capo { background: var(--green-ok); color: #fff; }
@@ -1450,7 +1450,7 @@ const LISTINI_DEFAULT = {
 let listini = { villini: null, campeggio: null }; // caricati da Firestore
 
 // ── IMPOSTAZIONI GENERALI DEL CALENDARIO (non prezzi) ──────────────────────
-// 👉 Altri dati "a lista" che l'admin può modificare da qui, non solo i
+// Altri dati "a lista" che l'admin può modificare da qui, non solo i
 // prezzi: per ora solo le provenienze della prenotazione. Stesso posto
 // (collezione "impostazioni", un doc per modulo) già usato da ristorazione.
 const IMPOSTAZIONI_CALENDARIO_DEFAULT = {
@@ -4078,7 +4078,7 @@ function renderOmbrelloniDisponibili() {
     !spiaggiaHaConflitto(prenotazioniQuestaSpiaggia, r.ombrellone, checkin, al, null)
   );
   if (!disponibili.length) {
-    wrap.innerHTML = `<p class="section-hint" style="color:var(--red);font-weight:700">⚠ Spiaggia al completo per queste date: nessun ombrellone libero dal ${esc(fmtDataIt(checkin))} al ${esc(fmtDataIt(addDaysIso(al, 1)))}.</p>`;
+    wrap.innerHTML = `<p class="section-hint" style="color:var(--red);font-weight:700">Spiaggia al completo per queste date: nessun ombrellone libero dal ${esc(fmtDataIt(checkin))} al ${esc(fmtDataIt(addDaysIso(al, 1)))}.</p>`;
     return;
   }
   wrap.innerHTML = `
@@ -4876,7 +4876,7 @@ function aggiornaBannerNonAssegnate() {
   if (!banner) return;
   const nonAssegnate = prenotazioni.filter(p => p.agenzia_id && !alloggiList.find(a => a.id === p.alloggio_id));
   if (!nonAssegnate.length) { banner.classList.add('hidden'); return; }
-  banner.textContent = `⚠ ${nonAssegnate.length} prenotazion${nonAssegnate.length === 1 ? 'e importata' : 'i importate'} senza alloggio assegnato — clicca per aprirle`;
+  banner.textContent = `${nonAssegnate.length} prenotazion${nonAssegnate.length === 1 ? 'e importata' : 'i importate'} senza alloggio assegnato — clicca per aprirle`;
   banner.classList.remove('hidden');
 }
 function apriElencoNonAssegnate() {
@@ -4939,8 +4939,12 @@ function aggiornaBadgeOspiti() {
 let noteCorrenti = [];      // [{categoria, testo}]
 let noteCategoriaAttiva = 'Generali';
 
+// La categoria "Conti" e' sempre presente: e' la nota interna del conto pensione,
+// leggibile solo qui in Calendario e nel modulo Conti (nessun altro modulo la mostra).
+const CATEGORIA_NOTA_CONTI = 'Conti';
 function categorieNoteDisponibili() {
-  return (impostazioniCalendario && impostazioniCalendario.categorieNote) || IMPOSTAZIONI_CALENDARIO_DEFAULT.categorieNote;
+  const lista = (impostazioniCalendario && impostazioniCalendario.categorieNote) || IMPOSTAZIONI_CALENDARIO_DEFAULT.categorieNote;
+  return lista.includes(CATEGORIA_NOTA_CONTI) ? lista : [...lista, CATEGORIA_NOTA_CONTI];
 }
 // Riporta la lista di note del form a coprire esattamente le categorie oggi
 // configurate, conservando il testo già scritto per quelle che esistevano.
@@ -5618,7 +5622,7 @@ function aggiornaBadgeCheckinOnline(p) {
   const ricevuto = !!(p && p.checkin_online && p.checkin_online.stato === 'ricevuto');
   badge.style.display = ricevuto ? '' : 'none';
   if (ricevuto) {
-    badge.textContent = '✓';
+    badge.innerHTML = ICONS.CHECK;
     badge.style.background = 'var(--green-ok)';
     badge.style.color = '#fff';
   }
@@ -6245,10 +6249,24 @@ function generaCodiceRistorazione() {
   return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
 }
 async function sincronizzaFamigliaRistorazione(prenotazioneId, data) {
-  if (data.trattamento_ristorazione !== 'PC' && data.trattamento_ristorazione !== 'MP') return;
+  const haPasti = data.trattamento_ristorazione === 'PC' || data.trattamento_ristorazione === 'MP';
   try {
     const { db, doc, setDoc, getDoc } = window._fb;
     const famigliaId = 'cal_' + prenotazioneId;
+    if (!haPasti) {
+      // Trattamento tolto: se la famiglia esisteva, azzera il trattamento (cosi' non puo'
+      // piu' ordinare) e porta il conto collegato a "conto libero", senza chiuderlo.
+      const prima = await getDoc(doc(db, 'famiglie_ristorazione', famigliaId));
+      if (!prima.exists()) return;
+      const datiPrima = prima.data();
+      const payloadNessuno = {
+        nome: data.nome, unita: data.alloggio_nome, trattamento: '',
+        checkin: data.checkin, checkout: data.checkout, tel: data.tel || '',
+      };
+      await setDoc(doc(db, 'famiglie_ristorazione', famigliaId), payloadNessuno, { merge: true });
+      await sincronizzaContoPensioneDaCalendario(famigliaId, { ...datiPrima, ...payloadNessuno }, datiPrima, prenotazioneId);
+      return;
+    }
     const notaRistorazione = (data.note||[]).find(n => n.categoria === 'Ristorazione');
     const payload = {
       nome: data.nome,
@@ -6286,10 +6304,11 @@ async function sincronizzaContoPensioneDaCalendario(famigliaId, fam, datiEsisten
   // già ripartita: non ha senso aprirne uno ora (stesso criterio usato in
   // Ristorazione). Se esisteva già lo aggiorniamo comunque.
   if (!ospiteIdEsistente && fam.checkout && fam.checkout < isoToday(0)) return;
+  if (!ospiteIdEsistente && fam.trattamento !== 'PC' && fam.trattamento !== 'MP') return;
   const parti = (fam.nome || '').trim().split(/\s+/);
   const nome = parti[0] || '';
   const cognome = parti.slice(1).join(' ');
-  const piano = fam.trattamento === 'PC' ? 'completa' : 'mezza';
+  const piano = fam.trattamento === 'PC' ? 'completa' : fam.trattamento === 'MP' ? 'mezza' : 'nessuno';
   const datiOspite = { nome, cognome, alloggio: fam.unita || '', piano, checkin: fam.checkin || '', checkout: fam.checkout || '', tel: fam.tel || '', famigliaId, prenotazioneId: prenotazioneId || '' };
   try {
     let ospiteId = ospiteIdEsistente;
@@ -7452,7 +7471,7 @@ async function testaConnessioneFiscalizzazione() {
     });
     const data = await res.json();
     if (data.ok) {
-      esitoEl.textContent = '✓ Connessione riuscita';
+      esitoEl.textContent = 'Connessione riuscita';
       esitoEl.style.color = 'var(--green-ok)';
     } else {
       esitoEl.textContent = 'Errore: ' + (data.errore || 'sconosciuto');

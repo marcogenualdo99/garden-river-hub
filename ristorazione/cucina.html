@@ -136,7 +136,7 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 40px}
 
 /* ── EMPTY ── */
 .empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
-.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-icon{margin-bottom:12px;color:var(--gray-400)}.empty-icon svg{width:44px;height:44px}.ico-inl{display:inline-flex;vertical-align:-2px;margin-right:4px}.ico-inl svg{width:13px;height:13px}.check-btn svg{width:16px;height:16px}
 .empty-title{font-size:15px;font-weight:700;color:var(--text2);margin-bottom:4px}
 .empty-sub{font-size:13px}
 
@@ -147,6 +147,7 @@ main{max-width:960px;margin:0 auto;padding:16px 14px 40px}
 .toast{position:fixed;top:calc(env(safe-area-inset-top) + 16px);left:50%;transform:translateX(-50%) translateY(-10px);background:var(--bg3);color:var(--text);border:1px solid var(--border2);padding:10px 18px;border-radius:24px;font-size:13px;font-weight:600;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:9999}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
+<script src="../assets/icons.js?v=1794700100"></script>
 </head>
 <body>
 
@@ -254,7 +255,7 @@ function render(){
   // Comande
   const c=document.getElementById('comande-container');
   if(!ordini.length){
-    c.innerHTML=`<div class="empty-state"><div class="empty-icon">🍽️</div><div class="empty-title">Nessuna comanda</div><div class="empty-sub">Nessun ordine per ${tipoS} di ${dataS==='oggi'?'oggi':'domani'}.</div></div>`;
+    c.innerHTML=`<div class="empty-state"><div class="empty-icon">${ICONS.UTENSILS}</div><div class="empty-title">Nessuna comanda</div><div class="empty-sub">Nessun ordine per ${tipoS} di ${dataS==='oggi'?'oggi':'domani'}.</div></div>`;
     return;
   }
   const daServ=ordini.filter(o=>!o.servito).sort((a,b)=>(a.unita||'').localeCompare(b.unita||''));
@@ -268,11 +269,11 @@ function render(){
 function buildCard(o){
   const u=o.servito;
   const piatti=(o.piatti||[]).filter(p=>p.quantita>0).map(p=>`<div class="piatto-item"><span class="piatto-nome">${esc(p.piatto)}</span><span class="piatto-qty">×${p.quantita}</span></div>`).join('');
-  const nota=o.note?.trim()?`<div class="card-note">📝 ${esc(o.note)}</div>`:'';
+  const nota=o.note?.trim()?`<div class="card-note"><span class="ico-inl">${ICONS.NOTE}</span>${esc(o.note)}</div>`:'';
   return `<div class="comanda-card ${u?'uscita':''}">
     <div class="card-head">
       <div><div class="card-fam">${esc(o.famiglia_nome||'—')}</div><div class="card-unita">Unità ${esc(o.unita||'—')}</div></div>
-      <button class="check-btn ${u?'checked':''}" onclick="toggleServito('${o._id}',${u})" title="${u?'Segna da servire':'Segna uscito'}">✓</button>
+      <button class="check-btn ${u?'checked':''}" onclick="toggleServito('${o._id}',${u})" title="${u?'Segna da servire':'Segna uscito'}">${ICONS.CHECK}</button>
     </div>
     <div class="piatti-list">${piatti}</div>
     ${nota}
@@ -285,7 +286,7 @@ async function toggleServito(id,stato){
   try{
     const {db,doc,updateDoc}=window._fbCucina;
     await updateDoc(doc(db,'ordini_ristorazione',id),{servito:!stato});
-    showToast(stato?'Segnato da servire':'✓ Uscito');
+    showToast(stato?'Segnato da servire':'Uscito');
   }catch(e){ console.error(e); showToast('Errore — riprova'); btns.forEach(b=>b.classList.remove('loading')); }
 }
 

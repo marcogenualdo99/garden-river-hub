@@ -110,7 +110,7 @@
   .submit:disabled{opacity:.5;cursor:not-allowed}
 
   .center-state{max-width:460px;margin:0 auto;padding:64px 24px;text-align:center}
-  .center-state .icon{font-size:34px;margin-bottom:12px}
+  .center-state .icon{margin:0 auto 12px;width:40px;height:40px}.center-state .icon svg{width:40px;height:40px}
   .center-state h2{font-family:var(--font-display);font-weight:600;font-size:23px;margin:0 0 8px}
   .center-state p{font-size:13.5px;color:var(--gray-500);line-height:1.55;margin:0}
   .spinner{width:30px;height:30px;border:3px solid var(--gray-200);border-top-color:var(--green-700);
@@ -125,6 +125,7 @@
 
   .footnote{margin-top:22px;font-size:11px;color:var(--gray-400);text-align:center;line-height:1.5}
 </style>
+<script src="../assets/icons.js?v=1794700100"></script>
 </head>
 <body>
 
@@ -134,13 +135,13 @@
 </div>
 
 <div id="stato-errore" class="center-state" style="display:none">
-  <div class="icon">🔒</div>
+  <div class="icon" data-icon="LOCK"></div>
   <h2 id="err-titolo">Link non valido</h2>
   <p id="err-testo">Questo link per il check-in non è valido o è scaduto. Contatta la struttura per riceverne uno nuovo.</p>
 </div>
 
 <div id="stato-inviato" class="center-state" style="display:none">
-  <div class="icon">✅</div>
+  <div class="icon" data-icon="CHECK"></div>
   <h2>Check-in inviato</h2>
   <p>Grazie! La reception ha ricevuto i tuoi dati. All'arrivo salterai la compilazione al banco: sarà solo una verifica veloce del documento.</p>
 </div>
@@ -619,5 +620,6 @@ function fmtData(iso) {
 
 carica();
 </script>
+<script>if(window.hydrateIcons)hydrateIcons();</script>
 </body>
 </html>

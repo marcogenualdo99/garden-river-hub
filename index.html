@@ -282,7 +282,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   .drawer:not(.open) { transform: translateX(-100%); }
 }
 </style>
-<script src="assets/icons.js?v=1794655706"></script>
+<script src="assets/icons.js?v=1794700100"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
@@ -813,7 +813,7 @@ document.querySelectorAll('.drawer, .sidebar').forEach(menu => {
 });
 
 // ── MODULI DELLA SUITE ─────────────────────────────────────────────────────
-// 👉 Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
+// Per aggiungere una nuova app alla Hub in futuro, basta aggiungere un
 //    nuovo oggetto a questo array (con un'icona, l'url della app e l'elenco
 //    delle sue sezioni interne) — non serve altro codice.
 const MODULES = [
@@ -821,7 +821,7 @@ const MODULES = [
     id: 'alloggi',
     nome: 'Gestione Pulizie',
     titolo: 'Gestione pulizie',
-    url: 'alloggi/', // 👉 sottocartella dentro questo stesso repository
+    url: 'alloggi/', // sottocartella dentro questo stesso repository
     icon: ICON_BED,
     tile: 'green',
     statKey: 'alloggi',
@@ -859,7 +859,7 @@ const MODULES = [
     id: 'navetta',
     nome: 'Navetta Spiaggia',
     titolo: 'Navetta',
-    url: 'navetta/', // 👉 sottocartella dentro questo stesso repository
+    url: 'navetta/', // sottocartella dentro questo stesso repository
     icon: ICON_NAVETTA,
     tile: 'orange',
     sezioni: [
@@ -908,7 +908,7 @@ const MODULES = [
     id: 'calendario',
     nome: 'Calendario Prenotazioni',
     titolo: 'Calendario',
-    url: 'calendario/', // 👉 sottocartella dentro questo stesso repository
+    url: 'calendario/', // sottocartella dentro questo stesso repository
     icon: ICON_CALENDAR,
     tile: 'white',
     sezioni: [
@@ -919,7 +919,7 @@ const MODULES = [
     id: 'magazzino',
     nome: 'Magazzino Bar',
     titolo: 'Magazzino bar',
-    url: 'magazzino/', // 👉 sottocartella dentro questo stesso repository
+    url: 'magazzino/', // sottocartella dentro questo stesso repository
     icon: ICON_WAREHOUSE,
     tile: 'white',
     statKey: 'magazzino',
@@ -936,7 +936,7 @@ const MODULES = [
     id: 'conti',
     nome: 'Gestione Conti Pensioni',
     titolo: 'Conti pensioni',
-    url: 'conti/', // 👉 sottocartella dentro questo stesso repository
+    url: 'conti/', // sottocartella dentro questo stesso repository
     icon: ICON_HANDCOINS,
     tile: 'white',
     statKey: 'conti',
@@ -951,7 +951,7 @@ const MODULES = [
     id: 'bici',
     nome: 'Noleggio Bici',
     titolo: 'Noleggio bici',
-    url: 'bici/', // 👉 sottocartella dentro questo stesso repository
+    url: 'bici/', // sottocartella dentro questo stesso repository
     icon: ICON_BIKE,
     tile: 'white',
     statKey: 'bici',
@@ -1254,8 +1254,8 @@ async function startHomeStatsSync() {
 
       const t0 = nuovi[0];
       const msg = nuovi.length === 1
-        ? `🔧 Nuovo ticket: ${t0.category || ''} — ${t0.housing_unit || ''}`
-        : `🔧 ${nuovi.length} nuovi ticket di manutenzione`;
+        ? `Nuovo ticket: ${t0.category || ''} — ${t0.housing_unit || ''}`
+        : `${nuovi.length} nuovi ticket di manutenzione`;
       showNotifBanner(msg);
     }, (err) => console.error('Errore listener manutenzione:', err));
 
