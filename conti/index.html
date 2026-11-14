@@ -2212,6 +2212,7 @@ function switchTab(id) {
   const tm={ospiti:'tab-ospiti',scadenze:'tab-scadenze',chiusi:'tab-chiusi'};
   if (tm[id]) document.getElementById(tm[id]).classList.add('active');
   if (id==='dettaglio-chiuso') document.getElementById('tab-chiusi').classList.add('active');
+  if (id==='dettaglio') renderDettaglio();
   if (id==='scadenze') renderScadenze();
   if (id==='chiusi')   renderChiusi();
 }
@@ -2423,6 +2424,8 @@ async function addOrdine() {
   const ordine = { id: nuovoId, ospiteId: currentOspiteId, punto, desc, importo, operatore, ts };
   try {
     await fsSetOrdine(ordine);
+    // Visibile subito: lo snapshot di Firestore puo' arrivare mentre il dettaglio e' nascosto.
+    if (!ordini.some(x => x.id === nuovoId)) ordini.push(ordine);
     showToast('Ordine salvato!');
     switchTab('dettaglio');
   } catch(e) {
