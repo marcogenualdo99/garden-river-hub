@@ -399,6 +399,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     <div class="header-btns">
       <span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span>
       <button class="hbtn ghost icon" onclick="forceRefresh(false)" title="Aggiorna ora">&#8635;</button>
+      <a class="hbtn ghost icon" href="storico.html" title="Storico guasti per alloggio" aria-label="Storico guasti per alloggio"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 9 8 9"/><polyline points="12 7 12 12 15 14"/></svg></a>
     </div>
   </div>
 </div>
@@ -1128,7 +1129,7 @@ async function changeStatus(id, solved) {
       const { db, doc, updateDoc } = window._fb;
       const t = allTickets.find(x => x.id === id);
       if (t) { t.status = solved; renderTickets(); }
-      await updateDoc(doc(db, 'maintenance_tickets', id), { status: solved });
+      await updateDoc(doc(db, 'maintenance_tickets', id), solved ? { status: true, risolto_il: new Date().toISOString() } : { status: false, risolto_il: '' });
       showToast(solved ? 'Ticket risolto' : 'Ticket riaperto');
     } catch(e) {
       const t = allTickets.find(x => x.id === id);

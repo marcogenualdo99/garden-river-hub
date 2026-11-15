@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Storico guasti · Garden River</title>
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css?v=1794338668">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.bar { position: sticky; top: 0; z-index: 10; background: var(--white); border-bottom: 1px solid var(--gray-100); padding: calc(10px + env(safe-area-inset-top)) 16px 10px; }
+.bar-in { max-width: 860px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.bar h1 { font-size: 17px; font-weight: 800; flex: 1; }
+.back { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 18px; background: var(--gray-100); color: var(--gray-700); text-decoration: none; }
+.back svg { width: 18px; height: 18px; }
+main { max-width: 860px; margin: 0 auto; padding: 16px 16px 60px; }
+.tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.search { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font: inherit; font-size: 15px; outline: none; background: var(--white); }
+.search:focus { border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(64,145,108,.12); }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { height: 34px; padding: 0 14px; border: 1.5px solid var(--gray-200); border-radius: 17px; background: var(--white); font: inherit; font-size: 13px; font-weight: 700; color: var(--gray-700); cursor: pointer; }
+.pill.active { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+.sum { font-size: 13px; color: var(--gray-500); margin-bottom: 12px; }
+.alloggio { border: 1px solid var(--gray-100); border-radius: var(--radius-lg); background: var(--white); box-shadow: var(--shadow-sm); margin-bottom: 10px; overflow: hidden; }
+.alloggio > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.al-nome { flex: 1; font-size: 16px; font-weight: 800; }
+.badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 10px; white-space: nowrap; }
+.badge.ok { background: var(--green-bg); color: var(--green-ok); }
+.badge.open { background: var(--amber-bg); color: var(--amber); }
+.chev { width: 18px; height: 18px; color: var(--gray-500); transition: transform .2s; flex-shrink: 0; }
+.alloggio.aperto .chev { transform: rotate(180deg); }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+.cat { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 10px; }
+.cat-elettrico { background: var(--amber-bg); color: var(--amber); }
+.cat-idraulico { background: var(--blue-bg); color: var(--blue); }
+.cat-clima { background: var(--teal-bg); color: var(--teal); }
+.cat-altro { background: var(--purple-bg); color: var(--purple); }
+.lista { display: none; border-top: 1px solid var(--gray-100); }
+.alloggio.aperto .lista { display: block; }
+.voce { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); }
+.voce:last-child { border-bottom: 0; }
+.voce-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.voce-data { font-size: 12px; color: var(--gray-500); margin-left: auto; }
+.voce-desc { font-size: 14px; line-height: 1.5; color: var(--gray-900); }
+.voce-meta { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+.vuoto { text-align: center; padding: 50px 20px; color: var(--gray-500); font-size: 14px; }
+:root { --purple:#7C3AED; --purple-bg:#F5F3FF; --teal:#0D9488; --teal-bg:#F0FDFA; }
+</style>
+</head>
+<body>
+<div class="bar"><div class="bar-in">
+  <a class="back" href="./" title="Torna ai ticket" aria-label="Torna ai ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></a>
+  <h1>Storico guasti per alloggio</h1>
+</div></div>
+
+<main>
+  <div class="tools">
+    <input type="search" class="search" id="cerca" placeholder="Cerca alloggio o parola nel guasto…" autocomplete="off" oninput="render()">
+    <div class="pills" id="pills">
+      <button class="pill active" data-f="tutti" onclick="setF('tutti')">Tutti</button>
+      <button class="pill" data-f="risolti" onclick="setF('risolti')">Riparati</button>
+      <button class="pill" data-f="aperti" onclick="setF('aperti')">Ancora aperti</button>
+    </div>
+  </div>
+  <div class="sum" id="sum"></div>
+  <div id="elenco"><div class="vuoto">Caricamento…</div></div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
+
+  const app = initializeApp({
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  });
+  const db = getFirestore(app), auth = getAuth(app);
+
+  // Stessa regola dell'app: sessione Hub + permesso su Ticket o Gestione.
+  function autorizzato() {
+    try {
+      const s = JSON.parse(sessionStorage.getItem('gr_session') || 'null');
+      if (!s || !s.nome) return false;
+      if (s.ruolo === 'admin') return true;
+      const perm = JSON.parse(sessionStorage.getItem('gr_permessi') || '{}');
+      const sez = ((perm.moduli || {}).manutenzione || {}).sezioni || {};
+      return sez.tickets !== false || sez.gestione !== false;
+    } catch (e) { return false; }
+  }
+
+  let caricato = false;
+  async function carica() {
+    if (caricato) return;
+    caricato = true;
+    if (!autorizzato()) {
+      document.getElementById('elenco').innerHTML = '<div class="vuoto">Accesso non disponibile. Entra dalla Hub e apri la Manutenzione.</div>';
+      return;
+    }
+    try {
+      const snap = await getDocs(query(collection(db, 'maintenance_tickets'), orderBy('created_at', 'desc')));
+      window.TICKETS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      window.render();
+    } catch (e) {
+      console.error(e);
+      caricato = false;
+      document.getElementById('elenco').innerHTML = '<div class="vuoto">Impossibile caricare lo storico. Riprova.</div>';
+    }
+  }
+  onAuthStateChanged(auth, u => { if (u) carica(); });
+  sessioneHub(auth).catch(() => {});
+</script>
+
+<script>
+window.TICKETS = [];
+let filtro = 'tutti';
+const aperti = new Set();
+const CLS = { 'Elettrico': 'cat-elettrico', 'Idraulico': 'cat-idraulico', 'Climatizzazione': 'cat-clima' };
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dataIt(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return isNaN(d) ? '' : d.toLocaleDateString('it', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function setF(f) {
+  filtro = f;
+  document.querySelectorAll('#pills .pill').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  render();
+}
+function apri(nome) {
+  aperti.has(nome) ? aperti.delete(nome) : aperti.add(nome);
+  render();
+}
+function render() {
+  const q = document.getElementById('cerca').value.trim().toLowerCase();
+  const per = {};
+  window.TICKETS.forEach(t => {
+    const u = (t.housing_unit || '—').trim();
+    (per[u] = per[u] || []).push(t);
+  });
+  let nomi = Object.keys(per).sort((a, b) => a.localeCompare(b, 'it', { numeric: true }));
+  let tot = 0;
+  const html = nomi.map(nome => {
+    let ts = per[nome];
+    if (filtro === 'risolti') ts = ts.filter(t => t.status);
+    if (filtro === 'aperti') ts = ts.filter(t => !t.status);
+    if (q && !nome.toLowerCase().includes(q)) ts = ts.filter(t => (t.issue_description || '').toLowerCase().includes(q) || (t.category || '').toLowerCase().includes(q));
+    if (!ts.length) return '';
+    tot += ts.length;
+    const ris = ts.filter(t => t.status).length, ap = ts.length - ris;
+    const cat = {};
+    ts.forEach(t => { const c = t.category || 'Altro'; cat[c] = (cat[c] || 0) + 1; });
+    const open = aperti.has(nome) || (q && nomi.length && q.length > 1 && ts.length && !nome.toLowerCase().includes(q));
+    const voci = ts.map(t => `<div class="voce">
+        <div class="voce-top"><span class="cat ${CLS[t.category] || 'cat-altro'}">${esc(t.category || 'Altro')}</span>
+          <span class="badge ${t.status ? 'ok' : 'open'}">${t.status ? 'Riparato' : 'Aperto'}</span>
+          <span class="voce-data">${esc(dataIt(t.created_at))}</span></div>
+        <div class="voce-desc">${esc(t.issue_description || '—')}</div>
+        <div class="voce-meta">${t.risolto_il ? 'Risolto il ' + esc(dataIt(t.risolto_il)) + ' · ' : ''}Segnalato da ${esc(t.user_id || '—')}${t.animali ? ' · animali presenti' : ''}</div>
+      </div>`).join('');
+    return `<div class="alloggio ${open ? 'aperto' : ''}">
+      <button onclick="apri(${JSON.stringify(nome).replace(/"/g, '&quot;')})">
+        <span class="al-nome">${esc(nome)}</span>
+        ${ris ? `<span class="badge ok">${ris} ${ris === 1 ? 'riparato' : 'riparati'}</span>` : ''}
+        ${ap ? `<span class="badge open">${ap} ${ap === 1 ? 'aperto' : 'aperti'}</span>` : ''}
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="cats">${Object.entries(cat).map(([c, n]) => `<span class="cat ${CLS[c] || 'cat-altro'}">${esc(c)} · ${n}</span>`).join('')}</div>
+      <div class="lista">${voci}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('sum').textContent = window.TICKETS.length ? `${tot} segnalazioni` : '';
+  document.getElementById('elenco').innerHTML = html || '<div class="vuoto">Nessuna segnalazione trovata.</div>';
+}
+</script>
+</body>
+</html>
