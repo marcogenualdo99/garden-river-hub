@@ -26,7 +26,7 @@ Azioni (campo "azione" nel corpo JSON):
            già fatte oggi da questo stesso ospite (per mostrargliene lo
            stato)
   - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
-  - manutenzione_segnala : { token, nome, categoria, descrizione, accesso }
+  - manutenzione_segnala : { token, nome, categoria, descrizione, accesso, animali }
         -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram
   - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
   - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
@@ -1614,6 +1614,7 @@ def _azione_manutenzione_segnala(db, origin, data):
     if not alloggio:
         return _json(origin, {'ok': False, 'errore': 'alloggio_mancante'}, 400)
     accesso = data.get('accesso') is True
+    animali = data.get('animali') is True
     oggi = _oggi_iso()
     try:
         gia = sum(1 for d in db.collection('maintenance_tickets').where('prenId', '==', pren_ref.id).stream()
@@ -1627,13 +1628,13 @@ def _azione_manutenzione_segnala(db, origin, data):
     ref = db.collection('maintenance_tickets').document()
     ref.set({
         'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
-        'access_permission': accesso, 'priority': 'normale', 'status': False,
+        'access_permission': accesso, 'animali': animali, 'priority': 'normale', 'status': False,
         'user_id': f'Ospite · {nome}',
         'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
         'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
     })
     _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
-               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso,
+               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso, 'animali': animali,
                'operatore': nome, 'telefono': telefono})
     return _json(origin, {'ok': True, 'id': ref.id})
 

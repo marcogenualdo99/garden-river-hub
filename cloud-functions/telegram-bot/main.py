@@ -231,6 +231,7 @@ def _evento(data):
                  f"🏠 <b>Alloggio:</b> {_e(data.get('housing_unit'), 80) or '—'}\n"
                  f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
                  f"🔑 <b>Si può entrare in assenza dell'ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+                 f"🐾 <b>Animali in alloggio:</b> {'SÌ' if data.get('animali') else 'No'}\n"
                  f"👤 <b>Ospite:</b> {_e(data.get('operatore'), 80) or '—'}\n"
                  + (f"📞 <b>Telefono:</b> {tel}\n" if tel else '') +
                  f"🕐 <b>Quando:</b> {quando}\n\n"
@@ -241,6 +242,7 @@ def _evento(data):
                  f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
                  f"⚡ <b>Priorità:</b> {'ALTA' if urgente else 'Normale'}\n"
                  f"🔑 <b>Accesso senza ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+                 f"🐾 <b>Animali in alloggio:</b> {'SÌ' if data.get('animali') else 'No'}\n"
                  f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
                  f"🕐 <b>Quando:</b> {quando}\n\n"
                  f"📝 <b>Problema:</b>\n{_e(data.get('issue_description'), 2000) or '—'}")
@@ -258,8 +260,8 @@ def _evento(data):
         stato = data.get('nuovo_stato') or ''
         if stato == 'da_pulire':
             op = _e(data.get('op'), 60) or 'Operatore'
-            return _invia(['pulizie'], f"🧹 <b>Check-out eseguito da {op}</b>\n🏠 Alloggio <b>{_e(data.get('alloggio_nome'), 60) or 'Alloggio'}</b> da pulire")
-        t = (f"{EMOJI_STATO.get(stato, '🏠')} <b>{_e(data.get('alloggio_nome'), 60) or 'Alloggio'}</b> · {_e(LABEL_STATO.get(stato, stato), 40)}"
+            return _invia(['pulizie'], f"🏠 <b>{(_e(data.get('alloggio_nome'), 60) or 'Alloggio').upper()}</b>\n🧹 Check-out eseguito da {op}: da pulire")
+        t = (f"🏠 <b>{(_e(data.get('alloggio_nome'), 60) or 'Alloggio').upper()}</b>\n{EMOJI_STATO.get(stato, '🏠')} {_e(LABEL_STATO.get(stato, stato), 40)}"
              + (f"\nda {_e(data.get('op'), 60)}" if data.get('op') else ''))
         # L'alloggio pronto interessa anche alla reception (puo' assegnarlo all'arrivo).
         return _invia(['pulizie', 'reception'] if stato == 'pronta' else ['pulizie'], t)

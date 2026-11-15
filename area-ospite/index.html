@@ -1563,7 +1563,7 @@ let _mn = {};
 const MN_CATEGORIE = [['Elettrico', ICONS.BOLT], ['Idraulico', ICONS.DROP], ['Climatizzazione', ICONS.SNOW], ['Altro', ICONS.WRENCH]];
 function renderManutenzione() {
   const p = CFG.prenotazione || {};
-  _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, invio: false };
+  _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, animali: null, invio: false };
   $('#service-content').innerHTML = `
     <div class="card">
       <h2>Segnala un guasto</h2>
@@ -1599,6 +1599,11 @@ function renderManutenzione() {
           <button type="button" class="sp-btn" data-v="1" onclick="mnAccesso(true)">Sì, può entrare anche se non ci sono</button>
           <button type="button" class="sp-btn" data-v="0" onclick="mnAccesso(false)">No, devo essere presente</button>
         </div>
+        <p class="guida" style="margin-top:18px">Ci sono animali nell'alloggio? Il tecnico deve saperlo prima di entrare.</p>
+        <div class="sp-grid" id="mn-ani-grid">
+          <button type="button" class="sp-btn" data-v="1" onclick="mnAnimali(true)">Sì, ci sono animali</button>
+          <button type="button" class="sp-btn" data-v="0" onclick="mnAnimali(false)">No, nessun animale</button>
+        </div>
       </div>
 
       <div id="mn-box-conf" style="display:none">
@@ -1622,13 +1627,14 @@ function mnAggiorna() {
   const b1 = $('#mn-avanti1'); if (b1) b1.disabled = !ok1;
   const b3 = $('#mn-avanti3'); if (b3) b3.disabled = _mn.descrizione.length < 5;
   const conf = $('#mn-box-conf');
-  if (conf && _mn.accesso !== null && _mn.categoria && _mn.descrizione.length >= 5 && ok1) {
+  if (conf && _mn.accesso !== null && _mn.animali !== null && _mn.categoria && _mn.descrizione.length >= 5 && ok1) {
     const prima = conf.style.display === 'none';
     conf.style.display = 'block';
     $('#mn-riepilogo').innerHTML = `<div><span>Alloggio</span><b>${esc(_mn.alloggio)}</b></div>
       <div><span>Ospite</span><b>${esc(_mn.nome)}</b></div>
       <div><span>Guasto</span><b>${esc(_mn.categoria)}</b></div>
       <div><span>Ingresso</span><b>${_mn.accesso ? 'Anche in tua assenza' : 'Solo se ci sei'}</b></div>
+      <div><span>Animali</span><b>${_mn.animali ? 'Sì, presenti' : 'No'}</b></div>
       <div style="display:block"><span>Problema</span><br><b style="font-size:16px;font-weight:600">${esc(_mn.descrizione)}</b></div>`;
     if (prima) vaiA('#mn-box-conf');
   } else if (conf) conf.style.display = 'none';
@@ -1644,13 +1650,18 @@ function mnAccesso(v) {
   document.querySelectorAll('#mn-acc-grid .sp-btn').forEach(el => el.classList.toggle('selected', (el.dataset.v === '1') === v));
   mnAggiorna();
 }
+function mnAnimali(v) {
+  _mn.animali = v;
+  document.querySelectorAll('#mn-ani-grid .sp-btn').forEach(el => el.classList.toggle('selected', (el.dataset.v === '1') === v));
+  mnAggiorna();
+}
 async function mnInvia() {
   if (_mn.invio) return;
   const box = $('#mn-err'), btn = $('#mn-invia');
   box.style.display = 'none';
   _mn.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
-    const d = await chiama({ azione: 'manutenzione_segnala', nome: _mn.nome, alloggio_nome: _mn.alloggio, categoria: _mn.categoria, descrizione: _mn.descrizione, accesso: _mn.accesso === true });
+    const d = await chiama({ azione: 'manutenzione_segnala', nome: _mn.nome, alloggio_nome: _mn.alloggio, categoria: _mn.categoria, descrizione: _mn.descrizione, accesso: _mn.accesso === true, animali: _mn.animali === true });
     if (d.ok) {
       $('#mn-form').style.display = 'none';
       const c = $('#mn-conferma');

@@ -438,6 +438,14 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         <button class="toggle-switch" id="access-toggle" role="switch" aria-checked="false" onclick="toggleAccess()" aria-label="Permesso di accesso"></button>
       </div>
 
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="toggle-label">Animali in alloggio</div>
+          <div class="toggle-sub">Ci sono animali all'interno: il tecnico deve saperlo prima di entrare</div>
+        </div>
+        <button class="toggle-switch" id="animali-toggle" role="switch" aria-checked="false" onclick="toggleAnimali()" aria-label="Animali in alloggio"></button>
+      </div>
+
       <button class="btn-submit" id="btn-submit" onclick="submitTicket()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Invia segnalazione
@@ -512,6 +520,7 @@ let allowedSections = new Set();
 let currentOperatore = null;
 let canManage       = false; // può vedere tutti i ticket e cambiare stato
 let accessToggleOn  = false;
+let animaliToggleOn = false;
 let selectedPriority = 'normale';
 let allTickets      = [];
 let alloggiList     = [];
@@ -776,6 +785,13 @@ function toggleAccess() {
   btn.setAttribute('aria-checked', String(accessToggleOn));
 }
 
+function toggleAnimali() {
+  animaliToggleOn = !animaliToggleOn;
+  const btn = document.getElementById('animali-toggle');
+  btn.classList.toggle('on', animaliToggleOn);
+  btn.setAttribute('aria-checked', String(animaliToggleOn));
+}
+
 async function submitTicket() {
   const unit = document.getElementById('sel-unit').value.trim();
   const cat  = document.getElementById('sel-cat').value.trim();
@@ -796,6 +812,7 @@ async function submitTicket() {
       category:          cat,
       issue_description: desc,
       access_permission: accessToggleOn,
+      animali:           animaliToggleOn,
       priority:          selectedPriority,
       status:            false,
       notified:          false,
@@ -804,7 +821,7 @@ async function submitTicket() {
     });
     showToast('Segnalazione inviata!');
     // Avviso al gruppo Telegram Manutenzione (fire-and-forget).
-    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn);
+    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn, animaliToggleOn);
     // Reset form
     document.getElementById('sel-unit').value = '';
     document.getElementById('sel-cat').value  = '';
@@ -812,6 +829,9 @@ async function submitTicket() {
     accessToggleOn = false;
     document.getElementById('access-toggle').classList.remove('on');
     document.getElementById('access-toggle').setAttribute('aria-checked', 'false');
+    animaliToggleOn = false;
+    document.getElementById('animali-toggle').classList.remove('on');
+    document.getElementById('animali-toggle').setAttribute('aria-checked', 'false');
     setPriority('normale');
     // Chiudi il form
     if (_formOpen) toggleForm();
@@ -824,10 +844,10 @@ async function submitTicket() {
   }
 }
 
-function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso) {
+function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso, animali) {
   // Telegram (gruppo Manutenzione): fire-and-forget.
   fetchStaff('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, operatore: currentOperatore || '' }) }).catch(() => {});
+    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, animali: !!animali, operatore: currentOperatore || '' }) }).catch(() => {});
 }
 
 function shakeField(id) {
@@ -923,6 +943,7 @@ function ticketCardHtml(t) {
         <span class="cat-chip ${ci.cls}">${escHtml(t.category || '')}</span>
         ${opLabel}
         <span class="ticket-date">${dateStr}</span>
+        ${t.animali ? `<span class="access-indicator" style="color:#b45309">Animali presenti</span>` : ''}
         ${t.access_permission ? `<span class="access-indicator"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Accesso ok</span>` : ''}
       </div>
     </div>
@@ -937,6 +958,7 @@ function ticketCardHtml(t) {
         ${accessIcon}
         ${t.access_permission ? 'Il tecnico può entrare in assenza del residente' : 'Il residente deve essere presente'}
       </div>
+      ${t.animali ? `<div class="access-full-label no" style="margin-top:6px"><b>Animali presenti nell'alloggio</b></div>` : ''}
       ${actionBtn}
       ${canManage ? `<button class="btn-block red" onclick="event.stopPropagation();deleteTicket('${t.id}')" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Elimina ticket</button>` : ''}
     </div>
