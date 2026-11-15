@@ -101,6 +101,27 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
 .field-textarea { padding: 12px 14px; resize: none; min-height: 90px; line-height: 1.5; }
 .field-select:focus, .field-textarea:focus { border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(64,145,108,.12); }
 
+/* ══ FORM A STEP ═════════════════════════════════════════════════════════════ */
+.step { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--gray-100); animation: step-in .25s ease; }
+.step:first-child { border-top: 0; padding-top: 0; }
+@keyframes step-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.step[hidden] { display: none; }
+.fascia-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.fascia-btn { height: 42px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font: inherit; font-size: 13px; font-weight: 700; color: var(--gray-700); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.fascia-btn.selected { background: var(--green-700); border-color: var(--green-700); color: var(--white); }
+.step-head { display: flex; align-items: center; gap: 10px; }
+.step-head h3 { font-size: 15px; font-weight: 800; color: var(--gray-900); }
+.step-n { width: 24px; height: 24px; border-radius: 50%; background: var(--green-700); color: var(--white); font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.step.fatto .step-n { background: var(--green-400); }
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 92px; padding: 12px 8px; border: 2px solid var(--gray-200); border-radius: var(--radius); background: var(--white); font: inherit; font-size: 14px; font-weight: 700; color: var(--gray-900); cursor: pointer; transition: border-color .15s, background .15s, transform .1s; -webkit-tap-highlight-color: transparent; }
+.cat-card:active { transform: scale(.97); }
+.cat-card.selected { border-color: var(--green-700); background: var(--green-50); }
+.cat-card-ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+.cat-card-ico svg { width: 22px; height: 22px; }
+.quick-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick-chip { padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: 20px; background: var(--white); font: inherit; font-size: 13px; font-weight: 600; color: var(--gray-700); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.quick-chip:active { background: var(--green-50); border-color: var(--green-400); }
 /* ══ PRIORITÀ ═══════════════════════════════════════════════════════════════ */
 .priority-row { display: flex; gap: 8px; }
 .priority-chip { flex: 1; height: 44px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); background: var(--white); font-size: 13px; font-weight: 700; color: var(--gray-600); cursor: pointer; font-family: var(--font); transition: all .15s; -webkit-tap-highlight-color: transparent; }
@@ -398,30 +419,31 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     </div>
     <div class="form-body" id="form-body">
 
+      <div class="step" id="step-1">
+        <div class="step-head"><span class="step-n">1</span><h3>Dove?</h3></div>
       <div class="field-group">
         <label class="field-label" for="cerca-ospite">Cerca ospite in struttura</label>
         <input type="search" class="field-select" id="cerca-ospite" placeholder="Nome dell'ospite per trovare l'alloggio…" autocomplete="off" style="background-image:none;padding-right:14px" oninput="cercaOspite()">
         <div id="cerca-ospite-res" style="display:none;margin-top:6px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--white);overflow:hidden"></div>
       </div>
-
       <div class="field-group">
-        <label class="field-label" for="sel-unit">Alloggio <span>*</span></label>
-        <select class="field-select" id="sel-unit">
+        <label class="field-label" for="sel-unit">Oppure scegli dall'elenco</label>
+        <select class="field-select" id="sel-unit" onchange="stepAggiorna()">
           <option value="">— Seleziona alloggio —</option>
         </select>
       </div>
-
-      <div class="field-group">
-        <label class="field-label" for="sel-cat">Categoria <span>*</span></label>
-        <select class="field-select" id="sel-cat">
-          <option value="">— Seleziona categoria —</option>
-          <option value="Elettrico">Elettrico</option>
-          <option value="Idraulico">Idraulico</option>
-          <option value="Climatizzazione">Climatizzazione</option>
-          <option value="Altro">Altro</option>
-        </select>
       </div>
 
+      <div class="step" id="step-2" hidden>
+        <div class="step-head"><span class="step-n">2</span><h3>Che tipo di problema?</h3></div>
+        <input type="hidden" id="sel-cat" value="">
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+
+      <div class="step" id="step-3" hidden>
+        <div class="step-head"><span class="step-n">3</span><h3>Cosa non funziona?</h3></div>
+        <div class="quick-chips" id="quick-chips"></div>
+        <textarea class="field-textarea" id="txt-desc" rows="3" placeholder="Descrivi brevemente il problema…" oninput="stepAggiorna()"></textarea>
       <div class="field-group">
         <label class="field-label">Priorità</label>
         <div class="priority-row" id="priority-row">
@@ -430,18 +452,21 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
           <button type="button" class="priority-chip" data-priority="alta" onclick="setPriority('alta')">Urgente</button>
         </div>
       </div>
-
-      <div class="field-group">
-        <label class="field-label" for="txt-desc">Descrizione del problema <span>*</span></label>
-        <textarea class="field-textarea" id="txt-desc" rows="3" placeholder="Descrivi brevemente il problema…"></textarea>
       </div>
 
+      <div class="step" id="step-4" hidden>
+        <div class="step-head"><span class="step-n">4</span><h3>Accesso e invio</h3></div>
       <div class="toggle-row">
         <div class="toggle-label-wrap">
           <div class="toggle-label">Posso entrare in mia assenza</div>
           <div class="toggle-sub">Il tecnico può accedere all'alloggio senza che io sia presente</div>
         </div>
         <button class="toggle-switch" id="access-toggle" role="switch" aria-checked="false" onclick="toggleAccess()" aria-label="Permesso di accesso"></button>
+      </div>
+
+      <div id="fascia-box" class="field-group" style="padding:4px 0 10px">
+        <label class="field-label">Orario del passaggio (ospite presente) <span>*</span></label>
+        <div class="fascia-grid" id="fascia-grid"></div>
       </div>
 
       <div class="toggle-row">
@@ -451,11 +476,11 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
         </div>
         <button class="toggle-switch" id="animali-toggle" role="switch" aria-checked="false" onclick="toggleAnimali()" aria-label="Animali in alloggio"></button>
       </div>
-
       <button class="btn-submit" id="btn-submit" onclick="submitTicket()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Invia segnalazione
       </button>
+      </div>
 
     </div>
   </div>
@@ -527,6 +552,13 @@ let currentOperatore = null;
 let canManage       = false; // può vedere tutti i ticket e cambiare stato
 let accessToggleOn  = false;
 let animaliToggleOn = false;
+let fasciaScelta = '';
+// Fasce da 30 minuti: 7:30-12:00 e 14:00-17:00.
+const FASCE_ORARIE = (() => {
+  const out = [], f = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  for (const [a, b] of [[450, 720], [840, 1020]]) for (let m = a; m < b; m += 30) out.push(f(m) + '-' + f(m + 30));
+  return out;
+})();
 let selectedPriority = 'normale';
 let allTickets      = [];
 let alloggiList     = [];
@@ -649,6 +681,7 @@ function scegliOspite(i) {
   const sel = document.getElementById('sel-unit');
   if (![...sel.options].some(op => op.value === o.alloggio)) sel.insertAdjacentHTML('beforeend', `<option value="${escHtml(o.alloggio)}">${escHtml(o.alloggio)}</option>`);
   sel.value = o.alloggio;
+  stepAggiorna();
   document.getElementById('cerca-ospite').value = o.nome;
   box.style.display = 'none';
 }
@@ -814,6 +847,67 @@ function doLogout() {
   location.href = HUB_URL;
 }
 
+// ── FORM A STEP ──────────────────────────────────────────────────────────
+const SUGGERIMENTI = {
+  'Elettrico':       ['Manca la corrente', 'Una luce non funziona', 'Presa rotta o che scintilla', 'Interruttore bloccato'],
+  'Idraulico':       ['Perdita d\'acqua', 'Scarico intasato', 'Niente acqua calda', 'Wc o sciacquone guasto'],
+  'Climatizzazione': ['Il condizionatore non parte', 'Non raffredda', 'Perde acqua', 'Telecomando non risponde'],
+  'Altro':           ['Porta o serratura', 'Finestra o zanzariera', 'Mobile rotto', 'Frigorifero non funziona'],
+};
+function scegliFascia(f) {
+  fasciaScelta = f;
+  document.querySelectorAll('#fascia-grid .fascia-btn').forEach(el => el.classList.toggle('selected', el.dataset.f === f));
+}
+function aggiornaFasciaBox() {
+  const box = document.getElementById('fascia-box');
+  if (box) box.style.display = accessToggleOn ? 'none' : '';
+  if (accessToggleOn) scegliFascia('');
+}
+function initStepForm() {
+  document.getElementById('fascia-grid').innerHTML = FASCE_ORARIE.map(f =>
+    `<button type="button" class="fascia-btn" data-f="${f}" onclick="scegliFascia('${f}')">${f.replace('-', ' – ')}</button>`).join('');
+  aggiornaFasciaBox();
+  const ico = { Elettrico: 'Elettrico', Idraulico: 'Idraulico', Climatizzazione: 'Climatizzazione', Altro: 'Altro' };
+  document.getElementById('cat-grid').innerHTML = Object.keys(ico).map(c => {
+    const ci = catInfo(c);
+    return `<button type="button" class="cat-card" data-cat="${c}" onclick="scegliCategoria('${c}')"><span class="cat-card-ico ${ci.cls}">${ci.icon}</span>${c}</button>`;
+  }).join('');
+}
+function mostraStep(n, on) {
+  const el = document.getElementById('step-' + n);
+  if (el) el.hidden = !on;
+}
+function stepAggiorna() {
+  const unit = document.getElementById('sel-unit').value.trim();
+  const cat  = document.getElementById('sel-cat').value.trim();
+  const desc = document.getElementById('txt-desc').value.trim();
+  mostraStep(2, !!unit);
+  mostraStep(3, !!unit && !!cat);
+  mostraStep(4, !!unit && !!cat && desc.length > 0);
+  document.getElementById('step-1').classList.toggle('fatto', !!unit);
+}
+function scegliCategoria(c) {
+  document.getElementById('sel-cat').value = c;
+  document.querySelectorAll('#cat-grid .cat-card').forEach(el => el.classList.toggle('selected', el.dataset.cat === c));
+  document.getElementById('quick-chips').innerHTML = (SUGGERIMENTI[c] || []).map(t =>
+    `<button type="button" class="quick-chip" onclick="usaSuggerimento(this.textContent)">${escHtml(t)}</button>`).join('');
+  stepAggiorna();
+  const d = document.getElementById('txt-desc');
+  if (d && !d.value) setTimeout(() => d.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
+}
+function usaSuggerimento(t) {
+  const d = document.getElementById('txt-desc');
+  d.value = d.value.trim() ? d.value.trim().replace(/[.,]?$/, ', ') + t.toLowerCase() : t;
+  stepAggiorna();
+  d.focus();
+}
+function resetStepForm() {
+  document.getElementById('sel-cat').value = '';
+  document.querySelectorAll('#cat-grid .cat-card').forEach(el => el.classList.remove('selected'));
+  document.getElementById('quick-chips').innerHTML = '';
+  stepAggiorna();
+}
+
 // ── FORM ───────────────────────────────────────────────────────────────────
 let _formOpen = true;
 function toggleForm() {
@@ -827,6 +921,7 @@ function toggleAccess() {
   const btn = document.getElementById('access-toggle');
   btn.classList.toggle('on', accessToggleOn);
   btn.setAttribute('aria-checked', String(accessToggleOn));
+  aggiornaFasciaBox();
 }
 
 function toggleAnimali() {
@@ -844,6 +939,7 @@ async function submitTicket() {
   if (!unit) { showToast('Seleziona un alloggio'); shakeField('sel-unit'); return; }
   if (!cat)  { showToast('Seleziona una categoria'); shakeField('sel-cat'); return; }
   if (!desc) { showToast('Aggiungi una descrizione'); shakeField('txt-desc'); return; }
+  if (!accessToggleOn && !fasciaScelta) { showToast('Scegli la fascia oraria del passaggio'); shakeField('fascia-grid'); return; }
 
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
@@ -857,6 +953,7 @@ async function submitTicket() {
       issue_description: desc,
       access_permission: accessToggleOn,
       animali:           animaliToggleOn,
+      fascia_oraria:     accessToggleOn ? '' : fasciaScelta,
       priority:          selectedPriority,
       status:            false,
       notified:          false,
@@ -865,16 +962,19 @@ async function submitTicket() {
     });
     showToast('Segnalazione inviata!');
     // Avviso al gruppo Telegram Manutenzione (fire-and-forget).
-    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn, animaliToggleOn);
+    await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn, animaliToggleOn, accessToggleOn ? '' : fasciaScelta);
     // Reset form
     document.getElementById('sel-unit').value = '';
     document.getElementById('cerca-ospite').value = '';
     document.getElementById('sel-cat').value  = '';
     document.getElementById('txt-desc').value  = '';
+    resetStepForm();
     accessToggleOn = false;
     document.getElementById('access-toggle').classList.remove('on');
     document.getElementById('access-toggle').setAttribute('aria-checked', 'false');
     animaliToggleOn = false;
+    scegliFascia('');
+    aggiornaFasciaBox();
     document.getElementById('animali-toggle').classList.remove('on');
     document.getElementById('animali-toggle').setAttribute('aria-checked', 'false');
     setPriority('normale');
@@ -889,10 +989,10 @@ async function submitTicket() {
   }
 }
 
-function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso, animali) {
+function notificaNuovoTicket(docId, unit, cat, desc, priority, accesso, animali, fascia) {
   // Telegram (gruppo Manutenzione): fire-and-forget.
   fetchStaff('https://telegram-bot-113994721180.europe-west1.run.app', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, animali: !!animali, operatore: currentOperatore || '' }) }).catch(() => {});
+    body: JSON.stringify({ evento: 'ticket', doc_id: docId, housing_unit: unit, category: cat, issue_description: desc, priority: priority, access_permission: !!accesso, animali: !!animali, fascia_oraria: fascia || '', operatore: currentOperatore || '' }) }).catch(() => {});
 }
 
 function shakeField(id) {
@@ -1086,6 +1186,7 @@ async function start() {
   if (document.getElementById('login-screen').classList.contains('hidden') &&
       document.getElementById('no-access-screen').classList.contains('hidden')) {
     await waitForFirebase();
+    initStepForm();
     loadAlloggi();
     loadOspitiInStruttura();
     await startTicketsSync();

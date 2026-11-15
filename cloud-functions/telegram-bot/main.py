@@ -243,6 +243,7 @@ def _evento(data):
                  f"🏷️ <b>Categoria:</b> {_e(data.get('category'), 80) or '—'}\n"
                  f"⚡ <b>Priorità:</b> {'ALTA' if urgente else 'Normale'}\n"
                  f"🔑 <b>Accesso senza ospite:</b> {'Sì' if data.get('access_permission') else 'No'}\n"
+                 + (f"⏰ <b>Orario richiesto (ospite presente):</b> {_e(data.get('fascia_oraria'), 11).replace('-', ' – ')}\n" if data.get('fascia_oraria') else '') +
                  f"🐾 <b>Animali in alloggio:</b> {'SÌ' if data.get('animali') else 'No'}\n"
                  f"👤 <b>Segnalato da:</b> {_e(data.get('operatore'), 60) or '—'}\n"
                  f"🕐 <b>Quando:</b> {quando}\n\n"
