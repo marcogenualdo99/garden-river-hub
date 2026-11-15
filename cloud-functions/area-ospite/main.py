@@ -1592,6 +1592,11 @@ MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
 MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
 
 
+# Fasce da 30 minuti: 07:30-12:00 e 14:00-17:00.
+MANUT_FASCE = {'%02d:%02d-%02d:%02d' % (m // 60, m % 60, (m + 30) // 60, (m + 30) % 60)
+               for a, b in ((450, 720), (840, 1020)) for m in range(a, b, 30)}
+
+
 def _azione_manutenzione_segnala(db, origin, data):
     """Segnalazione guasto dall'ospite: crea un ticket in `maintenance_tickets`
     (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram."""
@@ -1615,6 +1620,12 @@ def _azione_manutenzione_segnala(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'alloggio_mancante'}, 400)
     accesso = data.get('accesso') is True
     animali = data.get('animali') is True
+    fascia = _s(data.get('fascia'), 11)
+    if not accesso:
+        if fascia not in MANUT_FASCE:
+            return _json(origin, {'ok': False, 'errore': 'fascia_mancante'}, 400)
+    else:
+        fascia = ''
     oggi = _oggi_iso()
     try:
         gia = sum(1 for d in db.collection('maintenance_tickets').where('prenId', '==', pren_ref.id).stream()
@@ -1628,13 +1639,13 @@ def _azione_manutenzione_segnala(db, origin, data):
     ref = db.collection('maintenance_tickets').document()
     ref.set({
         'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
-        'access_permission': accesso, 'animali': animali, 'priority': 'normale', 'status': False,
+        'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia, 'priority': 'normale', 'status': False,
         'user_id': f'Ospite · {nome}',
         'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
         'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
     })
     _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
-               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso, 'animali': animali,
+               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia,
                'operatore': nome, 'telefono': telefono})
     return _json(origin, {'ok': True, 'id': ref.id})
 

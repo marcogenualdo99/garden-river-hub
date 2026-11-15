@@ -17,7 +17,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork }
+  import { getFirestore, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, limit, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -36,7 +36,7 @@
   const db       = getFirestore(fbApp);
   const auth     = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, orderBy, serverTimestamp, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, addDoc, getDocs, onSnapshot, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, limit, enableNetwork, disableNetwork };
   window._fbReady = false;
 
   function segnalaPronto() {
@@ -399,6 +399,12 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 60px; }
     <div class="form-body" id="form-body">
 
       <div class="field-group">
+        <label class="field-label" for="cerca-ospite">Cerca ospite in struttura</label>
+        <input type="search" class="field-select" id="cerca-ospite" placeholder="Nome dell'ospite per trovare l'alloggio…" autocomplete="off" style="background-image:none;padding-right:14px" oninput="cercaOspite()">
+        <div id="cerca-ospite-res" style="display:none;margin-top:6px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);background:var(--white);overflow:hidden"></div>
+      </div>
+
+      <div class="field-group">
         <label class="field-label" for="sel-unit">Alloggio <span>*</span></label>
         <select class="field-select" id="sel-unit">
           <option value="">— Seleziona alloggio —</option>
@@ -607,6 +613,44 @@ function populateAlloggioSelect() {
   if (lastCat !== null) html += '</optgroup>';
   sel.innerHTML = html;
   if (prev && sorted.some(a => a.nome === prev)) sel.value = prev;
+}
+
+// Ospiti attualmente in struttura (check-in <= oggi <= check-out), per ritrovare l'alloggio dal nome.
+let ospitiInStruttura = [];
+function oggiIsoLocale() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function loadOspitiInStruttura() {
+  const { db, collection, onSnapshot, query, where } = window._fb;
+  const oggi = oggiIsoLocale();
+  onSnapshot(query(collection(db, 'prenotazioni'), where('checkout', '>=', oggi)), (snap) => {
+    ospitiInStruttura = snap.docs.map(d => d.data())
+      .filter(p => p && p.checkin && p.checkin <= oggi && p.alloggio_nome && (p.nome || '').trim())
+      .map(p => ({ nome: String(p.nome).trim(), alloggio: String(p.alloggio_nome).trim(), checkout: p.checkout }));
+    cercaOspite();
+  }, (err) => { console.error('Errore ospiti in struttura:', err); });
+}
+function cercaOspite() {
+  const inp = document.getElementById('cerca-ospite'), box = document.getElementById('cerca-ospite-res');
+  if (!inp || !box) return;
+  const q = inp.value.trim().toLowerCase();
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const trovati = ospitiInStruttura.filter(o => o.nome.toLowerCase().includes(q)).slice(0, 8);
+  box.style.display = 'block';
+  box.innerHTML = trovati.length
+    ? trovati.map((o, i) => `<button type="button" onclick="scegliOspite(${i})" style="display:flex;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;border:0;border-bottom:1px solid var(--gray-200);background:none;font:inherit;font-size:15px;text-align:left;cursor:pointer"><span>${escHtml(o.nome)}</span><b>${escHtml(o.alloggio)}</b></button>`).join('')
+    : '<div style="padding:12px 14px;font-size:14px;color:var(--gray-600)">Nessun ospite in struttura con questo nome</div>';
+  box._res = trovati;
+}
+function scegliOspite(i) {
+  const box = document.getElementById('cerca-ospite-res'), o = box && box._res && box._res[i];
+  if (!o) return;
+  const sel = document.getElementById('sel-unit');
+  if (![...sel.options].some(op => op.value === o.alloggio)) sel.insertAdjacentHTML('beforeend', `<option value="${escHtml(o.alloggio)}">${escHtml(o.alloggio)}</option>`);
+  sel.value = o.alloggio;
+  document.getElementById('cerca-ospite').value = o.nome;
+  box.style.display = 'none';
 }
 
 function loadAlloggi() {
@@ -824,6 +868,7 @@ async function submitTicket() {
     await notificaNuovoTicket(ref.id, unit, cat, desc, selectedPriority, accessToggleOn, animaliToggleOn);
     // Reset form
     document.getElementById('sel-unit').value = '';
+    document.getElementById('cerca-ospite').value = '';
     document.getElementById('sel-cat').value  = '';
     document.getElementById('txt-desc').value  = '';
     accessToggleOn = false;
@@ -958,6 +1003,7 @@ function ticketCardHtml(t) {
         ${accessIcon}
         ${t.access_permission ? 'Il tecnico può entrare in assenza del residente' : 'Il residente deve essere presente'}
       </div>
+      ${t.fascia_oraria ? `<div class="access-full-label no" style="margin-top:6px"><b>Orario richiesto: ${escHtml(String(t.fascia_oraria).replace('-', ' – '))}</b></div>` : ''}
       ${t.animali ? `<div class="access-full-label no" style="margin-top:6px"><b>Animali presenti nell'alloggio</b></div>` : ''}
       ${actionBtn}
       ${canManage ? `<button class="btn-block red" onclick="event.stopPropagation();deleteTicket('${t.id}')" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Elimina ticket</button>` : ''}
@@ -1041,6 +1087,7 @@ async function start() {
       document.getElementById('no-access-screen').classList.contains('hidden')) {
     await waitForFirebase();
     loadAlloggi();
+    loadOspitiInStruttura();
     await startTicketsSync();
   }
 }

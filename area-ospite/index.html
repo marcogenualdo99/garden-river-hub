@@ -1561,9 +1561,15 @@ function renderWhatsapp() {
 // (Hub, push e gruppo Telegram Manutenzione) segnato come "dall'ospite".
 let _mn = {};
 const MN_CATEGORIE = [['Elettrico', ICONS.BOLT], ['Idraulico', ICONS.DROP], ['Climatizzazione', ICONS.SNOW], ['Altro', ICONS.WRENCH]];
+// Fasce da 30 minuti: 7:30-12:00 e 14:00-17:00.
+const MN_FASCE = (() => {
+  const out = [], fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  for (const [a, b] of [[450, 720], [840, 1020]]) for (let m = a; m < b; m += 30) out.push(fmt(m) + '-' + fmt(m + 30));
+  return out;
+})();
 function renderManutenzione() {
   const p = CFG.prenotazione || {};
-  _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, animali: null, invio: false };
+  _mn = { nome: (p.nome || '').trim(), alloggio: (p.alloggio_nome || '').trim(), categoria: '', descrizione: '', accesso: null, animali: null, fascia: '', invio: false };
   $('#service-content').innerHTML = `
     <div class="card">
       <h2>Segnala un guasto</h2>
@@ -1604,6 +1610,10 @@ function renderManutenzione() {
           <button type="button" class="sp-btn" data-v="1" onclick="mnAnimali(true)">Sì, ci sono animali</button>
           <button type="button" class="sp-btn" data-v="0" onclick="mnAnimali(false)">No, nessun animale</button>
         </div>
+        <div id="mn-orario-box" style="display:none">
+          <p class="guida" style="margin-top:18px">Dato che devi essere presente, scegli la fascia oraria in cui il tecnico può passare.</p>
+          <div class="sp-grid" id="mn-fascia-grid">${MN_FASCE.map(f => `<button type="button" class="sp-btn" data-f="${f}" onclick="mnFascia(this.dataset.f)">${f.replace('-', ' – ')}</button>`).join('')}</div>
+        </div>
       </div>
 
       <div id="mn-box-conf" style="display:none">
@@ -1627,13 +1637,14 @@ function mnAggiorna() {
   const b1 = $('#mn-avanti1'); if (b1) b1.disabled = !ok1;
   const b3 = $('#mn-avanti3'); if (b3) b3.disabled = _mn.descrizione.length < 5;
   const conf = $('#mn-box-conf');
-  if (conf && _mn.accesso !== null && _mn.animali !== null && _mn.categoria && _mn.descrizione.length >= 5 && ok1) {
+  if (conf && _mn.accesso !== null && _mn.animali !== null && (_mn.accesso || _mn.fascia) && _mn.categoria && _mn.descrizione.length >= 5 && ok1) {
     const prima = conf.style.display === 'none';
     conf.style.display = 'block';
     $('#mn-riepilogo').innerHTML = `<div><span>Alloggio</span><b>${esc(_mn.alloggio)}</b></div>
       <div><span>Ospite</span><b>${esc(_mn.nome)}</b></div>
       <div><span>Guasto</span><b>${esc(_mn.categoria)}</b></div>
       <div><span>Ingresso</span><b>${_mn.accesso ? 'Anche in tua assenza' : 'Solo se ci sei'}</b></div>
+      ${_mn.accesso ? '' : `<div><span>Orario</span><b>${esc(_mn.fascia.replace('-', ' – '))}</b></div>`}
       <div><span>Animali</span><b>${_mn.animali ? 'Sì, presenti' : 'No'}</b></div>
       <div style="display:block"><span>Problema</span><br><b style="font-size:16px;font-weight:600">${esc(_mn.descrizione)}</b></div>`;
     if (prima) vaiA('#mn-box-conf');
@@ -1647,7 +1658,15 @@ function mnCategoria(c) {
 }
 function mnAccesso(v) {
   _mn.accesso = v;
+  if (v) _mn.fascia = '';
+  const ob = $('#mn-orario-box'); if (ob) ob.style.display = v ? 'none' : 'block';
+  document.querySelectorAll('#mn-fascia-grid .sp-btn').forEach(el => el.classList.toggle('selected', el.dataset.f === _mn.fascia));
   document.querySelectorAll('#mn-acc-grid .sp-btn').forEach(el => el.classList.toggle('selected', (el.dataset.v === '1') === v));
+  mnAggiorna();
+}
+function mnFascia(f) {
+  _mn.fascia = f;
+  document.querySelectorAll('#mn-fascia-grid .sp-btn').forEach(el => el.classList.toggle('selected', el.dataset.f === f));
   mnAggiorna();
 }
 function mnAnimali(v) {
@@ -1661,7 +1680,7 @@ async function mnInvia() {
   box.style.display = 'none';
   _mn.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
-    const d = await chiama({ azione: 'manutenzione_segnala', nome: _mn.nome, alloggio_nome: _mn.alloggio, categoria: _mn.categoria, descrizione: _mn.descrizione, accesso: _mn.accesso === true, animali: _mn.animali === true });
+    const d = await chiama({ azione: 'manutenzione_segnala', nome: _mn.nome, alloggio_nome: _mn.alloggio, categoria: _mn.categoria, descrizione: _mn.descrizione, accesso: _mn.accesso === true, animali: _mn.animali === true, fascia: _mn.accesso ? '' : _mn.fascia });
     if (d.ok) {
       $('#mn-form').style.display = 'none';
       const c = $('#mn-conferma');
@@ -1673,6 +1692,7 @@ async function mnInvia() {
       return;
     }
     box.textContent = d.errore === 'troppe_segnalazioni' ? 'Hai già inviato molte segnalazioni oggi. Per altro chiama la reception.'
+      : d.errore === 'fascia_mancante' ? 'Scegli una fascia oraria per il passaggio del tecnico.'
       : d.errore === 'descrizione_mancante' ? 'Descrivi un po\' meglio il problema.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
       : d.errore === 'non_ancora_arrivato' ? 'Potrai segnalare un guasto dal giorno del tuo arrivo.'
