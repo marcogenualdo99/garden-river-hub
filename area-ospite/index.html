@@ -551,6 +551,38 @@
   .lang-btn { height: 36px; min-width: 44px; padding: 0 12px; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff; font: 800 12.5px var(--font); letter-spacing: .06em; cursor: pointer; -webkit-tap-highlight-color: transparent }
   .lang-menu { position: absolute; z-index: 60; background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; min-width: 150px }
   .lang-menu button { text-align: left; border: none; background: none; padding: 10px 12px; border-radius: 10px; font: 700 14px var(--font); color: var(--gray-900); cursor: pointer } .lang-menu button.on { background: var(--green-50); color: var(--green-700) } .lang-menu button:active { background: var(--gray-50) }
+  /* Shop */
+  .sh-chips { display: flex; gap: 8px; overflow-x: auto; margin: 4px 0 14px; padding-bottom: 2px }
+  .sh-chips button { border: none; background: #fff; border: 1.5px solid var(--green-200); color: var(--green-700); font: 800 13px inherit; font-family: inherit; padding: 9px 15px; border-radius: 999px; white-space: nowrap; cursor: pointer }
+  .sh-chips button.on { background: var(--green-700); border-color: var(--green-700); color: #fff }
+  .sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 76px }
+  .sh-p { background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column }
+  .sh-p.fin .sh-img { filter: grayscale(.7); opacity: .75 }
+  .sh-img { position: relative; aspect-ratio: 1; background: var(--green-100) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--green-400); cursor: pointer }
+  .sh-img svg { width: 34px; height: 34px }
+  .sh-fin { position: absolute; left: 8px; top: 8px; background: #111827; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px }
+  .sh-info { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1 }
+  .sh-tit { font-weight: 800; font-size: 14.5px; line-height: 1.25; cursor: pointer }
+  .sh-prz { font-weight: 800; color: var(--green-700); font-size: 16px }
+  .sh-add { margin-top: auto; border: none; background: var(--green-700); color: #fff; font: 800 14px inherit; font-family: inherit; height: 40px; border-radius: 999px; cursor: pointer }
+  .sh-st { margin-top: auto; display: flex; align-items: center; justify-content: space-between; background: var(--green-100); border-radius: 999px; height: 40px; padding: 0 4px }
+  .sh-st b { font-weight: 800 }
+  .sh-st button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--green-700); color: #fff; font-size: 20px; line-height: 1; cursor: pointer }
+  .sh-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, #fff 30%); z-index: 50 }
+  .sh-ln { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--gray-300) }
+  .sh-ln .sh-lt { flex: 1; font-weight: 700; font-size: 14.5px } .sh-ln .sh-lt small { display: block; color: var(--gray-500); font-weight: 600; font-size: 12px }
+  .sh-ln .sh-st { margin: 0; width: 104px; flex-shrink: 0 } .sh-ln b { min-width: 62px; text-align: right }
+  .sh-ln.tot { border: none; font-size: 17px; font-weight: 800; justify-content: space-between }
+  .sh-mod { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 2px solid var(--gray-300); border-radius: var(--radius); margin-bottom: 8px; cursor: pointer }
+  .sh-mod input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--green-700) } .sh-mod small { display: block; color: var(--gray-500); font-weight: 600; font-size: 12.5px }
+  .sh-or { padding: 12px 0; border-bottom: 1px dashed var(--gray-300) } .sh-oh { display: flex; justify-content: space-between; align-items: center }
+  .sh-st-nuovo, .sh-st-pronto, .sh-st-consegnato, .sh-st-annullato { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--green-100); color: var(--green-700) }
+  .sh-st-nuovo { background: #FEF1EA; color: #F2702A } .sh-st-annullato { background: #FEF2F2; color: #DC2626 }
+  .sh-ov { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center }
+  .sh-sheet { position: relative; background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)) }
+  .sh-x { position: absolute; right: 12px; top: 10px; z-index: 2; width: 36px; height: 36px; border: none; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer }
+  .sh-gal { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: -4px -4px 0 } .sh-gal img { width: 100%; flex: 0 0 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; scroll-snap-align: center }
+  .sh-toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #111827; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; z-index: 400 }
 </style>
 </head>
 <body>
@@ -614,6 +646,7 @@ const SERVIZI = [
   { id: 'ristorazione', icon: 'RISTORAZIONE', title: 'Ristorazione',         foto: 'img/ristorazione.jpg' },
   { id: 'animazione',   icon: 'ANIMAZIONE',   title: 'Animazione',           foto: 'img/animazione.jpg' },
   { id: 'info',         icon: 'INFO',         title: 'Info utili',           foto: 'img/info.jpg' },
+  { id: 'shop',         icon: 'BAG',         title: 'Shop',                 foto: 'img/home.jpg' },
   { id: 'manutenzione', icon: 'WRENCH',      title: 'Segnala un guasto',    foto: 'img/assistenza.jpg' },
 ];
 const FOTO_HOME = 'img/home.jpg';
@@ -712,6 +745,7 @@ const BANNER = {
   ristorazione: { img: 'img/banner/ristorazione.png', tema: 'arancio', deco: 'piatto', h: 185, r: -18, b: -12 },
   animazione:   { img: 'img/gardy.png',               tema: 'verde',   deco: 'sole',   h: 235, r: -86, b: -80 },
   info:         { img: 'img/banner/info.png',         tema: 'arancio', deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
+  shop:         { img: 'img/banner/info.png',         tema: 'verde',   deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
   manutenzione: { img: 'img/banner/assistenza.svg',   tema: 'arancio', deco: 'bolla',  h: 185, r: -14, b: 4 },
 };
 function impostaBanner(id) {
@@ -760,6 +794,7 @@ function sottotitoloServizio(id) {
     return attive ? `${attive} richiest${attive === 1 ? 'a' : 'e'} in corso` : 'Prenota il rientro dalla spiaggia';
   }
   if (id === 'manutenzione') return 'Qualcosa non funziona nel tuo alloggio?';
+  if (id === 'shop') return 'Ordina e ritira in struttura';
   if (id === 'ristorazione') {
     const r = CFG.ristorazione;
     if (!r) return 'Menu e informazioni';
@@ -844,7 +879,7 @@ function chiudiAvviso(id) {
 const HOME_X = { risto: null, meteo: null };
 // Prima dell'arrivo il link si apre, ma solo con le informazioni di base.
 function preArrivo() { const d = giorniA((CFG.prenotazione || {}).checkin); return d !== null && d > 0; }
-const SOLO_DOPO_ARRIVO = ['navetta', 'manutenzione'];   // la Ristorazione e' aperta anche prima: si scelgono i pasti del giorno di arrivo
+const SOLO_DOPO_ARRIVO = ['navetta', 'manutenzione', 'shop'];   // la Ristorazione e' aperta anche prima: si scelgono i pasti del giorno di arrivo
 // Cosa mostrare a chi deve arrivare ('pre') e a chi e' in struttura ('dentro'); null = non ha senso.
 // Le scelte arrivano dalle impostazioni (Gestione area ospite); questi sono i valori di partenza.
 const AVV_DEF = { benvenuto: { pre: true, dentro: null }, ordini: { pre: true, dentro: true }, checkout: { pre: null, dentro: true }, navetta: { pre: null, dentro: true },
@@ -1241,7 +1276,7 @@ function selPoi(id) {
 
 function renderHome() {
   const S = (typeof rsStatoPasti === 'function') ? rsStatoPasti() : null, daFare = S ? (S.mArrivo.length + S.mDopo.length + S.mOggi.length + S.mDomani.length) : 0;
-  const CARD = SERVIZI.filter(s => !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
+  const CARD = SERVIZI.filter(s => (s.id !== 'shop' || CFG.shop_attivo) && !(preArrivo() && SOLO_DOPO_ARRIVO.includes(s.id))).concat([{ id: 'mappa', title: 'Mappa del villaggio', foto: 'img/mappa-teatro.jpg' }]);
   const gz = dopoPartenza(); const sezV = document.querySelector('[data-sez="villaggio"]'); if (sezV) sezV.style.display = gz ? 'none' : '';
   if (gz) { $('#service-grid').innerHTML = ''; renderFooterHome(); renderHomeExtra(); traduciDom($('#home-view')); return; }
   $('#service-grid').innerHTML = CARD.map((s, i) => `
@@ -1272,6 +1307,7 @@ function apriServizio(id) {
   if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; $('#titolo').textContent = 'Programma Animazione'; $('#sottotitolo').textContent = 'Ciao, sono Gardy! Cosa facciamo oggi?'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
   if (id === 'info') return renderInfo();
   if (id === 'manutenzione') return renderManutenzione();
+  if (id === 'shop') return renderShop();
 }
 
 // ── I tuoi dati e il conto (pulsante Info nell'header) ─────────────────────
@@ -1704,6 +1740,141 @@ async function mnInvia() {
   } finally {
     _mn.invio = false; btn.disabled = false; btn.textContent = 'Invia la segnalazione';
   }
+}
+
+// ── Shop ────────────────────────────────────────────────────────────────────
+// Catalogo e ordini passano dalla Cloud Function ('shop_catalogo', 'shop_prodotto',
+// 'shop_ordina', 'shop_ordini'). Il pagamento e' in struttura; il campo
+// `pagamento` dell'ordine e' gia' pronto per agganciare PayPal.
+let SH = null;
+const shEur = n => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+const shQta = () => Object.values(SH.cart).reduce((s, q) => s + q, 0);
+const shTot = () => SH.prodotti.reduce((s, p) => s + (SH.cart[p.id] || 0) * p.prezzo, 0);
+
+async function renderShop() {
+  SH = SH || { cart: {}, cat: '', vista: 'catalogo', prodotti: [], categorie: [], cfg: {}, caricato: false, foto: {} };
+  SH.vista = 'catalogo';
+  const box = $('#service-content');
+  if (!SH.caricato) {
+    box.innerHTML = '<div class="card"><p class="hint">Carico lo shop…</p></div>';
+    try {
+      const d = await chiama({ azione: 'shop_catalogo' }, { ms: 20000, tentativi: 2 });
+      if (_servizioAperto !== 'shop') return;
+      if (!d.ok) { box.innerHTML = '<div class="card"><p class="hint">Lo shop non è disponibile. Riprova tra poco.</p></div>'; return; }
+      SH.prodotti = d.prodotti || []; SH.categorie = d.categorie || []; SH.cfg = d.cfg || {}; SH.attivo = d.attivo; SH.caricato = true;
+    } catch (e) { if (_servizioAperto === 'shop') box.innerHTML = '<div class="card"><p class="hint">Connessione assente. Controlla la rete e riprova.</p></div>'; return; }
+  }
+  shDisegna();
+}
+
+function shDisegna() {
+  if (_servizioAperto !== 'shop') return;
+  const box = $('#service-content');
+  if (SH.vista === 'carrello') return shCarrello(box);
+  if (SH.vista === 'ordini') return shOrdini(box);
+  if (!SH.attivo || !SH.prodotti.length) { box.innerHTML = `<div class="card"><h2>Shop</h2><p class="hint">${SH.attivo ? 'Il catalogo è in preparazione: torna a trovarci presto.' : 'Lo shop non è al momento aperto.'}</p></div>`; return; }
+  const lista = SH.prodotti.filter(p => !SH.cat || p.categoriaId === SH.cat), q = shQta();
+  box.innerHTML = `
+    ${SH.cfg.messaggio ? `<div class="card"><p class="hint" style="margin:0">${esc(SH.cfg.messaggio)}</p></div>` : ''}
+    <div class="sh-chips"><button type="button" class="${SH.cat ? '' : 'on'}" onclick="SH.cat='';shDisegna()">Tutto</button>${SH.categorie.map(c => `<button type="button" class="${SH.cat === c.id ? 'on' : ''}" onclick="SH.cat='${esc(c.id)}';shDisegna()">${esc(c.nome)}</button>`).join('')}</div>
+    <div class="sh-grid">${lista.map(p => `
+      <div class="sh-p${p.esaurito ? ' fin' : ''}">
+        <div class="sh-img" onclick="shDettaglio('${esc(p.id)}')"${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}>${p.foto ? '' : ICONS.BAG}${p.esaurito ? '<span class="sh-fin">Esaurito</span>' : ''}</div>
+        <div class="sh-info"><div class="sh-tit" onclick="shDettaglio('${esc(p.id)}')">${esc(p.titolo)}</div><div class="sh-prz">${shEur(p.prezzo)}</div>
+        ${p.esaurito ? '' : shStepper(p)}</div></div>`).join('')}</div>
+    <div style="margin-top:14px"><button type="button" class="btn-secondary" onclick="SH.vista='ordini';shDisegna()">I miei ordini</button></div>
+    ${q ? `<div class="sh-bar"><button type="button" class="submit" onclick="SH.vista='carrello';shDisegna();window.scrollTo(0,0)">Vai al carrello · ${q} · ${shEur(shTot())}</button></div>` : ''}`;
+  hydrateIcons(box);
+}
+function shStepper(p) {
+  const n = SH.cart[p.id] || 0;
+  return n ? `<div class="sh-st"><button type="button" onclick="shCambia('${esc(p.id)}',-1)" aria-label="Meno">−</button><b>${n}</b><button type="button" onclick="shCambia('${esc(p.id)}',1)" aria-label="Più">+</button></div>`
+           : `<button type="button" class="sh-add" onclick="shCambia('${esc(p.id)}',1)">Aggiungi</button>`;
+}
+function shCambia(id, d) {
+  const p = SH.prodotti.find(x => x.id === id); if (!p) return;
+  let n = (SH.cart[id] || 0) + d;
+  const max = p.giacenza != null ? Math.min(20, p.giacenza) : 20;
+  if (n > max) { n = max; if (p.giacenza != null) mostraAvvisoShop('Disponibili solo ' + max); }
+  if (n <= 0) delete SH.cart[id]; else SH.cart[id] = n;
+  if (SH.dett) shDettaglioDisegna(); shDisegna();
+}
+function mostraAvvisoShop(m) { const e = document.createElement('div'); e.className = 'sh-toast'; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 2200); }
+
+async function shDettaglio(id) {
+  const p = SH.prodotti.find(x => x.id === id); if (!p) return;
+  SH.dett = id; shDettaglioDisegna();
+  if (p.n_foto > 1 && !SH.foto[id]) {
+    try { const d = await chiama({ azione: 'shop_prodotto', id }); if (d.ok) { SH.foto[id] = d.foto; if (SH.dett === id) shDettaglioDisegna(); } } catch (e) {}
+  }
+}
+function shDettaglioDisegna() {
+  const p = SH.prodotti.find(x => x.id === SH.dett); if (!p) return shChiudiDett();
+  let ov = $('#sh-dett');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'sh-dett'; ov.className = 'sh-ov'; ov.onclick = e => { if (e.target === ov) shChiudiDett(); }; document.body.appendChild(ov); }
+  const foto = SH.foto[p.id] || (p.foto ? [p.foto] : []);
+  ov.innerHTML = `<div class="sh-sheet"><button type="button" class="sh-x" onclick="shChiudiDett()" aria-label="Chiudi">×</button>
+    ${foto.length ? `<div class="sh-gal">${foto.map(f => `<img src="${esc(f)}" alt="">`).join('')}</div>` : ''}
+    <h2 style="margin:12px 0 4px">${esc(p.titolo)}</h2><div class="sh-prz" style="font-size:20px">${shEur(p.prezzo)}</div>
+    ${p.descrizione ? `<p class="hint" style="white-space:pre-line;margin:10px 0">${esc(p.descrizione)}</p>` : ''}
+    ${p.esaurito ? '<p class="hint"><b>Al momento esaurito</b></p>' : shStepper(p)}</div>`;
+}
+function shChiudiDett() { SH.dett = null; const ov = $('#sh-dett'); if (ov) ov.remove(); }
+
+function shCarrello(box) {
+  const righe = SH.prodotti.filter(p => SH.cart[p.id]);
+  if (!righe.length) { SH.vista = 'catalogo'; return shDisegna(); }
+  const c = SH.cfg, ritiro = c.ritiro !== false, consegna = c.consegna !== false;
+  if (!SH.mod || !(SH.mod === 'ritiro' ? ritiro : consegna)) SH.mod = ritiro ? 'ritiro' : 'consegna';
+  box.innerHTML = `
+    <div class="card"><h2>Il tuo carrello</h2>
+      ${righe.map(p => `<div class="sh-ln"><div class="sh-lt">${esc(p.titolo)}<small>${shEur(p.prezzo)} cad.</small></div>${shStepper(p)}<b>${shEur(p.prezzo * SH.cart[p.id])}</b></div>`).join('')}
+      <div class="sh-ln tot"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
+    <div class="card"><h2>Come lo vuoi?</h2>
+      ${ritiro ? `<label class="sh-mod"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro'"><span><b>Ritiro in struttura</b>${c.ritiro_luogo ? `<small>${esc(c.ritiro_luogo)}</small>` : ''}</span></label>` : ''}
+      ${consegna ? `<label class="sh-mod"><input type="radio" name="shm" ${SH.mod === 'consegna' ? 'checked' : ''} onchange="SH.mod='consegna'"><span><b>Consegna in alloggio</b><small>Te lo portiamo noi</small></span></label>` : ''}
+      <div class="field" style="margin-top:12px"><label for="sh-note">Note (facoltative)</label><textarea id="sh-note" rows="2" maxlength="300" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius);font:inherit;font-size:16px" oninput="SH.note=this.value">${esc(SH.note || '')}</textarea></div>
+      <p class="hint">Pagamento alla consegna o in reception. Il pagamento con carta online arriverà presto.</p>
+      <div class="errbox" id="sh-err" style="display:none"></div>
+      <button type="button" class="submit" id="sh-invia" onclick="shInvia()">Invia l'ordine</button>
+      <button type="button" class="btn-secondary" style="margin-top:8px" onclick="SH.vista='catalogo';shDisegna()">Continua gli acquisti</button></div>`;
+}
+async function shInvia() {
+  if (SH.invio) return; const btn = $('#sh-invia'), err = $('#sh-err');
+  err.style.display = 'none'; SH.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
+  try {
+    const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
+    if (d.ok) {
+      const tot = d.totale, mod = SH.mod; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'conferma';
+      $('#service-content').innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Ordine inviato</div>
+        <p style="font-size:16px;line-height:1.5;margin-top:8px">Totale ${shEur(tot)}, da pagare ${mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. ${mod === 'consegna' ? 'Te lo portiamo in alloggio appena pronto.' : 'Ti aspettiamo per il ritiro.'}</p>
+        <button type="button" class="btn-secondary" onclick="SH.vista='ordini';shOrdini($('#service-content'))">Vedi i miei ordini</button>
+        <button type="button" class="btn-secondary" style="margin-top:8px" onclick="renderShop()">Torna allo shop</button></div>`;
+      window.scrollTo(0, 0); return;
+    }
+    err.textContent = d.errore === 'esaurito' ? `«${d.prodotto || 'Un prodotto'}» non è più disponibile nella quantità richiesta. Aggiorna il carrello.`
+      : d.errore === 'troppi_ordini' ? 'Hai già fatto molti ordini oggi. Per altro rivolgiti alla reception.'
+      : d.errore === 'non_ancora_arrivato' ? 'Potrai ordinare dal giorno del tuo arrivo.'
+      : d.errore === 'soggiorno_concluso' ? 'Il tuo soggiorno è concluso.'
+      : d.errore === 'shop_chiuso' ? 'Lo shop è momentaneamente chiuso.'
+      : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
+      : d.errore === 'prodotto_non_disponibile' ? 'Un prodotto non è più disponibile. Aggiorna il carrello.'
+      : 'Invio non riuscito. Riprova.';
+    if (d.errore === 'esaurito' || d.errore === 'prodotto_non_disponibile') { SH.caricato = false; SH.cart = {}; }
+    err.style.display = 'block';
+  } catch (e) { err.textContent = 'Connessione assente. Controlla la rete e riprova.'; err.style.display = 'block'; }
+  finally { SH.invio = false; if (btn.isConnected) { btn.disabled = false; btn.textContent = "Invia l'ordine"; } }
+}
+async function shOrdini(box) {
+  box.innerHTML = '<div class="card"><p class="hint">Carico i tuoi ordini…</p></div>';
+  let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: 2 }); } catch (e) { d = null; }
+  if (_servizioAperto !== 'shop') return;
+  const ST = { nuovo: 'Ricevuto', pronto: 'Pronto', consegnato: 'Consegnato', annullato: 'Annullato' };
+  box.innerHTML = `<div class="card"><h2>I miei ordini</h2>${!d || !d.ok ? '<p class="hint">Non riesco a caricarli ora.</p>' : (d.ordini.length ? d.ordini.map(o => `
+    <div class="sh-or"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(ST[o.stato] || o.stato)}</span></div>
+    <div class="hint" style="margin:4px 0">${o.righe.map(r => esc(r.quantita + ' × ' + r.titolo)).join(' · ')}</div>
+    <div class="hint">${o.modalita === 'consegna' ? 'Consegna in alloggio' : 'Ritiro'} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'}</div></div>`).join('') : '<p class="hint">Non hai ancora fatto ordini.</p>')}
+    <button type="button" class="btn-secondary" style="margin-top:12px" onclick="renderShop()">Torna allo shop</button></div>`;
 }
 
 // ── Ristorazione ──────────────────────────────────────────────────────────

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Shop · Garden River</title>
+<link rel="apple-touch-icon" href="../logo-hub-app.jpg">
+<link rel="icon" type="image/png" href="../logo-hub-app.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/theme.css?v=1794338668">
+<script src="../assets/icons.js?v=1794700100"></script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shop">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, increment, query, where, limit, enableNetwork, disableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { sessioneHub } from "/assets/auth-suite.js";
+
+  // Stesso progetto Firestore già usato dalle altre app della suite: qui
+  // usiamo solo una nuova collezione ("shop"), non serve nessun progetto
+  // Firebase nuovo.
+  const firebaseConfig = {
+    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
+    authDomain: "garden-river-conti-febed.firebaseapp.com",
+    projectId: "garden-river-conti-febed",
+    storageBucket: "garden-river-conti-febed.firebasestorage.app",
+    messagingSenderId: "113994721180",
+    appId: "1:113994721180:web:c41d309c9270134b640a59"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const db    = getFirestore(fbApp);
+  const auth  = getAuth(fbApp);
+
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, onSnapshot, updateDoc, deleteDoc, deleteField, increment, increment, query, where, limit, enableNetwork, disableNetwork };
+  window._fbReady     = false;
+  window._fbAuthError = false;
+
+  function segnalaPronto() {
+    if (window._fbReady) return;
+    window._fbReady = true;
+    window.dispatchEvent(new Event('firebase-ready'));
+  }
+  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  sessioneHub(auth).catch((err) => {
+    console.error('Errore login anonimo Firebase:', err);
+    window._fbAuthError = true;
+    segnalaPronto();
+  });
+  setTimeout(segnalaPronto, 8000);
+</script>
+<style>
+:root {
+  /* Colori, raggi, ombre e font condivisi vengono da assets/theme.css (stessi
+     di Hub e Calendario) — qui solo le variabili aggiuntive che lì mancano,
+     stessa integrazione già fatta in calendario/index.html. */
+  --gray-600:  #4B5563;
+  --gray-200:  #E5E7EB;
+  --border:    var(--gray-100);
+  --radius-xs: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
+body { font-family: var(--font); background: var(--white); color: var(--gray-900); min-height: 100vh; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+
+/* ══ LOGIN, HEADER ═══════════════════════════════════════════════════════
+   Stessi stili di Hub/Calendario/Alloggi, presi da assets/theme.css: qui
+   nessuna ridefinizione, solo il layout sotto specifico di questa pagina. */
+.page-head { margin-bottom: 8px; }
+
+main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
+@media (min-width: 768px) { main { max-width: none; margin: 0; padding: 20px 24px 56px; } }
+@media (min-width: 1024px) { main { padding: 24px 32px 60px; } }
+
+</style>
+<link rel="stylesheet" href="../assets/restyle.css?v=3">
+<script src="../assets/menu-anim.js?v=1" defer></script>
+<style>
+/* ══ SHOP — gestione (stili specifici, il resto viene da assets/theme.css) ═══ */
+.sh-tabs { display:flex; gap:6px; overflow-x:auto; margin:6px 0 16px; padding-bottom:2px; }
+.sh-tabs button { border:none; background:var(--gray-100); color:var(--gray-700); font:700 13px var(--font); padding:10px 16px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+.sh-tabs button.on { background:var(--green-700); color:#fff; }
+.sh-tabs .cnt { display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:9px; background:var(--terracotta); color:#fff; font-size:11px; line-height:18px; }
+.sh-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+.sh-bar input, .sh-bar select { height:40px; border:1.5px solid var(--gray-200); border-radius:var(--radius-sm); padding:0 12px; font:600 14px var(--font); background:#fff; color:var(--gray-900); }
+.sh-bar input { flex:1; min-width:140px; }
+.sh-btn { border:none; border-radius:var(--radius-sm); height:40px; padding:0 16px; font:800 13px var(--font); cursor:pointer; background:var(--gray-100); color:var(--gray-700); }
+.sh-btn.p { background:var(--green-700); color:#fff; }
+.sh-btn.o { background:var(--terracotta); color:#fff; }
+.sh-btn.d { background:var(--red-bg); color:var(--red); }
+.sh-btn:disabled { opacity:.5; cursor:default; }
+.sh-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+.sh-card { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-sm); cursor:pointer; }
+.sh-card.off { opacity:.55; }
+.sh-ph { aspect-ratio:4/3; background:var(--green-50) center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:var(--green-400); }
+.sh-ph svg { width:34px; height:34px; }
+.sh-cb { padding:12px 14px 14px; display:flex; flex-direction:column; gap:4px; flex:1; }
+.sh-t { font:800 15px/1.25 var(--font); }
+.sh-cat { font:700 11.5px var(--font); color:var(--terracotta); }
+.sh-pr { font:800 16px var(--font); color:var(--green-700); margin-top:auto; padding-top:6px; }
+.sh-pill { display:inline-block; font:800 10.5px var(--font); padding:3px 8px; border-radius:999px; background:var(--gray-100); color:var(--gray-700); margin-right:4px; }
+.sh-pill.r { background:var(--red-bg); color:var(--red); } .sh-pill.g { background:var(--green-bg); color:var(--green-ok); } .sh-pill.a { background:var(--amber-bg); color:var(--amber); }
+.sh-list { display:flex; flex-direction:column; gap:10px; }
+.sh-row { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:14px 16px; display:flex; gap:12px; align-items:center; box-shadow:var(--shadow-sm); }
+.sh-row .nm { flex:1; font:800 15px var(--font); min-width:0; } .sh-row .nm small { display:block; font:600 12px var(--font); color:var(--gray-500); margin-top:2px; }
+.sh-ic { width:36px; height:36px; border:none; border-radius:10px; background:var(--gray-100); color:var(--gray-700); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.sh-ic svg { width:16px; height:16px; }
+.sh-ord { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-sm); }
+.sh-ord.nuovo { border-color:var(--terracotta); }
+.sh-oh { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.sh-oh b { font:800 16px var(--font); } .sh-oh small { display:block; font:600 12px var(--font); color:var(--gray-500); margin-top:2px; }
+.sh-ol { margin:12px 0; border-top:1px dashed var(--gray-200); }
+.sh-ol div { display:flex; justify-content:space-between; gap:10px; padding:6px 0; font:600 14px var(--font); border-bottom:1px dashed var(--gray-200); }
+.sh-tot { display:flex; justify-content:space-between; font:800 16px var(--font); padding-top:4px; }
+.sh-oa { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.sh-note { background:var(--amber-bg); border-radius:var(--radius-sm); padding:8px 12px; font:600 13px var(--font); margin-top:8px; }
+.sh-empty { text-align:center; color:var(--gray-500); font:600 14px var(--font); padding:40px 16px; background:var(--gray-50); border-radius:var(--radius); }
+.sh-card-set { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:18px; display:flex; flex-direction:column; gap:14px; max-width:560px; box-shadow:var(--shadow-sm); }
+.sh-chk { display:flex; gap:10px; align-items:flex-start; font:700 14px var(--font); } .sh-chk input { width:20px; height:20px; margin-top:1px; accent-color:var(--green-700); } .sh-chk small { display:block; font:500 12.5px var(--font); color:var(--gray-500); margin-top:2px; }
+.sh-f { display:flex; flex-direction:column; gap:6px; font:700 12.5px var(--font); color:var(--gray-700); }
+.sh-f input, .sh-f select, .sh-f textarea { border:1.5px solid var(--gray-200); border-radius:var(--radius-sm); padding:11px 12px; font:600 15px var(--font); color:var(--gray-900); background:#fff; width:100%; }
+.sh-f textarea { min-height:96px; resize:vertical; }
+.sh-r2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.sh-sheet { position:fixed; inset:0; z-index:1100; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; justify-content:center; }
+.sh-sheet.hidden { display:none; }
+.sh-box { background:#fff; width:100%; max-width:640px; max-height:94vh; overflow-y:auto; border-radius:22px 22px 0 0; padding:20px 18px 24px; display:flex; flex-direction:column; gap:14px; }
+@media (min-width:700px) { .sh-sheet { align-items:center; } .sh-box { border-radius:22px; } }
+.sh-box h3 { font:800 19px var(--font); }
+.sh-fotos { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.sh-ft { position:relative; aspect-ratio:1; border-radius:12px; background:var(--green-50) center/cover no-repeat; border:1.5px solid var(--gray-200); }
+.sh-ft .x { position:absolute; top:4px; right:4px; width:24px; height:24px; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:14px; line-height:24px; }
+.sh-ft .c { position:absolute; left:4px; bottom:4px; background:var(--green-700); color:#fff; font:800 10px var(--font); padding:2px 6px; border-radius:6px; }
+.sh-add { display:flex; align-items:center; justify-content:center; aspect-ratio:1; border-radius:12px; border:2px dashed var(--green-400); color:var(--green-700); font:800 24px var(--font); background:var(--green-50); cursor:pointer; }
+.sh-hint { font:500 12.5px var(--font); color:var(--gray-500); }
+</style>
+</head>
+<body>
+
+<!-- ══ CARICAMENTO ══════════════════════════════════════════════════════════ -->
+<div id="loading-screen" style="position:fixed;inset:0;z-index:9999;background:#fff;display:flex;align-items:center;justify-content:center;transition:opacity .25s">
+  <div style="width:34px;height:34px;border:3px solid var(--gray-100);border-top-color:var(--green-700);border-radius:50%;animation:gr-spin .8s linear infinite"></div>
+</div>
+<style>@keyframes gr-spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ══ ACCESSO (gestito centralmente dalla Hub Garden River) ═══════════════════ -->
+<div id="login-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Shop interno</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      L'accesso a questa app è gestito dalla <strong>Hub Garden River</strong>.<br>
+      Accedi da lì e seleziona il tuo profilo per entrare automaticamente qui.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Vai alla Hub</button>
+  </div>
+</div>
+
+<!-- ══ ACCESSO NEGATO ═══════════════════════════════════════════════════════ -->
+<div id="no-access-screen" class="login-screen hidden">
+  <img class="login-logo" alt="Garden Hub" src="../logo-login.png" onerror="this.style.display='none'">
+  <div class="login-title">Shop interno</div>
+  <div class="login-sub">Centro Vacanze Garden River</div>
+  <div class="login-card" style="text-align:center">
+    <p style="font-size:14px;color:var(--gray-700);line-height:1.6;margin-bottom:20px">
+      Il tuo profilo non ha permessi per usare questa app.<br>
+      Chiedi all'amministratore di abilitarti dalla Hub.
+    </p>
+    <button class="btn-primary" onclick="location.href=HUB_URL">Torna alla Hub</button>
+  </div>
+</div>
+
+<div class="app-shell">
+
+<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
+     Stessa struttura a tre livelli della Hub e del Calendario (v. assets/theme.css),
+     riusata identica qui: stesse icone (assets/icons.js), stessi font e colori. ══ -->
+<div class="nav-zone">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Shop</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item active" href="./"><span data-icon="BAG"></span>Shop</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</aside>
+
+<aside class="rail" id="rail">
+  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
+  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
+  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
+  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
+  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
+  <a class="rail-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
+  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
+  <a class="rail-item active" href="./"><span data-icon="BAG"></span><span>Shop</span></a>
+  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
+  <a class="rail-item" href="../navetta/"><span data-icon="NAVETTA"></span><span>Navetta</span></a>
+  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
+  <a class="rail-item" href="../mense/"><span data-icon="MENSE"></span><span>Mense</span></a>
+  <div class="rail-spacer"></div>
+  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
+</aside>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+<div class="drawer" id="drawer">
+  <div class="sidebar-brand">
+    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
+    <div>
+      <div class="sidebar-brand-title">Garden River</div>
+      <div class="sidebar-brand-sub">Shop</div>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
+      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
+      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
+      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
+      <a class="nav-item" href="../ristorazione/staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item active" href="./"><span data-icon="BAG"></span>Shop</a>
+      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
+      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
+      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
+      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
+    </div>
+  </div>
+  <div class="nav-group">
+    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
+    <div class="nav-group-items">
+      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
+    </div>
+  </div>
+  <div class="sidebar-spacer"></div>
+  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+</div>
+
+<div class="main-col">
+<div class="top-bar" id="top-bar-main">
+  <div class="header-inner">
+    <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
+    <div class="header-left">
+      <div class="header-avatar" id="header-avatar"></div>
+      <div><div class="header-name" id="header-name"></div><div class="header-role" id="header-role"></div></div>
+    </div>
+    <div class="header-btns"><span id="sync-dot" style="width:7px;height:7px;border-radius:50%;background:var(--gray-300);flex-shrink:0;transition:background .3s"></span></div>
+  </div>
+</div>
+<main id="main-view">
+  <div class="page-head">
+    <div class="page-eyebrow"><span data-icon="BAG"></span><span>Shop</span></div>
+    <div class="page-title">Shop interno</div>
+  </div>
+  <div class="sh-tabs" id="sh-tabs"></div>
+  <div id="sh-body"></div>
+</main>
+
+</div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
+      <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="sh-sheet hidden" id="sh-sheet" onclick="if(event.target===this)chiudiFoglio()"><div class="sh-box" id="sh-box"></div></div>
+<script>
+const HUB_URL      = '../';
+const MODULE_ID    = 'shop';
+const SECTION_IDS  = ['ordini', 'prodotti', 'categorie', 'impostazioni'];
+const SEZ_NOME     = { ordini: 'Ordini', prodotti: 'Prodotti', categorie: 'Categorie', impostazioni: 'Impostazioni' };
+
+hydrateIcons();
+
+function toggleNavGroup(btn) { btn.classList.toggle('collapsed'); btn.nextElementSibling.classList.toggle('collapsed'); }
+function toggleDrawer(open) {
+  document.getElementById('drawer').classList.toggle('open', open);
+  document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.body.classList.toggle('drawer-open', open);
+}
+
+// ── STATO ───────────────────────────────────────────────────────────────────
+let hubSession = null, hubPermessi = { sezioni: {} }, allowedSections = new Set(SECTION_IDS), currentOperatore = null;
+let CATS = [], PRODS = [], ORDINI = [], CFG = { attivo: false, ritiro: true, consegna: true, ritiro_luogo: '', messaggio: '' };
+let tab = 'ordini', ordFiltro = 'aperti', prodCat = '', prodQ = '';
+let _ordiniPronti = false, _dataReady = false, _loadingHidden = false;
+let F = null;   // prodotto in modifica nel foglio
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = n => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+const nuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function isAdmin() { return !!hubSession && hubSession.ruolo === 'admin'; }
+function showToast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); }
+function showModal(title, body, label, fn) {
+  $('#modal-title').textContent = title; $('#modal-body').textContent = body;
+  const b = $('#modal-confirm'); b.textContent = label || 'Conferma'; b.onclick = () => { closeModal(); fn(); };
+  $('#modal-overlay').classList.remove('hidden');
+}
+function closeModal() { $('#modal-overlay').classList.add('hidden'); }
+function waitForFirebase() { return new Promise(r => window._fbReady ? r() : window.addEventListener('firebase-ready', () => r(), { once: true })); }
+const catNome = id => (CATS.find(c => c.id === id) || {}).nome || '—';
+const byOrdine = (a, b) => (a.ordine || 0) - (b.ordine || 0) || String(a.nome || a.titolo || '').localeCompare(String(b.nome || b.titolo || ''), 'it');
+
+// ── LOGIN (single sign-on dalla Hub) ────────────────────────────────────────
+function loadHubSession() {
+  try {
+    const raw = sessionStorage.getItem('gr_session'); if (!raw) return false;
+    const p = JSON.parse(raw); if (!p || !p.nome) return false;
+    hubSession = p;
+    const perm = JSON.parse(sessionStorage.getItem('gr_permessi') || '{}');
+    hubPermessi = (perm.moduli && perm.moduli[MODULE_ID]) || { sezioni: {} };
+    return true;
+  } catch (e) { return false; }
+}
+function doLogout() {
+  sessionStorage.removeItem('gr_session'); try { localStorage.removeItem('gr_session_persist'); } catch (e) {}
+  sessionStorage.removeItem('gr_permessi'); location.href = HUB_URL;
+}
+function initLogin() {
+  if (!loadHubSession()) { $('#login-screen').classList.remove('hidden'); hideLoading(); return false; }
+  currentOperatore = hubSession.nome;
+  allowedSections = new Set(SECTION_IDS.filter(id => isAdmin() || (hubPermessi.sezioni || {})[id] !== false));
+  if (!allowedSections.size) { $('#no-access-screen').classList.remove('hidden'); hideLoading(); return false; }
+  $('#header-avatar').textContent = (currentOperatore || '?').slice(0, 2).toUpperCase();
+  $('#header-name').textContent = currentOperatore; $('#header-role').textContent = isAdmin() ? 'Amministratore' : 'Operatore';
+  if (!allowedSections.has(tab)) tab = [...allowedSections][0];
+  return true;
+}
+function hideLoading() {
+  if (_loadingHidden) return; _loadingHidden = true;
+  const el = $('#loading-screen'); if (!el) return; el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 250);
+}
+setTimeout(hideLoading, 12000);
+
+// ── SYNC ────────────────────────────────────────────────────────────────────
+function setSync(s) { const d = $('#sync-dot'); if (d) d.style.background = ({ live: '#4ADE80', error: '#F87171' })[s] || '#60A5FA'; }
+let _pronti = { c: false, p: false, o: false };
+function pronto(k) { _pronti[k] = true; if (_pronti.c && _pronti.p && _pronti.o) { _dataReady = true; hideLoading(); } }
+async function startSync() {
+  await waitForFirebase();
+  const { db, collection, doc, onSnapshot } = window._fb;
+  const err = k => e => { console.error('Errore listener shop ' + k, e); setSync('error'); pronto(k[0] === 'c' ? 'c' : k[0] === 'p' ? 'p' : 'o'); };
+  onSnapshot(collection(db, 'shop_categorie'), s => { CATS = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(byOrdine); setSync('live'); pronto('c'); render(); }, err('categorie'));
+  onSnapshot(collection(db, 'shop_prodotti'), s => { PRODS = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(byOrdine); pronto('p'); render(); }, err('prodotti'));
+  onSnapshot(collection(db, 'shop_ordini'), s => {
+    const nuovi = _ordiniPronti ? s.docChanges().filter(c => c.type === 'added' && !c.doc.metadata.hasPendingWrites).length : 0;
+    ORDINI = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.creato_il || '').localeCompare(String(a.creato_il || '')));
+    _ordiniPronti = true; pronto('o'); render();
+    if (nuovi) showToast(nuovi === 1 ? 'Nuovo ordine dallo shop' : nuovi + ' nuovi ordini dallo shop');
+  }, err('ordini'));
+  onSnapshot(doc(db, 'impostazioni', 'shop'), s => { if (s.exists()) CFG = { ...CFG, ...s.data() }; render(); }, e => console.error('Errore impostazioni shop', e));
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────────────
+function render() {
+  const aperti = ORDINI.filter(o => o.stato === 'nuovo' || o.stato === 'pronto').length;
+  $('#sh-tabs').innerHTML = SECTION_IDS.filter(id => allowedSections.has(id)).map(id =>
+    `<button type="button" class="${tab === id ? 'on' : ''}" onclick="vaiTab('${id}')">${SEZ_NOME[id]}${id === 'ordini' && aperti ? `<span class="cnt">${aperti}</span>` : ''}</button>`).join('');
+  if (!allowedSections.has(tab)) return;
+  const el = $('#sh-body');
+  // non ridisegnare mentre si scrive in un campo della pagina (impostazioni)
+  if (tab === 'impostazioni' && el.contains(document.activeElement) && document.activeElement.matches('input,textarea')) return;
+  ({ ordini: renderOrdini, prodotti: renderProdotti, categorie: renderCategorie, impostazioni: renderImpostazioni })[tab](el);
+  hydrateIcons(el);
+}
+function vaiTab(t) { tab = t; render(); window.scrollTo(0, 0); }
+
+// ── ORDINI ──────────────────────────────────────────────────────────────────
+const STATI = { nuovo: ['Nuovo', 'o'], pronto: ['Pronto', 'a'], consegnato: ['Consegnato', 'g'], annullato: ['Annullato', 'r'] };
+function renderOrdini(el) {
+  const lista = ORDINI.filter(o => ordFiltro === 'tutti' ? true : (o.stato === 'nuovo' || o.stato === 'pronto'));
+  el.innerHTML = `<div class="sh-bar">
+      <select onchange="ordFiltro=this.value;render()"><option value="aperti"${ordFiltro === 'aperti' ? ' selected' : ''}>Da gestire</option><option value="tutti"${ordFiltro === 'tutti' ? ' selected' : ''}>Tutti gli ordini</option></select>
+    </div>` + (lista.length ? `<div class="sh-list">${lista.map(cardOrdine).join('')}</div>`
+    : `<div class="sh-empty">${ordFiltro === 'aperti' ? 'Nessun ordine da gestire.' : 'Ancora nessun ordine.'}</div>`);
+}
+function fmtQuando(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); }
+function cardOrdine(o) {
+  const st = STATI[o.stato] || [o.stato, ''], pag = o.pagamento || {}, pagato = pag.stato === 'pagato';
+  const dest = o.modalita === 'consegna' ? 'Consegna in alloggio' : 'Ritiro';
+  const btn = [];
+  if (o.stato === 'nuovo') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','pronto')">Segna pronto</button>`);
+  if (o.stato === 'nuovo' || o.stato === 'pronto') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
+  if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="segnaPagato('${o.id}',${!pagato})">${pagato ? 'Segna da pagare' : 'Segna pagato'}</button>`);
+  if (o.stato === 'nuovo' || o.stato === 'pronto') btn.push(`<button class="sh-btn d" onclick="annullaOrdine('${o.id}')">Annulla</button>`);
+  return `<div class="sh-ord ${o.stato}">
+    <div class="sh-oh"><div><b>${esc(o.ospite_nome || 'Ospite')}${o.alloggio ? ' · ' + esc(o.alloggio) : ''}</b><small>${esc(fmtQuando(o.creato_il))} · ${dest}${o.ospite_tel ? ' · ' + esc(o.ospite_tel) : ''}</small></div>
+      <div><span class="sh-pill ${st[1]}">${st[0]}</span><span class="sh-pill ${pagato ? 'g' : 'a'}">${pagato ? 'Pagato' : 'Da pagare'}</span></div></div>
+    <div class="sh-ol">${(o.righe || []).map(r => `<div><span>${esc(r.quantita)} × ${esc(r.titolo)}</span><span>${eur(r.importo)}</span></div>`).join('')}</div>
+    <div class="sh-tot"><span>Totale</span><span>${eur(o.totale)}</span></div>
+    ${o.note ? `<div class="sh-note">Nota dell'ospite: ${esc(o.note)}</div>` : ''}
+    ${btn.length ? `<div class="sh-oa">${btn.join('')}</div>` : ''}</div>`;
+}
+async function aggiornaOrdine(id, dati) {
+  try { await waitForFirebase(); const { db, doc, updateDoc } = window._fb; await updateDoc(doc(db, 'shop_ordini', id), { ...dati, aggiornato_da: currentOperatore, aggiornato_il: new Date().toISOString() }); return true; }
+  catch (e) { console.error(e); showToast('Errore durante il salvataggio'); return false; }
+}
+async function statoOrdine(id, stato) { if (await aggiornaOrdine(id, { stato })) showToast(stato === 'pronto' ? 'Ordine pronto' : 'Ordine consegnato'); }
+async function segnaPagato(id, pagato) {
+  const o = ORDINI.find(x => x.id === id); if (!o) return;
+  const pag = { ...(o.pagamento || {}), stato: pagato ? 'pagato' : 'da_pagare', ...(pagato ? { pagato_il: new Date().toISOString() } : {}) };
+  if (await aggiornaOrdine(id, { pagamento: pag })) showToast(pagato ? 'Segnato come pagato' : 'Segnato da pagare');
+}
+function annullaOrdine(id) {
+  showModal('Annullare l\'ordine?', 'I prodotti con giacenza tornano disponibili. L\'ospite vedrà l\'ordine come annullato.', 'Annulla ordine', async () => {
+    const o = ORDINI.find(x => x.id === id); if (!o) return;
+    try {
+      await waitForFirebase(); const { db, doc, updateDoc, increment } = window._fb;
+      for (const r of (o.righe || [])) {
+        const p = PRODS.find(x => x.id === r.id);
+        if (p && typeof p.giacenza === 'number') await updateDoc(doc(db, 'shop_prodotti', r.id), { giacenza: increment(r.quantita) });
+      }
+    } catch (e) { console.error(e); }
+    if (await aggiornaOrdine(id, { stato: 'annullato' })) showToast('Ordine annullato');
+  });
+}
+
+// ── CATEGORIE ───────────────────────────────────────────────────────────────
+function renderCategorie(el) {
+  el.innerHTML = `<div class="sh-bar"><input id="nuova-cat" placeholder="Nome della nuova categoria (es. Bevande, Souvenir, Spiaggia)" onkeydown="if(event.key==='Enter')aggiungiCategoria()"><button class="sh-btn p" onclick="aggiungiCategoria()">Aggiungi</button></div>` +
+    (CATS.length ? `<div class="sh-list">${CATS.map((c, i) => {
+      const n = PRODS.filter(p => p.categoriaId === c.id).length;
+      return `<div class="sh-row"><div class="nm">${esc(c.nome)}<small>${n} prodott${n === 1 ? 'o' : 'i'}${c.attiva === false ? ' · nascosta agli ospiti' : ''}</small></div>
+        <button class="sh-ic" aria-label="Su" onclick="spostaCategoria(${i},-1)">${ICONS.ARROWUP}</button><button class="sh-ic" aria-label="Giù" onclick="spostaCategoria(${i},1)">${ICONS.ARROWDOWN}</button>
+        <button class="sh-btn" onclick="rinominaCategoria('${c.id}')">Rinomina</button>
+        <button class="sh-btn" onclick="salvaCategoria('${c.id}',{attiva:${c.attiva === false}})">${c.attiva === false ? 'Mostra' : 'Nascondi'}</button>
+        <button class="sh-ic" aria-label="Elimina" onclick="eliminaCategoria('${c.id}')">${ICONS.TRASH}</button></div>`;
+    }).join('')}</div>` : '<div class="sh-empty">Nessuna categoria. Creane una per poter inserire i prodotti.</div>');
+}
+async function salvaCategoria(id, dati) {
+  try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await setDoc(doc(db, 'shop_categorie', id), dati, { merge: true }); }
+  catch (e) { console.error(e); showToast('Errore durante il salvataggio'); }
+}
+async function aggiungiCategoria() {
+  const inp = $('#nuova-cat'), nome = (inp.value || '').trim(); if (!nome) return;
+  if (CATS.some(c => c.nome.toLowerCase() === nome.toLowerCase())) return showToast('Esiste già una categoria con questo nome');
+  await salvaCategoria(nuovoId(), { nome, attiva: true, ordine: (CATS.reduce((m, c) => Math.max(m, c.ordine || 0), 0)) + 1, creato_il: new Date().toISOString() });
+  showToast('Categoria aggiunta');
+}
+function rinominaCategoria(id) {
+  const c = CATS.find(x => x.id === id), nome = (prompt('Nuovo nome della categoria', c.nome) || '').trim();
+  if (nome && nome !== c.nome) salvaCategoria(id, { nome });
+}
+async function spostaCategoria(i, d) {
+  const j = i + d; if (j < 0 || j >= CATS.length) return;
+  const l = CATS.slice(); [l[i], l[j]] = [l[j], l[i]];
+  try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await Promise.all(l.map((c, k) => setDoc(doc(db, 'shop_categorie', c.id), { ordine: k + 1 }, { merge: true }))); }
+  catch (e) { console.error(e); showToast('Errore durante il salvataggio'); }
+}
+function eliminaCategoria(id) {
+  const n = PRODS.filter(p => p.categoriaId === id).length;
+  if (n) return showToast('Sposta o elimina prima i ' + n + ' prodotti di questa categoria');
+  showModal('Eliminare la categoria?', 'Questa azione non può essere annullata.', 'Elimina', async () => {
+    try { await waitForFirebase(); const { db, doc, deleteDoc } = window._fb; await deleteDoc(doc(db, 'shop_categorie', id)); showToast('Categoria eliminata'); }
+    catch (e) { console.error(e); showToast('Errore durante l\'eliminazione'); }
+  });
+}
+
+// ── PRODOTTI ────────────────────────────────────────────────────────────────
+function renderProdotti(el) {
+  const q = prodQ.trim().toLowerCase();
+  const lista = PRODS.filter(p => (!prodCat || p.categoriaId === prodCat) && (!q || (p.titolo || '').toLowerCase().includes(q)));
+  el.innerHTML = `<div class="sh-bar">
+      <input type="search" placeholder="Cerca un prodotto" value="${esc(prodQ)}" oninput="prodQ=this.value;renderGriglia()">
+      <select onchange="prodCat=this.value;render()"><option value="">Tutte le categorie</option>${CATS.map(c => `<option value="${c.id}"${prodCat === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select>
+      <button class="sh-btn o" onclick="apriProdotto()">+ Nuovo prodotto</button></div><div id="sh-griglia"></div>`;
+  renderGriglia();
+}
+function renderGriglia() {
+  const q = prodQ.trim().toLowerCase(), box = $('#sh-griglia'); if (!box) return;
+  const lista = PRODS.filter(p => (!prodCat || p.categoriaId === prodCat) && (!q || (p.titolo || '').toLowerCase().includes(q)));
+  if (!lista.length) { box.innerHTML = `<div class="sh-empty">${PRODS.length ? 'Nessun prodotto corrisponde alla ricerca.' : (CATS.length ? 'Nessun prodotto. Aggiungi il primo.' : 'Crea prima almeno una categoria dalla scheda «Categorie».')}</div>`; return; }
+  box.innerHTML = `<div class="sh-grid">${lista.map(p => {
+    const f = (p.foto || [])[0], giac = typeof p.giacenza === 'number';
+    return `<div class="sh-card${p.attivo === false ? ' off' : ''}" onclick="apriProdotto('${p.id}')">
+      <div class="sh-ph"${f ? ` style="background-image:url('${f}')"` : ''}>${f ? '' : ICONS.IMAGE}</div>
+      <div class="sh-cb"><div class="sh-cat">${esc(catNome(p.categoriaId))}</div><div class="sh-t">${esc(p.titolo)}</div>
+        <div>${p.attivo === false ? '<span class="sh-pill">Nascosto</span>' : ''}${p.esaurito || (giac && p.giacenza <= 0) ? '<span class="sh-pill r">Esaurito</span>' : (giac ? `<span class="sh-pill">${p.giacenza} disp.</span>` : '')}</div>
+        <div class="sh-pr">${eur(p.prezzo)}</div></div></div>`;
+  }).join('')}</div>`;
+  hydrateIcons(box);
+}
+function apriProdotto(id) {
+  if (!CATS.length) return showToast('Crea prima una categoria');
+  const p = id ? PRODS.find(x => x.id === id) : null;
+  F = p ? { ...p, foto: (p.foto || []).slice() } : { id: nuovoId(), titolo: '', descrizione: '', prezzo: '', categoriaId: prodCat || CATS[0].id, foto: [], attivo: true, esaurito: false, giacenza: null, nuovo: true };
+  renderFoglio(); $('#sh-sheet').classList.remove('hidden');
+}
+function chiudiFoglio() { $('#sh-sheet').classList.add('hidden'); F = null; }
+const FOTO_MAX = 4, FOTO_BYTES = 140000;
+function renderFoglio() {
+  if (!F) return;
+  $('#sh-box').innerHTML = `<h3>${F.nuovo ? 'Nuovo prodotto' : 'Modifica prodotto'}</h3>
+    <label class="sh-f">Titolo<input id="f-titolo" maxlength="120" value="${esc(F.titolo)}" oninput="F.titolo=this.value" placeholder="Es. Telo mare Garden River"></label>
+    <div class="sh-r2"><label class="sh-f">Categoria<select onchange="F.categoriaId=this.value">${CATS.map(c => `<option value="${c.id}"${F.categoriaId === c.id ? ' selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></label>
+      <label class="sh-f">Prezzo (€)<input type="number" inputmode="decimal" min="0" step="0.01" value="${esc(F.prezzo)}" oninput="F.prezzo=this.value" placeholder="0,00"></label></div>
+    <label class="sh-f">Descrizione<textarea maxlength="1500" oninput="F.descrizione=this.value" placeholder="Cosa è, misure, ingredienti, note utili…">${esc(F.descrizione)}</textarea></label>
+    <div class="sh-f">Foto (fino a ${FOTO_MAX}, la prima è la copertina)
+      <div class="sh-fotos">${F.foto.map((f, i) => `<div class="sh-ft" style="background-image:url('${f}')">${i === 0 ? '<span class="c">Copertina</span>' : `<span class="c" style="background:rgba(0,0,0,.6);cursor:pointer" onclick="fotoCopertina(${i})">Rendi copertina</span>`}<button type="button" class="x" aria-label="Togli" onclick="fotoTogli(${i})">×</button></div>`).join('')}
+      ${F.foto.length < FOTO_MAX ? '<div class="sh-add" onclick="fotoAggiungi()">+</div>' : ''}</div></div>
+    <label class="sh-f">Quantità disponibile (lascia vuoto se illimitata)<input type="number" inputmode="numeric" min="0" step="1" value="${F.giacenza == null ? '' : esc(F.giacenza)}" oninput="F.giacenza=this.value===''?null:Math.max(0,parseInt(this.value)||0)"><span class="sh-hint">Si scala da sola a ogni ordine; a zero il prodotto risulta esaurito.</span></label>
+    <label class="sh-chk"><input type="checkbox"${F.esaurito ? ' checked' : ''} onchange="F.esaurito=this.checked"><span>Segna come esaurito<small>L'ospite lo vede ma non può ordinarlo.</small></span></label>
+    <label class="sh-chk"><input type="checkbox"${F.attivo !== false ? ' checked' : ''} onchange="F.attivo=this.checked"><span>Visibile agli ospiti<small>Togli la spunta per nasconderlo senza eliminarlo.</small></span></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+      <button class="sh-btn p" style="flex:1" id="f-salva" onclick="salvaProdotto()">Salva</button>
+      <button class="sh-btn" onclick="chiudiFoglio()">Chiudi</button>
+      ${F.nuovo ? '' : `<button class="sh-btn" onclick="duplicaProdotto()">Duplica</button><button class="sh-btn d" onclick="eliminaProdotto()">Elimina</button>`}</div>`;
+}
+function fotoTogli(i) { F.foto.splice(i, 1); renderFoglio(); }
+function fotoCopertina(i) { const [f] = F.foto.splice(i, 1); F.foto.unshift(f); renderFoglio(); }
+function fotoAggiungi() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.onchange = async () => {
+    for (const f of [...inp.files]) {
+      if (!F || F.foto.length >= FOTO_MAX) break;
+      try { F.foto.push(await ridimensiona(f)); } catch (e) { showToast(e.message || 'Immagine non valida'); }
+    }
+    renderFoglio();
+  };
+  inp.click();
+}
+function ridimensiona(file) {
+  return new Promise((ok, ko) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, 800 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+      let q = 0.8, d = c.toDataURL('image/jpeg', q);
+      while (d.length > FOTO_BYTES && q > 0.35) { q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+      d.length > FOTO_BYTES ? ko(new Error('Foto troppo pesante: usane una più semplice')) : ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ko(new Error('Immagine non valida')); };
+    img.src = url;
+  });
+}
+async function scriviProdotto(p) {
+  await waitForFirebase(); const { db, doc, setDoc } = window._fb;
+  const dati = { titolo: p.titolo.trim(), descrizione: (p.descrizione || '').trim(), prezzo: Math.round(parseFloat(String(p.prezzo).replace(',', '.')) * 100) / 100,
+    categoriaId: p.categoriaId, foto: p.foto || [], attivo: p.attivo !== false, esaurito: !!p.esaurito, giacenza: p.giacenza == null ? null : p.giacenza,
+    ordine: p.ordine || Date.now(), aggiornato_il: new Date().toISOString(), aggiornato_da: currentOperatore };
+  await setDoc(doc(db, 'shop_prodotti', p.id), dati, { merge: true });
+}
+async function salvaProdotto() {
+  const p = F, prezzo = parseFloat(String(p.prezzo).replace(',', '.'));
+  if (!p.titolo.trim()) return showToast('Scrivi il titolo del prodotto');
+  if (!(prezzo >= 0)) return showToast('Controlla il prezzo');
+  const b = $('#f-salva'); b.disabled = true;
+  try { await scriviProdotto(p); showToast('Prodotto salvato'); chiudiFoglio(); }
+  catch (e) { console.error(e); showToast('Errore: le foto sono troppo pesanti o la connessione è assente'); b.disabled = false; }
+}
+async function duplicaProdotto() {
+  const p = { ...F, id: nuovoId(), titolo: F.titolo + ' (copia)', ordine: Date.now() };
+  try { await scriviProdotto(p); showToast('Prodotto duplicato'); chiudiFoglio(); } catch (e) { console.error(e); showToast('Errore durante la duplicazione'); }
+}
+function eliminaProdotto() {
+  const id = F.id;
+  showModal('Eliminare il prodotto?', 'Gli ordini già fatti restano nello storico. Per nasconderlo soltanto, togli la spunta «Visibile agli ospiti».', 'Elimina', async () => {
+    try { await waitForFirebase(); const { db, doc, deleteDoc } = window._fb; await deleteDoc(doc(db, 'shop_prodotti', id)); showToast('Prodotto eliminato'); chiudiFoglio(); }
+    catch (e) { console.error(e); showToast('Errore durante l\'eliminazione'); }
+  });
+}
+
+// ── IMPOSTAZIONI ────────────────────────────────────────────────────────────
+function renderImpostazioni(el) {
+  el.innerHTML = `<div class="sh-card-set">
+    <label class="sh-chk"><input type="checkbox" id="s-attivo"${CFG.attivo ? ' checked' : ''}><span>Shop aperto agli ospiti<small>Se spento, la sezione Shop non compare nell'Area ospite.</small></span></label>
+    <label class="sh-chk"><input type="checkbox" id="s-ritiro"${CFG.ritiro !== false ? ' checked' : ''}><span>Ritiro in struttura<small>L'ospite passa a ritirare l'ordine.</small></span></label>
+    <label class="sh-f">Dove si ritira<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Reception, dalle 8 alle 20"></label>
+    <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite.</small></span></label>
+    <label class="sh-f">Messaggio in cima allo shop (facoltativo)<textarea id="s-msg" maxlength="400" placeholder="Es. Si paga al ritiro in contanti o con carta.">${esc(CFG.messaggio)}</textarea></label>
+    <div class="sh-hint">Il pagamento online con carta (PayPal) verrà attivato in un secondo momento: per ora l'ospite paga alla consegna o in reception.</div>
+    <button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
+}
+async function salvaImpostazioni() {
+  const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
+    ritiro_luogo: $('#s-luogo').value.trim(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+  if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
+  try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await setDoc(doc(db, 'impostazioni', 'shop'), dati, { merge: true }); CFG = { ...CFG, ...dati }; showToast('Impostazioni salvate'); }
+  catch (e) { console.error(e); showToast('Errore durante il salvataggio'); }
+}
+
+async function forceRefresh() { showToast('I dati si aggiornano da soli in tempo reale'); }
+
+// ── START ───────────────────────────────────────────────────────────────────
+(async function start() {
+  if (!initLogin()) return;
+  render();
+  await waitForFirebase();
+  if (window._fbAuthError) { setSync('error'); showToast('Errore di accesso al database'); }
+  startSync();
+})();
+
+</script>
+</body>
+</html>

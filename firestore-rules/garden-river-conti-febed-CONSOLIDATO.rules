@@ -143,6 +143,19 @@ service cloud.firestore {
       allow read, write: if staff();   // era `if true` — ORA richiede login
     }
 
+    // ── Shop interno ─────────────────────────────────────────────────────
+    // Solo operatori. L'ospite legge il catalogo e crea gli ordini
+    // esclusivamente tramite la Cloud Function area-ospite (Admin SDK).
+    match /shop_categorie/{id} {
+      allow read, write: if staff();
+    }
+    match /shop_prodotti/{id} {
+      allow read, write: if staff();
+    }
+    match /shop_ordini/{id} {
+      allow read, write: if staff();
+    }
+
     // ── Ristorazione ─────────────────────────────────────────────────────
     // ⚠️ ECCEZIONE: la pagina OSPITE ristorazione/index.html legge/scrive queste
     // tre collezioni direttamente da browser con accesso anonimo (famiglia che

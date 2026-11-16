@@ -68,3 +68,4 @@ un URL diverso, aggiornare quelle due righe.
 Il token è 16–64 hex. Lo genera l'hub (Calendario → "Area ospite"), stessa
 funzione `generaCheckinToken`/scadenza di `checkin_links` (checkout + 3
 giorni), nella collezione `area_ospite_links/{token}`.
+| `shop_catalogo` / `shop_prodotto` / `shop_ordina` / `shop_ordini` | v. `shop/README.md` | catalogo, foto, creazione ordine (prezzi e giacenza riletti in transazione), stato ordini dell'ospite |

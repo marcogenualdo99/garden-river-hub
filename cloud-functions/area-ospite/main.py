@@ -1033,6 +1033,7 @@ def _azione_carica(db, origin, data):
         'spiagge': r['spiagge'],
         'autisti': r['autisti'],
         'ristorazione': r['risto'],
+        'shop_attivo': _shop_cfg(db)['attivo'],
         'navetta_corse': r['corse'],
         'orari_occupati': _orari_occupati(attive, cfg),
         'posti_occupati': _posti_occupati(attive, cfg),
@@ -1650,6 +1651,201 @@ def _azione_manutenzione_segnala(db, origin, data):
     return _json(origin, {'ok': True, 'id': ref.id})
 
 
+# ── Shop interno ─────────────────────────────────────────────────────────────
+# Catalogo gestito dall'Hub (modulo `shop/`): collezioni `shop_categorie`,
+# `shop_prodotti`, `shop_ordini` + `impostazioni/shop`. L'ospite non tocca mai
+# Firestore: catalogo e ordini passano da qui. Il prezzo e la disponibilita'
+# si rileggono sempre lato server al momento dell'ordine.
+# Pagamento: per ora `pagamento.metodo = 'in_struttura'` (si paga al ritiro o
+# in reception). Il campo `pagamento` e' gia' strutturato per agganciare PayPal.
+SHOP_MAX_RIGHE = 30
+SHOP_MAX_QTA = 20
+SHOP_MAX_ORDINI_GIORNO = 10
+
+
+def _shop_num(v, default=0):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _shop_cfg(db):
+    def leggi():
+        d = db.collection('impostazioni').document('shop').get()
+        c = (d.to_dict() or {}) if d.exists else {}
+        return {'attivo': c.get('attivo') is True,
+                'ritiro': c.get('ritiro') is not False,
+                'consegna': c.get('consegna') is not False,
+                'ritiro_luogo': _s(c.get('ritiro_luogo'), 120),
+                'messaggio': _s(c.get('messaggio'), 400)}
+    return _con_cache('shop_cfg', 30, leggi)
+
+
+def _shop_catalogo_leggi(db):
+    def leggi():
+        cats = []
+        for d in db.collection('shop_categorie').stream():
+            c = d.to_dict() or {}
+            if c.get('attiva') is False:
+                continue
+            cats.append({'id': d.id, 'nome': _s(c.get('nome'), 60), 'ordine': _shop_num(c.get('ordine'))})
+        cats.sort(key=lambda c: (c['ordine'], c['nome'].lower()))
+        ids = {c['id'] for c in cats}
+        prod = []
+        for d in db.collection('shop_prodotti').stream():
+            x = d.to_dict() or {}
+            if x.get('attivo') is False or x.get('categoriaId') not in ids:
+                continue
+            foto = [f for f in (x.get('foto') or []) if isinstance(f, str)]
+            giac = x.get('giacenza')
+            giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
+            prod.append({'id': d.id, 'categoriaId': x.get('categoriaId'), 'titolo': _s(x.get('titolo'), 120),
+                         'descrizione': _s(x.get('descrizione'), 1500),
+                         'prezzo': round(_shop_num(x.get('prezzo')), 2),
+                         'foto': foto[0] if foto else '', 'n_foto': len(foto),
+                         'giacenza': giac,
+                         'esaurito': x.get('esaurito') is True or (giac is not None and giac <= 0),
+                         'ordine': _shop_num(x.get('ordine'))})
+        prod.sort(key=lambda p: (p['ordine'], p['titolo'].lower()))
+        return {'categorie': cats, 'prodotti': prod}
+    return _con_cache('shop_catalogo', 45, leggi)
+
+
+def _azione_shop_catalogo(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    cfg = _shop_cfg(db)
+    if not cfg['attivo']:
+        return _json(origin, {'ok': True, 'attivo': False, 'categorie': [], 'prodotti': [], 'cfg': cfg})
+    cat = _shop_catalogo_leggi(db)
+    return _json(origin, {'ok': True, 'attivo': True, 'cfg': cfg, **cat})
+
+
+def _azione_shop_prodotto(db, origin, data):
+    """Tutte le foto di un prodotto (il catalogo ne porta solo la prima)."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    pid = _s(data.get('id'), 80)
+    if not pid:
+        return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 400)
+    d = db.collection('shop_prodotti').document(pid).get()
+    if not d.exists or (d.to_dict() or {}).get('attivo') is False:
+        return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 404)
+    foto = [f for f in ((d.to_dict() or {}).get('foto') or []) if isinstance(f, str)]
+    return _json(origin, {'ok': True, 'foto': foto})
+
+
+class _ShopErrore(Exception):
+    pass
+
+
+@firestore.transactional
+def _shop_scrivi(transaction, db, ordine_ref, richieste):
+    """Rilegge i prodotti, controlla disponibilita', scala la giacenza e crea l'ordine.
+    Ritorna (righe, totale)."""
+    snaps = {pid: db.collection('shop_prodotti').document(pid).get(transaction=transaction) for pid in richieste}
+    righe, totale, scrivi = [], 0.0, []
+    for pid, q in richieste.items():
+        s = snaps[pid]
+        x = (s.to_dict() or {}) if s.exists else {}
+        if not s.exists or x.get('attivo') is False:
+            raise _ShopErrore('prodotto_non_disponibile')
+        giac = x.get('giacenza')
+        giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
+        if x.get('esaurito') is True or (giac is not None and giac < q):
+            raise _ShopErrore('esaurito:' + _s(x.get('titolo'), 60))
+        prezzo = round(_shop_num(x.get('prezzo')), 2)
+        righe.append({'id': pid, 'titolo': _s(x.get('titolo'), 120), 'prezzo': prezzo, 'quantita': q,
+                      'importo': round(prezzo * q, 2)})
+        totale += prezzo * q
+        if giac is not None:
+            scrivi.append((s.reference, giac - q))
+    for ref, nuova in scrivi:
+        transaction.update(ref, {'giacenza': nuova})
+    return righe, round(totale, 2)
+
+
+def _azione_shop_ordina(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    oggi = _oggi_iso()
+    if _s(p.get('checkin'), 10) > oggi:
+        return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
+    if _s(p.get('checkout'), 10) and _s(p.get('checkout'), 10) < oggi:
+        return _json(origin, {'ok': False, 'errore': 'soggiorno_concluso'}, 403)
+    cfg = _shop_cfg(db)
+    if not cfg['attivo']:
+        return _json(origin, {'ok': False, 'errore': 'shop_chiuso'}, 409)
+    modalita = _s(data.get('modalita'), 10)
+    if modalita not in ('ritiro', 'consegna') or not cfg[modalita]:
+        return _json(origin, {'ok': False, 'errore': 'modalita_non_valida'}, 400)
+    grezze = data.get('righe')
+    if not isinstance(grezze, list) or not grezze or len(grezze) > SHOP_MAX_RIGHE:
+        return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
+    richieste = {}
+    for r in grezze:
+        if not isinstance(r, dict):
+            continue
+        pid = _s(r.get('id'), 80)
+        try:
+            q = int(r.get('quantita') or 0)
+        except (TypeError, ValueError):
+            q = 0
+        if not pid or q <= 0 or q > SHOP_MAX_QTA:
+            return _json(origin, {'ok': False, 'errore': 'quantita_non_valida'}, 400)
+        richieste[pid] = richieste.get(pid, 0) + q
+    if not richieste or any(q > SHOP_MAX_QTA for q in richieste.values()):
+        return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
+    nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
+    alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
+    if not nome or (modalita == 'consegna' and not alloggio):
+        return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
+    try:
+        gia = sum(1 for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream()
+                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
+    except Exception as e:
+        print(f'Conteggio ordini shop non riuscito: {e}')
+        gia = 0
+    if gia >= SHOP_MAX_ORDINI_GIORNO:
+        return _json(origin, {'ok': False, 'errore': 'troppi_ordini'}, 429)
+    ref = db.collection('shop_ordini').document()
+    try:
+        righe, totale = _shop_scrivi(db.transaction(), db, ref, richieste)
+    except _ShopErrore as e:
+        cod = str(e)
+        if cod.startswith('esaurito:'):
+            return _json(origin, {'ok': False, 'errore': 'esaurito', 'prodotto': cod[9:]}, 409)
+        return _json(origin, {'ok': False, 'errore': cod}, 409)
+    ref.set({
+        'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': _s(p.get('tel'), 40), 'alloggio': alloggio,
+        'righe': righe, 'totale': totale, 'modalita': modalita, 'note': _s(data.get('note'), 300),
+        'stato': 'nuovo',
+        'pagamento': {'metodo': 'in_struttura', 'stato': 'da_pagare', 'importo': totale},
+        'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
+    })
+    _CACHE.pop('shop_catalogo', None)       # la giacenza e' cambiata
+    return _json(origin, {'ok': True, 'id': ref.id, 'totale': totale})
+
+
+def _azione_shop_ordini(db, origin, data):
+    """Gli ordini fatti da questa prenotazione, per mostrarne lo stato all'ospite."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    out = []
+    for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream():
+        x = d.to_dict() or {}
+        out.append({'id': d.id, 'righe': x.get('righe') or [], 'totale': x.get('totale') or 0,
+                    'modalita': _s(x.get('modalita'), 10), 'stato': _s(x.get('stato'), 12),
+                    'pagamento': x.get('pagamento') or {}, 'creato_il': _s(x.get('creato_il'), 25)})
+    out.sort(key=lambda o: o['creato_il'], reverse=True)
+    return _json(origin, {'ok': True, 'ordini': out[:30]})
+
+
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -1663,6 +1859,10 @@ AZIONI = {
     'staff_riapri':            _azione_staff_riapri,
     'ristorazione_menu':       _azione_ristorazione_menu,
     'ristorazione_ordina':     _azione_ristorazione_ordina,
+    'shop_catalogo':           _azione_shop_catalogo,
+    'shop_prodotto':           _azione_shop_prodotto,
+    'shop_ordina':             _azione_shop_ordina,
+    'shop_ordini':             _azione_shop_ordini,
 }
 
 

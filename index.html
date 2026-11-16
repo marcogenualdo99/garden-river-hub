@@ -513,6 +513,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
     <div class="nav-group-items">
       <a class="nav-item" href="bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="shop/"><span data-icon="BAG"></span>Shop</a>
       <a class="nav-item" href="spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
       <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
       <a class="nav-item" href="navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
@@ -538,6 +539,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   <div class="rail-item" onclick="openModule('conti/')"><span data-icon="CONTI"></span><span>Conti</span></div>
   <div class="rail-item" onclick="openModule('ristorazione/staff.html')"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></div>
   <div class="rail-item" onclick="openModule('bici/')"><span data-icon="BICI"></span><span>Bici</span></div>
+  <div class="rail-item" onclick="openModule('shop/')"><span data-icon="BAG"></span><span>Shop</span></div>
   <div class="rail-item" onclick="openModule('spiaggia/')"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></div>
   <div class="rail-item" onclick="openModule('manutenzione/')"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></div>
   <div class="rail-item" onclick="openModule('mense/')"><span data-icon="MENSE"></span><span>Mense</span></div>
@@ -575,6 +577,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
     <div class="nav-group-items">
       <a class="nav-item" href="bici/"><span data-icon="BICI"></span>Bici</a>
+      <a class="nav-item" href="shop/"><span data-icon="BAG"></span>Shop</a>
       <a class="nav-item" href="spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
       <a class="nav-item" href="manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
       <a class="nav-item" href="navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
@@ -798,6 +801,7 @@ const ICON_WAREHOUSE     = ICONS.MAGAZZINO;
 const ICON_HANDCOINS     = ICONS.CONTI;
 const ICON_BED           = ICONS.SPARKLES;
 const ICON_BIKE          = ICONS.BICI;
+const ICON_SHOP          = ICONS.BAG;
 const ICON_RISTORAZIONE  = ICONS.RISTORAZIONE;
 const ICON_WRENCH        = ICONS.MANUTENZIONE;
 const ICON_SPIAGGIA      = ICONS.SPIAGGIA;
@@ -957,6 +961,21 @@ const MODULES = [
     statKey: 'bici',
     sezioni: [
       { id: 'bici', nome: 'Bici' },
+    ],
+  },
+  {
+    id: 'shop',
+    nome: 'Shop interno',
+    titolo: 'Shop interno',
+    url: 'shop/', // sottocartella dentro questo stesso repository
+    icon: ICON_SHOP,
+    tile: 'white',
+    statKey: 'shop',
+    sezioni: [
+      { id: 'ordini',       nome: 'Ordini' },
+      { id: 'prodotti',     nome: 'Prodotti' },
+      { id: 'categorie',    nome: 'Categorie' },
+      { id: 'impostazioni', nome: 'Impostazioni' },
     ],
   },
 ];
@@ -1216,6 +1235,12 @@ async function startHomeStatsSync() {
       homeStats.bici = { occupate, totale: bici.length };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche bici:', err));
+
+    onSnapshot(collection(db, 'shop_ordini'), (snap) => {
+      const aperti = snap.docs.filter(d => ['nuovo', 'pronto'].includes((d.data() || {}).stato)).length;
+      homeStats.shop = { aperti };
+      if (currentOperatore) renderHome();
+    }, (err) => console.error('Errore statistiche shop:', err));
 
     const oggi = new Date().toISOString().split('T')[0];
     onSnapshot(query(collection(db, 'ordini_ristorazione'), where('data', '==', oggi)), (snap) => {
@@ -1955,7 +1980,7 @@ function clearSearch() {
 // Calcolate dai dati reali delle altre app (lette in sola lettura dalle
 // connessioni Firebase dedicate in cima al file). Finché non arrivano, le
 // card mostrano "Caricamento…" e si aggiornano da sole quando sono pronte.
-let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, ristorazione: null, manutenzione: null, spiaggia: null, mense: null, presenti: null, oggiStruttura: null };
+let homeStats = { magazzino: null, conti: null, alloggi: null, bici: null, shop: null, ristorazione: null, manutenzione: null, spiaggia: null, mense: null, presenti: null, oggiStruttura: null };
 let prenotazioniList = []; // sola lettura da 'prenotazioni' (Calendario) — per il blocco "Presenti + ricerca" in home
 
 function statoModulo(mod) {
@@ -1981,6 +2006,11 @@ function statoModulo(mod) {
       sub: `${s.totale - s.occupate} liber${(s.totale - s.occupate)===1?'a':'e'} su ${s.totale}`,
       badge: s.occupate > 0 ? `${s.occupate} da pagare` : null
     };
+  }
+  if (mod.statKey === 'shop') {
+    return s.aperti > 0
+      ? { sub: `${s.aperti} ordin${s.aperti===1?'e':'i'} da gestire`, badge: String(s.aperti) }
+      : { sub: 'Nessun ordine da gestire', badge: null };
   }
   if (mod.statKey === 'ristorazione') {
     return s.ordiniOggi > 0
