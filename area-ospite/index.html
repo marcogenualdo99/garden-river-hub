@@ -2134,12 +2134,14 @@ function shCondizioniHtml() {
     <p><b>Assistenza.</b> Per qualsiasi problema con un ordine rivolgiti alla reception.</p></details>`;
 }
 async function ppCrea(id) { const d = await chiama({ azione: 'shop_paypal_crea', id, accetta: true }, { ms: 20000 }); if (!d.ok) { const e = new Error(d.errore || 'crea'); e.cod = d.errore; throw e; } return d.paypal_order_id; }
-function ppMsg(cod) {
-  return cod === 'carta_non_accettata' ? 'Questa carta non è accettata: usa una carta Visa, Mastercard o Maestro, oppure scegli contanti.'
+const PP_CIRC = { AMEX: 'American Express', DISCOVER: 'Discover', JCB: 'JCB', DINERS: 'Diners', CHINA_UNION_PAY: 'UnionPay', ELECTRON: 'Visa Electron' };
+function ppMsg(cod, d) {
+  const circ = d && d.circuito ? (PP_CIRC[d.circuito] || d.circuito) : '';
+  return cod === 'carta_non_accettata' ? (circ ? 'Le carte ' + circ + ' non sono accettate' : 'Questa carta non è accettata') + ': usa una carta Visa, Mastercard o Maestro, oppure scegli contanti.'
     : cod === 'condizioni_non_accettate' ? 'Per pagare devi accettare le condizioni di pagamento.'
     : cod === 'gia_pagato' ? 'Questo ordine risulta già pagato.'
     : cod === 'carta_importo_minimo' ? 'Il pagamento online è disponibile solo per ordini di importo maggiore. Scegli contanti.'
-    : 'Pagamento non riuscito. Controlla i dati e riprova, oppure usa un\'altra carta.';
+    : 'Pagamento non riuscito. Controlla i dati e riprova, oppure usa un\'altra carta.' + (d && d.motivo ? ' (' + d.motivo + ')' : '');
 }
 async function shPagaCarta(id, tot, attesa) {
   const box = $('#service-content'), min = Number(SH.cfg.carta_min != null ? SH.cfg.carta_min : 5);
@@ -2175,7 +2177,7 @@ async function shPagaCarta(id, tot, attesa) {
   const cattura = async oid => {
     const d = await chiama({ azione: 'shop_paypal_cattura', id, paypal_order_id: oid }, { ms: 40000 });
     if (d.ok) return fatto();
-    ripristina(); err(ppMsg(d.errore));
+    ripristina(); err(ppMsg(d.errore, d));
   };
   try { await shCaricaPaypal(); } catch (e) { return err('Non riesco a collegarmi a PayPal. Controlla la rete e riprova.'); }
   if (!$('#pp-paga')) return;                                     // l'ospite ha cambiato schermata
@@ -2184,7 +2186,7 @@ async function shPagaCarta(id, tot, attesa) {
     style: { input: { 'font-size': '16px', 'font-family': 'sans-serif', color: '#1f2937', padding: '0 14px', border: 'none', background: 'transparent', 'box-shadow': 'none', outline: 'none', 'line-height': '52px' }, '.invalid': { color: '#B42318' } },
     createOrder: () => ppCrea(id),
     onApprove: d => cattura(d.orderID),
-    onError: e => { ripristina(); err('Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); },
+    onError: e => { console.error('PayPal CardFields onError', e); ripristina(); err('Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); },
   });
   if (!cf.isEligible()) return err('Il pagamento con carta non è al momento disponibile. Torna indietro e scegli contanti.');
   const ev = nome => ({ onFocus: () => $('#' + nome) && $('#' + nome).classList.add('on'), onBlur: () => $('#' + nome) && $('#' + nome).classList.remove('on'),

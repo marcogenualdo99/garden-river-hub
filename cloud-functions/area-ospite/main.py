@@ -2103,19 +2103,21 @@ def _azione_shop_paypal_cattura(db, origin, data):
         aut = (((j.get('purchase_units') or [{}])[0].get('payments') or {}).get('authorizations') or [{}])[0]
         aid = _s(aut.get('id'), 40)
         if j.get('status') != 'COMPLETED' or not aid or aut.get('status') != 'CREATED' or (aut.get('amount') or {}).get('value') != atteso:
-            print(f"PayPal autorizzazione non riuscita: {str(j)[:400]}")
-            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito'}, 402)
+            print(f"PayPal autorizzazione non riuscita: {str(j)[:600]}")
+            det = (j.get('details') or [{}])[0] if isinstance(j.get('details'), list) and j.get('details') else {}
+            motivo = _s(det.get('issue') or j.get('name') or aut.get('status') or j.get('status'), 60)
+            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito', 'motivo': motivo}, 402)
         ps = j.get('payment_source') or {}
         brand = _s((ps.get('card') or {}).get('brand'), 30).upper().replace(' ', '_')
         if brand and brand not in SHOP_CARTE_OK:
             _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/void', None, request_id=f'gh-void-{aid}')
             print(f'Carta rifiutata per circuito: {brand}')
-            return _json(origin, {'ok': False, 'errore': 'carta_non_accettata'}, 402)
+            return _json(origin, {'ok': False, 'errore': 'carta_non_accettata', 'circuito': brand}, 402)
         c = _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/capture', {'final_capture': True}, request_id=f'gh-cap-{aid}')
         if c.get('status') != 'COMPLETED':
-            print(f"PayPal incasso non completato: {str(c)[:400]}")
+            print(f"PayPal incasso non completato: {str(c)[:600]}")
             _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/void', None, request_id=f'gh-void2-{aid}')
-            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito'}, 402)
+            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito', 'motivo': _s(c.get('status') or c.get('name'), 60)}, 402)
     except Exception as e:
         print(f'PayPal cattura fallita: {e}')
         return _json(origin, {'ok': False, 'errore': 'paypal_non_raggiungibile'}, 502)
