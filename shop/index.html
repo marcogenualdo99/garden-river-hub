@@ -445,7 +445,7 @@ function renderOrdini(el) {
 function fmtQuando(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); }
 function cardOrdine(o) {
   const st = STATI[o.stato] || [o.stato, ''], pag = o.pagamento || {}, pagato = pag.stato === 'pagato';
-  const dest = o.modalita === 'consegna' ? 'Consegna in alloggio' : 'Ritiro';
+  const dest = o.modalita === 'consegna' ? 'Consegna in alloggio' + (o.consegna_fascia ? ' · ' + (o.consegna_data ? o.consegna_data.split('-').reverse().slice(0, 2).join('/') + ' ' : '') + o.consegna_fascia : '') : 'Ritiro al bar piscina';
   const btn = [];
   if (o.stato === 'nuovo') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','pronto')">Segna pronto</button>`);
   if (o.stato === 'nuovo' || o.stato === 'pronto') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
@@ -635,16 +635,35 @@ function renderImpostazioni(el) {
   el.innerHTML = `<div class="sh-card-set">
     <label class="sh-chk"><input type="checkbox" id="s-attivo"${CFG.attivo ? ' checked' : ''}><span>Shop aperto agli ospiti<small>Se spento, la sezione Shop non compare nell'Area ospite.</small></span></label>
     <label class="sh-chk"><input type="checkbox" id="s-ritiro"${CFG.ritiro !== false ? ' checked' : ''}><span>Ritiro in struttura<small>L'ospite passa a ritirare l'ordine.</small></span></label>
-    <label class="sh-f">Dove si ritira<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Reception, dalle 8 alle 20"></label>
-    <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite.</small></span></label>
+    <label class="sh-f">Orari o note di ritiro (facoltativo)<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Dalle 9 alle 19"><span class="sh-hint">Il punto di ritiro è il Bar piscina: l'ospite lo vede sulla mappa del villaggio.</span></label>
+    <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite, nella fascia oraria che sceglie.</small></span></label>
+    <div class="sh-f">Fasce orarie di consegna
+      <div id="s-fasce"></div>
+      <span class="sh-hint">L'ospite sceglie una fascia per oggi o per domani. Le fasce già passate non compaiono.</span></div>
     <label class="sh-f">Messaggio in cima allo shop (facoltativo)<textarea id="s-msg" maxlength="400" placeholder="Es. Si paga al ritiro in contanti o con carta.">${esc(CFG.messaggio)}</textarea></label>
     <div class="sh-hint">Il pagamento online con carta (PayPal) verrà attivato in un secondo momento: per ora l'ospite paga alla consegna o in reception.</div>
     <button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
+  renderFasce();
+}
+const FASCE_DEF = { passo: 15, intervalli: [['10:00', '12:00'], ['15:00', '18:30']] };
+function fasceCorrenti() { if (!CFG.consegna_fasce || !Array.isArray(CFG.consegna_fasce.intervalli)) CFG.consegna_fasce = JSON.parse(JSON.stringify(FASCE_DEF)); return CFG.consegna_fasce; }
+function renderFasce() {
+  const f = fasceCorrenti(), el = $('#s-fasce'); if (!el) return;
+  el.innerHTML = `<div class="sh-bar" style="margin:6px 0">Ogni fascia dura
+      <select onchange="fasceCorrenti().passo=+this.value">${[10, 15, 20, 30, 45, 60].map(m => `<option value="${m}"${f.passo === m ? ' selected' : ''}>${m} minuti</option>`).join('')}</select></div>` +
+    f.intervalli.map((r, i) => `<div class="sh-bar" style="margin:6px 0">Dalle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[0])}" onchange="fasceCorrenti().intervalli[${i}][0]=this.value"> alle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[1])}" onchange="fasceCorrenti().intervalli[${i}][1]=this.value">
+      <button type="button" class="sh-ic" aria-label="Togli" onclick="fasceCorrenti().intervalli.splice(${i},1);renderFasce()">${ICONS.CLOSE}</button></div>`).join('') +
+    `<div class="sh-bar"><button type="button" class="sh-btn" onclick="fasceCorrenti().intervalli.push(['09:00','10:00']);renderFasce()">+ Aggiungi intervallo</button><button type="button" class="sh-btn" onclick="CFG.consegna_fasce=JSON.parse(JSON.stringify(FASCE_DEF));renderFasce()">Ripristina predefinite</button></div>`;
 }
 async function salvaImpostazioni() {
   const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
-    ritiro_luogo: $('#s-luogo').value.trim(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+    ritiro_luogo: $('#s-luogo').value.trim(), consegna_fasce: fasceCorrenti(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
   if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
+  const fc = dati.consegna_fasce;
+  if (dati.consegna) {
+    if (!fc.intervalli.length) return showToast('Aggiungi almeno un intervallo di consegna');
+    for (const [a, b] of fc.intervalli) { if (!a || !b || b <= a) return showToast('Controlla gli orari: «Alle» deve venire dopo «Dalle»'); }
+  }
   try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await setDoc(doc(db, 'impostazioni', 'shop'), dati, { merge: true }); CFG = { ...CFG, ...dati }; showToast('Impostazioni salvate'); }
   catch (e) { console.error(e); showToast('Errore durante il salvataggio'); }
 }

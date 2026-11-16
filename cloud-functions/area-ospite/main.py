@@ -73,7 +73,7 @@ NAVETTA_DEFAULT = {
     # partono contemporaneamente (ognuno con 'posti_pulmino' posti).
     'max_corse_per_orario': 1,
 }
-SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza')
+SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza', 'shop')
 
 MAX_TESTO = 120
 
@@ -1670,11 +1670,57 @@ def _shop_num(v, default=0):
         return default
 
 
+SHOP_FASCE_DEFAULT = {'passo': 15, 'intervalli': [['10:00', '12:00'], ['15:00', '18:30']]}
+
+
+def _hhmm_min(v):
+    m = re.fullmatch(r'(\d{1,2}):(\d{2})', str(v or '').strip())
+    if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+        return None
+    return int(m.group(1)) * 60 + int(m.group(2))
+
+
+def _min_hhmm(m):
+    return '%02d:%02d' % (m // 60, m % 60)
+
+
+def _shop_fasce_norm(c):
+    """Configurazione fasce di consegna (passo in minuti + intervalli) validata; ripiego sui predefiniti."""
+    c = c if isinstance(c, dict) else {}
+    try:
+        passo = int(c.get('passo'))
+    except (TypeError, ValueError):
+        passo = 15
+    passo = passo if 5 <= passo <= 120 else 15
+    interv = []
+    for r in (c.get('intervalli') if isinstance(c.get('intervalli'), list) else []):
+        if isinstance(r, (list, tuple)) and len(r) == 2:
+            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+            if a is not None and b is not None and b - a >= passo:
+                interv.append([_min_hhmm(a), _min_hhmm(b)])
+    interv = interv[:6]
+    if not interv:
+        return dict(SHOP_FASCE_DEFAULT)
+    return {'passo': passo, 'intervalli': interv}
+
+
+def _shop_fasce_lista(fc):
+    out = []
+    for a, b in fc['intervalli']:
+        m, fine = _hhmm_min(a), _hhmm_min(b)
+        while m + fc['passo'] <= fine:
+            out.append(f'{_min_hhmm(m)}-{_min_hhmm(m + fc["passo"])}')
+            m += fc['passo']
+    return out
+
+
 def _shop_cfg(db):
     def leggi():
         d = db.collection('impostazioni').document('shop').get()
         c = (d.to_dict() or {}) if d.exists else {}
-        return {'attivo': c.get('attivo') is True,
+        fc = _shop_fasce_norm(c.get('consegna_fasce'))
+        return {'fasce_cfg': fc, 'fasce': _shop_fasce_lista(fc),
+                'attivo': c.get('attivo') is True,
                 'ritiro': c.get('ritiro') is not False,
                 'consegna': c.get('consegna') is not False,
                 'ritiro_luogo': _s(c.get('ritiro_luogo'), 120),
@@ -1720,7 +1766,9 @@ def _azione_shop_catalogo(db, origin, data):
     if not cfg['attivo']:
         return _json(origin, {'ok': True, 'attivo': False, 'categorie': [], 'prodotti': [], 'cfg': cfg})
     cat = _shop_catalogo_leggi(db)
-    return _json(origin, {'ok': True, 'attivo': True, 'cfg': cfg, **cat})
+    ora = datetime.now(TZ_ROMA)
+    return _json(origin, {'ok': True, 'attivo': True, 'cfg': cfg, 'oggi': ora.strftime('%Y-%m-%d'),
+                          'ora': ora.strftime('%H:%M'), 'checkout': _s(p.get('checkout'), 10), **cat})
 
 
 def _azione_shop_prodotto(db, origin, data):
@@ -1783,6 +1831,19 @@ def _azione_shop_ordina(db, origin, data):
     modalita = _s(data.get('modalita'), 10)
     if modalita not in ('ritiro', 'consegna') or not cfg[modalita]:
         return _json(origin, {'ok': False, 'errore': 'modalita_non_valida'}, 400)
+    giorno, fascia = '', ''
+    if modalita == 'consegna':
+        ora = datetime.now(TZ_ROMA)
+        domani = (ora + timedelta(days=1)).strftime('%Y-%m-%d')
+        giorno = _s(data.get('giorno'), 10)
+        fascia = _s(data.get('fascia'), 11)
+        chk = _s(p.get('checkout'), 10)
+        if giorno not in (oggi, domani) or (chk and giorno > chk):
+            return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+        if fascia not in cfg['fasce']:
+            return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
+        if giorno == oggi and _hhmm_min(fascia[:5]) < ora.hour * 60 + ora.minute:
+            return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
     grezze = data.get('righe')
     if not isinstance(grezze, list) or not grezze or len(grezze) > SHOP_MAX_RIGHE:
         return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
@@ -1823,6 +1884,7 @@ def _azione_shop_ordina(db, origin, data):
     ref.set({
         'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': _s(p.get('tel'), 40), 'alloggio': alloggio,
         'righe': righe, 'totale': totale, 'modalita': modalita, 'note': _s(data.get('note'), 300),
+        'consegna_data': giorno, 'consegna_fascia': fascia,
         'stato': 'nuovo',
         'pagamento': {'metodo': 'in_struttura', 'stato': 'da_pagare', 'importo': totale},
         'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
@@ -1841,6 +1903,7 @@ def _azione_shop_ordini(db, origin, data):
         x = d.to_dict() or {}
         out.append({'id': d.id, 'righe': x.get('righe') or [], 'totale': x.get('totale') or 0,
                     'modalita': _s(x.get('modalita'), 10), 'stato': _s(x.get('stato'), 12),
+                    'consegna_data': _s(x.get('consegna_data'), 10), 'consegna_fascia': _s(x.get('consegna_fascia'), 11),
                     'pagamento': x.get('pagamento') or {}, 'creato_il': _s(x.get('creato_il'), 25)})
     out.sort(key=lambda o: o['creato_il'], reverse=True)
     return _json(origin, {'ok': True, 'ordini': out[:30]})

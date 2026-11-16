@@ -552,10 +552,15 @@
   .lang-menu { position: absolute; z-index: 60; background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; min-width: 150px }
   .lang-menu button { text-align: left; border: none; background: none; padding: 10px 12px; border-radius: 10px; font: 700 14px var(--font); color: var(--gray-900); cursor: pointer } .lang-menu button.on { background: var(--green-50); color: var(--green-700) } .lang-menu button:active { background: var(--gray-50) }
   /* Shop */
-  .sh-chips { display: flex; gap: 8px; overflow-x: auto; margin: 4px 0 14px; padding-bottom: 2px }
-  .sh-chips button { border: none; background: #fff; border: 1.5px solid var(--green-200); color: var(--green-700); font: 800 13px inherit; font-family: inherit; padding: 9px 15px; border-radius: 999px; white-space: nowrap; cursor: pointer }
+  header.top .shop-btn { display: none; position: relative; width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
+  header.top .shop-btn svg { width: 19px; height: 19px } header.top .shop-btn:active { background: rgba(255,255,255,.25) }
+  header.top.in-shop .shop-btn { display: flex } header.top.in-shop .info-btn { display: none }
+  header.top.in-shop .lang-btn { margin-left: auto }
+  .shop-badge { display: none; position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--orange); color: #fff; border: 2px solid #fff; font: 800 11px/1 var(--font); font-style: normal; align-items: center; justify-content: center }
+  .sh-chips { display: flex; gap: 10px; overflow-x: auto; margin: 4px -16px 16px; padding: 2px 16px 4px; scrollbar-width: none } .sh-chips::-webkit-scrollbar { display: none }
+  .sh-chips button { flex-shrink: 0; background: #fff; border: 2px solid var(--green-200); color: var(--green-700); font: 800 16px var(--font); height: 48px; padding: 0 24px; border-radius: 999px; white-space: nowrap; cursor: pointer }
   .sh-chips button.on { background: var(--green-700); border-color: var(--green-700); color: #fff }
-  .sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 76px }
+  .sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 84px }
   .sh-p { background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column }
   .sh-p.fin .sh-img { filter: grayscale(.7); opacity: .75 }
   .sh-img { position: relative; aspect-ratio: 1; background: var(--green-100) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--green-400); cursor: pointer }
@@ -564,25 +569,41 @@
   .sh-info { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1 }
   .sh-tit { font-weight: 800; font-size: 14.5px; line-height: 1.25; cursor: pointer }
   .sh-prz { font-weight: 800; color: var(--green-700); font-size: 16px }
-  .sh-add { margin-top: auto; border: none; background: var(--green-700); color: #fff; font: 800 14px inherit; font-family: inherit; height: 40px; border-radius: 999px; cursor: pointer }
-  .sh-st { margin-top: auto; display: flex; align-items: center; justify-content: space-between; background: var(--green-100); border-radius: 999px; height: 40px; padding: 0 4px }
-  .sh-st b { font-weight: 800 }
+  .sh-add { margin-top: auto; border: none; background: var(--green-700); color: #fff; font: 800 14px var(--font); height: 40px; padding: 0 18px; border-radius: 999px; cursor: pointer }
+  .sh-st { margin-top: auto; display: flex; align-items: center; justify-content: space-between; background: var(--green-100); border-radius: 999px; height: 40px; padding: 0 4px; min-width: 112px }
+  .sh-st b { font-weight: 800; min-width: 26px; text-align: center; font-size: 16px }
   .sh-st button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--green-700); color: #fff; font-size: 20px; line-height: 1; cursor: pointer }
-  .sh-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, #fff 30%); z-index: 50 }
-  .sh-ln { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--gray-300) }
-  .sh-ln .sh-lt { flex: 1; font-weight: 700; font-size: 14.5px } .sh-ln .sh-lt small { display: block; color: var(--gray-500); font-weight: 600; font-size: 12px }
-  .sh-ln .sh-st { margin: 0; width: 104px; flex-shrink: 0 } .sh-ln b { min-width: 62px; text-align: right }
-  .sh-ln.tot { border: none; font-size: 17px; font-weight: 800; justify-content: space-between }
-  .sh-mod { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 2px solid var(--gray-300); border-radius: var(--radius); margin-bottom: 8px; cursor: pointer }
-  .sh-mod input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--green-700) } .sh-mod small { display: block; color: var(--gray-500); font-weight: 600; font-size: 12.5px }
-  .sh-or { padding: 12px 0; border-bottom: 1px dashed var(--gray-300) } .sh-oh { display: flex; justify-content: space-between; align-items: center }
-  .sh-st-nuovo, .sh-st-pronto, .sh-st-consegnato, .sh-st-annullato { font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--green-100); color: var(--green-700) }
+  .sh-st.big { height: 52px; min-width: 150px; padding: 0 6px } .sh-st.big button { width: 40px; height: 40px; font-size: 24px } .sh-st.big b { font-size: 19px }
+  .sh-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(255,255,255,0), #fff 35%); z-index: 50 }
+  .sh-sheet-act { display: flex; gap: 10px; align-items: center; margin-top: 14px } .sh-sheet-act .submit { flex: 1; margin: 0 }
+  .sh-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 2px 0 16px }
+  .sh-steps > div { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 13px; color: var(--gray-500) }
+  .sh-steps > div span { width: 26px; height: 26px; border-radius: 50%; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-size: 13px } .sh-steps > div span svg { width: 14px; height: 14px }
+  .sh-steps > div.on { color: var(--green-700) } .sh-steps > div.on span { background: var(--green-700); color: #fff }
+  .sh-steps > div.ok { color: var(--green-700); cursor: pointer } .sh-steps > div.ok span { background: var(--green-100); color: var(--green-700) }
+  .sh-steps > i { flex: 1; max-width: 28px; height: 2px; background: var(--gray-300) }
+  .sh-ln { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px dashed var(--gray-300) } .sh-ln:last-of-type { border-bottom: none }
+  .sh-th { width: 64px; height: 64px; flex-shrink: 0; border-radius: 12px; background: var(--green-100) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--green-400) } .sh-th svg { width: 26px; height: 26px }
+  .sh-lb { flex: 1; min-width: 0 } .sh-lt { font-weight: 800; font-size: 15px; line-height: 1.25 } .sh-lb small { color: var(--gray-500); font-weight: 600; font-size: 12.5px }
+  .sh-lr { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px } .sh-lr .sh-st { margin: 0 } .sh-lr .sh-add { margin: 0; height: 36px } .sh-lr b { font-size: 16px }
+  .sh-tt { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 2px solid var(--gray-100); font-size: 18px; font-weight: 800; margin-top: 4px }
+  .sh-rl { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; font-size: 15px; font-weight: 600 }
+  .sh-mod { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 2px solid var(--gray-300); border-radius: var(--radius); margin-top: 10px; cursor: pointer } .sh-mod.on { border-color: var(--green-700); background: var(--green-50) }
+  .sh-mod input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--green-700) } .sh-mod small { display: block; color: var(--gray-500); font-weight: 600; font-size: 12.5px; margin-top: 2px }
+  .sh-days { display: flex; gap: 10px; margin: 8px 0 }
+  .sh-days button { flex: 1; height: 56px; border-radius: var(--radius-sm); border: 2px solid var(--gray-300); background: #fff; font: 800 15px var(--font); color: var(--gray-700); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center } .sh-days button small { font-size: 11.5px; font-weight: 600; color: var(--gray-500) }
+  .sh-days button.on { border-color: var(--green-700); background: var(--green-700); color: #fff } .sh-days button.on small { color: rgba(255,255,255,.8) }
+  .sh-fasce { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px }
+  .sh-fasce button { height: 44px; border-radius: 12px; border: 2px solid var(--green-200); background: #fff; color: var(--green-700); font: 800 13px var(--font); cursor: pointer; padding: 0 2px } .sh-fasce button.on { background: var(--green-700); border-color: var(--green-700); color: #fff }
+  .sh-or { padding: 14px 0; border-bottom: 1px dashed var(--gray-300) } .sh-or:last-child { border-bottom: none } .sh-oh { display: flex; justify-content: space-between; align-items: center; font-size: 17px }
+  .sh-ost { font-weight: 700; font-size: 14.5px; margin-top: 4px }
+  .sh-st-nuovo, .sh-st-pronto, .sh-st-consegnato, .sh-st-annullato { font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; background: var(--green-100); color: var(--green-700) }
   .sh-st-nuovo { background: #FEF1EA; color: #F2702A } .sh-st-annullato { background: #FEF2F2; color: #DC2626 }
   .sh-ov { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center }
   .sh-sheet { position: relative; background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)) }
   .sh-x { position: absolute; right: 12px; top: 10px; z-index: 2; width: 36px; height: 36px; border: none; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer }
   .sh-gal { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: -4px -4px 0 } .sh-gal img { width: 100%; flex: 0 0 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; scroll-snap-align: center }
-  .sh-toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #111827; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; z-index: 400 }
+  .sh-toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: #111827; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; z-index: 400 }
 </style>
 </head>
 <body>
@@ -606,6 +627,8 @@
         <button type="button" class="top-back" onclick="handleBack()" aria-label="Torna indietro"><span data-icon="BACK"></span>Torna indietro</button>
         <button type="button" class="lang-btn" id="lang-btn" onclick="menuLingua(event)" aria-label="Language">IT</button>
         <button type="button" class="info-btn" onclick="apriPrenotazioneInfo()" aria-label="I tuoi dati e il conto"><span data-icon="INFO"></span></button>
+        <button type="button" class="shop-btn" onclick="shApriOrdini()" aria-label="Cronologia ordini"><span data-icon="CLOCK"></span></button>
+        <button type="button" class="shop-btn" onclick="shApriCarrello()" aria-label="Carrello"><span data-icon="CART"></span><i class="shop-badge" id="shop-badge"></i></button>
       </div>
       <div class="kicker" id="kicker">Benvenuto al Garden River</div>
       <h1 id="titolo">Area ospite</h1>
@@ -750,7 +773,7 @@ const BANNER = {
 };
 function impostaBanner(id) {
   const b = BANNER[id] || BANNER.home, hd = $('#hero');
-  hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? ' home-top' : ' in-servizio'}`;
+  hd.className = `top ${b.tema} d-${b.deco}${id === 'home' || !BANNER[id] ? ' home-top' : ' in-servizio'}${id === 'shop' ? ' in-shop' : ''}`;
   hydrateIcons(hd);
   const im = hd.querySelector('.hero-img');
   im.src = b.img;
@@ -954,6 +977,7 @@ function avvisiHome() {
   }
   const oggi = oggiData();
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
+  { const sa = (CFG.shop_attivo && !preArrivo()) ? shopAvvisoHome() : null; if (sa) out.push(sa); }
   if (vis('navetta') && corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
   const m = HOME_X.meteo;
   if (vis('pioggia') && m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
@@ -1149,6 +1173,7 @@ document.addEventListener('click', ev => {
 
 function renderHomeExtra() {
   aggiornaFasce();
+  shopHomeCarica();
   const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
@@ -1362,11 +1387,13 @@ function renderPrenotazioneInfo() {
 }
 
 function handleBack() {
+  if (_servizioAperto === 'shop' && SH && SH.vista !== 'catalogo') { shIndietro(); return; }
   if (_servizioAperto === 'info' && _infoSub) { _infoSub = null; renderInfo(); window.scrollTo(0, 0); return; }
   tornaHome();
 }
 
 function tornaHome() {
+  if (typeof shChiudiDett === 'function' && SH) shChiudiDett();
   _servizioAperto = null; _editId = null; _infoSub = null;
   const bb = $('#service-view').querySelector('.home-back-btn'); if (bb) bb.style.display = '';
   $('#service-view').style.display = 'none';
@@ -1746,32 +1773,41 @@ async function mnInvia() {
 // Catalogo e ordini passano dalla Cloud Function ('shop_catalogo', 'shop_prodotto',
 // 'shop_ordina', 'shop_ordini'). Il pagamento e' in struttura; il campo
 // `pagamento` dell'ordine e' gia' pronto per agganciare PayPal.
+// Viste: 'catalogo', 'checkout' (3 passi: carrello, consegna, conferma), 'ordini' (cronologia).
 let SH = null;
+let SHO = { t: 0, ordini: [], caricando: false };      // ordini mostrati nella card della home
 const shEur = n => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
-const shQta = () => Object.values(SH.cart).reduce((s, q) => s + q, 0);
+const shQta = () => SH ? Object.values(SH.cart).reduce((s, q) => s + q, 0) : 0;
 const shTot = () => SH.prodotti.reduce((s, p) => s + (SH.cart[p.id] || 0) * p.prezzo, 0);
+const SH_STATO = { nuovo: 'Ricevuto', pronto: 'Pronto', consegnato: 'Consegnato', annullato: 'Annullato' };
+function shNuovo() { return { cart: {}, cat: '', vista: 'catalogo', step: 1, mod: '', giorno: '', fascia: '', note: '', prodotti: [], categorie: [], cfg: {}, caricato: false, foto: {}, dett: null, invio: false }; }
+function shBadge() { const b = $('#shop-badge'); if (!b) return; const q = shQta(); b.textContent = q > 99 ? '99+' : q; b.style.display = q ? 'flex' : 'none'; }
+function shAdessoMin() { return SH.oraMin0 == null ? 0 : SH.oraMin0 + Math.floor((Date.now() - SH.t0) / 60000); }
+function shData(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? `${m[3]}/${m[2]}` : ''; }
 
-async function renderShop() {
-  SH = SH || { cart: {}, cat: '', vista: 'catalogo', prodotti: [], categorie: [], cfg: {}, caricato: false, foto: {} };
-  SH.vista = 'catalogo';
+async function renderShop(vista) {
+  SH = SH || shNuovo();
+  SH.vista = vista || 'catalogo'; SH.step = 1;
   const box = $('#service-content');
+  if (SH.vista === 'ordini') { shBadge(); return shOrdini(box); }
   if (!SH.caricato) {
     box.innerHTML = '<div class="card"><p class="hint">Carico lo shop…</p></div>';
     try {
       const d = await chiama({ azione: 'shop_catalogo' }, { ms: 20000, tentativi: 2 });
       if (_servizioAperto !== 'shop') return;
       if (!d.ok) { box.innerHTML = '<div class="card"><p class="hint">Lo shop non è disponibile. Riprova tra poco.</p></div>'; return; }
-      SH.prodotti = d.prodotti || []; SH.categorie = d.categorie || []; SH.cfg = d.cfg || {}; SH.attivo = d.attivo; SH.caricato = true;
+      SH.prodotti = d.prodotti || []; SH.categorie = d.categorie || []; SH.cfg = d.cfg || {}; SH.attivo = d.attivo; SH.checkout = d.checkout || '';
+      SH.oggi = d.oggi; const [hh, mm] = String(d.ora || '0:0').split(':'); SH.oraMin0 = (+hh) * 60 + (+mm); SH.t0 = Date.now(); SH.caricato = true;
     } catch (e) { if (_servizioAperto === 'shop') box.innerHTML = '<div class="card"><p class="hint">Connessione assente. Controlla la rete e riprova.</p></div>'; return; }
   }
   shDisegna();
 }
-
 function shDisegna() {
   if (_servizioAperto !== 'shop') return;
+  shBadge();
   const box = $('#service-content');
-  if (SH.vista === 'carrello') return shCarrello(box);
   if (SH.vista === 'ordini') return shOrdini(box);
+  if (SH.vista === 'checkout') return shCheckout(box);
   if (!SH.attivo || !SH.prodotti.length) { box.innerHTML = `<div class="card"><h2>Shop</h2><p class="hint">${SH.attivo ? 'Il catalogo è in preparazione: torna a trovarci presto.' : 'Lo shop non è al momento aperto.'}</p></div>`; return; }
   const lista = SH.prodotti.filter(p => !SH.cat || p.categoriaId === SH.cat), q = shQta();
   box.innerHTML = `
@@ -1782,24 +1818,43 @@ function shDisegna() {
         <div class="sh-img" onclick="shDettaglio('${esc(p.id)}')"${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}>${p.foto ? '' : ICONS.BAG}${p.esaurito ? '<span class="sh-fin">Esaurito</span>' : ''}</div>
         <div class="sh-info"><div class="sh-tit" onclick="shDettaglio('${esc(p.id)}')">${esc(p.titolo)}</div><div class="sh-prz">${shEur(p.prezzo)}</div>
         ${p.esaurito ? '' : shStepper(p)}</div></div>`).join('')}</div>
-    <div style="margin-top:14px"><button type="button" class="btn-secondary" onclick="SH.vista='ordini';shDisegna()">I miei ordini</button></div>
-    ${q ? `<div class="sh-bar"><button type="button" class="submit" onclick="SH.vista='carrello';shDisegna();window.scrollTo(0,0)">Vai al carrello · ${q} · ${shEur(shTot())}</button></div>` : ''}`;
+    ${q ? `<div class="sh-bar"><button type="button" class="submit" onclick="shVaiCheckout()">Completa l'ordine · ${q} ${q === 1 ? 'articolo' : 'articoli'} · ${shEur(shTot())}</button></div>` : ''}`;
   hydrateIcons(box);
 }
-function shStepper(p) {
-  const n = SH.cart[p.id] || 0;
-  return n ? `<div class="sh-st"><button type="button" onclick="shCambia('${esc(p.id)}',-1)" aria-label="Meno">−</button><b>${n}</b><button type="button" onclick="shCambia('${esc(p.id)}',1)" aria-label="Più">+</button></div>`
-           : `<button type="button" class="sh-add" onclick="shCambia('${esc(p.id)}',1)">Aggiungi</button>`;
+function shStepper(p, grande) {
+  const n = SH.cart[p.id] || 0, id = esc(p.id);
+  return n ? `<div class="sh-st${grande ? ' big' : ''}"><button type="button" onclick="shCambia('${id}',-1)" aria-label="Meno">−</button><b>${n}</b><button type="button" onclick="shCambia('${id}',1)" aria-label="Più">+</button></div>`
+           : `<button type="button" class="sh-add" onclick="shCambia('${id}',1)">Aggiungi</button>`;
 }
 function shCambia(id, d) {
   const p = SH.prodotti.find(x => x.id === id); if (!p) return;
   let n = (SH.cart[id] || 0) + d;
   const max = p.giacenza != null ? Math.min(20, p.giacenza) : 20;
-  if (n > max) { n = max; if (p.giacenza != null) mostraAvvisoShop('Disponibili solo ' + max); }
+  if (n > max) { n = max; shAvviso(p.giacenza != null ? 'Disponibili solo ' + max : 'Massimo ' + max + ' per prodotto'); }
   if (n <= 0) delete SH.cart[id]; else SH.cart[id] = n;
-  if (SH.dett) shDettaglioDisegna(); shDisegna();
+  if (SH.dett) shDettaglioDisegna();
+  if (SH.vista === 'checkout' && !shQta()) { SH.vista = 'catalogo'; }
+  shDisegna();
 }
-function mostraAvvisoShop(m) { const e = document.createElement('div'); e.className = 'sh-toast'; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 2200); }
+function shAvviso(m) { const e = document.createElement('div'); e.className = 'sh-toast'; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 2200); }
+
+// intestazione: carrello e cronologia
+function shApriCarrello() {
+  if (_servizioAperto !== 'shop') { apriServizio('shop'); }
+  if (!SH || !shQta()) return shAvviso('Il carrello è vuoto');
+  shVaiCheckout();
+}
+function shApriOrdini() {
+  if (_servizioAperto !== 'shop') apriServizio('shop');
+  shChiudiDett(); renderShop('ordini'); window.scrollTo(0, 0);
+}
+function shVaiCheckout() { shChiudiDett(); SH.vista = 'checkout'; SH.step = 1; shDisegna(); window.scrollTo(0, 0); }
+// freccia "Torna indietro" dell'intestazione
+function shIndietro() {
+  if (SH.vista === 'checkout' && SH.step > 1) { SH.step--; shDisegna(); }
+  else { SH.vista = 'catalogo'; SH.step = 1; renderShop(); }
+  window.scrollTo(0, 0);
+}
 
 async function shDettaglio(id) {
   const p = SH.prodotti.find(x => x.id === id); if (!p) return;
@@ -1812,69 +1867,153 @@ function shDettaglioDisegna() {
   const p = SH.prodotti.find(x => x.id === SH.dett); if (!p) return shChiudiDett();
   let ov = $('#sh-dett');
   if (!ov) { ov = document.createElement('div'); ov.id = 'sh-dett'; ov.className = 'sh-ov'; ov.onclick = e => { if (e.target === ov) shChiudiDett(); }; document.body.appendChild(ov); }
-  const foto = SH.foto[p.id] || (p.foto ? [p.foto] : []);
+  const foto = SH.foto[p.id] || (p.foto ? [p.foto] : []), n = SH.cart[p.id] || 0;
   ov.innerHTML = `<div class="sh-sheet"><button type="button" class="sh-x" onclick="shChiudiDett()" aria-label="Chiudi">×</button>
     ${foto.length ? `<div class="sh-gal">${foto.map(f => `<img src="${esc(f)}" alt="">`).join('')}</div>` : ''}
-    <h2 style="margin:12px 0 4px">${esc(p.titolo)}</h2><div class="sh-prz" style="font-size:20px">${shEur(p.prezzo)}</div>
-    ${p.descrizione ? `<p class="hint" style="white-space:pre-line;margin:10px 0">${esc(p.descrizione)}</p>` : ''}
-    ${p.esaurito ? '<p class="hint"><b>Al momento esaurito</b></p>' : shStepper(p)}</div>`;
+    <h2 style="margin:14px 0 4px">${esc(p.titolo)}</h2><div class="sh-prz" style="font-size:22px">${shEur(p.prezzo)}</div>
+    ${p.descrizione ? `<p class="hint" style="white-space:pre-line;margin:12px 0;font-size:15px">${esc(p.descrizione)}</p>` : ''}
+    ${p.esaurito ? '<p class="hint"><b>Al momento esaurito</b></p>'
+      : n ? `<div class="sh-sheet-act">${shStepper(p, true)}<button type="button" class="submit" onclick="shVaiCheckout()">Completa l'ordine · ${shEur(shTot())}</button></div>`
+          : `<button type="button" class="submit" style="margin-top:14px" onclick="shCambia('${esc(p.id)}',1)">Aggiungi al carrello · ${shEur(p.prezzo)}</button>`}</div>`;
 }
-function shChiudiDett() { SH.dett = null; const ov = $('#sh-dett'); if (ov) ov.remove(); }
+function shChiudiDett() { if (SH) SH.dett = null; const ov = $('#sh-dett'); if (ov) ov.remove(); }
 
-function shCarrello(box) {
+// ── Checkout a passi ────────────────────────────────────────────────────────
+function shPassi() {
+  const n = ['Carrello', 'Consegna', 'Conferma'];
+  return `<div class="sh-steps">${n.map((l, i) => `<div class="${i + 1 === SH.step ? 'on' : (i + 1 < SH.step ? 'ok' : '')}"${i + 1 < SH.step ? ` onclick="SH.step=${i + 1};shDisegna()"` : ''}><span>${i + 1 < SH.step ? ICONS.CHECK : i + 1}</span>${l}</div>`).join('<i></i>')}</div>`;
+}
+function shCheckout(box) {
   const righe = SH.prodotti.filter(p => SH.cart[p.id]);
   if (!righe.length) { SH.vista = 'catalogo'; return shDisegna(); }
+  if (SH.step === 1) {
+    box.innerHTML = `${shPassi()}<div class="card"><h2>Il tuo carrello</h2>
+      ${righe.map(p => `<div class="sh-ln">
+        <div class="sh-th"${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}>${p.foto ? '' : ICONS.BAG}</div>
+        <div class="sh-lb"><div class="sh-lt">${esc(p.titolo)}</div><small>${shEur(p.prezzo)} cad.</small>
+          <div class="sh-lr">${shStepper(p)}<b>${shEur(p.prezzo * SH.cart[p.id])}</b></div></div></div>`).join('')}
+      <div class="sh-tt"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
+      <button type="button" class="submit" onclick="SH.step=2;shDisegna();window.scrollTo(0,0)">Continua</button>
+      <button type="button" class="btn-secondary" onclick="SH.vista='catalogo';renderShop()">Continua gli acquisti</button>`;
+    hydrateIcons(box); return;
+  }
   const c = SH.cfg, ritiro = c.ritiro !== false, consegna = c.consegna !== false;
-  if (!SH.mod || !(SH.mod === 'ritiro' ? ritiro : consegna)) SH.mod = ritiro ? 'ritiro' : 'consegna';
-  box.innerHTML = `
-    <div class="card"><h2>Il tuo carrello</h2>
-      ${righe.map(p => `<div class="sh-ln"><div class="sh-lt">${esc(p.titolo)}<small>${shEur(p.prezzo)} cad.</small></div>${shStepper(p)}<b>${shEur(p.prezzo * SH.cart[p.id])}</b></div>`).join('')}
-      <div class="sh-ln tot"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
-    <div class="card"><h2>Come lo vuoi?</h2>
-      ${ritiro ? `<label class="sh-mod"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro'"><span><b>Ritiro in struttura</b>${c.ritiro_luogo ? `<small>${esc(c.ritiro_luogo)}</small>` : ''}</span></label>` : ''}
-      ${consegna ? `<label class="sh-mod"><input type="radio" name="shm" ${SH.mod === 'consegna' ? 'checked' : ''} onchange="SH.mod='consegna'"><span><b>Consegna in alloggio</b><small>Te lo portiamo noi</small></span></label>` : ''}
+  if (!SH.mod || !(SH.mod === 'ritiro' ? ritiro : consegna)) SH.mod = (ritiro && !consegna) ? 'ritiro' : (!ritiro && consegna ? 'consegna' : '');
+  if (SH.step === 2) {
+    box.innerHTML = `${shPassi()}<div class="card"><h2>Modalità di consegna</h2><p class="guida">Scegli come vuoi ricevere il tuo ordine.</p>
+      ${ritiro ? `<label class="sh-mod${SH.mod === 'ritiro' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro';shDisegna()"><span><b>Ritiro al Bar piscina</b><small>${esc(c.ritiro_luogo || 'Passa a ritirarlo quando è pronto')}</small></span></label>` : ''}
+      ${consegna ? `<label class="sh-mod${SH.mod === 'consegna' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'consegna' ? 'checked' : ''} onchange="SH.mod='consegna';shDisegna()"><span><b>Consegna in alloggio</b><small>Te lo portiamo noi, nella fascia oraria che scegli</small></span></label>` : ''}
+      ${SH.mod === 'ritiro' ? shMappaRitiro() : ''}${SH.mod === 'consegna' ? shFasceHtml() : ''}</div>
+      <button type="button" class="submit" id="sh-avanti" onclick="shAvanti2()"${shPronto2() ? '' : ' disabled'}>Continua</button>
+      <button type="button" class="btn-secondary" onclick="SH.step=1;shDisegna()">Indietro</button>`;
+    hydrateIcons(box); return;
+  }
+  const dest = SH.mod === 'consegna' ? `Consegna in alloggio · ${SH.giorno === SH.oggi ? 'oggi' : 'domani'} ${shData(SH.giorno)}, ${SH.fascia.replace('-', ' – ')}` : 'Ritiro al Bar piscina';
+  box.innerHTML = `${shPassi()}<div class="card"><h2>Riepilogo</h2>
+      ${righe.map(p => `<div class="sh-rl"><span>${SH.cart[p.id]} × ${esc(p.titolo)}</span><b>${shEur(p.prezzo * SH.cart[p.id])}</b></div>`).join('')}
+      <div class="sh-tt"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
+    <div class="card"><h2>Modalità di consegna</h2><p style="font-weight:700;font-size:15px;margin:6px 0 0">${esc(dest)}</p>
       <div class="field" style="margin-top:12px"><label for="sh-note">Note (facoltative)</label><textarea id="sh-note" rows="2" maxlength="300" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius);font:inherit;font-size:16px" oninput="SH.note=this.value">${esc(SH.note || '')}</textarea></div>
-      <p class="hint">Pagamento alla consegna o in reception. Il pagamento con carta online arriverà presto.</p>
-      <div class="errbox" id="sh-err" style="display:none"></div>
-      <button type="button" class="submit" id="sh-invia" onclick="shInvia()">Invia l'ordine</button>
-      <button type="button" class="btn-secondary" style="margin-top:8px" onclick="SH.vista='catalogo';shDisegna()">Continua gli acquisti</button></div>`;
+      <p class="hint">Pagamento ${SH.mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. Il pagamento con carta online arriverà presto.</p>
+      <div class="errbox" id="sh-err" style="display:none"></div></div>
+    <button type="button" class="submit" id="sh-invia" onclick="shInvia()">Invia l'ordine</button>
+    <button type="button" class="btn-secondary" onclick="SH.step=2;shDisegna()">Indietro</button>`;
 }
+function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia); }
+function shAvanti2() { if (!shPronto2()) return; SH.step = 3; shDisegna(); window.scrollTo(0, 0); }
+function shMappaRitiro() {
+  const poi = (typeof POI !== 'undefined' && POI.find(x => x[0] === 'bar_piscina')) || [0, 0, 47.2, 32.8];
+  return `<div style="margin-top:14px"><div class="hint" style="font-weight:800;color:var(--gray-700)">Il punto di ritiro è qui</div>
+    <div class="an-mappa"><img src="img/mappa-villaggio.jpg" alt="Mappa del villaggio: Bar piscina"><span class="an-pin" style="left:${poi[2]}%;top:${poi[3]}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>`;
+}
+function shFasceDelGiorno(giorno) {
+  const adesso = shAdessoMin();
+  return (SH.cfg.fasce || []).filter(f => giorno !== SH.oggi || (+f.slice(0, 2)) * 60 + (+f.slice(3, 5)) >= adesso);
+}
+function shFasceHtml() {
+  const giorni = [[SH.oggi, 'Oggi']];
+  const d = new Date(SH.oggi + 'T12:00:00'); d.setDate(d.getDate() + 1);
+  const dom = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  if (!SH.checkout || dom <= SH.checkout) giorni.push([dom, 'Domani']);
+  if (!giorni.some(g => g[0] === SH.giorno)) { SH.giorno = (shFasceDelGiorno(SH.oggi).length ? SH.oggi : (giorni[1] || giorni[0])[0]); SH.fascia = ''; }
+  const fasce = shFasceDelGiorno(SH.giorno);
+  return `<div style="margin-top:14px"><div class="hint" style="font-weight:800;color:var(--gray-700)">Quando vuoi riceverlo?</div>
+    <div class="sh-days">${giorni.map(([iso, l]) => `<button type="button" class="${SH.giorno === iso ? 'on' : ''}" onclick="SH.giorno='${iso}';SH.fascia='';shDisegna()">${l}<small>${shData(iso)}</small></button>`).join('')}</div>
+    ${fasce.length ? `<div class="sh-fasce">${fasce.map(f => `<button type="button" class="${SH.fascia === f ? 'on' : ''}" onclick="SH.fascia='${f}';shDisegna()">${f.replace('-', ' – ')}</button>`).join('')}</div>`
+      : `<p class="hint" style="margin-top:10px">Per oggi le consegne sono terminate.${giorni.length > 1 ? ' Scegli domani.' : ''}</p>`}</div>`;
+}
+
 async function shInvia() {
   if (SH.invio) return; const btn = $('#sh-invia'), err = $('#sh-err');
   err.style.display = 'none'; SH.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
-    const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
+    const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, giorno: SH.giorno, fascia: SH.fascia, note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
     if (d.ok) {
-      const tot = d.totale, mod = SH.mod; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'conferma';
+      const tot = d.totale, mod = SH.mod, fascia = SH.fascia, giorno = SH.giorno; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'catalogo'; SH.step = 1; SH.fascia = ''; shBadge(); SHO.t = 0;
       $('#service-content').innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Ordine inviato</div>
-        <p style="font-size:16px;line-height:1.5;margin-top:8px">Totale ${shEur(tot)}, da pagare ${mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. ${mod === 'consegna' ? 'Te lo portiamo in alloggio appena pronto.' : 'Ti aspettiamo per il ritiro.'}</p>
-        <button type="button" class="btn-secondary" onclick="SH.vista='ordini';shOrdini($('#service-content'))">Vedi i miei ordini</button>
+        <p style="font-size:16px;line-height:1.5;margin-top:8px">Totale ${shEur(tot)}, da pagare ${mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. ${mod === 'consegna' ? `Te lo portiamo in alloggio ${giorno === SH.oggi ? 'oggi' : 'domani'} tra le ${fascia.replace('-', ' e le ')}.` : 'Ti avvisiamo qui quando è pronto da ritirare al Bar piscina.'}</p>
+        <button type="button" class="submit" style="margin-top:14px" onclick="shApriOrdini()">Segui il tuo ordine</button>
         <button type="button" class="btn-secondary" style="margin-top:8px" onclick="renderShop()">Torna allo shop</button></div>`;
       window.scrollTo(0, 0); return;
     }
-    err.textContent = d.errore === 'esaurito' ? `«${d.prodotto || 'Un prodotto'}» non è più disponibile nella quantità richiesta. Aggiorna il carrello.`
+    err.textContent = d.errore === 'esaurito' ? `«${d.prodotto || 'Un prodotto'}» non è più disponibile nella quantità richiesta. Torna al carrello e controlla.`
       : d.errore === 'troppi_ordini' ? 'Hai già fatto molti ordini oggi. Per altro rivolgiti alla reception.'
+      : d.errore === 'fascia_non_valida' ? 'La fascia scelta non è più disponibile. Torna indietro e scegline un\'altra.'
+      : d.errore === 'giorno_non_valido' ? 'Il giorno scelto non è valido. Torna indietro e riprova.'
       : d.errore === 'non_ancora_arrivato' ? 'Potrai ordinare dal giorno del tuo arrivo.'
       : d.errore === 'soggiorno_concluso' ? 'Il tuo soggiorno è concluso.'
       : d.errore === 'shop_chiuso' ? 'Lo shop è momentaneamente chiuso.'
       : d.errore === 'link_non_valido' ? 'Il link è scaduto. Chiedi alla struttura un nuovo link.'
-      : d.errore === 'prodotto_non_disponibile' ? 'Un prodotto non è più disponibile. Aggiorna il carrello.'
+      : d.errore === 'prodotto_non_disponibile' ? 'Un prodotto non è più disponibile. Torna al carrello e controlla.'
       : 'Invio non riuscito. Riprova.';
-    if (d.errore === 'esaurito' || d.errore === 'prodotto_non_disponibile') { SH.caricato = false; SH.cart = {}; }
+    if (d.errore === 'esaurito' || d.errore === 'prodotto_non_disponibile') SH.caricato = false;
     err.style.display = 'block';
   } catch (e) { err.textContent = 'Connessione assente. Controlla la rete e riprova.'; err.style.display = 'block'; }
   finally { SH.invio = false; if (btn.isConnected) { btn.disabled = false; btn.textContent = "Invia l'ordine"; } }
 }
+
+// ── Cronologia e stato ordini ───────────────────────────────────────────────
+function shTestoStato(o) {
+  if (o.stato === 'nuovo') return 'Ricevuto, lo stiamo preparando';
+  if (o.stato === 'pronto') return o.modalita === 'consegna' ? 'Pronto: te lo portiamo a breve' : 'Pronto: passa a ritirarlo al Bar piscina';
+  if (o.stato === 'consegnato') return 'Consegnato';
+  return 'Annullato';
+}
+function shDoveQuando(o) {
+  return o.modalita === 'consegna' ? `Consegna in alloggio${o.consegna_fascia ? ` · ${shData(o.consegna_data)} ${o.consegna_fascia.replace('-', ' – ')}` : ''}` : 'Ritiro al Bar piscina';
+}
 async function shOrdini(box) {
   box.innerHTML = '<div class="card"><p class="hint">Carico i tuoi ordini…</p></div>';
   let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: 2 }); } catch (e) { d = null; }
-  if (_servizioAperto !== 'shop') return;
-  const ST = { nuovo: 'Ricevuto', pronto: 'Pronto', consegnato: 'Consegnato', annullato: 'Annullato' };
-  box.innerHTML = `<div class="card"><h2>I miei ordini</h2>${!d || !d.ok ? '<p class="hint">Non riesco a caricarli ora.</p>' : (d.ordini.length ? d.ordini.map(o => `
-    <div class="sh-or"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(ST[o.stato] || o.stato)}</span></div>
-    <div class="hint" style="margin:4px 0">${o.righe.map(r => esc(r.quantita + ' × ' + r.titolo)).join(' · ')}</div>
-    <div class="hint">${o.modalita === 'consegna' ? 'Consegna in alloggio' : 'Ritiro'} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'}</div></div>`).join('') : '<p class="hint">Non hai ancora fatto ordini.</p>')}
-    <button type="button" class="btn-secondary" style="margin-top:12px" onclick="renderShop()">Torna allo shop</button></div>`;
+  if (_servizioAperto !== 'shop' || !SH || SH.vista !== 'ordini') return;
+  if (d && d.ok) { SHO.ordini = d.ordini; SHO.t = Date.now(); }
+  const att = d && d.ok ? d.ordini.filter(o => o.stato === 'nuovo' || o.stato === 'pronto') : [], resto = d && d.ok ? d.ordini.filter(o => !(o.stato === 'nuovo' || o.stato === 'pronto')) : [];
+  const card = o => `<div class="sh-or ${esc(o.stato)}"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(SH_STATO[o.stato] || o.stato)}</span></div>
+    <div class="sh-ost">${esc(shTestoStato(o))}</div>
+    <div class="hint" style="margin:6px 0 2px">${o.righe.map(r => esc(r.quantita + ' × ' + r.titolo)).join(' · ')}</div>
+    <div class="hint">${esc(shDoveQuando(o))} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'} · ${esc(new Date(o.creato_il).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }))}</div></div>`;
+  box.innerHTML = !d || !d.ok ? '<div class="card"><p class="hint">Non riesco a caricare gli ordini ora.</p></div>'
+    : `${att.length ? `<div class="card"><h2>In corso</h2>${att.map(card).join('')}</div>` : ''}
+       <div class="card"><h2>Cronologia</h2>${resto.length ? resto.map(card).join('') : `<p class="hint">${att.length ? 'Nessun ordine concluso.' : 'Non hai ancora fatto ordini.'}</p>`}</div>`;
+  box.insertAdjacentHTML('beforeend', '<button type="button" class="btn-secondary" onclick="SH.vista=\'catalogo\';renderShop()">Torna allo shop</button>');
+}
+
+// ── Card «stato ordini» nella home ──────────────────────────────────────────
+async function shopHomeCarica() {
+  if (!CFG || !CFG.shop_attivo || SHO.caricando || Date.now() - SHO.t < 40000) return;
+  SHO.caricando = true;
+  try {
+    const d = await chiama({ azione: 'shop_ordini' }, { ms: 15000 });
+    if (d && d.ok) { const prima = JSON.stringify(SHO.ordini); SHO.ordini = d.ordini; if (prima !== JSON.stringify(d.ordini) && !_servizioAperto) renderHomeExtra(); }
+  } catch (e) {} finally { SHO.caricando = false; SHO.t = Date.now(); }
+}
+function shopAvvisoHome() {
+  const att = (SHO.ordini || []).filter(o => o.stato === 'nuovo' || o.stato === 'pronto'); if (!att.length) return null;
+  const pronto = att.some(o => o.stato === 'pronto'), o = att.find(x => x.stato === 'pronto') || att[0];
+  return { cls: pronto ? 'todo' : 'info', icon: ICONS.BAG, tag: t('Shop'),
+    titolo: att.length > 1 ? t('{n} ordini in corso', { n: att.length }) : (pronto ? t('Il tuo ordine è pronto') : t('Ordine ricevuto')),
+    testo: att.length > 1 ? att.map(x => `${shEur(x.totale)} · ${SH_STATO[x.stato]}`).join(' · ') : `${shTestoStato(o)}. ${shDoveQuando(o)}.`,
+    azione: { label: t('Segui l\'ordine'), fn: 'shApriOrdini()' } };
 }
 
 // ── Ristorazione ──────────────────────────────────────────────────────────
@@ -2471,6 +2610,7 @@ function verificaFase() {
 function avviaAggiornamentoStato() {
   _fase = faseCorrente();
   setInterval(verificaFase, 30000);
+  setInterval(() => { if (!_servizioAperto && document.visibilityState === 'visible') shopHomeCarica(); }, 45000);
   setInterval(() => { if (!_servizioAperto) aggiornaFasce(); }, 30000);   // le fasce orarie cambiano da sole
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verificaFase(); });
   _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || [], CFG.posti_occupati || {}]);

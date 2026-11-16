@@ -291,6 +291,7 @@ const SERVIZI_FOTO = [
   { id: 'ristorazione', nome: 'Ristorazione',   def: 'img/ristorazione.jpg' },
   { id: 'animazione',   nome: 'Animazione',     def: 'img/animazione.jpg' },
   { id: 'info',         nome: 'Info utili',     def: 'img/info.jpg' },
+  { id: 'shop',         nome: 'Shop',           def: 'img/home.jpg' },
   { id: 'mappa_card',   nome: 'Mappa del villaggio (card in home)', def: 'img/mappa-teatro.jpg' },
 ];
 const TESTI = ['contatti_testo', 'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google', 'info_testo', 'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo'];
@@ -728,7 +729,7 @@ async function chkSalva() {
 
 // ── Banner a fasce orarie ────────────────────────────────────────────────
 let FB = { attivo: true, secondi: 6, banner: [] }, FB_BOZZA = false;   // FB_BOZZA: sono i banner predefiniti, non ancora salvati
-const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['manutenzione', 'Segnala un guasto']];
+const FB_SERVIZI = [['ristorazione', 'Ristorazione'], ['navetta', 'Navetta'], ['animazione', 'Animazione'], ['info', 'Info utili'], ['shop', 'Shop'], ['manutenzione', 'Segnala un guasto']];
 const FB_MAX = 12, FB_IMG_MAX = 110000, FB_TOT_MAX = 800000;
 const fbTri = () => ({ it: '', en: '', de: '' });
 function fbCampo(i, campo, label, multi) {
