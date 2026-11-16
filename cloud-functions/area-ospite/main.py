@@ -2057,7 +2057,7 @@ def _paypal_ordine_da_pagare(db, origin, data):
 
 
 SHOP_CONDIZIONI_VER = '2026-11-16'   # versione del testo delle condizioni mostrato in area-ospite/index.html (shCondizioniHtml)
-SHOP_CARTE_OK = ('VISA', 'MASTERCARD', 'MASTER_CARD', 'MAESTRO')   # circuiti accettati: gli altri (Amex, estere...) hanno commissioni piu' alte
+SHOP_CARTE_OK = ('VISA', 'MASTERCARD', 'MASTER_CARD', 'MAESTRO')   # il controllo e' per sottostringa (VISA, MASTER, MAESTRO) per tollerare varianti del nome   # circuiti accettati: gli altri (Amex, estere...) hanno commissioni piu' alte
 
 
 def _azione_shop_paypal_crea(db, origin, data):
@@ -2109,7 +2109,7 @@ def _azione_shop_paypal_cattura(db, origin, data):
             return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito', 'motivo': motivo}, 402)
         ps = j.get('payment_source') or {}
         brand = _s((ps.get('card') or {}).get('brand'), 30).upper().replace(' ', '_')
-        if brand and brand not in SHOP_CARTE_OK:
+        if brand and not any(k in brand for k in ('VISA', 'MASTER', 'MAESTRO')):
             _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/void', None, request_id=f'gh-void-{aid}')
             print(f'Carta rifiutata per circuito: {brand}')
             return _json(origin, {'ok': False, 'errore': 'carta_non_accettata', 'circuito': brand}, 402)

@@ -648,6 +648,7 @@
   .pp-tot { font-family: var(--font-display); font-size: 32px; color: var(--green-700); margin: 2px 0 4px }
 .pp-lbl { display: block; font-size: 13px; font-weight: 800; color: var(--gray-700); margin: 14px 0 6px }
 .pp-f { height: 54px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: #fff; overflow: hidden; transition: border-color .15s, box-shadow .15s }
+.pp-f > div, .pp-f iframe { height: 100% !important; width: 100% !important; border: 0 !important; margin: 0 !important; display: block }
 .pp-f.on { border-color: var(--green-700); box-shadow: 0 0 0 3px rgba(11, 93, 70, .12) }
 .pp-f.ko { border-color: #B42318 }
 .pp-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
@@ -2183,7 +2184,8 @@ async function shPagaCarta(id, tot, attesa) {
   if (!$('#pp-paga')) return;                                     // l'ospite ha cambiato schermata
   const pp = window.paypal;
   const cf = pp.CardFields({
-    style: { input: { 'font-size': '16px', 'font-family': 'sans-serif', color: '#1f2937', padding: '0 14px', border: 'none', background: 'transparent', 'box-shadow': 'none', outline: 'none', 'line-height': '52px' }, '.invalid': { color: '#B42318' } },
+    // PayPal ammette solo poche proprieta' negli iframe (niente border, height, line-height): il riquadro lo disegna la pagina, qui si toglie solo l'outline interno
+    style: { input: { 'font-size': '16px', 'font-family': 'sans-serif', color: '#1f2937', padding: '0 14px', outline: 'none', background: 'transparent' }, ':focus': { outline: 'none' }, '.invalid': { color: '#B42318', outline: 'none' } },
     createOrder: () => ppCrea(id),
     onApprove: d => cattura(d.orderID),
     onError: e => { console.error('PayPal CardFields onError', e); ripristina(); err('Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); },
