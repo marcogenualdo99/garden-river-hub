@@ -69,3 +69,9 @@ Il token è 16–64 hex. Lo genera l'hub (Calendario → "Area ospite"), stessa
 funzione `generaCheckinToken`/scadenza di `checkin_links` (checkout + 3
 giorni), nella collezione `area_ospite_links/{token}`.
 | `shop_catalogo` / `shop_prodotto` / `shop_ordina` / `shop_ordini` / `shop_foto_consegna` | v. `shop/README.md` | catalogo, foto, creazione ordine (prezzi e giacenza riletti in transazione), stato ordini dell'ospite |
+
+## Pagamento con carta (PayPal, pagamenti avanzati)
+
+Variabili d'ambiente della CF (mai nel codice): `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV` (`sandbox` oppure `live`, default sandbox).
+Azioni: `shop_paypal_crea` (crea l'ordine PayPal con l'importo riletto dal database) e `shop_paypal_cattura` (cattura, verifica importo e stato COMPLETED, segna l'ordine `pagamento.stato = pagato` e avvisa il gruppo Market).
+Senza le variabili resta attivo il fallback con link PayPal.Me (se compilato in Hub → Shop → Impostazioni). La carta e' offerta solo con consegna in alloggio, come ultima opzione.

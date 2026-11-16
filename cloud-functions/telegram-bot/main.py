@@ -405,6 +405,8 @@ def _evento(data):
                               data.get('piatti') if isinstance(data.get('piatti'), list) else None, data.get('note'), data.get('unita'))
     if ev == 'shop_ordine':
         return _notifica_shop(data)
+    if ev == 'shop_pagato':
+        return _invia(['market'], f"💳 <b>Pagato con carta</b> · {_e(data.get('ospite_nome'), 80) or '—'} · {_e(data.get('alloggio'), 60) or '—'} · {_eur(data.get('totale'))}")
     if ev == 'test':
         t = f"🔔 Notifica di test (richiesta da {_e(data.get('richiesto_da'), 40) or 'Staff'})"
         return _invia(list(_canali()), t)
