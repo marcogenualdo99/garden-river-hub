@@ -2035,6 +2035,7 @@ function shCheckout(box) {
     <button type="button" class="btn-secondary" onclick="SH.step=2;shDisegna()">Indietro</button>`;
 }
 function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia && SH.pag); }
+function shAvanti2() { if (!shPronto2()) return; SH.step = 3; shDisegna(); window.scrollTo(0, 0); }
 function shPagamentoHtml() {
   const min = Number(SH.cfg.carta_min != null ? SH.cfg.carta_min : 5), sotto = !!SH.cfg.carta_api && shTot() + 1e-9 < min;
   if (!SH.cfg.carta || sotto) { if (SH.pag === 'carta') SH.pag = ''; if (!SH.cfg.carta || sotto) SH.pag = SH.pag || 'contanti'; }
