@@ -1684,6 +1684,18 @@ def _min_hhmm(m):
     return '%02d:%02d' % (m // 60, m % 60)
 
 
+def _shop_coppia(r):
+    """Intervallo orario come (dalle, alle): accetta 'HH:MM-HH:MM', [a, b] o {'da': a, 'a': b} (Firestore non ammette array di array)."""
+    if isinstance(r, str) and '-' in r:
+        a, _, b = r.partition('-')
+        return a.strip(), b.strip()
+    if isinstance(r, (list, tuple)) and len(r) == 2:
+        return r[0], r[1]
+    if isinstance(r, dict):
+        return r.get('da'), r.get('a')
+    return None
+
+
 def _shop_fasce_norm(c):
     """Configurazione fasce di consegna (passo in minuti + intervalli) validata; ripiego sui predefiniti."""
     c = c if isinstance(c, dict) else {}
@@ -1694,8 +1706,9 @@ def _shop_fasce_norm(c):
     passo = passo if 5 <= passo <= 120 else 15
     interv = []
     for r in (c.get('intervalli') if isinstance(c.get('intervalli'), list) else []):
-        if isinstance(r, (list, tuple)) and len(r) == 2:
-            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+        cp = _shop_coppia(r)
+        if cp:
+            a, b = _hhmm_min(cp[0]), _hhmm_min(cp[1])
             if a is not None and b is not None and b - a >= passo:
                 interv.append([_min_hhmm(a), _min_hhmm(b)])
     interv = interv[:6]
@@ -1708,8 +1721,9 @@ def _shop_ritiro_norm(v):
     """Orari in cui si puo' ritirare al bar: lista di intervalli [dalle, alle]; vuota = nessun limite."""
     out = []
     for r in (v if isinstance(v, list) else []):
-        if isinstance(r, (list, tuple)) and len(r) == 2:
-            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+        cp = _shop_coppia(r)
+        if cp:
+            a, b = _hhmm_min(cp[0]), _hhmm_min(cp[1])
             if a is not None and b is not None and b > a:
                 out.append([_min_hhmm(a), _min_hhmm(b)])
     return out[:4]

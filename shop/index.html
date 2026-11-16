@@ -435,7 +435,7 @@ async function startSync() {
     _ordiniPronti = true; pronto('o'); render();
     if (nuovi) showToast(nuovi === 1 ? 'Nuovo ordine dallo shop' : nuovi + ' nuovi ordini dallo shop');
   }, err('ordini'));
-  onSnapshot(doc(db, 'impostazioni', 'shop'), s => { if (s.exists()) CFG = { ...CFG, ...s.data() }; render(); }, e => console.error('Errore impostazioni shop', e));
+  onSnapshot(doc(db, 'impostazioni', 'shop'), s => { if (s.exists()) CFG = normalizzaCfg({ ...CFG, ...s.data() }); render(); }, e => console.error('Errore impostazioni shop', e));
 }
 
 // ── RENDER ──────────────────────────────────────────────────────────────────
@@ -453,6 +453,16 @@ function render() {
 function vaiTab(t) { tab = t; render(); window.scrollTo(0, 0); }
 
 // ── ORDINI ──────────────────────────────────────────────────────────────────
+// Firestore non ammette array dentro array: gli intervalli orari si salvano come testi "10:00-12:00" e in pagina diventano coppie [dalle, alle].
+function aCoppie(v) {
+  return (Array.isArray(v) ? v : []).map(r => typeof r === 'string' ? r.split('-').map(x => x.trim()) : Array.isArray(r) ? r : (r && typeof r === 'object' ? [r.da, r.a] : null)).filter(r => r && r.length === 2);
+}
+function inTesti(coppie) { return coppie.map(r => r[0] + '-' + r[1]); }
+function normalizzaCfg(c) {
+  c.ritiro_orari = aCoppie(c.ritiro_orari);
+  if (c.consegna_fasce && typeof c.consegna_fasce === 'object') c.consegna_fasce = { ...c.consegna_fasce, intervalli: aCoppie(c.consegna_fasce.intervalli) };
+  return c;
+}
 const NASCOSTI = ['in_attesa_pagamento', 'abbandonato', 'scaduto'];   // ordini con pagamento carta non completato: l'operatore non li vede
 const STATI = { nuovo: ['Nuovo', 'o'], pronto: ['Pronto', 'a'], consegnato: ['Consegnato', 'g'], annullato: ['Annullato', 'r'] };
 function renderOrdini(el) {
@@ -720,15 +730,15 @@ function renderFasce() {
 }
 async function salvaImpostazioni() {
   const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
-    ritiro_luogo: $('#s-luogo').value.trim(), paypal_me: $('#s-paypal').value.trim(), carta_min: Math.max(0, parseFloat($('#s-cartamin').value) || 0), venditore: $('#s-venditore').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+    ritiro_luogo: $('#s-luogo').value.trim(), paypal_me: $('#s-paypal').value.trim(), carta_min: Math.max(0, parseFloat($('#s-cartamin').value) || 0), venditore: $('#s-venditore').value.trim(), consegna_fasce: { passo: fasceCorrenti().passo, intervalli: inTesti(fasceCorrenti().intervalli) }, ritiro_orari: inTesti(ritiroCorrente()), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
   if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
-  for (const [a, b] of dati.ritiro_orari) { if (!a || !b || b <= a) return showToast('Orari di ritiro: «Alle» deve venire dopo «Dalle»'); }
-  const fc = dati.consegna_fasce;
+  for (const [a, b] of ritiroCorrente()) { if (!a || !b || b <= a) return showToast('Orari di ritiro: «Alle» deve venire dopo «Dalle»'); }
+  const fc = fasceCorrenti();
   if (dati.consegna) {
     if (!fc.intervalli.length) return showToast('Aggiungi almeno un intervallo di consegna');
     for (const [a, b] of fc.intervalli) { if (!a || !b || b <= a) return showToast('Controlla gli orari: «Alle» deve venire dopo «Dalle»'); }
   }
-  try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await setDoc(doc(db, 'impostazioni', 'shop'), dati, { merge: true }); CFG = { ...CFG, ...dati }; showToast('Impostazioni salvate'); }
+  try { await waitForFirebase(); const { db, doc, setDoc } = window._fb; await setDoc(doc(db, 'impostazioni', 'shop'), dati, { merge: true }); CFG = normalizzaCfg({ ...CFG, ...dati }); showToast('Impostazioni salvate'); }
   catch (e) { console.error(e); showToast('Errore durante il salvataggio'); }
 }
 
