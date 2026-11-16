@@ -1751,6 +1751,7 @@ def _shop_catalogo_leggi(db):
                          'prezzo': round(_shop_num(x.get('prezzo')), 2),
                          'foto': foto[0] if foto else '', 'n_foto': len(foto),
                          'giacenza': giac,
+                         'evidenza': x.get('in_evidenza') is True, 'novita': x.get('novita') is True,
                          'esaurito': x.get('esaurito') is True or (giac is not None and giac <= 0),
                          'ordine': _shop_num(x.get('ordine'))})
         prod.sort(key=lambda p: (p['ordine'], p['titolo'].lower()))

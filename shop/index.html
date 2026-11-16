@@ -568,6 +568,8 @@ function renderFoglio() {
       ${F.foto.length < FOTO_MAX ? '<div class="sh-add" onclick="fotoAggiungi()">+</div>' : ''}</div></div>
     <label class="sh-f">Quantità disponibile (lascia vuoto se illimitata)<input type="number" inputmode="numeric" min="0" step="1" value="${F.giacenza == null ? '' : esc(F.giacenza)}" oninput="F.giacenza=this.value===''?null:Math.max(0,parseInt(this.value)||0)"><span class="sh-hint">Si scala da sola a ogni ordine; a zero il prodotto risulta esaurito.</span></label>
     <label class="sh-chk"><input type="checkbox"${F.esaurito ? ' checked' : ''} onchange="F.esaurito=this.checked"><span>Segna come esaurito<small>L'ospite lo vede ma non può ordinarlo.</small></span></label>
+    <label class="sh-chk"><input type="checkbox"${F.in_evidenza ? ' checked' : ''} onchange="F.in_evidenza=this.checked"><span>In evidenza<small>Compare in cima al catalogo, nella fila «In evidenza».</small></span></label>
+    <label class="sh-chk"><input type="checkbox"${F.novita ? ' checked' : ''} onchange="F.novita=this.checked"><span>Novità<small>Mostra l'etichetta «Novità» sul prodotto.</small></span></label>
     <label class="sh-chk"><input type="checkbox"${F.attivo !== false ? ' checked' : ''} onchange="F.attivo=this.checked"><span>Visibile agli ospiti<small>Togli la spunta per nasconderlo senza eliminarlo.</small></span></label>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
       <button class="sh-btn p" style="flex:1" id="f-salva" onclick="salvaProdotto()">Salva</button>
@@ -606,7 +608,7 @@ function ridimensiona(file) {
 async function scriviProdotto(p) {
   await waitForFirebase(); const { db, doc, setDoc } = window._fb;
   const dati = { titolo: p.titolo.trim(), descrizione: (p.descrizione || '').trim(), prezzo: Math.round(parseFloat(String(p.prezzo).replace(',', '.')) * 100) / 100,
-    categoriaId: p.categoriaId, foto: p.foto || [], attivo: p.attivo !== false, esaurito: !!p.esaurito, giacenza: p.giacenza == null ? null : p.giacenza,
+    categoriaId: p.categoriaId, foto: p.foto || [], attivo: p.attivo !== false, esaurito: !!p.esaurito, in_evidenza: !!p.in_evidenza, novita: !!p.novita, giacenza: p.giacenza == null ? null : p.giacenza,
     ordine: p.ordine || Date.now(), aggiornato_il: new Date().toISOString(), aggiornato_da: currentOperatore };
   await setDoc(doc(db, 'shop_prodotti', p.id), dati, { merge: true });
 }

@@ -560,22 +560,11 @@
   .sh-chips { display: flex; gap: 10px; overflow-x: auto; margin: 4px -16px 16px; padding: 2px 16px 4px; scrollbar-width: none } .sh-chips::-webkit-scrollbar { display: none }
   .sh-chips button { flex-shrink: 0; background: #fff; border: 2px solid var(--green-200); color: var(--green-700); font: 800 16px var(--font); height: 48px; padding: 0 24px; border-radius: 999px; white-space: nowrap; cursor: pointer }
   .sh-chips button.on { background: var(--green-700); border-color: var(--green-700); color: #fff }
-  .sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 84px }
-  .sh-p { background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column }
-  .sh-p.fin .sh-img { filter: grayscale(.7); opacity: .75 }
-  .sh-img { position: relative; aspect-ratio: 1; background: var(--green-100) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--green-400); cursor: pointer }
-  .sh-img svg { width: 34px; height: 34px }
-  .sh-fin { position: absolute; left: 8px; top: 8px; background: #111827; color: #fff; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px }
-  .sh-info { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1 }
-  .sh-tit { font-weight: 800; font-size: 14.5px; line-height: 1.25; cursor: pointer }
-  .sh-prz { font-weight: 800; color: var(--green-700); font-size: 16px }
   .sh-add { margin-top: auto; border: none; background: var(--green-700); color: #fff; font: 800 14px var(--font); height: 40px; padding: 0 18px; border-radius: 999px; cursor: pointer }
   .sh-st { margin-top: auto; display: flex; align-items: center; justify-content: space-between; background: var(--green-100); border-radius: 999px; height: 40px; padding: 0 4px; min-width: 112px }
   .sh-st b { font-weight: 800; min-width: 26px; text-align: center; font-size: 16px }
   .sh-st button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--green-700); color: #fff; font-size: 20px; line-height: 1; cursor: pointer }
   .sh-st.big { height: 52px; min-width: 150px; padding: 0 6px } .sh-st.big button { width: 40px; height: 40px; font-size: 24px } .sh-st.big b { font-size: 19px }
-  .sh-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(rgba(255,255,255,0), #fff 35%); z-index: 50 }
-  .sh-sheet-act { display: flex; gap: 10px; align-items: center; margin-top: 14px } .sh-sheet-act .submit { flex: 1; margin: 0 }
   .sh-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 2px 0 16px }
   .sh-steps > div { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 13px; color: var(--gray-500) }
   .sh-steps > div span { width: 26px; height: 26px; border-radius: 50%; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-size: 13px } .sh-steps > div span svg { width: 14px; height: 14px }
@@ -599,11 +588,63 @@
   .sh-ost { font-weight: 700; font-size: 14.5px; margin-top: 4px }
   .sh-st-nuovo, .sh-st-pronto, .sh-st-consegnato, .sh-st-annullato { font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px; background: var(--green-100); color: var(--green-700) }
   .sh-st-nuovo { background: #FEF1EA; color: #F2702A } .sh-st-annullato { background: #FEF2F2; color: #DC2626 }
-  .sh-ov { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.5); display: flex; align-items: flex-end; justify-content: center }
-  .sh-sheet { position: relative; background: #fff; width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; border-radius: 24px 24px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom)) }
-  .sh-x { position: absolute; right: 12px; top: 10px; z-index: 2; width: 36px; height: 36px; border: none; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 22px; line-height: 1; cursor: pointer }
-  .sh-gal { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: -4px -4px 0 } .sh-gal img { width: 100%; flex: 0 0 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; scroll-snap-align: center }
   .sh-toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: #111827; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; z-index: 400 }
+
+  header.top.in-shop { min-height: 196px; padding-bottom: 46px }
+  @media (min-width: 560px) { header.top.in-shop { min-height: 210px } }
+  .sh-search { position: relative; z-index: 3; margin: -30px 0 14px; display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 999px; height: 54px; padding: 0 18px; box-shadow: 0 6px 22px rgba(5,51,40,.16) }
+  .sh-search span svg { width: 20px; height: 20px; color: var(--green-700) } .sh-search.sk { background: #fff }
+  .sh-search input { flex: 1; border: none; outline: none; background: transparent; font: 600 16px var(--font); color: var(--gray-900); min-width: 0; -webkit-appearance: none }
+  .sh-msg { background: var(--green-100); color: var(--green-700); border-radius: var(--radius-sm); padding: 12px 14px; font-weight: 700; font-size: 14px; margin: 0 0 14px }
+  .sh-sez { font: 800 19px var(--font-display, var(--font)); margin: 8px 0 12px; color: var(--gray-900) }
+  .sh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding-bottom: 110px }
+  .sh-ev { display: flex; gap: 14px; overflow-x: auto; margin: 0 -16px 8px; padding: 2px 16px 8px; scroll-snap-type: x mandatory; scrollbar-width: none } .sh-ev::-webkit-scrollbar { display: none }
+  .sh-ev .sh-p { flex: 0 0 72%; max-width: 280px; scroll-snap-align: start }
+  .sh-p { background: transparent; display: flex; flex-direction: column; cursor: pointer }
+  .sh-p.fin .sh-img { filter: grayscale(.8); opacity: .7 }
+  .sh-img { position: relative; aspect-ratio: 1; border-radius: 20px; background: var(--green-100) center/cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--green-400); box-shadow: 0 4px 16px rgba(0,0,0,.09); overflow: hidden }
+  .sh-ev .sh-img { aspect-ratio: 4/3 }
+  .sh-img > svg { width: 38px; height: 38px }
+  .sh-pz { position: absolute; left: 10px; bottom: 10px; background: #fff; color: var(--green-900); font: 800 15px var(--font); padding: 6px 12px; border-radius: 999px; box-shadow: 0 2px 8px rgba(0,0,0,.15) }
+  .sh-plus { position: absolute; right: 10px; bottom: 10px; width: 42px; height: 42px; border: none; border-radius: 50%; background: var(--orange); color: #fff; font: 700 28px/1 var(--font); box-shadow: 0 4px 12px rgba(242,112,42,.5); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 0 3px; transition: transform .12s } .sh-plus:active { transform: scale(.88) }
+  .sh-qp { position: absolute; right: 8px; bottom: 8px; height: 42px; display: flex; align-items: center; gap: 2px; background: #fff; border-radius: 999px; padding: 0 4px; box-shadow: 0 4px 12px rgba(0,0,0,.2) }
+  .sh-qp b { min-width: 24px; text-align: center; font-weight: 800; font-size: 15px } .sh-qp button { width: 34px; height: 34px; border: none; border-radius: 50%; background: var(--orange); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; padding: 0 0 2px }
+  .sh-tag { position: absolute; left: 10px; top: 10px; font: 800 11px var(--font); padding: 4px 10px; border-radius: 999px; color: #fff; letter-spacing: .02em }
+  .sh-tag.nuovo { background: var(--green-700) } .sh-tag.poche { background: var(--amber, #D97706) } .sh-tag.nero { background: #111827 }
+  em.sh-tag { position: static; display: inline-block; font-style: normal }
+  .sh-info { padding: 10px 4px 0 }
+  .sh-cat { font: 800 11px var(--font); color: var(--orange); text-transform: uppercase; letter-spacing: .05em }
+  .sh-tit { font: 700 15px/1.25 var(--font); margin-top: 2px; color: var(--gray-900) }
+  .sh-sk { display: block; background: linear-gradient(100deg, var(--gray-100) 30%, #fff 50%, var(--gray-100) 70%); background-size: 200% 100%; animation: shSk 1.3s linear infinite; border-radius: 12px } .sh-img.sh-sk { border-radius: 20px; box-shadow: none }
+  @keyframes shSk { to { background-position: -200% 0 } }
+  .sh-vuoto { text-align: center; padding: 48px 20px; color: var(--gray-500) } .sh-vuoto span svg { width: 54px; height: 54px; margin: 0 auto 10px; color: var(--green-400) } .sh-vuoto h2 { color: var(--gray-900); margin-bottom: 6px } .sh-vuoto p { font-weight: 600; font-size: 15px }
+  .sh-bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 0 14px calc(14px + env(safe-area-inset-bottom)); z-index: 50; pointer-events: none }
+  .sh-bar.nuova { animation: shUp .35s cubic-bezier(.2,.9,.3,1.2) }
+  @keyframes shUp { from { transform: translateY(120%); opacity: 0 } to { transform: none; opacity: 1 } }
+  .sh-pill { pointer-events: auto; width: 100%; max-width: 532px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 8px 0 10px; border: none; border-radius: 999px; background: var(--green-700); color: #fff; font-family: var(--font); cursor: pointer; box-shadow: 0 10px 30px rgba(5,51,40,.4); text-align: left }
+  .sh-mini { display: flex; padding-left: 10px } .sh-mini i { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--green-700); background: var(--green-100) center/cover; margin-left: -10px }
+  .sh-pt { flex: 1; display: flex; flex-direction: column; line-height: 1.2 } .sh-pt b { font-size: 14px } .sh-pt small { font-size: 15px; font-weight: 800; color: #fff; opacity: .9 }
+  .sh-go { display: flex; align-items: center; gap: 4px; background: var(--orange); height: 48px; padding: 0 14px 0 18px; border-radius: 999px; font-weight: 800; font-size: 14px; white-space: nowrap } .sh-go svg { width: 16px; height: 16px; transform: rotate(-90deg) }
+  .shop-badge.bump { animation: shBump .4s ease-out } @keyframes shBump { 40% { transform: scale(1.6) } }
+  .sh-pg { position: fixed; inset: 0; z-index: 300; background: #fff; overflow-y: auto; animation: shUp .28s ease-out }
+  .sh-pgs { max-width: 560px; margin: 0 auto; padding-bottom: 130px; position: relative }
+  .sh-back { position: absolute; left: 14px; top: calc(14px + env(safe-area-inset-top)); z-index: 5; width: 42px; height: 42px; border: none; border-radius: 50%; background: rgba(255,255,255,.92); color: var(--gray-900); box-shadow: 0 2px 10px rgba(0,0,0,.2); display: flex; align-items: center; justify-content: center; cursor: pointer } .sh-back svg { width: 20px; height: 20px }
+  .sh-gal { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none } .sh-gal::-webkit-scrollbar { display: none }
+  .sh-gal img { flex: 0 0 100%; width: 100%; aspect-ratio: 1; object-fit: cover; scroll-snap-align: center }
+  .sh-gal0 { aspect-ratio: 1; background: var(--green-100); display: flex; align-items: center; justify-content: center; color: var(--green-400) } .sh-gal0 svg { width: 64px; height: 64px }
+  .sh-dots { position: absolute; left: 0; right: 0; top: min(100vw, 560px); margin-top: -50px; display: flex; justify-content: center; gap: 6px; z-index: 4 } .sh-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.6); transition: all .2s } .sh-dots i.on { background: #fff; width: 20px; border-radius: 4px }
+  .sh-pgb { position: relative; margin-top: -26px; background: #fff; border-radius: 28px 28px 0 0; padding: 24px 20px 10px; z-index: 3 } .sh-pgb h2 { font: 800 24px/1.2 var(--font); margin: 4px 0 10px }
+  .sh-pgp { display: flex; align-items: center; gap: 12px } .sh-pgp > span { font: 800 28px var(--font); color: var(--green-700) }
+  .sh-pgd { white-space: pre-line; color: var(--gray-700); font-size: 16px; line-height: 1.55; margin-top: 14px }
+  .sh-pgbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 310; background: #fff; border-top: 1px solid var(--gray-100); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; justify-content: center }
+  .sh-pgbar .submit { flex: 1; margin: 0; max-width: 360px }
+  .sh-prog { display: flex; align-items: flex-start; margin: 12px 0 4px }
+  .sh-prog > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 700 11.5px var(--font); color: var(--gray-500); text-align: center; position: relative }
+  .sh-prog > div::before { content: ''; position: absolute; top: 11px; left: -50%; width: 100%; height: 3px; background: var(--gray-300); z-index: 0 } .sh-prog > div:first-child::before { display: none }
+  .sh-prog > div.ok::before { background: var(--green-700) }
+  .sh-prog > div span { width: 24px; height: 24px; border-radius: 50%; background: var(--gray-300); color: #fff; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1 } .sh-prog > div span svg { width: 13px; height: 13px }
+  .sh-prog > div.ok span { background: var(--green-700) } .sh-prog > div.ok { color: var(--green-700) }
+  .sh-prog > div.now span { background: var(--orange); box-shadow: 0 0 0 5px rgba(242,112,42,.2) } .sh-prog > div.now { color: var(--gray-900) }
 </style>
 </head>
 <body>
@@ -768,7 +809,7 @@ const BANNER = {
   ristorazione: { img: 'img/banner/ristorazione.png', tema: 'arancio', deco: 'piatto', h: 185, r: -18, b: -12 },
   animazione:   { img: 'img/gardy.png',               tema: 'verde',   deco: 'sole',   h: 235, r: -86, b: -80 },
   info:         { img: 'img/banner/info.png',         tema: 'arancio', deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
-  shop:         { img: 'img/banner/info.png',         tema: 'verde',   deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
+  shop:         { img: 'img/banner/info.png',         tema: 'verde',   deco: 'stella', h: 160, r: -70, b: -6, sw: 150 },
   manutenzione: { img: 'img/banner/assistenza.svg',   tema: 'arancio', deco: 'bolla',  h: 185, r: -14, b: 4 },
 };
 function impostaBanner(id) {
@@ -1791,7 +1832,7 @@ async function renderShop(vista) {
   const box = $('#service-content');
   if (SH.vista === 'ordini') { shBadge(); return shOrdini(box); }
   if (!SH.caricato) {
-    box.innerHTML = '<div class="card"><p class="hint">Carico lo shop…</p></div>';
+    box.innerHTML = shSkeleton();
     try {
       const d = await chiama({ azione: 'shop_catalogo' }, { ms: 20000, tentativi: 2 });
       if (_servizioAperto !== 'shop') return;
@@ -1802,24 +1843,55 @@ async function renderShop(vista) {
   }
   shDisegna();
 }
+function shSkeleton() {
+  return `<div class="sh-search sk"></div><div class="sh-chips"><span class="sh-sk" style="width:70px;height:48px;border-radius:999px"></span><span class="sh-sk" style="width:110px;height:48px;border-radius:999px"></span><span class="sh-sk" style="width:96px;height:48px;border-radius:999px"></span></div>
+    <div class="sh-grid">${'<div class="sh-p"><div class="sh-img sh-sk"></div><div class="sh-info"><span class="sh-sk" style="height:14px;width:80%"></span><span class="sh-sk" style="height:14px;width:40%"></span></div></div>'.repeat(4)}</div>`;
+}
 function shDisegna() {
   if (_servizioAperto !== 'shop') return;
   shBadge();
   const box = $('#service-content');
   if (SH.vista === 'ordini') return shOrdini(box);
   if (SH.vista === 'checkout') return shCheckout(box);
-  if (!SH.attivo || !SH.prodotti.length) { box.innerHTML = `<div class="card"><h2>Shop</h2><p class="hint">${SH.attivo ? 'Il catalogo è in preparazione: torna a trovarci presto.' : 'Lo shop non è al momento aperto.'}</p></div>`; return; }
-  const lista = SH.prodotti.filter(p => !SH.cat || p.categoriaId === SH.cat), q = shQta();
+  if (!SH.attivo || !SH.prodotti.length) { box.innerHTML = `<div class="sh-vuoto"><span>${ICONS.BAG}</span><h2>Shop</h2><p>${SH.attivo ? 'Il catalogo è in preparazione: torna a trovarci presto.' : 'Lo shop non è al momento aperto.'}</p></div>`; return; }
   box.innerHTML = `
-    ${SH.cfg.messaggio ? `<div class="card"><p class="hint" style="margin:0">${esc(SH.cfg.messaggio)}</p></div>` : ''}
+    <div class="sh-search"><span>${ICONS.SEARCH}</span><input type="search" id="sh-q" placeholder="Cerca nello shop" value="${esc(SH.q || '')}" oninput="SH.q=this.value;shRes()" enterkeyhint="search"></div>
+    ${SH.cfg.messaggio ? `<div class="sh-msg">${esc(SH.cfg.messaggio)}</div>` : ''}
     <div class="sh-chips"><button type="button" class="${SH.cat ? '' : 'on'}" onclick="SH.cat='';shDisegna()">Tutto</button>${SH.categorie.map(c => `<button type="button" class="${SH.cat === c.id ? 'on' : ''}" onclick="SH.cat='${esc(c.id)}';shDisegna()">${esc(c.nome)}</button>`).join('')}</div>
-    <div class="sh-grid">${lista.map(p => `
-      <div class="sh-p${p.esaurito ? ' fin' : ''}">
-        <div class="sh-img" onclick="shDettaglio('${esc(p.id)}')"${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}>${p.foto ? '' : ICONS.BAG}${p.esaurito ? '<span class="sh-fin">Esaurito</span>' : ''}</div>
-        <div class="sh-info"><div class="sh-tit" onclick="shDettaglio('${esc(p.id)}')">${esc(p.titolo)}</div><div class="sh-prz">${shEur(p.prezzo)}</div>
-        ${p.esaurito ? '' : shStepper(p)}</div></div>`).join('')}</div>
-    ${q ? `<div class="sh-bar"><button type="button" class="submit" onclick="shVaiCheckout()">Completa l'ordine · ${q} ${q === 1 ? 'articolo' : 'articoli'} · ${shEur(shTot())}</button></div>` : ''}`;
+    <div id="sh-res"></div><div id="sh-barra"></div>`;
+  shRes(); shBarraAgg();
   hydrateIcons(box);
+}
+function shCard(p, evid) {
+  const id = esc(p.id), n = SH.cart[p.id] || 0, poche = p.giacenza != null && p.giacenza > 0 && p.giacenza <= 3;
+  const tag = p.esaurito ? '<span class="sh-tag nero">Esaurito</span>' : (p.novita ? '<span class="sh-tag nuovo">Novità</span>' : (poche ? '<span class="sh-tag poche">Ultimi pezzi</span>' : ''));
+  const azione = p.esaurito ? '' : (n
+    ? `<div class="sh-qp"><button type="button" onclick="event.stopPropagation();shCambia('${id}',-1)" aria-label="Meno">−</button><b>${n}</b><button type="button" onclick="event.stopPropagation();shCambia('${id}',1)" aria-label="Più">+</button></div>`
+    : `<button type="button" class="sh-plus" onclick="event.stopPropagation();shCambia('${id}',1)" aria-label="Aggiungi al carrello">+</button>`);
+  return `<div class="sh-p${p.esaurito ? ' fin' : ''}${evid ? ' ev' : ''}" onclick="shDettaglio('${id}')">
+    <div class="sh-img"${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}>${p.foto ? '' : ICONS.BAG}${tag}<span class="sh-pz">${shEur(p.prezzo)}</span>${azione}</div>
+    <div class="sh-info"><div class="sh-cat">${esc(shCatNome(p.categoriaId))}</div><div class="sh-tit">${esc(p.titolo)}</div></div></div>`;
+}
+function shCatNome(id) { const c = SH.categorie.find(x => x.id === id); return c ? c.nome : ''; }
+function shRes() {
+  const el = $('#sh-res'); if (!el) return;
+  const q = (SH.q || '').trim().toLowerCase();
+  const lista = SH.prodotti.filter(p => (!SH.cat || p.categoriaId === SH.cat) && (!q || (p.titolo + ' ' + p.descrizione).toLowerCase().includes(q)));
+  const ev = (!q && !SH.cat) ? SH.prodotti.filter(p => p.evidenza && !p.esaurito) : [];
+  el.innerHTML = (ev.length ? `<div class="sh-sez">In evidenza</div><div class="sh-ev">${ev.map(p => shCard(p, true)).join('')}</div><div class="sh-sez">${SH.cat ? esc(shCatNome(SH.cat)) : 'Tutti i prodotti'}</div>` : '')
+    + (lista.length ? `<div class="sh-grid">${lista.map(p => shCard(p)).join('')}</div>` : `<div class="sh-vuoto"><span>${ICONS.SEARCH}</span><p>${q ? 'Nessun prodotto trovato.' : 'Nessun prodotto in questa categoria.'}</p></div>`);
+  hydrateIcons(el);
+}
+function shBarraAgg() {
+  const el = $('#sh-barra'); if (!el) return;
+  const q = shQta();
+  if (!q) { el.innerHTML = ''; return; }
+  const miniature = SH.prodotti.filter(p => SH.cart[p.id]).slice(0, 3);
+  const nuova = !el.firstChild;
+  el.innerHTML = `<div class="sh-bar${nuova ? ' nuova' : ''}"><button type="button" class="sh-pill" onclick="shVaiCheckout()">
+    <span class="sh-mini">${miniature.map(p => `<i${p.foto ? ` style="background-image:url('${p.foto}')"` : ''}></i>`).join('')}</span>
+    <span class="sh-pt"><b>${q} ${q === 1 ? 'articolo' : 'articoli'}</b><small>${shEur(shTot())}</small></span>
+    <span class="sh-go">Completa l'ordine ${ICONS.CHEVRON}</span></button></div>`;
 }
 function shStepper(p, grande) {
   const n = SH.cart[p.id] || 0, id = esc(p.id);
@@ -1832,16 +1904,16 @@ function shCambia(id, d) {
   const max = p.giacenza != null ? Math.min(20, p.giacenza) : 20;
   if (n > max) { n = max; shAvviso(p.giacenza != null ? 'Disponibili solo ' + max : 'Massimo ' + max + ' per prodotto'); }
   if (n <= 0) delete SH.cart[id]; else SH.cart[id] = n;
-  if (SH.dett) shDettaglioDisegna();
-  if (SH.vista === 'checkout' && !shQta()) { SH.vista = 'catalogo'; }
-  shDisegna();
+  if (d > 0) { const b = $('#shop-badge'); if (b) { b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } }
+  if (SH.dett) shDettBarra();
+  if (SH.vista === 'catalogo') { shBadge(); shRes(); shBarraAgg(); } else shDisegna();
 }
 function shAvviso(m) { const e = document.createElement('div'); e.className = 'sh-toast'; e.textContent = m; document.body.appendChild(e); setTimeout(() => e.remove(), 2200); }
 
 // intestazione: carrello e cronologia
 function shApriCarrello() {
   if (_servizioAperto !== 'shop') { apriServizio('shop'); }
-  if (!SH || !shQta()) return shAvviso('Il carrello è vuoto');
+  if (!SH) SH = shNuovo();
   shVaiCheckout();
 }
 function shApriOrdini() {
@@ -1860,23 +1932,37 @@ async function shDettaglio(id) {
   const p = SH.prodotti.find(x => x.id === id); if (!p) return;
   SH.dett = id; shDettaglioDisegna();
   if (p.n_foto > 1 && !SH.foto[id]) {
-    try { const d = await chiama({ azione: 'shop_prodotto', id }); if (d.ok) { SH.foto[id] = d.foto; if (SH.dett === id) shDettaglioDisegna(); } } catch (e) {}
+    try { const d = await chiama({ azione: 'shop_prodotto', id }); if (d.ok) { SH.foto[id] = d.foto; if (SH.dett === id) shDettGalleria(); } } catch (e) {}
   }
 }
 function shDettaglioDisegna() {
   const p = SH.prodotti.find(x => x.id === SH.dett); if (!p) return shChiudiDett();
   let ov = $('#sh-dett');
-  if (!ov) { ov = document.createElement('div'); ov.id = 'sh-dett'; ov.className = 'sh-ov'; ov.onclick = e => { if (e.target === ov) shChiudiDett(); }; document.body.appendChild(ov); }
-  const foto = SH.foto[p.id] || (p.foto ? [p.foto] : []), n = SH.cart[p.id] || 0;
-  ov.innerHTML = `<div class="sh-sheet"><button type="button" class="sh-x" onclick="shChiudiDett()" aria-label="Chiudi">×</button>
-    ${foto.length ? `<div class="sh-gal">${foto.map(f => `<img src="${esc(f)}" alt="">`).join('')}</div>` : ''}
-    <h2 style="margin:14px 0 4px">${esc(p.titolo)}</h2><div class="sh-prz" style="font-size:22px">${shEur(p.prezzo)}</div>
-    ${p.descrizione ? `<p class="hint" style="white-space:pre-line;margin:12px 0;font-size:15px">${esc(p.descrizione)}</p>` : ''}
-    ${p.esaurito ? '<p class="hint"><b>Al momento esaurito</b></p>'
-      : n ? `<div class="sh-sheet-act">${shStepper(p, true)}<button type="button" class="submit" onclick="shVaiCheckout()">Completa l'ordine · ${shEur(shTot())}</button></div>`
-          : `<button type="button" class="submit" style="margin-top:14px" onclick="shCambia('${esc(p.id)}',1)">Aggiungi al carrello · ${shEur(p.prezzo)}</button>`}</div>`;
+  if (!ov) { ov = document.createElement('div'); ov.id = 'sh-dett'; ov.className = 'sh-pg'; document.body.appendChild(ov); document.body.style.overflow = 'hidden'; }
+  const poche = p.giacenza != null && p.giacenza > 0 && p.giacenza <= 3;
+  ov.innerHTML = `<div class="sh-pgs"><button type="button" class="sh-back" onclick="shChiudiDett()" aria-label="Chiudi">${ICONS.BACK}</button>
+    <div id="sh-galw"></div>
+    <div class="sh-pgb"><div class="sh-cat">${esc(shCatNome(p.categoriaId))}</div><h2>${esc(p.titolo)}</h2>
+      <div class="sh-pgp"><span>${shEur(p.prezzo)}</span>${p.esaurito ? '<em class="sh-tag nero">Esaurito</em>' : (p.novita ? '<em class="sh-tag nuovo">Novità</em>' : (poche ? '<em class="sh-tag poche">Ultimi pezzi</em>' : ''))}</div>
+      ${p.descrizione ? `<p class="sh-pgd">${esc(p.descrizione)}</p>` : ''}</div></div>
+    <div class="sh-pgbar" id="sh-pgbar"></div>`;
+  shDettGalleria(); shDettBarra(); hydrateIcons(ov);
 }
-function shChiudiDett() { if (SH) SH.dett = null; const ov = $('#sh-dett'); if (ov) ov.remove(); }
+function shDettGalleria() {
+  const p = SH.prodotti.find(x => x.id === SH.dett), w = $('#sh-galw'); if (!p || !w) return;
+  const foto = SH.foto[p.id] || (p.foto ? [p.foto] : []);
+  w.innerHTML = foto.length ? `<div class="sh-gal" onscroll="shDots(this)">${foto.map(f => `<img src="${esc(f)}" alt="">`).join('')}</div>${foto.length > 1 ? `<div class="sh-dots">${foto.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}`
+    : `<div class="sh-gal0">${ICONS.BAG}</div>`;
+}
+function shDots(el) { const i = Math.round(el.scrollLeft / el.clientWidth); document.querySelectorAll('.sh-dots i').forEach((d, k) => d.classList.toggle('on', k === i)); }
+function shDettBarra() {
+  const p = SH.prodotti.find(x => x.id === SH.dett), b = $('#sh-pgbar'); if (!p || !b) return;
+  const n = SH.cart[p.id] || 0;
+  b.innerHTML = p.esaurito ? '<p class="hint" style="text-align:center;margin:0"><b>Al momento esaurito</b></p>'
+    : n ? `${shStepper(p, true)}<button type="button" class="submit" onclick="shVaiCheckout()">Vai al carrello · ${shEur(shTot())}</button>`
+        : `<button type="button" class="submit" onclick="shCambia('${esc(p.id)}',1)">Aggiungi al carrello · ${shEur(p.prezzo)}</button>`;
+}
+function shChiudiDett() { if (SH) SH.dett = null; const ov = $('#sh-dett'); if (ov) ov.remove(); document.body.style.overflow = ''; }
 
 // ── Checkout a passi ────────────────────────────────────────────────────────
 function shPassi() {
@@ -1885,7 +1971,11 @@ function shPassi() {
 }
 function shCheckout(box) {
   const righe = SH.prodotti.filter(p => SH.cart[p.id]);
-  if (!righe.length) { SH.vista = 'catalogo'; return shDisegna(); }
+  if (!righe.length) {
+    box.innerHTML = `<div class="sh-vuoto"><span>${ICONS.BAG}</span><h2>Il carrello è vuoto</h2><p>Sfoglia lo shop e aggiungi qualcosa che ti piace.</p>
+      <button type="button" class="submit" style="margin-top:18px" onclick="SH.vista='catalogo';renderShop()">Vai allo shop</button></div>`;
+    hydrateIcons(box); return;
+  }
   if (SH.step === 1) {
     box.innerHTML = `${shPassi()}<div class="card"><h2>Il tuo carrello</h2>
       ${righe.map(p => `<div class="sh-ln">
@@ -1979,6 +2069,11 @@ function shTestoStato(o) {
   if (o.stato === 'consegnato') return 'Consegnato';
   return 'Annullato';
 }
+function shProgresso(o) {
+  if (o.stato === 'annullato') return '';
+  const i = { nuovo: 0, pronto: 1, consegnato: 2 }[o.stato] ?? 0, et = ['Ricevuto', 'Pronto', o.modalita === 'consegna' ? 'Consegnato' : 'Ritirato'];
+  return `<div class="sh-prog">${et.map((l, k) => `<div class="${k < i || (k === i && i === 2) ? 'ok' : (k === i ? 'now' : '')}"><span>${k < i || (k === i && i === 2) ? ICONS.CHECK : ''}</span>${l}</div>`).join('')}</div>`;
+}
 function shDoveQuando(o) {
   return o.modalita === 'consegna' ? `Consegna in alloggio${o.consegna_fascia ? ` · ${shData(o.consegna_data)} ${o.consegna_fascia.replace('-', ' – ')}` : ''}` : 'Ritiro al Bar piscina';
 }
@@ -1989,7 +2084,7 @@ async function shOrdini(box) {
   if (d && d.ok) { SHO.ordini = d.ordini; SHO.t = Date.now(); }
   const att = d && d.ok ? d.ordini.filter(o => o.stato === 'nuovo' || o.stato === 'pronto') : [], resto = d && d.ok ? d.ordini.filter(o => !(o.stato === 'nuovo' || o.stato === 'pronto')) : [];
   const card = o => `<div class="sh-or ${esc(o.stato)}"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(SH_STATO[o.stato] || o.stato)}</span></div>
-    <div class="sh-ost">${esc(shTestoStato(o))}</div>
+    ${shProgresso(o)}<div class="sh-ost">${esc(shTestoStato(o))}</div>
     <div class="hint" style="margin:6px 0 2px">${o.righe.map(r => esc(r.quantita + ' × ' + r.titolo)).join(' · ')}</div>
     <div class="hint">${esc(shDoveQuando(o))} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'} · ${esc(new Date(o.creato_il).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }))}</div></div>`;
   box.innerHTML = !d || !d.ok ? '<div class="card"><p class="hint">Non riesco a caricare gli ordini ora.</p></div>'
