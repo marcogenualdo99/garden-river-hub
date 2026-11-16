@@ -552,8 +552,8 @@
   .lang-menu { position: absolute; z-index: 60; background: #fff; border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; min-width: 150px }
   .lang-menu button { text-align: left; border: none; background: none; padding: 10px 12px; border-radius: 10px; font: 700 14px var(--font); color: var(--gray-900); cursor: pointer } .lang-menu button.on { background: var(--green-50); color: var(--green-700) } .lang-menu button:active { background: var(--gray-50) }
   /* Shop */
-  header.top .shop-btn { display: none; position: relative; width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.12); color: #fff; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
-  header.top .shop-btn svg { width: 19px; height: 19px } header.top .shop-btn:active { background: rgba(255,255,255,.25) }
+  header.top .shop-btn { display: none; position: relative; width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; border: none; background: #fff; color: var(--green-700); box-shadow: 0 2px 8px rgba(0,0,0,.22); align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
+  header.top .shop-btn svg { width: 19px; height: 19px } header.top .shop-btn:active { background: var(--green-100) }
   header.top.in-shop .shop-btn { display: flex } header.top.in-shop .info-btn { display: none }
   header.top.in-shop .lang-btn { margin-left: auto }
   .shop-badge { display: none; position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--orange); color: #fff; border: 2px solid #fff; font: 800 11px/1 var(--font); font-style: normal; align-items: center; justify-content: center }
@@ -565,7 +565,7 @@
   .sh-st b { font-weight: 800; min-width: 26px; text-align: center; font-size: 16px }
   .sh-st button { width: 32px; height: 32px; border: none; border-radius: 50%; background: var(--green-700); color: #fff; font-size: 20px; line-height: 1; cursor: pointer }
   .sh-st.big { height: 52px; min-width: 150px; padding: 0 6px } .sh-st.big button { width: 40px; height: 40px; font-size: 24px } .sh-st.big b { font-size: 19px }
-  .sh-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 2px 0 16px }
+  .sh-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 24px 0 22px }
   .sh-steps > div { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 13px; color: var(--gray-500) }
   .sh-steps > div span { width: 26px; height: 26px; border-radius: 50%; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; font-size: 13px } .sh-steps > div span svg { width: 14px; height: 14px }
   .sh-steps > div.on { color: var(--green-700) } .sh-steps > div.on span { background: var(--green-700); color: #fff }
@@ -590,8 +590,9 @@
   .sh-st-nuovo { background: #FEF1EA; color: #F2702A } .sh-st-annullato { background: #FEF2F2; color: #DC2626 }
   .sh-toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: #111827; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px; z-index: 400 }
 
-  header.top.in-shop { min-height: 196px; padding-bottom: 46px }
-  @media (min-width: 560px) { header.top.in-shop { min-height: 210px } }
+  header.top.in-shop { min-height: 244px; padding-bottom: 46px }
+  @media (min-width: 560px) { header.top.in-shop { min-height: 256px } }
+  header.top.in-shop .topbar { position: relative; z-index: 4 }
   .sh-search { position: relative; z-index: 3; margin: -30px 0 14px; display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 999px; height: 54px; padding: 0 18px; box-shadow: 0 6px 22px rgba(5,51,40,.16) }
   .sh-search span svg { width: 20px; height: 20px; color: var(--green-700) } .sh-search.sk { background: #fff }
   .sh-search input { flex: 1; border: none; outline: none; background: transparent; font: 600 16px var(--font); color: var(--gray-900); min-width: 0; -webkit-appearance: none }
@@ -638,6 +639,12 @@
   .sh-pgd { white-space: pre-line; color: var(--gray-700); font-size: 16px; line-height: 1.55; margin-top: 14px }
   .sh-pgbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 310; background: #fff; border-top: 1px solid var(--gray-100); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; justify-content: center }
   .sh-pgbar .submit { flex: 1; margin: 0; max-width: 360px }
+  .sh-hc { background: #fff; border-radius: 22px; padding: 16px 16px 14px; margin-bottom: 12px; box-shadow: 0 6px 22px rgba(5,51,40,.12); cursor: pointer; border: 2px solid transparent }
+  .sh-hc.pronto { border-color: var(--orange); box-shadow: 0 6px 22px rgba(242,112,42,.25) }
+  .sh-hh { display: flex; align-items: center; gap: 12px } .sh-hh > div { flex: 1; min-width: 0 } .sh-hh b { display: block; font-size: 16px; line-height: 1.2 } .sh-hh small { color: var(--gray-500); font-weight: 600; font-size: 12.5px }
+  .sh-hi { width: 44px; height: 44px; border-radius: 14px; background: var(--green-700); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0 } .sh-hc.pronto .sh-hi { background: var(--orange) } .sh-hi svg { width: 22px; height: 22px }
+  .sh-hd { font-weight: 700; font-size: 14.5px; margin-top: 6px } .sh-hw { color: var(--gray-500); font-weight: 600; font-size: 13px; margin-top: 2px }
+  .sh-hl { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 999px; background: var(--green-100); color: var(--green-700); font-weight: 800; font-size: 14px } .sh-hc.pronto .sh-hl { background: var(--orange); color: #fff }
   .sh-prog { display: flex; align-items: flex-start; margin: 12px 0 4px }
   .sh-prog > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 700 11.5px var(--font); color: var(--gray-500); text-align: center; position: relative }
   .sh-prog > div::before { content: ''; position: absolute; top: 11px; left: -50%; width: 100%; height: 3px; background: var(--gray-300); z-index: 0 } .sh-prog > div:first-child::before { display: none }
@@ -682,6 +689,7 @@
     <div id="home-view">
       <div id="home-fasce-alto"></div>
       <div id="home-checkin"></div>
+      <div id="home-shop"></div>
       <div id="home-alerts"></div>
       <div id="home-sera"></div>
       <div id="home-oggi"></div>
@@ -809,7 +817,7 @@ const BANNER = {
   ristorazione: { img: 'img/banner/ristorazione.png', tema: 'arancio', deco: 'piatto', h: 185, r: -18, b: -12 },
   animazione:   { img: 'img/gardy.png',               tema: 'verde',   deco: 'sole',   h: 235, r: -86, b: -80 },
   info:         { img: 'img/banner/info.png',         tema: 'arancio', deco: 'stella', h: 205, r: -84, b: -8, sw: 120 },
-  shop:         { img: 'img/banner/info.png',         tema: 'verde',   deco: 'stella', h: 160, r: -70, b: -6, sw: 150 },
+  shop:         { img: 'img/banner/shop.png',         tema: 'verde',   deco: 'stella', h: 124, r: 4, b: -6, sw: 150 },
   manutenzione: { img: 'img/banner/assistenza.svg',   tema: 'arancio', deco: 'bolla',  h: 185, r: -14, b: 4 },
 };
 function impostaBanner(id) {
@@ -1018,7 +1026,6 @@ function avvisiHome() {
   }
   const oggi = oggiData();
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
-  { const sa = (CFG.shop_attivo && !preArrivo()) ? shopAvvisoHome() : null; if (sa) out.push(sa); }
   if (vis('navetta') && corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
   const m = HOME_X.meteo;
   if (vis('pioggia') && m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
@@ -1215,6 +1222,7 @@ document.addEventListener('click', ev => {
 function renderHomeExtra() {
   aggiornaFasce();
   shopHomeCarica();
+  { const hs = $('#home-shop'); if (hs) hs.innerHTML = dopoPartenza() ? '' : shopHomeHtml(); }
   const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
@@ -1373,7 +1381,7 @@ function apriServizio(id) {
   if (id === 'animazione') { if (anHaProgramma()) { _anGiorno = null; _anFiltro = 'tutti'; $('#titolo').textContent = 'Programma Animazione'; $('#sottotitolo').textContent = 'Ciao, sono Gardy! Cosa facciamo oggi?'; return renderAnimazione(s); } $('#service-content').innerHTML = boxPresto(s); return; }
   if (id === 'info') return renderInfo();
   if (id === 'manutenzione') return renderManutenzione();
-  if (id === 'shop') return renderShop();
+  if (id === 'shop') { const wf = $('#wa-footer'); if (wf) wf.style.display = 'none'; return renderShop(); }
 }
 
 // ── I tuoi dati e il conto (pulsante Info nell'header) ─────────────────────
@@ -1436,6 +1444,7 @@ function handleBack() {
 function tornaHome() {
   if (typeof shChiudiDett === 'function' && SH) shChiudiDett();
   _servizioAperto = null; _editId = null; _infoSub = null;
+  { const wf = $('#wa-footer'); if (wf) wf.style.display = ''; }
   const bb = $('#service-view').querySelector('.home-back-btn'); if (bb) bb.style.display = '';
   $('#service-view').style.display = 'none';
   $('#home-view').style.display = 'block';
@@ -1644,6 +1653,7 @@ function renderInfo() {
 function apriInfoSub(id) { _infoSub = id; renderInfo(); window.scrollTo(0, 0); }
 
 function renderWhatsapp() {
+  if (_servizioAperto === 'shop') { const w = $('#wa-footer'); if (w) w.innerHTML = ''; return; }
   const t = CONTENUTI.testi || {};
   let n = (t.assistenza_whatsapp || t.assistenza_telefono || '').replace(/[^\d+]/g, '');
   if (n.startsWith('00')) n = '+' + n.slice(2);
@@ -1991,7 +2001,7 @@ function shCheckout(box) {
   if (!SH.mod || !(SH.mod === 'ritiro' ? ritiro : consegna)) SH.mod = (ritiro && !consegna) ? 'ritiro' : (!ritiro && consegna ? 'consegna' : '');
   if (SH.step === 2) {
     box.innerHTML = `${shPassi()}<div class="card"><h2>Modalità di consegna</h2><p class="guida">Scegli come vuoi ricevere il tuo ordine.</p>
-      ${ritiro ? `<label class="sh-mod${SH.mod === 'ritiro' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro';shDisegna()"><span><b>Ritiro al Bar piscina</b><small>${esc(c.ritiro_luogo || 'Passa a ritirarlo quando è pronto')}</small></span></label>` : ''}
+      ${ritiro ? `<label class="sh-mod${SH.mod === 'ritiro' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro';shDisegna()"><span><b>Ritiro al Bar piscina</b><small>${esc(shOrariRitiro(c.ritiro_orari) || c.ritiro_luogo || 'Passa a ritirarlo quando è pronto')}</small></span></label>` : ''}
       ${consegna ? `<label class="sh-mod${SH.mod === 'consegna' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'consegna' ? 'checked' : ''} onchange="SH.mod='consegna';shDisegna()"><span><b>Consegna in alloggio</b><small>Te lo portiamo noi, nella fascia oraria che scegli</small></span></label>` : ''}
       ${SH.mod === 'ritiro' ? shMappaRitiro() : ''}${SH.mod === 'consegna' ? shFasceHtml() : ''}</div>
       <button type="button" class="submit" id="sh-avanti" onclick="shAvanti2()"${shPronto2() ? '' : ' disabled'}>Continua</button>
@@ -2011,10 +2021,13 @@ function shCheckout(box) {
 }
 function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia); }
 function shAvanti2() { if (!shPronto2()) return; SH.step = 3; shDisegna(); window.scrollTo(0, 0); }
+function shOrariRitiro(iv) {
+  if (!Array.isArray(iv) || !iv.length) return '';
+  return 'Ritiro ' + iv.map(r => `${String(r[0]).replace(/^0/, '')} – ${String(r[1]).replace(/^0/, '')}`).join(' e ');
+}
 function shMappaRitiro() {
-  const poi = (typeof POI !== 'undefined' && POI.find(x => x[0] === 'bar_piscina')) || [0, 0, 47.2, 32.8];
-  return `<div style="margin-top:14px"><div class="hint" style="font-weight:800;color:var(--gray-700)">Il punto di ritiro è qui</div>
-    <div class="an-mappa"><img src="img/mappa-villaggio.jpg" alt="Mappa del villaggio: Bar piscina"><span class="an-pin" style="left:${poi[2]}%;top:${poi[3]}%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>`;
+  return `<div style="margin-top:14px"><div class="hint" style="font-weight:800;color:var(--gray-700)">Il punto di ritiro è qui${SH.cfg.ritiro_luogo ? ' · ' + esc(SH.cfg.ritiro_luogo) : ''}</div>
+    <div class="an-mappa"><img src="img/mappa-bar-piscina.jpg" alt="Mappa del villaggio: Bar piscina"><span class="an-pin" style="left:50%;top:50%"><b><svg viewBox="0 0 40 52" width="44" height="58" aria-hidden="true"><path d="M20 2C10 2 2 10 2 20c0 13 18 30 18 30s18-17 18-30C38 10 30 2 20 2z" fill="#F2702A" stroke="#fff" stroke-width="3"/><circle cx="20" cy="20" r="7" fill="#fff"/></svg></b></span></div></div>`;
 }
 function shFasceDelGiorno(giorno) {
   const adesso = shAdessoMin();
@@ -2075,13 +2088,16 @@ function shProgresso(o) {
   return `<div class="sh-prog">${et.map((l, k) => `<div class="${k < i || (k === i && i === 2) ? 'ok' : (k === i ? 'now' : '')}"><span>${k < i || (k === i && i === 2) ? ICONS.CHECK : ''}</span>${l}</div>`).join('')}</div>`;
 }
 function shDoveQuando(o) {
-  return o.modalita === 'consegna' ? `Consegna in alloggio${o.consegna_fascia ? ` · ${shData(o.consegna_data)} ${o.consegna_fascia.replace('-', ' – ')}` : ''}` : 'Ritiro al Bar piscina';
+  return o.modalita === 'consegna' ? `Consegna in alloggio${o.consegna_fascia ? ` · ${shData(o.consegna_data)} ${o.consegna_fascia.replace('-', ' – ')}` : ''}` : 'Ritiro al Bar piscina' + (SHO.orari && SHO.orari.length ? ' · ' + shOrariRitiro(SHO.orari).replace('Ritiro ', '') : '');
 }
-async function shOrdini(box) {
-  box.innerHTML = '<div class="card"><p class="hint">Carico i tuoi ordini…</p></div>';
-  let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: 2 }); } catch (e) { d = null; }
+async function shOrdini(box, silente) {
+  if (!silente) box.innerHTML = '<div class="card"><p class="hint">Carico i tuoi ordini…</p></div>';
+  let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: silente ? 1 : 2 }); } catch (e) { d = null; }
   if (_servizioAperto !== 'shop' || !SH || SH.vista !== 'ordini') return;
-  if (d && d.ok) { SHO.ordini = d.ordini; SHO.t = Date.now(); }
+  if (d && d.ok) { SHO.ordini = d.ordini; SHO.orari = d.ritiro_orari || []; SHO.t = Date.now(); }
+  const firma = JSON.stringify(d && d.ok ? [d.ordini, d.ritiro_orari] : 0);
+  if (silente && (!d || !d.ok || firma === SH.ordFirma)) return;        // niente cambiato: non ridisegno
+  SH.ordFirma = firma;
   const att = d && d.ok ? d.ordini.filter(o => o.stato === 'nuovo' || o.stato === 'pronto') : [], resto = d && d.ok ? d.ordini.filter(o => !(o.stato === 'nuovo' || o.stato === 'pronto')) : [];
   const card = o => `<div class="sh-or ${esc(o.stato)}"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(SH_STATO[o.stato] || o.stato)}</span></div>
     ${shProgresso(o)}<div class="sh-ost">${esc(shTestoStato(o))}</div>
@@ -2091,24 +2107,37 @@ async function shOrdini(box) {
     : `${att.length ? `<div class="card"><h2>In corso</h2>${att.map(card).join('')}</div>` : ''}
        <div class="card"><h2>Cronologia</h2>${resto.length ? resto.map(card).join('') : `<p class="hint">${att.length ? 'Nessun ordine concluso.' : 'Non hai ancora fatto ordini.'}</p>`}</div>`;
   box.insertAdjacentHTML('beforeend', '<button type="button" class="btn-secondary" onclick="SH.vista=\'catalogo\';renderShop()">Torna allo shop</button>');
+  hydrateIcons(box);
 }
 
 // ── Card «stato ordini» nella home ──────────────────────────────────────────
 async function shopHomeCarica() {
-  if (!CFG || !CFG.shop_attivo || SHO.caricando || Date.now() - SHO.t < 40000) return;
+  if (!CFG || !CFG.shop_attivo || SHO.caricando) return;
+  const attivi = (SHO.ordini || []).some(o => o.stato === 'nuovo' || o.stato === 'pronto');
+  if (Date.now() - SHO.t < (attivi ? 6000 : 60000)) return;
   SHO.caricando = true;
   try {
     const d = await chiama({ azione: 'shop_ordini' }, { ms: 15000 });
-    if (d && d.ok) { const prima = JSON.stringify(SHO.ordini); SHO.ordini = d.ordini; if (prima !== JSON.stringify(d.ordini) && !_servizioAperto) renderHomeExtra(); }
+    if (d && d.ok) { const prima = JSON.stringify(SHO.ordini); SHO.ordini = d.ordini; SHO.orari = d.ritiro_orari || []; if (prima !== JSON.stringify(d.ordini) && !_servizioAperto) renderHomeExtra(); }
   } catch (e) {} finally { SHO.caricando = false; SHO.t = Date.now(); }
 }
-function shopAvvisoHome() {
-  const att = (SHO.ordini || []).filter(o => o.stato === 'nuovo' || o.stato === 'pronto'); if (!att.length) return null;
-  const pronto = att.some(o => o.stato === 'pronto'), o = att.find(x => x.stato === 'pronto') || att[0];
-  return { cls: pronto ? 'todo' : 'info', icon: ICONS.BAG, tag: t('Shop'),
-    titolo: att.length > 1 ? t('{n} ordini in corso', { n: att.length }) : (pronto ? t('Il tuo ordine è pronto') : t('Ordine ricevuto')),
-    testo: att.length > 1 ? att.map(x => `${shEur(x.totale)} · ${SH_STATO[x.stato]}`).join(' · ') : `${shTestoStato(o)}. ${shDoveQuando(o)}.`,
-    azione: { label: t('Segui l\'ordine'), fn: 'shApriOrdini()' } };
+// aggiornamento automatico: cronologia aperta oppure home con ordini in corso
+function shPoll() {
+  if (document.visibilityState !== 'visible' || !CFG || !CFG.shop_attivo) return;
+  if (_servizioAperto === 'shop') { if (SH && SH.vista === 'ordini' && !SH.dett) shOrdini($('#service-content'), true); return; }
+  if (!_servizioAperto) shopHomeCarica();
+}
+function shopHomeHtml() {
+  if (!CFG || !CFG.shop_attivo || preArrivo()) return '';
+  const att = (SHO.ordini || []).filter(o => o.stato === 'nuovo' || o.stato === 'pronto'); if (!att.length) return '';
+  return `<div class="sez">${esc(t('I tuoi ordini'))}</div>` + att.map(o => {
+    const n = o.righe.reduce((x, r) => x + (r.quantita || 0), 0), pronto = o.stato === 'pronto';
+    return `<div class="sh-hc${pronto ? ' pronto' : ''}" onclick="shApriOrdini()">
+      <div class="sh-hh"><span class="sh-hi">${ICONS.BAG}</span><div><b>${esc(pronto ? t('Il tuo ordine è pronto') : t('Ordine in preparazione'))}</b><small>${esc(shEur(o.totale))} · ${n} ${n === 1 ? 'articolo' : 'articoli'}</small></div></div>
+      ${shProgresso(o)}
+      <div class="sh-hd">${esc(shTestoStato(o))}</div><div class="sh-hw">${esc(shDoveQuando(o))}</div>
+      <div class="sh-hl">${esc(t('Segui l\'ordine'))} ${ICONS.CHEVRON}</div></div>`;
+  }).join('');
 }
 
 // ── Ristorazione ──────────────────────────────────────────────────────────
@@ -2705,7 +2734,7 @@ function verificaFase() {
 function avviaAggiornamentoStato() {
   _fase = faseCorrente();
   setInterval(verificaFase, 30000);
-  setInterval(() => { if (!_servizioAperto && document.visibilityState === 'visible') shopHomeCarica(); }, 45000);
+  setInterval(shPoll, 8000);
   setInterval(() => { if (!_servizioAperto) aggiornaFasce(); }, 30000);   // le fasce orarie cambiano da sole
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verificaFase(); });
   _ultimoStato = JSON.stringify([CFG.navetta_corse || [], CFG.orari_occupati || [], CFG.posti_occupati || {}]);

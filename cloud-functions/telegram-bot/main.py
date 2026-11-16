@@ -45,6 +45,7 @@ REPARTI = {
     'pulizie':      '🧹 Pulizie',
     'reception':    '🛎️ Reception',
     'ristorazione': '🍽️ Ristorazione',
+    'market':       '🛍️ Market',
 }
 
 EMOJI_STATO = {'checkout_ok': '🧹', 'da_pulire': '🧹', 'pronta': '✅', 'occupata': '🛏️', 'non_disponibile': '🚫'}
@@ -199,6 +200,8 @@ def _callback(cq):
     cid = cq.get('id')
     if dati == 'noop':
         return _tg('answerCallbackQuery', {'callback_query_id': cid})
+    if dati.startswith('shop:'):
+        return _callback_shop(cq, dati, chat_id, msg, cid)
     if not dati.startswith('risolto:'):
         return _tg('answerCallbackQuery', {'callback_query_id': cid})
     # Solo dal gruppo Manutenzione collegato: nessun altro chat puo' chiudere ticket.
@@ -214,6 +217,117 @@ def _callback(cq):
     _tg('answerCallbackQuery', {'callback_query_id': cid, 'text': 'Ticket segnato come risolto'})
     _tg('editMessageReplyMarkup', {'chat_id': chat_id, 'message_id': msg.get('message_id'),
         'reply_markup': {'inline_keyboard': [[{'text': f'✅ Risolto da {chi} · {ora}', 'callback_data': 'noop'}]]}})
+
+
+# ── Market (shop interno) ──────────────────────────────────────────────────
+SHOP_STATI = {'nuovo': '🆕 Ricevuto', 'pronto': '✅ Pronto', 'consegnato': '📦 Consegnato', 'annullato': '❌ Annullato'}
+
+
+def _eur(v):
+    try:
+        return '€ ' + f'{float(v):.2f}'.replace('.', ',')
+    except (TypeError, ValueError):
+        return '€ —'
+
+
+def _shop_testo(o, chi=''):
+    righe = '\n'.join(f"• {int(r.get('quantita') or 0)} × {_e(r.get('titolo'), 80)} — {_eur(r.get('importo'))}"
+                      for r in (o.get('righe') or []) if isinstance(r, dict))
+    pagato = (o.get('pagamento') or {}).get('stato') == 'pagato'
+    stato = o.get('stato') or 'nuovo'
+    if o.get('modalita') == 'consegna':
+        g = str(o.get('consegna_data') or '')
+        gg = f"{g[8:10]}/{g[5:7]}" if len(g) >= 10 else ''
+        dove = f"🚚 <b>Consegna in alloggio</b> · {gg} {_e(o.get('consegna_fascia'), 11).replace('-', ' – ')}"
+    else:
+        dove = '🏊 <b>Ritiro al Bar piscina</b>'
+    tel = _e(o.get('ospite_tel'), 40)
+    return (f"{'🛍️ <b>Nuovo ordine Market</b>' if stato == 'nuovo' else '🛍️ <b>Ordine Market</b>'}\n\n"
+            f"👤 {_e(o.get('ospite_nome'), 80) or '—'} · 🏠 {_e(o.get('alloggio'), 60) or '—'}\n"
+            + (f"📞 {tel}\n" if tel else '') +
+            f"\n{righe}\n\n"
+            f"💶 <b>Totale {_eur(o.get('totale'))}</b> · {'✅ pagato' if pagato else 'da pagare'}\n{dove}\n"
+            + (f"📝 {_e(o.get('note'), 300)}\n" if o.get('note') else '') +
+            f"\n📌 <b>Stato:</b> {SHOP_STATI.get(stato, stato)}" + (f" · {_e(chi, 40)}" if chi and stato != 'nuovo' else ''))
+
+
+def _shop_tastiera(doc_id, o):
+    stato = o.get('stato') or 'nuovo'
+    pagato = (o.get('pagamento') or {}).get('stato') == 'pagato'
+    if stato == 'annullato':
+        return [[{'text': '❌ Ordine annullato', 'callback_data': 'noop'}]]
+    righe = []
+    if stato == 'nuovo':
+        righe.append([{'text': '✅ Pronto', 'callback_data': f'shop:pronto:{doc_id}'}, {'text': '📦 Consegnato', 'callback_data': f'shop:consegnato:{doc_id}'}])
+    elif stato == 'pronto':
+        righe.append([{'text': '📦 Consegnato', 'callback_data': f'shop:consegnato:{doc_id}'}])
+    ultima = []
+    if not pagato:
+        ultima.append({'text': '💶 Segna pagato', 'callback_data': f'shop:pagato:{doc_id}'})
+    if stato in ('nuovo', 'pronto'):
+        ultima.append({'text': '❌ Annulla', 'callback_data': f'shop:annullato:{doc_id}'})
+    if ultima:
+        righe.append(ultima)
+    return righe or [[{'text': '📦 Consegnato e pagato', 'callback_data': 'noop'}]]
+
+
+def _notifica_shop(data):
+    doc_id = str(data.get('doc_id') or '')[:40]
+    o = {**data, 'stato': 'nuovo', 'pagamento': {'stato': 'da_pagare'}}
+    return _invia(['market'], _shop_testo(o), tastiera=_shop_tastiera(doc_id, o) if doc_id else None)
+
+
+def _callback_shop(cq, dati, chat_id, msg, cid):
+    """Pulsanti sotto un ordine del Market: cambia lo stato in Firestore e aggiorna il messaggio."""
+    def risp(testo='', alert=False):
+        return _tg('answerCallbackQuery', {'callback_query_id': cid, **({'text': testo, 'show_alert': alert} if testo else {})})
+    if not chat_id or (_canali().get('market') or {}).get('chat_id') != chat_id:
+        return risp('Non autorizzato', True)
+    parti = dati.split(':', 2)
+    if len(parti) != 3 or parti[1] not in ('pronto', 'consegnato', 'annullato', 'pagato'):
+        return risp()
+    azione, oid = parti[1], parti[2]
+    db = firestore.client()
+    ref = db.collection('shop_ordini').document(oid)
+    snap = ref.get()
+    if not snap.exists:
+        return risp('Ordine non trovato (forse eliminato)', True)
+    o = snap.to_dict() or {}
+    chi = ((cq.get('from') or {}).get('first_name') or 'Staff')[:40]
+    ora = datetime.now(ZoneInfo('Europe/Rome'))
+    stato = o.get('stato') or 'nuovo'
+    firma = {'aggiornato_da': f'{chi} (Telegram)', 'aggiornato_il': ora.isoformat()}
+    if azione == 'pagato':
+        if (o.get('pagamento') or {}).get('stato') == 'pagato':
+            risp('Già segnato come pagato')
+        else:
+            ref.update({'pagamento.stato': 'pagato', 'pagamento.pagato_il': ora.isoformat(), **firma})
+            o['pagamento'] = {**(o.get('pagamento') or {}), 'stato': 'pagato'}
+            risp('Segnato come pagato')
+    else:
+        consentiti = {'nuovo': ('pronto', 'consegnato', 'annullato'), 'pronto': ('consegnato', 'annullato')}
+        if azione not in consentiti.get(stato, ()):
+            risp(f'Ordine già {SHOP_STATI.get(stato, stato)}', True)
+        else:
+            if azione == 'annullato':        # la giacenza dei prodotti torna disponibile
+                for r in (o.get('righe') or []):
+                    try:
+                        pref = db.collection('shop_prodotti').document(str(r.get('id')))
+                        ps = pref.get()
+                        g = (ps.to_dict() or {}).get('giacenza') if ps.exists else None
+                        if isinstance(g, (int, float)) and not isinstance(g, bool):
+                            pref.update({'giacenza': firestore.Increment(int(r.get('quantita') or 0))})
+                    except Exception as ex:
+                        print(f'Ripristino giacenza fallito: {ex}')
+            ref.update({'stato': azione, **firma})
+            o['stato'] = azione
+            risp({'pronto': 'Ordine pronto', 'consegnato': 'Ordine consegnato', 'annullato': 'Ordine annullato'}[azione])
+    try:
+        _tg('editMessageText', {'chat_id': chat_id, 'message_id': msg.get('message_id'), 'text': _shop_testo(o, chi),
+                                'parse_mode': 'HTML', 'disable_web_page_preview': True,
+                                'reply_markup': {'inline_keyboard': _shop_tastiera(oid, o)}})
+    except Exception as ex:
+        print(f'Aggiornamento messaggio ordine fallito: {ex}')
 
 
 # ── Eventi dall'Hub ────────────────────────────────────────────────────────
@@ -289,6 +403,8 @@ def _evento(data):
     if ev == 'ordine':
         return _notifica_ordine(firestore.client(), str(data.get('doc_id') or '')[:120], data.get('famiglia_nome'), data.get('tipo'), data.get('data'),
                               data.get('piatti') if isinstance(data.get('piatti'), list) else None, data.get('note'), data.get('unita'))
+    if ev == 'shop_ordine':
+        return _notifica_shop(data)
     if ev == 'test':
         t = f"🔔 Notifica di test (richiesta da {_e(data.get('richiesto_da'), 40) or 'Staff'})"
         return _invia(list(_canali()), t)

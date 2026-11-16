@@ -1,6 +1,6 @@
 # Bot Telegram — notifiche per reparto
 
-Un bot, cinque gruppi: **manutenzione, navetta, pulizie, reception, ristorazione**. È l'unico canale di notifica dell'Hub (le notifiche push FCM sono state rimosse).
+Un bot, sei gruppi: **manutenzione, navetta, pulizie, reception, ristorazione, market**. È l'unico canale di notifica dell'Hub (le notifiche push FCM sono state rimosse).
 Progetto Google Cloud: garden-river-conti-febed · regione europe-west1 · entry point `telegram_bot`.
 
 | Evento | Gruppo | Origine |
@@ -9,6 +9,7 @@ Progetto Google Cloud: garden-river-conti-febed · regione europe-west1 · entry
 | Cambio stato alloggio | pulizie (+ reception se "Pronta") | `alloggi/`, `calendario/` |
 | Nuova corsa navetta (ospite o staff) | navetta | CF `area-ospite` |
 | Check-in online completato | reception | CF `checkin-online` |
+| Nuovo ordine Market (shop interno), con pulsanti Pronto / Consegnato / Segna pagato / Annulla | market | CF `area-ospite` |
 | Nuovo ordine ristorazione | ristorazione | CF `area-ospite` (ospite) e controllo `ordini_pendenti` (pagina Ristorazione) |
 
 ## 1. Crea il bot
@@ -26,9 +27,9 @@ Variabili d'ambiente:
 Apri nel browser (sostituisci i valori):
 `https://api.telegram.org/bot<TOKEN>/setWebhook?url=<URL_FUNZIONE>&secret_token=<WEBHOOK_SECRET>`
 
-## 4. Crea i 5 gruppi e collegali
+## 4. Crea i gruppi e collegali
 Crea un gruppo per reparto, aggiungi il bot e scrivi nel gruppo:
-`/collega manutenzione <codice>` (idem `navetta`, `pulizie`, `reception`, `ristorazione`).
+`/collega manutenzione <codice>` (idem `navetta`, `pulizie`, `reception`, `ristorazione`, `market`).
 Navetta per autista: `/collega navetta <codice> <Nome autista>` (il nome come in Navetta > Impostazioni). Ogni corsa va al gruppo del suo autista; se non ne ha uno, al gruppo `/collega navetta <codice>` generico.
 Altri comandi: `/stato`, `/scollega <codice>`.
 

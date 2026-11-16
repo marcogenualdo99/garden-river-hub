@@ -637,7 +637,10 @@ function renderImpostazioni(el) {
   el.innerHTML = `<div class="sh-card-set">
     <label class="sh-chk"><input type="checkbox" id="s-attivo"${CFG.attivo ? ' checked' : ''}><span>Shop aperto agli ospiti<small>Se spento, la sezione Shop non compare nell'Area ospite.</small></span></label>
     <label class="sh-chk"><input type="checkbox" id="s-ritiro"${CFG.ritiro !== false ? ' checked' : ''}><span>Ritiro in struttura<small>L'ospite passa a ritirare l'ordine.</small></span></label>
-    <label class="sh-f">Orari o note di ritiro (facoltativo)<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Dalle 9 alle 19"><span class="sh-hint">Il punto di ritiro è il Bar piscina: l'ospite lo vede sulla mappa del villaggio.</span></label>
+    <div class="sh-f">Orari di ritiro al Bar piscina
+      <div id="s-ritiro"></div>
+      <span class="sh-hint">L'ospite li vede nella scelta della modalità e nel suo ordine. Senza intervalli non c'è nessun limite indicato. Il punto è sulla mappa del villaggio.</span></div>
+    <label class="sh-f">Note di ritiro (facoltativo)<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Chiedi al banco del bar"></label>
     <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite, nella fascia oraria che sceglie.</small></span></label>
     <div class="sh-f">Fasce orarie di consegna
       <div id="s-fasce"></div>
@@ -645,7 +648,14 @@ function renderImpostazioni(el) {
     <label class="sh-f">Messaggio in cima allo shop (facoltativo)<textarea id="s-msg" maxlength="400" placeholder="Es. Si paga al ritiro in contanti o con carta.">${esc(CFG.messaggio)}</textarea></label>
     <div class="sh-hint">Il pagamento online con carta (PayPal) verrà attivato in un secondo momento: per ora l'ospite paga alla consegna o in reception.</div>
     <button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
-  renderFasce();
+  renderFasce(); renderRitiro();
+}
+function ritiroCorrente() { if (!Array.isArray(CFG.ritiro_orari)) CFG.ritiro_orari = []; return CFG.ritiro_orari; }
+function renderRitiro() {
+  const l = ritiroCorrente(), el = $('#s-ritiro'); if (!el) return;
+  el.innerHTML = l.map((r, i) => `<div class="sh-bar" style="margin:6px 0">Dalle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[0])}" onchange="ritiroCorrente()[${i}][0]=this.value"> alle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[1])}" onchange="ritiroCorrente()[${i}][1]=this.value">
+      <button type="button" class="sh-ic" aria-label="Togli" onclick="ritiroCorrente().splice(${i},1);renderRitiro()">${ICONS.CLOSE}</button></div>`).join('') +
+    `<div class="sh-bar"><button type="button" class="sh-btn" onclick="ritiroCorrente().push(['09:00','13:00']);renderRitiro()">+ Aggiungi intervallo</button></div>`;
 }
 const FASCE_DEF = { passo: 15, intervalli: [['10:00', '12:00'], ['15:00', '18:30']] };
 function fasceCorrenti() { if (!CFG.consegna_fasce || !Array.isArray(CFG.consegna_fasce.intervalli)) CFG.consegna_fasce = JSON.parse(JSON.stringify(FASCE_DEF)); return CFG.consegna_fasce; }
@@ -659,8 +669,9 @@ function renderFasce() {
 }
 async function salvaImpostazioni() {
   const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
-    ritiro_luogo: $('#s-luogo').value.trim(), consegna_fasce: fasceCorrenti(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+    ritiro_luogo: $('#s-luogo').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
   if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
+  for (const [a, b] of dati.ritiro_orari) { if (!a || !b || b <= a) return showToast('Orari di ritiro: «Alle» deve venire dopo «Dalle»'); }
   const fc = dati.consegna_fasce;
   if (dati.consegna) {
     if (!fc.intervalli.length) return showToast('Aggiungi almeno un intervallo di consegna');

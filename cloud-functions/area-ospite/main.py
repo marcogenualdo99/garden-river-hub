@@ -1704,6 +1704,17 @@ def _shop_fasce_norm(c):
     return {'passo': passo, 'intervalli': interv}
 
 
+def _shop_ritiro_norm(v):
+    """Orari in cui si puo' ritirare al bar: lista di intervalli [dalle, alle]; vuota = nessun limite."""
+    out = []
+    for r in (v if isinstance(v, list) else []):
+        if isinstance(r, (list, tuple)) and len(r) == 2:
+            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+            if a is not None and b is not None and b > a:
+                out.append([_min_hhmm(a), _min_hhmm(b)])
+    return out[:4]
+
+
 def _shop_fasce_lista(fc):
     out = []
     for a, b in fc['intervalli']:
@@ -1719,7 +1730,7 @@ def _shop_cfg(db):
         d = db.collection('impostazioni').document('shop').get()
         c = (d.to_dict() or {}) if d.exists else {}
         fc = _shop_fasce_norm(c.get('consegna_fasce'))
-        return {'fasce_cfg': fc, 'fasce': _shop_fasce_lista(fc),
+        return {'fasce_cfg': fc, 'fasce': _shop_fasce_lista(fc), 'ritiro_orari': _shop_ritiro_norm(c.get('ritiro_orari')),
                 'attivo': c.get('attivo') is True,
                 'ritiro': c.get('ritiro') is not False,
                 'consegna': c.get('consegna') is not False,
@@ -1891,6 +1902,9 @@ def _azione_shop_ordina(db, origin, data):
         'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
     })
     _CACHE.pop('shop_catalogo', None)       # la giacenza e' cambiata
+    _telegram({'evento': 'shop_ordine', 'doc_id': ref.id, 'ospite_nome': nome, 'alloggio': alloggio, 'ospite_tel': _s(p.get('tel'), 40),
+               'righe': righe, 'totale': totale, 'modalita': modalita, 'consegna_data': giorno, 'consegna_fascia': fascia,
+               'note': _s(data.get('note'), 300), 'ritiro_orari': cfg['ritiro_orari']})
     return _json(origin, {'ok': True, 'id': ref.id, 'totale': totale})
 
 
@@ -1907,7 +1921,7 @@ def _azione_shop_ordini(db, origin, data):
                     'consegna_data': _s(x.get('consegna_data'), 10), 'consegna_fascia': _s(x.get('consegna_fascia'), 11),
                     'pagamento': x.get('pagamento') or {}, 'creato_il': _s(x.get('creato_il'), 25)})
     out.sort(key=lambda o: o['creato_il'], reverse=True)
-    return _json(origin, {'ok': True, 'ordini': out[:30]})
+    return _json(origin, {'ok': True, 'ordini': out[:30], 'ritiro_orari': _shop_cfg(db)['ritiro_orari']})
 
 
 AZIONI = {

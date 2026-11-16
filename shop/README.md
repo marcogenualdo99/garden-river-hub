@@ -7,7 +7,7 @@ Market digitale della struttura. **Gestione** nell'Hub (`shop/`, schede Ordini �
 - `shop_categorie/{id}`: `nome, ordine, attiva`
 - `shop_prodotti/{id}`: `titolo, descrizione, prezzo, categoriaId, foto[] (data URL, max 4, ~140KB l'una), attivo, esaurito, giacenza|null, ordine`
 - `shop_ordini/{id}`: creato dalla CF. `righe[{id,titolo,prezzo,quantita,importo}], totale, modalita (ritiro|consegna), note, stato (nuovo|pronto|consegnato|annullato), pagamento{metodo:'in_struttura', stato:'da_pagare'|'pagato', importo}`
-- `impostazioni/shop`: `attivo, ritiro, consegna, ritiro_luogo (note/orari), consegna_fasce {passo, intervalli[[dalle,alle]]}, messaggio` — fasce di consegna predefinite 10:00-12:00 e 15:00-18:30 a passi di 15 min, modificabili da Impostazioni
+- `impostazioni/shop`: `attivo, ritiro, consegna, ritiro_luogo (note), ritiro_orari [[dalle,alle]], consegna_fasce {passo, intervalli[[dalle,alle]]}, messaggio` — fasce di consegna predefinite 10:00-12:00 e 15:00-18:30 a passi di 15 min, modificabili da Impostazioni
 - Il ritiro è sempre al Bar piscina (mappa con pin nell'Area ospite). Gli ordini in consegna salvano `consegna_data` (oggi/domani) e `consegna_fascia`.
 
 ## Azioni CF `area-ospite`
@@ -20,3 +20,6 @@ Market digitale della struttura. **Gestione** nell'Hub (`shop/`, schede Ordini �
 
 ## Pagamento PayPal (da fare)
 `pagamento` è già strutturato: basterà una azione CF che crea l'ordine PayPal con `totale` e, a cattura avvenuta, imposta `pagamento = {metodo:'paypal', stato:'pagato', id_transazione}`.
+
+## Telegram
+Gruppo dedicato: `/collega market <codice>`. Ogni ordine arriva con i pulsanti ✅ Pronto · 📦 Consegnato · 💶 Segna pagato · ❌ Annulla (l'annullo ripristina la giacenza). Lo stato si aggiorna in Firestore e quindi nell'Hub e nell'Area ospite. Serve rideployare `telegram-bot` e `area-ospite`.
