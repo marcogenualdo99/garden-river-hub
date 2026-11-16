@@ -645,6 +645,7 @@
   .sh-hi { width: 44px; height: 44px; border-radius: 14px; background: var(--green-700); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0 } .sh-hc.pronto .sh-hi { background: var(--orange) } .sh-hi svg { width: 22px; height: 22px }
   .sh-hd { font-weight: 700; font-size: 14.5px; margin-top: 6px } .sh-hw { color: var(--gray-500); font-weight: 600; font-size: 13px; margin-top: 2px }
   .sh-hl { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 999px; background: var(--green-100); color: var(--green-700); font-weight: 800; font-size: 14px } .sh-hc.pronto .sh-hl { background: var(--orange); color: #fff }
+  .sh-hl svg { width: 16px; height: 16px; flex-shrink: 0; transform: rotate(-90deg) } .sh-hl { white-space: nowrap }
   .sh-prog { display: flex; align-items: flex-start; margin: 12px 0 4px }
   .sh-prog > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 700 11.5px var(--font); color: var(--gray-500); text-align: center; position: relative }
   .sh-prog > div::before { content: ''; position: absolute; top: 11px; left: -50%; width: 100%; height: 3px; background: var(--gray-300); z-index: 0 } .sh-prog > div:first-child::before { display: none }
@@ -2004,6 +2005,7 @@ function shCheckout(box) {
       ${ritiro ? `<label class="sh-mod${SH.mod === 'ritiro' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'ritiro' ? 'checked' : ''} onchange="SH.mod='ritiro';shDisegna()"><span><b>Ritiro al Bar piscina</b><small>${esc(shOrariRitiro(c.ritiro_orari) || c.ritiro_luogo || 'Passa a ritirarlo quando è pronto')}</small></span></label>` : ''}
       ${consegna ? `<label class="sh-mod${SH.mod === 'consegna' ? ' on' : ''}"><input type="radio" name="shm" ${SH.mod === 'consegna' ? 'checked' : ''} onchange="SH.mod='consegna';shDisegna()"><span><b>Consegna in alloggio</b><small>Te lo portiamo noi, nella fascia oraria che scegli</small></span></label>` : ''}
       ${SH.mod === 'ritiro' ? shMappaRitiro() : ''}${SH.mod === 'consegna' ? shFasceHtml() : ''}</div>
+      ${SH.mod === 'consegna' ? shPagamentoHtml() : ''}
       <button type="button" class="submit" id="sh-avanti" onclick="shAvanti2()"${shPronto2() ? '' : ' disabled'}>Continua</button>
       <button type="button" class="btn-secondary" onclick="SH.step=1;shDisegna()">Indietro</button>`;
     hydrateIcons(box); return;
@@ -2014,12 +2016,19 @@ function shCheckout(box) {
       <div class="sh-tt"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
     <div class="card"><h2>Modalità di consegna</h2><p style="font-weight:700;font-size:15px;margin:6px 0 0">${esc(dest)}</p>
       <div class="field" style="margin-top:12px"><label for="sh-note">Note (facoltative)</label><textarea id="sh-note" rows="2" maxlength="300" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius);font:inherit;font-size:16px" oninput="SH.note=this.value">${esc(SH.note || '')}</textarea></div>
-      <p class="hint">Pagamento ${SH.mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. Il pagamento con carta online arriverà presto.</p>
+      <p class="hint">${SH.mod === 'consegna' && SH.pag === 'carta' ? 'Pagamento con carta online: dopo l\'invio ti portiamo su PayPal.' : 'Pagamento ' + (SH.mod === 'consegna' ? 'in contanti alla consegna' : 'al ritiro') + '.'}</p>
       <div class="errbox" id="sh-err" style="display:none"></div></div>
     <button type="button" class="submit" id="sh-invia" onclick="shInvia()">Invia l'ordine</button>
     <button type="button" class="btn-secondary" onclick="SH.step=2;shDisegna()">Indietro</button>`;
 }
-function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia); }
+function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia && SH.pag); }
+function shPagamentoHtml() {
+  if (!SH.cfg.carta) SH.pag = 'contanti';
+  const op = (v, t, s) => `<label class="sh-mod${SH.pag === v ? ' on' : ''}"><input type="radio" name="shp" ${SH.pag === v ? 'checked' : ''} onchange="SH.pag='${v}';shDisegna()"><span><b>${t}</b><small>${s}</small></span></label>`;
+  return `<div class="card"><h2>Come vuoi pagare?</h2>
+    ${op('contanti', 'Contanti alla consegna', 'Paghi quando ricevi l\'ordine')}
+    ${SH.cfg.carta ? op('carta', 'Carta online (PayPal)', 'Dopo l\'invio ti portiamo su PayPal per pagare in sicurezza') : ''}</div>`;
+}
 function shAvanti2() { if (!shPronto2()) return; SH.step = 3; shDisegna(); window.scrollTo(0, 0); }
 function shOrariRitiro(iv) {
   if (!Array.isArray(iv) || !iv.length) return '';
@@ -2050,17 +2059,19 @@ async function shInvia() {
   if (SH.invio) return; const btn = $('#sh-invia'), err = $('#sh-err');
   err.style.display = 'none'; SH.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
-    const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, giorno: SH.giorno, fascia: SH.fascia, note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
+    const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, giorno: SH.giorno, fascia: SH.fascia, pagamento: SH.mod === 'consegna' ? (SH.pag || 'contanti') : '', note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
     if (d.ok) {
-      const tot = d.totale, mod = SH.mod, fascia = SH.fascia, giorno = SH.giorno; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'catalogo'; SH.step = 1; SH.fascia = ''; shBadge(); SHO.t = 0;
+      const tot = d.totale, url = d.paypal_url || '', mod = SH.mod, fascia = SH.fascia, giorno = SH.giorno; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'catalogo'; SH.step = 1; SH.fascia = ''; shBadge(); SHO.t = 0;
       $('#service-content').innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Ordine inviato</div>
-        <p style="font-size:16px;line-height:1.5;margin-top:8px">Totale ${shEur(tot)}, da pagare ${mod === 'consegna' ? 'alla consegna' : 'al ritiro'}. ${mod === 'consegna' ? `Te lo portiamo in alloggio ${giorno === SH.oggi ? 'oggi' : 'domani'} tra le ${fascia.replace('-', ' e le ')}.` : 'Ti avvisiamo qui quando è pronto da ritirare al Bar piscina.'}</p>
-        <button type="button" class="submit" style="margin-top:14px" onclick="shApriOrdini()">Segui il tuo ordine</button>
+        <p style="font-size:16px;line-height:1.5;margin-top:8px">Totale ${shEur(tot)}${url ? ', da pagare con carta su PayPal' : ', da pagare ' + (mod === 'consegna' ? 'in contanti alla consegna' : 'al ritiro')}. ${mod === 'consegna' ? `Te lo portiamo in alloggio ${giorno === SH.oggi ? 'oggi' : 'domani'} tra le ${fascia.replace('-', ' e le ')}.` : 'Ti avvisiamo qui quando è pronto da ritirare al Bar piscina.'}</p>
+        ${url ? `<a class="submit" style="margin-top:14px;display:block;text-align:center;text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">Paga ora con PayPal · ${shEur(tot)}</a>` : ''}
+        <button type="button" class="${url ? 'btn-secondary' : 'submit'}" style="margin-top:${url ? 8 : 14}px" onclick="shApriOrdini()">Segui il tuo ordine</button>
         <button type="button" class="btn-secondary" style="margin-top:8px" onclick="renderShop()">Torna allo shop</button></div>`;
       window.scrollTo(0, 0); return;
     }
     err.textContent = d.errore === 'esaurito' ? `«${d.prodotto || 'Un prodotto'}» non è più disponibile nella quantità richiesta. Torna al carrello e controlla.`
       : d.errore === 'troppi_ordini' ? 'Hai già fatto molti ordini oggi. Per altro rivolgiti alla reception.'
+      : d.errore === 'carta_non_disponibile' ? 'Il pagamento con carta non è al momento disponibile. Scegli contanti.'
       : d.errore === 'fascia_non_valida' ? 'La fascia scelta non è più disponibile. Torna indietro e scegline un\'altra.'
       : d.errore === 'giorno_non_valido' ? 'Il giorno scelto non è valido. Torna indietro e riprova.'
       : d.errore === 'non_ancora_arrivato' ? 'Potrai ordinare dal giorno del tuo arrivo.'
@@ -2073,6 +2084,15 @@ async function shInvia() {
     err.style.display = 'block';
   } catch (e) { err.textContent = 'Connessione assente. Controlla la rete e riprova.'; err.style.display = 'block'; }
   finally { SH.invio = false; if (btn.isConnected) { btn.disabled = false; btn.textContent = "Invia l'ordine"; } }
+}
+
+async function shFotoConsegna(id, btn) {
+  btn.disabled = true; const t = btn.textContent; btn.textContent = 'Carico la foto…';
+  try {
+    const d = await chiama({ azione: 'shop_foto_consegna', id }, { ms: 20000 });
+    if (d && d.ok) { btn.outerHTML = `<img src="${d.foto}" alt="Dove abbiamo lasciato l'ordine" style="width:100%;border-radius:12px;margin-top:10px;display:block">`; return; }
+  } catch (e) {}
+  btn.disabled = false; btn.textContent = t; alert('Foto non disponibile. Riprova.');
 }
 
 // ── Cronologia e stato ordini ───────────────────────────────────────────────
@@ -2102,7 +2122,9 @@ async function shOrdini(box, silente) {
   const card = o => `<div class="sh-or ${esc(o.stato)}"><div class="sh-oh"><b>${shEur(o.totale)}</b><span class="sh-st-${esc(o.stato)}">${esc(SH_STATO[o.stato] || o.stato)}</span></div>
     ${shProgresso(o)}<div class="sh-ost">${esc(shTestoStato(o))}</div>
     <div class="hint" style="margin:6px 0 2px">${o.righe.map(r => esc(r.quantita + ' × ' + r.titolo)).join(' · ')}</div>
-    <div class="hint">${esc(shDoveQuando(o))} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'} · ${esc(new Date(o.creato_il).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }))}</div></div>`;
+    <div class="hint">${esc(shDoveQuando(o))} · ${(o.pagamento || {}).stato === 'pagato' ? 'Pagato' : 'Da pagare'} · ${esc(new Date(o.creato_il).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }))}</div>
+    ${o.ha_foto ? `<button type="button" class="btn-secondary" style="margin-top:10px" onclick="shFotoConsegna('${esc(o.id)}',this)">Vedi la foto di dove abbiamo lasciato l'ordine</button>` : ''}
+    ${o.paypal_url ? `<a class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-top:10px" href="${esc(o.paypal_url)}" target="_blank" rel="noopener">Paga con PayPal</a>` : ''}</div>`;
   box.innerHTML = !d || !d.ok ? '<div class="card"><p class="hint">Non riesco a caricare gli ordini ora.</p></div>'
     : `${att.length ? `<div class="card"><h2>In corso</h2>${att.map(card).join('')}</div>` : ''}
        <div class="card"><h2>Cronologia</h2>${resto.length ? resto.map(card).join('') : `<p class="hint">${att.length ? 'Nessun ordine concluso.' : 'Non hai ancora fatto ordini.'}</p>`}</div>`;

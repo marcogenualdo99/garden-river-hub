@@ -109,11 +109,30 @@ main { max-width: 750px; margin: 0 auto; padding: 14px 12px 80px; }
 .sh-pill.r { background:var(--red-bg); color:var(--red); } .sh-pill.g { background:var(--green-bg); color:var(--green-ok); } .sh-pill.a { background:var(--amber-bg); color:var(--amber); }
 .sh-list { display:flex; flex-direction:column; gap:10px; }
 .sh-row { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:14px 16px; display:flex; gap:12px; align-items:center; box-shadow:var(--shadow-sm); }
-.sh-row .nm { flex:1; font:800 15px var(--font); min-width:0; } .sh-row .nm small { display:block; font:600 12px var(--font); color:var(--gray-500); margin-top:2px; }
+.sh-row .nm { flex:1 1 150px; font:800 15px var(--font); min-width:0; } .sh-row .nm small { display:block; font:600 12px var(--font); color:var(--gray-500); margin-top:2px; }
 .sh-ic { width:36px; height:36px; border:none; border-radius:10px; background:var(--gray-100); color:var(--gray-700); cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .sh-ic svg { width:16px; height:16px; }
-.sh-ord { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-sm); }
-.sh-ord.nuovo { border-color:var(--terracotta); }
+.sh-list.ord { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; align-items:start; }
+.sh-list.cat { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:10px; }
+.sh-row { flex-wrap:wrap; }
+.sh-ord { background:#fff; border:1.5px solid var(--gray-100); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; gap:12px; }
+.sh-ord.nuovo { border-color:var(--terracotta); box-shadow:0 0 0 3px rgba(242,112,42,.12); }
+.sh-ord.annullato, .sh-ord.consegnato { background:var(--gray-50); }
+.sh-meta { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sh-meta > div { background:var(--gray-50); border-radius:var(--radius-sm); padding:9px 11px; min-width:0; }
+.sh-meta span { display:block; font:800 10.5px var(--font); text-transform:uppercase; letter-spacing:.05em; color:var(--gray-500); margin-bottom:3px; }
+.sh-meta b { font:700 13.5px/1.3 var(--font); color:var(--gray-900); }
+.sh-ord .sh-ol { margin:0; }
+.sh-ord .sh-oa { margin-top:0; }
+.sh-ord .sh-oa .sh-btn { flex:1 1 auto; }
+.sh-fc { display:flex; gap:10px; align-items:center; background:var(--green-50); border-radius:var(--radius-sm); padding:8px; }
+.sh-fc img { width:64px; height:64px; object-fit:cover; border-radius:8px; cursor:pointer; flex-shrink:0; }
+.sh-fc small { flex:1; font:600 12.5px var(--font); color:var(--gray-700); }
+.sh-set { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:14px; align-items:start; }
+.sh-set > .sh-card-set { max-width:none; }
+.sh-card-set h3 { font:800 15px var(--font); }
+.sh-tools { display:flex; gap:8px; align-items:center; }
+@media (min-width:1100px) { .sh-grid { grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); } }
 .sh-oh { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
 .sh-oh b { font:800 16px var(--font); } .sh-oh small { display:block; font:600 12px var(--font); color:var(--gray-500); margin-top:2px; }
 .sh-ol { margin:12px 0; border-top:1px dashed var(--gray-200); }
@@ -439,25 +458,48 @@ function renderOrdini(el) {
   const lista = ORDINI.filter(o => ordFiltro === 'tutti' ? true : (o.stato === 'nuovo' || o.stato === 'pronto'));
   el.innerHTML = `<div class="sh-bar">
       <select onchange="ordFiltro=this.value;render()"><option value="aperti"${ordFiltro === 'aperti' ? ' selected' : ''}>Da gestire</option><option value="tutti"${ordFiltro === 'tutti' ? ' selected' : ''}>Tutti gli ordini</option></select>
-    </div>` + (lista.length ? `<div class="sh-list">${lista.map(cardOrdine).join('')}</div>`
+    </div>` + (lista.length ? `<div class="sh-list ord">${lista.map(cardOrdine).join('')}</div>`
     : `<div class="sh-empty">${ordFiltro === 'aperti' ? 'Nessun ordine da gestire.' : 'Ancora nessun ordine.'}</div>`);
 }
 function fmtQuando(iso) { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); }
 function cardOrdine(o) {
   const st = STATI[o.stato] || [o.stato, ''], pag = o.pagamento || {}, pagato = pag.stato === 'pagato';
-  const dest = o.modalita === 'consegna' ? 'Consegna in alloggio' + (o.consegna_fascia ? ' · ' + (o.consegna_data ? o.consegna_data.split('-').reverse().slice(0, 2).join('/') + ' ' : '') + o.consegna_fascia : '') : 'Ritiro al bar piscina';
+  const dest = o.modalita === 'consegna' ? 'Consegna in alloggio' + (o.consegna_fascia ? '<br>' + (o.consegna_data ? o.consegna_data.split('-').reverse().slice(0, 2).join('/') + ' · ' : '') + o.consegna_fascia.replace('-', ' – ') : '') : 'Ritiro al Bar piscina';
+  const met = pag.metodo === 'paypal' ? 'Carta (PayPal)' : pag.metodo === 'contanti' ? 'Contanti alla consegna' : 'In struttura';
+  const attivo = o.stato === 'nuovo' || o.stato === 'pronto';
   const btn = [];
   if (o.stato === 'nuovo') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','pronto')">Segna pronto</button>`);
-  if (o.stato === 'nuovo' || o.stato === 'pronto') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
+  if (attivo) btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
   if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="segnaPagato('${o.id}',${!pagato})">${pagato ? 'Segna da pagare' : 'Segna pagato'}</button>`);
-  if (o.stato === 'nuovo' || o.stato === 'pronto') btn.push(`<button class="sh-btn d" onclick="annullaOrdine('${o.id}')">Annulla</button>`);
+  if (attivo) btn.push(`<button class="sh-btn d" onclick="annullaOrdine('${o.id}')">Annulla</button>`);
+  const foto = o.modalita !== 'consegna' || o.stato === 'annullato' ? '' : o.foto_consegna
+    ? `<div class="sh-fc"><img src="${o.foto_consegna}" alt="Foto della consegna" onclick="apriFotoConsegna('${o.id}')"><small>Foto della consegna${o.foto_consegna_il ? '<br>' + esc(fmtQuando(o.foto_consegna_il)) : ''}<br>L'ospite la vede nel suo ordine.</small>
+        <button class="sh-btn" onclick="fotoConsegna('${o.id}')">Cambia</button><button class="sh-ic" aria-label="Rimuovi foto" onclick="togliFotoConsegna('${o.id}')">${ICONS.TRASH}</button></div>`
+    : (attivo ? `<button class="sh-btn" onclick="fotoConsegna('${o.id}')">Aggiungi foto della consegna</button>` : '');
   return `<div class="sh-ord ${o.stato}">
-    <div class="sh-oh"><div><b>${esc(o.ospite_nome || 'Ospite')}${o.alloggio ? ' · ' + esc(o.alloggio) : ''}</b><small>${esc(fmtQuando(o.creato_il))} · ${dest}${o.ospite_tel ? ' · ' + esc(o.ospite_tel) : ''}</small></div>
-      <div><span class="sh-pill ${st[1]}">${st[0]}</span><span class="sh-pill ${pagato ? 'g' : 'a'}">${pagato ? 'Pagato' : 'Da pagare'}</span></div></div>
-    <div class="sh-ol">${(o.righe || []).map(r => `<div><span>${esc(r.quantita)} × ${esc(r.titolo)}</span><span>${eur(r.importo)}</span></div>`).join('')}</div>
-    <div class="sh-tot"><span>Totale</span><span>${eur(o.totale)}</span></div>
+    <div class="sh-oh"><div><b>${esc(o.ospite_nome || 'Ospite')}${o.alloggio ? ' · ' + esc(o.alloggio) : ''}</b><small>${esc(fmtQuando(o.creato_il))}${o.ospite_tel ? ' · ' + esc(o.ospite_tel) : ''}</small></div>
+      <span class="sh-pill ${st[1]}" style="margin:0">${st[0]}</span></div>
+    <div class="sh-meta"><div><span>Dove e quando</span><b>${dest}</b></div>
+      <div><span>Pagamento</span><b>${met}<br><em style="font-style:normal;color:${pagato ? 'var(--green-ok)' : 'var(--amber)'}">${pagato ? 'Pagato' : 'Da pagare'}</em></b></div></div>
+    <div><div class="sh-ol">${(o.righe || []).map(r => `<div><span>${esc(r.quantita)} × ${esc(r.titolo)}</span><span>${eur(r.importo)}</span></div>`).join('')}</div>
+      <div class="sh-tot" style="margin-top:8px"><span>Totale</span><span>${eur(o.totale)}</span></div></div>
     ${o.note ? `<div class="sh-note">Nota dell'ospite: ${esc(o.note)}</div>` : ''}
+    ${foto}
     ${btn.length ? `<div class="sh-oa">${btn.join('')}</div>` : ''}</div>`;
+}
+function fotoConsegna(id) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    try { const d = await ridimensiona(f); if (await aggiornaOrdine(id, { foto_consegna: d, foto_consegna_il: new Date().toISOString() })) showToast('Foto salvata: l\'ospite la vede nel suo ordine'); }
+    catch (e) { showToast(e.message || 'Immagine non valida'); }
+  };
+  inp.click();
+}
+async function togliFotoConsegna(id) { if (await aggiornaOrdine(id, { foto_consegna: '', foto_consegna_il: '' })) showToast('Foto rimossa'); }
+function apriFotoConsegna(id) {
+  const o = ORDINI.find(x => x.id === id); if (!o || !o.foto_consegna) return;
+  const w = window.open(); if (w) { w.document.write(`<title>Foto consegna</title><body style="margin:0;background:#000"><img src="${o.foto_consegna}" style="width:100%;height:100vh;object-fit:contain">`); }
 }
 async function aggiornaOrdine(id, dati) {
   try { await waitForFirebase(); const { db, doc, updateDoc } = window._fb; await updateDoc(doc(db, 'shop_ordini', id), { ...dati, aggiornato_da: currentOperatore, aggiornato_il: new Date().toISOString() }); return true; }
@@ -486,7 +528,7 @@ function annullaOrdine(id) {
 // ── CATEGORIE ───────────────────────────────────────────────────────────────
 function renderCategorie(el) {
   el.innerHTML = `<div class="sh-bar"><input id="nuova-cat" placeholder="Nome della nuova categoria (es. Bevande, Souvenir, Spiaggia)" onkeydown="if(event.key==='Enter')aggiungiCategoria()"><button class="sh-btn p" onclick="aggiungiCategoria()">Aggiungi</button></div>` +
-    (CATS.length ? `<div class="sh-list">${CATS.map((c, i) => {
+    (CATS.length ? `<div class="sh-list cat">${CATS.map((c, i) => {
       const n = PRODS.filter(p => p.categoriaId === c.id).length;
       return `<div class="sh-row"><div class="nm">${esc(c.nome)}<small>${n} prodott${n === 1 ? 'o' : 'i'}${c.attiva === false ? ' · nascosta agli ospiti' : ''}</small></div>
         <button class="sh-ic" aria-label="Su" onclick="spostaCategoria(${i},-1)">${ICONS.ARROWUP}</button><button class="sh-ic" aria-label="Giù" onclick="spostaCategoria(${i},1)">${ICONS.ARROWDOWN}</button>
@@ -634,25 +676,31 @@ function eliminaProdotto() {
 
 // ── IMPOSTAZIONI ────────────────────────────────────────────────────────────
 function renderImpostazioni(el) {
-  el.innerHTML = `<div class="sh-card-set">
-    <label class="sh-chk"><input type="checkbox" id="s-attivo"${CFG.attivo ? ' checked' : ''}><span>Shop aperto agli ospiti<small>Se spento, la sezione Shop non compare nell'Area ospite.</small></span></label>
-    <label class="sh-chk"><input type="checkbox" id="s-ritiro"${CFG.ritiro !== false ? ' checked' : ''}><span>Ritiro in struttura<small>L'ospite passa a ritirare l'ordine.</small></span></label>
-    <div class="sh-f">Orari di ritiro al Bar piscina
-      <div id="s-ritiro"></div>
-      <span class="sh-hint">L'ospite li vede nella scelta della modalità e nel suo ordine. Senza intervalli non c'è nessun limite indicato. Il punto è sulla mappa del villaggio.</span></div>
-    <label class="sh-f">Note di ritiro (facoltativo)<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Chiedi al banco del bar"></label>
-    <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite, nella fascia oraria che sceglie.</small></span></label>
-    <div class="sh-f">Fasce orarie di consegna
-      <div id="s-fasce"></div>
-      <span class="sh-hint">L'ospite sceglie una fascia per oggi o per domani. Le fasce già passate non compaiono.</span></div>
-    <label class="sh-f">Messaggio in cima allo shop (facoltativo)<textarea id="s-msg" maxlength="400" placeholder="Es. Si paga al ritiro in contanti o con carta.">${esc(CFG.messaggio)}</textarea></label>
-    <div class="sh-hint">Il pagamento online con carta (PayPal) verrà attivato in un secondo momento: per ora l'ospite paga alla consegna o in reception.</div>
-    <button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
+  el.innerHTML = `<div class="sh-set">
+    <div class="sh-card-set"><h3>Apertura dello shop</h3>
+      <label class="sh-chk"><input type="checkbox" id="s-attivo"${CFG.attivo ? ' checked' : ''}><span>Shop aperto agli ospiti<small>Se spento, la sezione Shop non compare nell'Area ospite.</small></span></label>
+      <label class="sh-f">Messaggio in cima allo shop (facoltativo)<textarea id="s-msg" maxlength="400" placeholder="Es. Ordina entro le 18 per averlo oggi.">${esc(CFG.messaggio)}</textarea></label></div>
+    <div class="sh-card-set"><h3>Ritiro al Bar piscina</h3>
+      <label class="sh-chk"><input type="checkbox" id="s-ritiro"${CFG.ritiro !== false ? ' checked' : ''}><span>Ritiro in struttura<small>L'ospite passa a ritirare l'ordine.</small></span></label>
+      <div class="sh-f">Orari di ritiro
+        <div id="s-ritiro-orari"></div>
+        <span class="sh-hint">L'ospite li vede nella scelta della modalità e nel suo ordine. Senza intervalli non c'è nessun limite indicato.</span></div>
+      <label class="sh-f">Note di ritiro (facoltativo)<input id="s-luogo" maxlength="120" value="${esc(CFG.ritiro_luogo)}" placeholder="Es. Chiedi al banco del bar"></label></div>
+    <div class="sh-card-set"><h3>Consegna in alloggio</h3>
+      <label class="sh-chk"><input type="checkbox" id="s-consegna"${CFG.consegna !== false ? ' checked' : ''}><span>Consegna in alloggio<small>Porti l'ordine all'alloggio dell'ospite, nella fascia oraria che sceglie.</small></span></label>
+      <div class="sh-f">Fasce orarie di consegna
+        <div id="s-fasce"></div>
+        <span class="sh-hint">L'ospite sceglie una fascia per oggi o per domani. Le fasce già passate non compaiono.</span></div></div>
+    <div class="sh-card-set"><h3>Pagamento con carta</h3>
+      <label class="sh-f">Link PayPal.Me (facoltativo)<input id="s-paypal" maxlength="80" value="${esc(CFG.paypal_me || '')}" placeholder="Es. paypal.me/gardenriver o solo gardenriver"></label>
+      <span class="sh-hint">Se compilato, chi sceglie la consegna in alloggio può pagare con carta: viene mandato su PayPal con l'importo già inserito. Il pagamento non si registra da solo: segnalo come pagato dall'ordine (o da Telegram).</span></div>
+    </div>
+    <div style="margin-top:16px"><button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
   renderFasce(); renderRitiro();
 }
 function ritiroCorrente() { if (!Array.isArray(CFG.ritiro_orari)) CFG.ritiro_orari = []; return CFG.ritiro_orari; }
 function renderRitiro() {
-  const l = ritiroCorrente(), el = $('#s-ritiro'); if (!el) return;
+  const l = ritiroCorrente(), el = $('#s-ritiro-orari'); if (!el) return;
   el.innerHTML = l.map((r, i) => `<div class="sh-bar" style="margin:6px 0">Dalle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[0])}" onchange="ritiroCorrente()[${i}][0]=this.value"> alle <input type="time" style="flex:0 0 110px;min-width:0" value="${esc(r[1])}" onchange="ritiroCorrente()[${i}][1]=this.value">
       <button type="button" class="sh-ic" aria-label="Togli" onclick="ritiroCorrente().splice(${i},1);renderRitiro()">${ICONS.CLOSE}</button></div>`).join('') +
     `<div class="sh-bar"><button type="button" class="sh-btn" onclick="ritiroCorrente().push(['09:00','13:00']);renderRitiro()">+ Aggiungi intervallo</button></div>`;
@@ -669,7 +717,7 @@ function renderFasce() {
 }
 async function salvaImpostazioni() {
   const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
-    ritiro_luogo: $('#s-luogo').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+    ritiro_luogo: $('#s-luogo').value.trim(), paypal_me: $('#s-paypal').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
   if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
   for (const [a, b] of dati.ritiro_orari) { if (!a || !b || b <= a) return showToast('Orari di ritiro: «Alle» deve venire dopo «Dalle»'); }
   const fc = dati.consegna_fasce;

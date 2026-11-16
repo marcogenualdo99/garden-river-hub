@@ -1,1965 +1,2012 @@
-"""Area ospite — mini-pannello Garden Hub.
-
-Endpoint HTTP pubblico usato dalla pagina https://gardenhub.it/area-ospite/?t=
-<token>: un unico link per prenotazione, pensato per contenere nel tempo più
-sezioni (Ristorazione, Animazione, Info utili, Navetta, Assistenza). Per ora
-è operativa solo la sezione "Servizio navetta".
-
-Stesso schema del check-in online (vedi cloud-functions/checkin-online): il
-browser dell'ospite non tocca mai Firestore, tutto passa da qui con l'Admin
-SDK. Il collegamento token -> prenotazione vive SOLO nella collezione
-`area_ospite_links/{token}`, negata in lettura a tutti i client dalle regole
-Firestore.
-
-Azioni (campo "azione" nel corpo JSON):
-  - carica          : { token }
-        -> riepilogo sanificato della prenotazione (nome, telefono, alloggio
-           — il numero dell'alloggio e' nascosto fino al giorno dopo il
-           check-in, v. _alloggio_per_ospite: possono esserci cambi fino
-           all'arrivo)
-           + il conto (voci, totale, pagato, residuo da pagare — da
-           prenotazione.conto.righe, scritto dal Calendario)
-           + l'eventuale ombrellone/spiaggia già assegnati dal Calendario
-           + l'elenco delle spiagge e degli autisti configurati (per i due
-           menu a tendina) + l'eventuale accesso Ristorazione (famiglia/
-           codice, se il trattamento prevede pasti) + le richieste navetta
-           già fatte oggi da questo stesso ospite (per mostrargliene lo
-           stato)
-  - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
-  - manutenzione_segnala : { token, nome, categoria, descrizione, accesso, animali }
-        -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram
-  - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
-  - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
-  - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
-                         autista_nome, orario }
-        -> valida l'orario (fascia attiva + preavviso minimo, v.
-           preavviso minimo da impostazioni/navetta) e scrive la richiesta in
-           `navetta_prenotazioni` (data = oggi, stato "in_attesa",
-           autista_nome assegnato in seguito dalla dashboard autisti)
-"""
-
-import json
-import os
-import re
-import time
-from datetime import datetime, timedelta
-import urllib.request
-from concurrent.futures import ThreadPoolExecutor
-from zoneinfo import ZoneInfo
-
-import firebase_admin
-from firebase_admin import auth as fb_auth, firestore
-import functions_framework
-
-if not firebase_admin._apps:
-    firebase_admin.initialize_app()
-
-ALLOWED_ORIGINS = {'https://gardenhub.it', 'https://www.gardenhub.it'}
-TZ_ROMA = ZoneInfo('Europe/Rome')
-
-# Valori di default della navetta: si cambiano da Hub > Navetta > Impostazioni
-# (doc Firestore `impostazioni/navetta`). Fasce = stesse del ticket spiaggia.
-NAVETTA_DEFAULT = {
-    'fasce': [{'dal': '09:00', 'al': '13:00'}, {'dal': '15:30', 'al': '19:00'}],
-    'passo_minuti': 15,
-    # Un orario e' prenotabile solo se dista almeno cosi' tanti minuti da adesso.
-    'preavviso_minimo_minuti': 25,
-    # Il cliente puo' spostare una corsa solo se mancano almeno cosi' tanti minuti.
-    'preavviso_modifica_minuti': 25,
-    # Posti di ogni pulmino: un autista porta piu' prenotazioni nello stesso
-    # orario finche' la somma delle persone non supera questo numero.
-    'posti_pulmino': 8,
-    # Usato solo se non ci sono autisti configurati: quanti pulmini
-    # partono contemporaneamente (ognuno con 'posti_pulmino' posti).
-    'max_corse_per_orario': 1,
-}
-SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza', 'shop')
-
-MAX_TESTO = 120
-
-# Una corsa ancora 'in attesa/confermata' ma con l'orario passato da piu' di
-# questi minuti non conta piu' come attiva (l'autista si e' dimenticato di
-# chiuderla): non blocca il cliente ne' occupa posti.
-SCADENZA_CORSA_MINUTI = 60
-
-
-def _telegram(evento):
-    """Avvisa il bot Telegram (cloud-functions/telegram-bot). Mai bloccante: un errore qui non deve far fallire l'azione."""
-    try:
-        import urllib.request
-        url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
-        req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
-        urllib.request.urlopen(req, timeout=5).read()
-    except Exception as ex:
-        print(f'Notifica Telegram non inviata: {ex}')
-
-
-# ── CORS / risposta ────────────────────────────────────────────────────────
-
-def _cors_headers(origin):
-    allow = origin if origin in ALLOWED_ORIGINS else 'https://gardenhub.it'
-    return {
-        'Access-Control-Allow-Origin':  allow,
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+    """Area ospite — mini-pannello Garden Hub.
+    
+    Endpoint HTTP pubblico usato dalla pagina https://gardenhub.it/area-ospite/?t=
+    <token>: un unico link per prenotazione, pensato per contenere nel tempo più
+    sezioni (Ristorazione, Animazione, Info utili, Navetta, Assistenza). Per ora
+    è operativa solo la sezione "Servizio navetta".
+    
+    Stesso schema del check-in online (vedi cloud-functions/checkin-online): il
+    browser dell'ospite non tocca mai Firestore, tutto passa da qui con l'Admin
+    SDK. Il collegamento token -> prenotazione vive SOLO nella collezione
+    `area_ospite_links/{token}`, negata in lettura a tutti i client dalle regole
+    Firestore.
+    
+    Azioni (campo "azione" nel corpo JSON):
+      - carica          : { token }
+            -> riepilogo sanificato della prenotazione (nome, telefono, alloggio
+               — il numero dell'alloggio e' nascosto fino al giorno dopo il
+               check-in, v. _alloggio_per_ospite: possono esserci cambi fino
+               all'arrivo)
+               + il conto (voci, totale, pagato, residuo da pagare — da
+               prenotazione.conto.righe, scritto dal Calendario)
+               + l'eventuale ombrellone/spiaggia già assegnati dal Calendario
+               + l'elenco delle spiagge e degli autisti configurati (per i due
+               menu a tendina) + l'eventuale accesso Ristorazione (famiglia/
+               codice, se il trattamento prevede pasti) + le richieste navetta
+               già fatte oggi da questo stesso ospite (per mostrargliene lo
+               stato)
+      - contenuti       : { token } -> testi/foto gestiti dall'Hub (Area ospite)
+      - manutenzione_segnala : { token, nome, categoria, descrizione, accesso, animali }
+            -> crea un ticket in `maintenance_tickets` (origine 'ospite') + Telegram
+      - navetta_stato   : { token } -> solo le richieste di oggi (polling leggero)
+      - navetta_modifica_orario : { token, id, orario } -> sposta una corsa
+      - navetta_prenota : { token, nome, telefono, alloggio_nome, spiaggia_nome,
+                             autista_nome, orario }
+            -> valida l'orario (fascia attiva + preavviso minimo, v.
+               preavviso minimo da impostazioni/navetta) e scrive la richiesta in
+               `navetta_prenotazioni` (data = oggi, stato "in_attesa",
+               autista_nome assegnato in seguito dalla dashboard autisti)
+    """
+    
+    import json
+    import os
+    import re
+    import time
+    from datetime import datetime, timedelta
+    import urllib.request
+    from concurrent.futures import ThreadPoolExecutor
+    from zoneinfo import ZoneInfo
+    
+    import firebase_admin
+    from firebase_admin import auth as fb_auth, firestore
+    import functions_framework
+    
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+    
+    ALLOWED_ORIGINS = {'https://gardenhub.it', 'https://www.gardenhub.it'}
+    TZ_ROMA = ZoneInfo('Europe/Rome')
+    
+    # Valori di default della navetta: si cambiano da Hub > Navetta > Impostazioni
+    # (doc Firestore `impostazioni/navetta`). Fasce = stesse del ticket spiaggia.
+    NAVETTA_DEFAULT = {
+        'fasce': [{'dal': '09:00', 'al': '13:00'}, {'dal': '15:30', 'al': '19:00'}],
+        'passo_minuti': 15,
+        # Un orario e' prenotabile solo se dista almeno cosi' tanti minuti da adesso.
+        'preavviso_minimo_minuti': 25,
+        # Il cliente puo' spostare una corsa solo se mancano almeno cosi' tanti minuti.
+        'preavviso_modifica_minuti': 25,
+        # Posti di ogni pulmino: un autista porta piu' prenotazioni nello stesso
+        # orario finche' la somma delle persone non supera questo numero.
+        'posti_pulmino': 8,
+        # Usato solo se non ci sono autisti configurati: quanti pulmini
+        # partono contemporaneamente (ognuno con 'posti_pulmino' posti).
+        'max_corse_per_orario': 1,
     }
-
-
-def _json(origin, payload, status=200):
-    return (json.dumps(payload), status,
-            {**_cors_headers(origin), 'Content-Type': 'application/json'})
-
-
-def _now_ms():
-    return int(time.time() * 1000)
-
-
-def _now_iso():
-    return time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime()) + 'Z'
-
-
-def _oggi_iso():
-    return datetime.now(TZ_ROMA).strftime('%Y-%m-%d')
-
-
-def _s(v, max_len=MAX_TESTO):
-    return str(v).strip()[:max_len] if v is not None else ''
-
-
-# ── velocita': letture in parallelo e piccola cache in memoria ───────────────
-_POOL = ThreadPoolExecutor(max_workers=16)
-_CACHE = {}
-
-
-def _parallelo(**lavori):
-    """Esegue in parallelo funzioni senza argomenti {nome: callable} e ritorna {nome: risultato}.
-    Le letture Firestore sono indipendenti: in serie ogni una costa un viaggio di rete."""
-    futuri = {k: _POOL.submit(f) for k, f in lavori.items()}
-    return {k: f.result() for k, f in futuri.items()}
-
-
-def _con_cache(chiave, secondi, calcola):
-    """Dati che cambiano di rado (configurazione, contenuti, autisti): riletti al massimo ogni `secondi`."""
-    ora = time.time()
-    v = _CACHE.get(chiave)
-    if v and ora - v[0] < secondi:
-        return v[1]
-    r = calcola()
-    _CACHE[chiave] = (ora, r)
-    return r
-
-
-# ── configurazione (Firestore `impostazioni/...`, scritta dall'Hub) ──────────
-
-def _cfg_navetta(db):
-    cfg = dict(NAVETTA_DEFAULT)
-    try:
-        snap = db.collection('impostazioni').document('navetta').get()
-        d = snap.to_dict() or {} if snap.exists else {}
-        fasce = []
-        for f in d.get('fasce') or []:
-            dal, al = _s(f.get('dal'), 5), _s(f.get('al'), 5)
-            if re.fullmatch(r'[0-2]\d:[0-5]\d', dal) and re.fullmatch(r'[0-2]\d:[0-5]\d', al) and dal <= al:
-                fasce.append({'dal': dal, 'al': al})
-        if fasce:
-            cfg['fasce'] = fasce
-        for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti', 'max_corse_per_orario', 'posti_pulmino'):
+    SERVIZI_FOTO = ('home', 'navetta', 'ristorazione', 'animazione', 'info', 'assistenza', 'shop')
+    
+    MAX_TESTO = 120
+    
+    # Una corsa ancora 'in attesa/confermata' ma con l'orario passato da piu' di
+    # questi minuti non conta piu' come attiva (l'autista si e' dimenticato di
+    # chiuderla): non blocca il cliente ne' occupa posti.
+    SCADENZA_CORSA_MINUTI = 60
+    
+    
+    def _telegram(evento):
+        """Avvisa il bot Telegram (cloud-functions/telegram-bot). Mai bloccante: un errore qui non deve far fallire l'azione."""
+        try:
+            import urllib.request
+            url = os.environ.get('TELEGRAM_BOT_URL', 'https://telegram-bot-113994721180.europe-west1.run.app')
+            req = urllib.request.Request(url, data=json.dumps(evento).encode(), headers={'Content-Type': 'application/json', 'X-Internal-Token': os.environ.get('INTERNAL_TOKEN', '')})
+            urllib.request.urlopen(req, timeout=5).read()
+        except Exception as ex:
+            print(f'Notifica Telegram non inviata: {ex}')
+    
+    
+    # ── CORS / risposta ────────────────────────────────────────────────────────
+    
+    def _cors_headers(origin):
+        allow = origin if origin in ALLOWED_ORIGINS else 'https://gardenhub.it'
+        return {
+            'Access-Control-Allow-Origin':  allow,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
+        }
+    
+    
+    def _json(origin, payload, status=200):
+        return (json.dumps(payload), status,
+                {**_cors_headers(origin), 'Content-Type': 'application/json'})
+    
+    
+    def _now_ms():
+        return int(time.time() * 1000)
+    
+    
+    def _now_iso():
+        return time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime()) + 'Z'
+    
+    
+    def _oggi_iso():
+        return datetime.now(TZ_ROMA).strftime('%Y-%m-%d')
+    
+    
+    def _s(v, max_len=MAX_TESTO):
+        return str(v).strip()[:max_len] if v is not None else ''
+    
+    
+    # ── velocita': letture in parallelo e piccola cache in memoria ───────────────
+    _POOL = ThreadPoolExecutor(max_workers=16)
+    _CACHE = {}
+    
+    
+    def _parallelo(**lavori):
+        """Esegue in parallelo funzioni senza argomenti {nome: callable} e ritorna {nome: risultato}.
+        Le letture Firestore sono indipendenti: in serie ogni una costa un viaggio di rete."""
+        futuri = {k: _POOL.submit(f) for k, f in lavori.items()}
+        return {k: f.result() for k, f in futuri.items()}
+    
+    
+    def _con_cache(chiave, secondi, calcola):
+        """Dati che cambiano di rado (configurazione, contenuti, autisti): riletti al massimo ogni `secondi`."""
+        ora = time.time()
+        v = _CACHE.get(chiave)
+        if v and ora - v[0] < secondi:
+            return v[1]
+        r = calcola()
+        _CACHE[chiave] = (ora, r)
+        return r
+    
+    
+    # ── configurazione (Firestore `impostazioni/...`, scritta dall'Hub) ──────────
+    
+    def _cfg_navetta(db):
+        cfg = dict(NAVETTA_DEFAULT)
+        try:
+            snap = db.collection('impostazioni').document('navetta').get()
+            d = snap.to_dict() or {} if snap.exists else {}
+            fasce = []
+            for f in d.get('fasce') or []:
+                dal, al = _s(f.get('dal'), 5), _s(f.get('al'), 5)
+                if re.fullmatch(r'[0-2]\d:[0-5]\d', dal) and re.fullmatch(r'[0-2]\d:[0-5]\d', al) and dal <= al:
+                    fasce.append({'dal': dal, 'al': al})
+            if fasce:
+                cfg['fasce'] = fasce
+            for k in ('passo_minuti', 'preavviso_minimo_minuti', 'preavviso_modifica_minuti', 'max_corse_per_orario', 'posti_pulmino'):
+                try:
+                    v = int(d.get(k))
+                    if v >= (5 if k == 'passo_minuti' else 1 if k in ('max_corse_per_orario', 'posti_pulmino') else 0):
+                        cfg[k] = v
+                except (TypeError, ValueError):
+                    pass
+            cfg['punti_ritiro'] = _punti_ritiro(d.get('punti_ritiro'))
+        except Exception as e:
+            print(f'Lettura impostazioni/navetta non riuscita: {e}')
+        cfg.setdefault('punti_ritiro', [])
+        # Ogni autista ha un pulmino da 'posti_pulmino' posti: i posti di un orario
+        # si contano per autista. Senza autisti configurati vale un unico gruppo di
+        # 'max_corse_per_orario' pulmini.
+        cfg['autisti'] = [a['nome'] for a in _autisti_elenco(db, con_foto=False)]
+        return cfg
+    
+    
+    def _punti_ritiro(grezzi):
+        """Punti di raccolta dalle impostazioni: [{spiaggia, nome, indicazioni,
+        lat, lng, link}]. 'posizione' puo' essere 'lat, lng', un link di Google
+        Maps con le coordinate, oppure un qualsiasi link http(s)."""
+        out = []
+        for r in grezzi or []:
+            if not isinstance(r, dict):
+                continue
+            nome, indic = _s(r.get('nome'), 120), _s(r.get('indicazioni'), 400)
+            pos = _s(r.get('posizione'), 400)
+            lat = lng = None
+            m = re.search(r'(-?\d{1,2}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})', pos)
+            if m and -90 <= float(m.group(1)) <= 90 and -180 <= float(m.group(2)) <= 180:
+                lat, lng = float(m.group(1)), float(m.group(2))
+            link = pos if re.match(r'https?://', pos, re.I) else ''
+            if not (nome or indic or lat is not None or link):
+                continue
+            out.append({'spiaggia': _s(r.get('spiaggia'), 80), 'nome': nome, 'indicazioni': indic,
+                        'lat': lat, 'lng': lng, 'link': link})
+        return out
+    
+    
+    def _animazione(db):
+        """Programma animazione strutturato, scritto dall'Hub in
+        `impostazioni/area_ospite_animazione`: catalogo attivita (nome + emoji +
+        fascia) e, per ogni giorno, le attivita scelte dal catalogo con l'orario.
+        Fasce: d = diurno, m = mini club, t = teen club, s = serale."""
+        out = {'catalogo': [], 'settimane': {}, 'data_inizio': '', 'luogo_serate': '', 'pin': None}
+        try:
+            snap = db.collection('impostazioni').document('area_ospite_animazione').get()
+            d = (snap.to_dict() or {}) if snap.exists else {}
+        except Exception as e:
+            print(f'Lettura animazione non riuscita: {e}')
+            return out
+        for r in (d.get('catalogo') or [])[:300]:
+            if not isinstance(r, dict):
+                continue
+            aid, nome = _s(r.get('id'), 40), _s(r.get('nome'), 80)
+            if not aid or not nome:
+                continue
+            fascia = _s(r.get('fascia'), 1)
+            out['catalogo'].append({'id': aid, 'nome': nome, 'emoji': _s(r.get('emoji'), 8),
+                                    'fascia': fascia if fascia in ('d', 'm', 't', 's') else 'd',
+                                    'speciale': bool(r.get('speciale')),
+                                    'grafica': (_s(r.get('grafica'), 600000) if str(r.get('grafica') or '').startswith('data:image/') else '')})
+        sett = d.get('settimane') if isinstance(d.get('settimane'), dict) else {}
+        if not sett and isinstance(d.get('programma'), dict):
+            sett = {'1': d.get('programma')}     # formato precedente: una sola settimana
+        for n in ('1', '2'):
+            prog = sett.get(n) if isinstance(sett.get(n), dict) else {}
+            out['settimane'][n] = {}
+            for g in ('sab', 'dom', 'lun', 'mar', 'mer', 'gio', 'ven'):
+                giorno = prog.get(g) if isinstance(prog.get(g), dict) else {}
+                out['settimane'][n][g] = {}
+                for f in ('d', 'm', 't', 's'):
+                    voci = []
+                    for v in (giorno.get(f) or [])[:40]:
+                        if isinstance(v, dict) and _s(v.get('a'), 40):
+                            voci.append({'a': _s(v.get('a'), 40), 'ora': _s(v.get('ora'), 20)})
+                    out['settimane'][n][g][f] = voci
+        di = _s(d.get('data_inizio'), 10)
+        out['data_inizio'] = di if len(di) == 10 and di[4] == '-' and di[7] == '-' else ''
+        out['luogo_serate'] = _s(d.get('luogo_serate'), 60)
+        pin = d.get('pin')
+        if isinstance(pin, dict):
             try:
-                v = int(d.get(k))
-                if v >= (5 if k == 'passo_minuti' else 1 if k in ('max_corse_per_orario', 'posti_pulmino') else 0):
-                    cfg[k] = v
+                out['pin'] = {'x': max(0.0, min(100.0, float(pin.get('x')))), 'y': max(0.0, min(100.0, float(pin.get('y'))))}
             except (TypeError, ValueError):
                 pass
-        cfg['punti_ritiro'] = _punti_ritiro(d.get('punti_ritiro'))
-    except Exception as e:
-        print(f'Lettura impostazioni/navetta non riuscita: {e}')
-    cfg.setdefault('punti_ritiro', [])
-    # Ogni autista ha un pulmino da 'posti_pulmino' posti: i posti di un orario
-    # si contano per autista. Senza autisti configurati vale un unico gruppo di
-    # 'max_corse_per_orario' pulmini.
-    cfg['autisti'] = [a['nome'] for a in _autisti_elenco(db, con_foto=False)]
-    return cfg
-
-
-def _punti_ritiro(grezzi):
-    """Punti di raccolta dalle impostazioni: [{spiaggia, nome, indicazioni,
-    lat, lng, link}]. 'posizione' puo' essere 'lat, lng', un link di Google
-    Maps con le coordinate, oppure un qualsiasi link http(s)."""
-    out = []
-    for r in grezzi or []:
-        if not isinstance(r, dict):
-            continue
-        nome, indic = _s(r.get('nome'), 120), _s(r.get('indicazioni'), 400)
-        pos = _s(r.get('posizione'), 400)
-        lat = lng = None
-        m = re.search(r'(-?\d{1,2}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})', pos)
-        if m and -90 <= float(m.group(1)) <= 90 and -180 <= float(m.group(2)) <= 180:
-            lat, lng = float(m.group(1)), float(m.group(2))
-        link = pos if re.match(r'https?://', pos, re.I) else ''
-        if not (nome or indic or lat is not None or link):
-            continue
-        out.append({'spiaggia': _s(r.get('spiaggia'), 80), 'nome': nome, 'indicazioni': indic,
-                    'lat': lat, 'lng': lng, 'link': link})
-    return out
-
-
-def _animazione(db):
-    """Programma animazione strutturato, scritto dall'Hub in
-    `impostazioni/area_ospite_animazione`: catalogo attivita (nome + emoji +
-    fascia) e, per ogni giorno, le attivita scelte dal catalogo con l'orario.
-    Fasce: d = diurno, m = mini club, t = teen club, s = serale."""
-    out = {'catalogo': [], 'settimane': {}, 'data_inizio': '', 'luogo_serate': '', 'pin': None}
-    try:
-        snap = db.collection('impostazioni').document('area_ospite_animazione').get()
-        d = (snap.to_dict() or {}) if snap.exists else {}
-    except Exception as e:
-        print(f'Lettura animazione non riuscita: {e}')
         return out
-    for r in (d.get('catalogo') or [])[:300]:
-        if not isinstance(r, dict):
-            continue
-        aid, nome = _s(r.get('id'), 40), _s(r.get('nome'), 80)
-        if not aid or not nome:
-            continue
-        fascia = _s(r.get('fascia'), 1)
-        out['catalogo'].append({'id': aid, 'nome': nome, 'emoji': _s(r.get('emoji'), 8),
-                                'fascia': fascia if fascia in ('d', 'm', 't', 's') else 'd',
-                                'speciale': bool(r.get('speciale')),
-                                'grafica': (_s(r.get('grafica'), 600000) if str(r.get('grafica') or '').startswith('data:image/') else '')})
-    sett = d.get('settimane') if isinstance(d.get('settimane'), dict) else {}
-    if not sett and isinstance(d.get('programma'), dict):
-        sett = {'1': d.get('programma')}     # formato precedente: una sola settimana
-    for n in ('1', '2'):
-        prog = sett.get(n) if isinstance(sett.get(n), dict) else {}
-        out['settimane'][n] = {}
-        for g in ('sab', 'dom', 'lun', 'mar', 'mer', 'gio', 'ven'):
-            giorno = prog.get(g) if isinstance(prog.get(g), dict) else {}
-            out['settimane'][n][g] = {}
-            for f in ('d', 'm', 't', 's'):
-                voci = []
-                for v in (giorno.get(f) or [])[:40]:
-                    if isinstance(v, dict) and _s(v.get('a'), 40):
-                        voci.append({'a': _s(v.get('a'), 40), 'ora': _s(v.get('ora'), 20)})
-                out['settimane'][n][g][f] = voci
-    di = _s(d.get('data_inizio'), 10)
-    out['data_inizio'] = di if len(di) == 10 and di[4] == '-' and di[7] == '-' else ''
-    out['luogo_serate'] = _s(d.get('luogo_serate'), 60)
-    pin = d.get('pin')
-    if isinstance(pin, dict):
-        try:
-            out['pin'] = {'x': max(0.0, min(100.0, float(pin.get('x')))), 'y': max(0.0, min(100.0, float(pin.get('y'))))}
-        except (TypeError, ValueError):
-            pass
-    return out
-
-
-# Quali avvisi/riquadri mostrare a chi deve ancora arrivare ('pre') e a chi e' in struttura
-# ('dentro'). None = non ha senso in quella fase. Si cambia da Gestione area ospite.
-AVVISI_AUTO_DEF = {
-    'benvenuto': {'pre': True,  'dentro': None},    # "Ti aspettiamo tra N giorni"
-    'ordini':    {'pre': None,  'dentro': True},    # ordine pasti incompleto
-    'checkout':  {'pre': None,  'dentro': True},    # procedura di check-out
-    'navetta':   {'pre': None,  'dentro': True},    # corsa navetta
-    'pioggia':   {'pre': None,  'dentro': True},    # possibile pioggia
-    'stasera':   {'pre': False, 'dentro': True},    # banner serata speciale
-    'oggi':      {'pre': None,  'dentro': True},    # riquadro "Oggi per te"
-    'meteo':     {'pre': False, 'dentro': True},    # card meteo
-    'orari':     {'pre': False, 'dentro': True},    # orari "aperto adesso" (piscina, ristorante, navetta)
-}
-
-
-def _avvisi_cfg(db):
-    memorizzato = {}
-    try:
-        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
-        memorizzato = ((snap.to_dict() or {}).get('auto') or {}) if snap.exists else {}
-    except Exception as e:
-        print(f'Lettura impostazioni avvisi non riuscita: {e}')
-    out = {}
-    for k, fasi in AVVISI_AUTO_DEF.items():
-        m = memorizzato.get(k) if isinstance(memorizzato.get(k), dict) else {}
-        if not m and k in ('meteo', 'orari') and isinstance(memorizzato.get('adesso'), dict):
-            m = memorizzato['adesso']       # impostazione precedente, quando erano un unico riquadro
-        out[k] = {ph: (None if d is None else bool(m.get(ph, d))) for ph, d in fasi.items()}
-    return out
-
-
-def _avvisi(db):
-    """Avvisi inseriti dallo staff (impostazioni/area_ospite_avvisi) validi oggi."""
-    out = []
-    try:
-        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
-        d = (snap.to_dict() or {}) if snap.exists else {}
-        oggi = _oggi_iso()
-        for r in (d.get('avvisi') or [])[:30]:
-            if not isinstance(r, dict):
-                continue
-            titolo = _s(r.get('titolo'), 120)
-            if not titolo:
-                continue
-            dal, al = _s(r.get('dal'), 10), _s(r.get('al'), 10)
-            if (dal and oggi < dal) or (al and oggi > al):
-                continue
-            tipo = _s(r.get('tipo'), 10)
-            pubblico = _s(r.get('pubblico'), 10)
-            item = {'id': _s(r.get('id'), 40) or titolo[:20], 'tipo': tipo if tipo in ('importante', 'info') else 'info',
-                    'pubblico': pubblico if pubblico in ('prima', 'dentro') else 'tutti',
-                    'titolo': titolo, 'testo': _s(r.get('testo'), 400), 'chiudibile': bool(r.get('chiudibile', True))}
-            for lng in ('en', 'de'):
-                item['titolo_' + lng] = _s(r.get('titolo_' + lng), 120)
-                item['testo_' + lng] = _s(r.get('testo_' + lng), 400)
-            out.append(item)
-    except Exception as e:
-        print(f'Lettura avvisi non riuscita: {e}')
-    return out
-
-
-def _tri(x, mx):
-    """Testo in tre lingue {it, en, de}; accetta anche una semplice stringa."""
-    if isinstance(x, str):
-        x = {'it': x}
-    x = x if isinstance(x, dict) else {}
-    return {k: _s(x.get(k), mx) for k in ('it', 'en', 'de')}
-
-
-def _checkin_info(db):
-    """Banner con le informazioni di arrivo (impostazioni/area_ospite_avvisi -> checkin).
-    None se lo staff non l'ha mai modificato: la pagina usa allora i testi predefiniti."""
-    try:
-        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
-        c = ((snap.to_dict() or {}).get('checkin')) if snap.exists else None
-        if not isinstance(c, dict):
-            return None
-        try:
-            giorni = max(1, min(30, int(c.get('giorni') or 5)))
-        except (TypeError, ValueError):
-            giorni = 5
-        return {
-            'attivo': c.get('attivo') is not False,
-            'giorni': giorni,
-            'titolo': _tri(c.get('titolo'), 120),
-            'riquadri': [{'k': _tri(r.get('k'), 40), 'v': _tri(r.get('v'), 60)}
-                         for r in (c.get('riquadri') or [])[:4] if isinstance(r, dict)],
-            'sezioni': [{'titolo': _tri(r.get('titolo'), 100), 'testo': _tri(r.get('testo'), 3000)}
-                        for r in (c.get('sezioni') or [])[:12] if isinstance(r, dict)],
-            'chiusura': _tri(c.get('chiusura'), 300),
-        }
-    except Exception as e:
-        print(f'Lettura banner check-in non riuscita: {e}')
-        return None
-
-
-def _banner_fasce(db):
-    """Banner a fasce orarie (impostazioni/area_ospite_avvisi -> banner_fasce), sanificati.
-    Piu' banner con la stessa posizione e orari sovrapposti scorrono in automatico nella pagina."""
-    try:
-        snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
-        c = ((snap.to_dict() or {}).get('banner_fasce')) if snap.exists else None
-        if not isinstance(c, dict):
-            return None
-        try:
-            secondi = max(3, min(30, int(c.get('secondi') or 6)))
-        except (TypeError, ValueError):
-            secondi = 6
-        def ora(x, d):
-            x = str(x or '').strip()
-            return x if re.fullmatch(r'([01]?\d|2[0-3]):[0-5]\d', x) else d
-        out = []
-        for b in (c.get('banner') or [])[:12]:
-            if not isinstance(b, dict) or b.get('attivo') is False:
-                continue
-            az = b.get('azione') if isinstance(b.get('azione'), dict) else {}
-            tipo = az.get('tipo') if az.get('tipo') in ('servizio', 'link', 'telefono') else 'nessuno'
-            img = str(b.get('grafica') or '').strip()
-            if not (img.startswith('data:image/') and len(img) <= 150000):
-                img = ''
-            out.append({
-                'id': _s(b.get('id'), 40),
-                'titolo': _tri(b.get('titolo'), 100),
-                'testo': _tri(b.get('testo'), 300),
-                'dalle': ora(b.get('dalle'), '00:00'),
-                'alle': ora(b.get('alle'), '23:59'),
-                'posizione': b.get('posizione') if b.get('posizione') in ('alto', 'centro', 'basso') else 'centro',
-                'pubblico': b.get('pubblico') if b.get('pubblico') in ('tutti', 'prima', 'dentro') else 'dentro',
-                'tema': 'arancio' if b.get('tema') == 'arancio' else 'verde',
-                'azione': {'tipo': tipo, 'valore': _s(az.get('valore'), 300), 'etichetta': _tri(az.get('etichetta'), 40)},
-                'grafica': img,
-            })
-        return {'attivo': c.get('attivo') is not False, 'secondi': secondi, 'banner': out}
-    except Exception as e:
-        print(f'Lettura banner a fasce non riuscita: {e}')
-        return None
-
-
-def _contenuti(db):
-    return _con_cache('contenuti', 30, lambda: _contenuti_leggi(db))
-
-
-def _contenuti_leggi(db):
-    """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
-    salvate in `impostazioni/area_ospite_foto_<servizio>`."""
-    chiavi_foto = SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio', 'mappa_card')
-
-    def testi():
-        out = {}
-        try:
-            snap = db.collection('impostazioni').document('area_ospite').get()
-            d = snap.to_dict() or {} if snap.exists else {}
-            for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
-                      'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo', 'contatti_testo',
-                      'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
-                out[k] = _s(d.get(k), 4000)
-        except Exception as e:
-            print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
-        return out
-
-    def foto():
-        out = {}
-        try:
-            # una sola chiamata per tutte le foto
-            refs = [db.collection('impostazioni').document(f'area_ospite_foto_{k}') for k in chiavi_foto]
-            # get_all NON restituisce i documenti nell'ordine richiesto: la chiave si ricava dall'id.
-            for snap in db.get_all(refs):
-                if not snap.exists:
-                    continue
-                k = snap.id[len('area_ospite_foto_'):]
-                url = str((snap.to_dict() or {}).get('data_url') or '').strip()
-                # una foto troncata sarebbe rovinata: se e' troppo grande si scarta
-                if k in chiavi_foto and url.startswith('data:image/') and len(url) <= 900000:
-                    out[k] = url
-        except Exception as e:
-            print(f'Lettura foto non riuscita: {e}')
-        return out
-
-    r = _parallelo(testi=testi, foto=foto, animazione=lambda: _animazione(db),
-                   avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db),
-                   checkin=lambda: _checkin_info(db), fasce_banner=lambda: _banner_fasce(db))
-    return r
-
-
-def _persone_prenotazione(p):
-    """Persone totali della prenotazione (adulti + bambini); 0 se non note."""
-    try:
-        n = sum(int(p.get(k) or 0) for k in ('adulti', 'bambini_0_2', 'bambini_3_4', 'bambini_5_9', 'bambini_10_17'))
-    except (TypeError, ValueError):
-        n = 0
-    if n <= 0:
-        n = len([o for o in (p.get('ospiti') or []) if o])
-    return n
-
-
-def _nome_proprio(p):
-    """Nome di battesimo del capofamiglia. Preferisce l'anagrafica ospiti
-    (campi nome/cognome separati); altrimenti la prima parola di `nome`."""
-    try:
-        for o in (p.get('ospiti') or [])[:1]:
-            n = _s((o or {}).get('nome'))
-            if n:
-                return n.split()[0].capitalize()
-    except Exception:
-        pass
-    parole = _s(p.get('nome')).split()
-    return parole[0].capitalize() if parole else ''
-
-
-# ── token / prenotazione ───────────────────────────────────────────────────
-
-def _token_valido(token):
-    return bool(re.fullmatch(r'[a-f0-9]{16,64}', token or ''))
-
-
-def _link_scaduto(link, pren):
-    """Il link vale fino a 20 giorni dopo il check-out (dopo la partenza mostra il
-    ringraziamento e l'invito alla recensione), calcolato SEMPRE sul check-out
-    attuale della prenotazione: cambiando le date dal Calendario la validita' si
-    sposta da sola (il documento del link non si puo' aggiornare dal client).
-    Senza check-out valido si ripiega sulla scadenza scritta alla creazione."""
-    co = _s(pren.get('checkout'), 10)
-    try:
-        d = datetime.strptime(co, '%Y-%m-%d')
-        return _oggi_iso() > (d + timedelta(days=20)).strftime('%Y-%m-%d')
-    except ValueError:
-        scade_il = (link or {}).get('scade_il') or 0
-        return bool(scade_il and scade_il < _now_ms())
-
-
-def _risolvi_token(db, token):
-    """Ritorna (pren_ref, pren_dict) oppure (None, None)."""
-    if not _token_valido(token):
-        return None, None
-    link_ref = db.collection('area_ospite_links').document(token)
-    snap = link_ref.get()
-    if not snap.exists:
-        return None, None
-    d = snap.to_dict() or {}
-    pren_id = d.get('prenId')
-    if not pren_id:
-        return None, None
-    pren_ref = db.collection('prenotazioni').document(pren_id)
-    pren = pren_ref.get()
-    if not pren.exists:
-        return None, None
-    p = pren.to_dict() or {}
-    if _link_scaduto(d, p):
-        return None, None
-    return pren_ref, p
-
-
-def _spiagge_disponibili(db):
-    return _con_cache('spiagge', 60, lambda: _spiagge_leggi(db))
-
-
-def _spiagge_leggi(db):
-    """Elenco spiagge configurate nel modulo Spiaggia (beach_spiagge), per il
-    menu a tendina lato ospite — niente più campo libero."""
-    try:
-        return [
-            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id}
-            for d in db.collection('beach_spiagge').stream()
-        ]
-    except Exception as e:
-        print(f'Lettura beach_spiagge non riuscita: {e}')
-        return []
-
-
-def _autisti_elenco(db, con_foto=True):
-    tutti = _con_cache('autisti', 60, lambda: _autisti_leggi(db))
-    return tutti if con_foto else [{**a, 'foto': ''} for a in tutti]
-
-
-def _autisti_leggi(db, con_foto=True):
-    """Autisti configurati (collezione navetta_autisti, gestita dalla
-    dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
-    giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
-    try:
-        return [
-            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
-             'foto': _s((d.to_dict() or {}).get('foto'), 300000) if con_foto else ''}
-            for d in db.collection('navetta_autisti').stream()
-        ]
-    except Exception as e:
-        print(f'Lettura navetta_autisti non riuscita: {e}')
-        return []
-
-
-def _ristorazione_disponibile(db, pren_id, pren=None):
-    """Famiglia Ristorazione collegata a questa prenotazione (creata in
-    automatico dal Calendario quando il trattamento è PC/MP — v.
-    sincronizzaFamigliaRistorazione in calendario/index.html). Cerca prima
-    per id diretto (convenzione 'cal_<prenId>'), poi per campo (nel caso sia
-    stata collegata a mano con un id diverso). None se il soggiorno non
-    include pasti o la sincronizzazione non è mai scattata."""
-    try:
-        f = None
-        diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
-        if diretta.exists:
-            f = diretta.to_dict() or {}
-        else:
-            q = (db.collection('famiglie_ristorazione')
-                   .where('calendario_prenotazione_id', '==', pren_id)
-                   .limit(1))
-            docs = list(q.stream())
-            if docs:
-                f = docs[0].to_dict() or {}
-        if not f:
-            return None
-        if pren:
-            f = _risto_allinea(f, pren)
-        codice = _s(f.get('codice'))
-        trattamento = _s(f.get('trattamento'))
-        if not codice or trattamento not in ('PC', 'MP'):
-            return None
-        return {'codice': codice, 'trattamento': trattamento}
-    except Exception as e:
-        print(f'Lettura famiglia ristorazione non riuscita: {e}')
-        return None
-
-
-def _navetta_corse_cliente(db, pren_id):
-    """Tutte le richieste navetta di questo ospite ancora presenti (oggi e
-    precedenti: la pulizia periodica elimina quelle chiuse piu' vecchie di N
-    giorni). L'ospite non ha accesso diretto a Firestore, le vede solo
-    tramite questa azione. Ordinate: prima oggi per orario, poi i giorni
-    precedenti dal piu' recente."""
-    try:
-        q = db.collection('navetta_prenotazioni').where('prenId', '==', pren_id)
-        out = []
-        for d in q.stream():
-            x = d.to_dict() or {}
-            out.append({
-                'id': d.id,
-                'data': _s(x.get('data'), 10),
-                'orario': _s(x.get('orario')),
-                'stato': _s(x.get('stato')) or 'in_attesa',
-                'autista_nome': _s(x.get('autista_nome')),
-                'persone': _persone(x),
-                'spiaggia_nome': _s(x.get('spiaggia_nome')),
-                'orario_precedente': _s(x.get('orario_precedente')),
-            })
-        oggi = _oggi_iso()
-        out.sort(key=lambda c: (c['data'] != oggi, '' if c['data'] == oggi else _inverti(c['data']), c['orario'] if c['data'] == oggi else _inverti(c['orario'])))
-        return out
-    except Exception as e:
-        print(f'Lettura navetta_prenotazioni cliente non riuscita: {e}')
-        return []
-
-
-def _inverti(testo):
-    """Chiave di ordinamento decrescente per stringhe 'AAAA-MM-GG' / 'HH:MM'
-    (cifre complementate a 9, cosi' si ordina con sort crescente)."""
-    return ''.join(chr(ord('0') + 9 - int(ch)) if ch.isdigit() else ch for ch in (testo or ''))
-
-
-def _alloggio_per_ospite(nome, checkin_iso, oggi_iso):
-    """Nome alloggio mostrato all'ospite: senza il numero finale finché non è
-    passato un giorno dall'arrivo (checkin) — in caso di cambi alloggio
-    dell'ultimo momento. Dal giorno dopo il check-in si vede il nome completo.
-    Usato SOLO per quanto l'ospite legge a schermo: le azioni operative
-    (es. navetta) usano sempre il nome reale letto da Firestore."""
-    if not nome or not checkin_iso or oggi_iso > checkin_iso:
-        return nome
-    return re.sub(r'\s+\S+$', '', nome)
-
-
-def _conto_prenotazione(p):
-    """Riepilogo del conto per l'ospite (stesso calcolo di calcolaSaldoConto
-    in calendario/index.html): voci non-acconto fanno il totale del
-    soggiorno; le voci pagate e gli acconti riducono il residuo da pagare.
-    Il campo `conto.righe` vive sulla prenotazione stessa, scritto dal
-    Calendario — qui solo letto e sanificato, mai modificato."""
-    righe = (p.get('conto') or {}).get('righe') or []
-    totale = pagato_normale = acconti = 0.0
-    voci = []
-    for r in righe:
-        if not isinstance(r, dict):
-            continue
-        try:
-            importo = round(float(r.get('importo') or 0), 2)
-        except (TypeError, ValueError):
-            importo = 0.0
-        acconto = bool(r.get('acconto'))
-        pagato = bool(r.get('pagato'))
-        if acconto:
-            acconti += abs(importo)
-        else:
-            totale += importo
-            if pagato:
-                pagato_normale += importo
-        voci.append({'label': _s(r.get('label'), 160), 'importo': importo, 'pagato': pagato, 'acconto': acconto})
-    return {
-        'voci': voci,
-        'totale': round(totale, 2),
-        'pagato': round(pagato_normale + acconti, 2),
-        'da_pagare': round(totale - pagato_normale - acconti, 2),
+    
+    
+    # Quali avvisi/riquadri mostrare a chi deve ancora arrivare ('pre') e a chi e' in struttura
+    # ('dentro'). None = non ha senso in quella fase. Si cambia da Gestione area ospite.
+    AVVISI_AUTO_DEF = {
+        'benvenuto': {'pre': True,  'dentro': None},    # "Ti aspettiamo tra N giorni"
+        'ordini':    {'pre': None,  'dentro': True},    # ordine pasti incompleto
+        'checkout':  {'pre': None,  'dentro': True},    # procedura di check-out
+        'navetta':   {'pre': None,  'dentro': True},    # corsa navetta
+        'pioggia':   {'pre': None,  'dentro': True},    # possibile pioggia
+        'stasera':   {'pre': False, 'dentro': True},    # banner serata speciale
+        'oggi':      {'pre': None,  'dentro': True},    # riquadro "Oggi per te"
+        'meteo':     {'pre': False, 'dentro': True},    # card meteo
+        'orari':     {'pre': False, 'dentro': True},    # orari "aperto adesso" (piscina, ristorante, navetta)
     }
-
-
-TARIFFE_BICI_DEFAULT = {
-    'oraria': 1, 'sogliaOrariaH': 5, 'mezzaGiornata': 5, 'sogliaMezzaGiornataH': 6,
-    'giornataIntera': 10, 'sogliaGiornataH': 24, 'settimana': 50,
-}
-
-
-def _costo_bici(ms, t):
-    """Stessa logica di calcolaCostoBici in bici/index.html."""
-    ore = ms / 3600000.0
-    if ore <= t['sogliaOrariaH']:
-        return max(1, -(-ore // 1)) * t['oraria']
-    if ore <= t['sogliaMezzaGiornataH']:
-        return t['mezzaGiornata']
-    if ore <= t['sogliaGiornataH']:
-        return t['giornataIntera']
-    giorni = -(-ore // 24)
-    return min(giorni * t['giornataIntera'], t['settimana'])
-
-
-def _bici_attive(db, pren_id):
-    """Bici attualmente a noleggio per questa prenotazione (sola lettura).
-    Il costo e' una STIMA al momento: il conto vero lo scrive la Hub al rientro."""
-    try:
-        snap = db.collection('impostazioni').document('bici').get()
-        t = dict(TARIFFE_BICI_DEFAULT)
-        t.update(((snap.to_dict() or {}).get('tariffe') or {}) if snap.exists else {})
+    
+    
+    def _avvisi_cfg(db):
+        memorizzato = {}
+        try:
+            snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+            memorizzato = ((snap.to_dict() or {}).get('auto') or {}) if snap.exists else {}
+        except Exception as e:
+            print(f'Lettura impostazioni avvisi non riuscita: {e}')
+        out = {}
+        for k, fasi in AVVISI_AUTO_DEF.items():
+            m = memorizzato.get(k) if isinstance(memorizzato.get(k), dict) else {}
+            if not m and k in ('meteo', 'orari') and isinstance(memorizzato.get('adesso'), dict):
+                m = memorizzato['adesso']       # impostazione precedente, quando erano un unico riquadro
+            out[k] = {ph: (None if d is None else bool(m.get(ph, d))) for ph, d in fasi.items()}
+        return out
+    
+    
+    def _avvisi(db):
+        """Avvisi inseriti dallo staff (impostazioni/area_ospite_avvisi) validi oggi."""
         out = []
-        for d in db.collection('bici').where('clientePrenotazioneId', '==', pren_id).stream():
-            b = d.to_dict() or {}
-            if b.get('stato') != 'occupata' or not b.get('ritiroTs'):
+        try:
+            snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+            d = (snap.to_dict() or {}) if snap.exists else {}
+            oggi = _oggi_iso()
+            for r in (d.get('avvisi') or [])[:30]:
+                if not isinstance(r, dict):
+                    continue
+                titolo = _s(r.get('titolo'), 120)
+                if not titolo:
+                    continue
+                dal, al = _s(r.get('dal'), 10), _s(r.get('al'), 10)
+                if (dal and oggi < dal) or (al and oggi > al):
+                    continue
+                tipo = _s(r.get('tipo'), 10)
+                pubblico = _s(r.get('pubblico'), 10)
+                item = {'id': _s(r.get('id'), 40) or titolo[:20], 'tipo': tipo if tipo in ('importante', 'info') else 'info',
+                        'pubblico': pubblico if pubblico in ('prima', 'dentro') else 'tutti',
+                        'titolo': titolo, 'testo': _s(r.get('testo'), 400), 'chiudibile': bool(r.get('chiudibile', True))}
+                for lng in ('en', 'de'):
+                    item['titolo_' + lng] = _s(r.get('titolo_' + lng), 120)
+                    item['testo_' + lng] = _s(r.get('testo_' + lng), 400)
+                out.append(item)
+        except Exception as e:
+            print(f'Lettura avvisi non riuscita: {e}')
+        return out
+    
+    
+    def _tri(x, mx):
+        """Testo in tre lingue {it, en, de}; accetta anche una semplice stringa."""
+        if isinstance(x, str):
+            x = {'it': x}
+        x = x if isinstance(x, dict) else {}
+        return {k: _s(x.get(k), mx) for k in ('it', 'en', 'de')}
+    
+    
+    def _checkin_info(db):
+        """Banner con le informazioni di arrivo (impostazioni/area_ospite_avvisi -> checkin).
+        None se lo staff non l'ha mai modificato: la pagina usa allora i testi predefiniti."""
+        try:
+            snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+            c = ((snap.to_dict() or {}).get('checkin')) if snap.exists else None
+            if not isinstance(c, dict):
+                return None
+            try:
+                giorni = max(1, min(30, int(c.get('giorni') or 5)))
+            except (TypeError, ValueError):
+                giorni = 5
+            return {
+                'attivo': c.get('attivo') is not False,
+                'giorni': giorni,
+                'titolo': _tri(c.get('titolo'), 120),
+                'riquadri': [{'k': _tri(r.get('k'), 40), 'v': _tri(r.get('v'), 60)}
+                             for r in (c.get('riquadri') or [])[:4] if isinstance(r, dict)],
+                'sezioni': [{'titolo': _tri(r.get('titolo'), 100), 'testo': _tri(r.get('testo'), 3000)}
+                            for r in (c.get('sezioni') or [])[:12] if isinstance(r, dict)],
+                'chiusura': _tri(c.get('chiusura'), 300),
+            }
+        except Exception as e:
+            print(f'Lettura banner check-in non riuscita: {e}')
+            return None
+    
+    
+    def _banner_fasce(db):
+        """Banner a fasce orarie (impostazioni/area_ospite_avvisi -> banner_fasce), sanificati.
+        Piu' banner con la stessa posizione e orari sovrapposti scorrono in automatico nella pagina."""
+        try:
+            snap = db.collection('impostazioni').document('area_ospite_avvisi').get()
+            c = ((snap.to_dict() or {}).get('banner_fasce')) if snap.exists else None
+            if not isinstance(c, dict):
+                return None
+            try:
+                secondi = max(3, min(30, int(c.get('secondi') or 6)))
+            except (TypeError, ValueError):
+                secondi = 6
+            def ora(x, d):
+                x = str(x or '').strip()
+                return x if re.fullmatch(r'([01]?\d|2[0-3]):[0-5]\d', x) else d
+            out = []
+            for b in (c.get('banner') or [])[:12]:
+                if not isinstance(b, dict) or b.get('attivo') is False:
+                    continue
+                az = b.get('azione') if isinstance(b.get('azione'), dict) else {}
+                tipo = az.get('tipo') if az.get('tipo') in ('servizio', 'link', 'telefono') else 'nessuno'
+                img = str(b.get('grafica') or '').strip()
+                if not (img.startswith('data:image/') and len(img) <= 150000):
+                    img = ''
+                out.append({
+                    'id': _s(b.get('id'), 40),
+                    'titolo': _tri(b.get('titolo'), 100),
+                    'testo': _tri(b.get('testo'), 300),
+                    'dalle': ora(b.get('dalle'), '00:00'),
+                    'alle': ora(b.get('alle'), '23:59'),
+                    'posizione': b.get('posizione') if b.get('posizione') in ('alto', 'centro', 'basso') else 'centro',
+                    'pubblico': b.get('pubblico') if b.get('pubblico') in ('tutti', 'prima', 'dentro') else 'dentro',
+                    'tema': 'arancio' if b.get('tema') == 'arancio' else 'verde',
+                    'azione': {'tipo': tipo, 'valore': _s(az.get('valore'), 300), 'etichetta': _tri(az.get('etichetta'), 40)},
+                    'grafica': img,
+                })
+            return {'attivo': c.get('attivo') is not False, 'secondi': secondi, 'banner': out}
+        except Exception as e:
+            print(f'Lettura banner a fasce non riuscita: {e}')
+            return None
+    
+    
+    def _contenuti(db):
+        return _con_cache('contenuti', 30, lambda: _contenuti_leggi(db))
+    
+    
+    def _contenuti_leggi(db):
+        """Testi e foto personalizzati dall'Hub. Foto = data URL (JPEG ridotto)
+        salvate in `impostazioni/area_ospite_foto_<servizio>`."""
+        chiavi_foto = SERVIZI_FOTO + ('animazione_programma', 'mappa_villaggio', 'mappa_card')
+    
+        def testi():
+            out = {}
+            try:
+                snap = db.collection('impostazioni').document('area_ospite').get()
+                d = snap.to_dict() or {} if snap.exists else {}
+                for k in ('animazione_titolo', 'animazione_testo', 'info_testo', 'assistenza_testo',
+                          'assistenza_telefono', 'assistenza_whatsapp', 'navetta_testo', 'contatti_testo',
+                          'social_facebook', 'social_instagram', 'social_tripadvisor', 'recensione_google'):
+                    out[k] = _s(d.get(k), 4000)
+            except Exception as e:
+                print(f'Lettura impostazioni/area_ospite non riuscita: {e}')
+            return out
+    
+        def foto():
+            out = {}
+            try:
+                # una sola chiamata per tutte le foto
+                refs = [db.collection('impostazioni').document(f'area_ospite_foto_{k}') for k in chiavi_foto]
+                # get_all NON restituisce i documenti nell'ordine richiesto: la chiave si ricava dall'id.
+                for snap in db.get_all(refs):
+                    if not snap.exists:
+                        continue
+                    k = snap.id[len('area_ospite_foto_'):]
+                    url = str((snap.to_dict() or {}).get('data_url') or '').strip()
+                    # una foto troncata sarebbe rovinata: se e' troppo grande si scarta
+                    if k in chiavi_foto and url.startswith('data:image/') and len(url) <= 900000:
+                        out[k] = url
+            except Exception as e:
+                print(f'Lettura foto non riuscita: {e}')
+            return out
+    
+        r = _parallelo(testi=testi, foto=foto, animazione=lambda: _animazione(db),
+                       avvisi=lambda: _avvisi(db), avvisi_cfg=lambda: _avvisi_cfg(db),
+                       checkin=lambda: _checkin_info(db), fasce_banner=lambda: _banner_fasce(db))
+        return r
+    
+    
+    def _persone_prenotazione(p):
+        """Persone totali della prenotazione (adulti + bambini); 0 se non note."""
+        try:
+            n = sum(int(p.get(k) or 0) for k in ('adulti', 'bambini_0_2', 'bambini_3_4', 'bambini_5_9', 'bambini_10_17'))
+        except (TypeError, ValueError):
+            n = 0
+        if n <= 0:
+            n = len([o for o in (p.get('ospiti') or []) if o])
+        return n
+    
+    
+    def _nome_proprio(p):
+        """Nome di battesimo del capofamiglia. Preferisce l'anagrafica ospiti
+        (campi nome/cognome separati); altrimenti la prima parola di `nome`."""
+        try:
+            for o in (p.get('ospiti') or [])[:1]:
+                n = _s((o or {}).get('nome'))
+                if n:
+                    return n.split()[0].capitalize()
+        except Exception:
+            pass
+        parole = _s(p.get('nome')).split()
+        return parole[0].capitalize() if parole else ''
+    
+    
+    # ── token / prenotazione ───────────────────────────────────────────────────
+    
+    def _token_valido(token):
+        return bool(re.fullmatch(r'[a-f0-9]{16,64}', token or ''))
+    
+    
+    def _link_scaduto(link, pren):
+        """Il link vale fino a 20 giorni dopo il check-out (dopo la partenza mostra il
+        ringraziamento e l'invito alla recensione), calcolato SEMPRE sul check-out
+        attuale della prenotazione: cambiando le date dal Calendario la validita' si
+        sposta da sola (il documento del link non si puo' aggiornare dal client).
+        Senza check-out valido si ripiega sulla scadenza scritta alla creazione."""
+        co = _s(pren.get('checkout'), 10)
+        try:
+            d = datetime.strptime(co, '%Y-%m-%d')
+            return _oggi_iso() > (d + timedelta(days=20)).strftime('%Y-%m-%d')
+        except ValueError:
+            scade_il = (link or {}).get('scade_il') or 0
+            return bool(scade_il and scade_il < _now_ms())
+    
+    
+    def _risolvi_token(db, token):
+        """Ritorna (pren_ref, pren_dict) oppure (None, None)."""
+        if not _token_valido(token):
+            return None, None
+        link_ref = db.collection('area_ospite_links').document(token)
+        snap = link_ref.get()
+        if not snap.exists:
+            return None, None
+        d = snap.to_dict() or {}
+        pren_id = d.get('prenId')
+        if not pren_id:
+            return None, None
+        pren_ref = db.collection('prenotazioni').document(pren_id)
+        pren = pren_ref.get()
+        if not pren.exists:
+            return None, None
+        p = pren.to_dict() or {}
+        if _link_scaduto(d, p):
+            return None, None
+        return pren_ref, p
+    
+    
+    def _spiagge_disponibili(db):
+        return _con_cache('spiagge', 60, lambda: _spiagge_leggi(db))
+    
+    
+    def _spiagge_leggi(db):
+        """Elenco spiagge configurate nel modulo Spiaggia (beach_spiagge), per il
+        menu a tendina lato ospite — niente più campo libero."""
+        try:
+            return [
+                {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id}
+                for d in db.collection('beach_spiagge').stream()
+            ]
+        except Exception as e:
+            print(f'Lettura beach_spiagge non riuscita: {e}')
+            return []
+    
+    
+    def _autisti_elenco(db, con_foto=True):
+        tutti = _con_cache('autisti', 60, lambda: _autisti_leggi(db))
+        return tutti if con_foto else [{**a, 'foto': ''} for a in tutti]
+    
+    
+    def _autisti_leggi(db, con_foto=True):
+        """Autisti configurati (collezione navetta_autisti, gestita dalla
+        dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
+        giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
+        try:
+            return [
+                {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
+                 'foto': _s((d.to_dict() or {}).get('foto'), 300000) if con_foto else ''}
+                for d in db.collection('navetta_autisti').stream()
+            ]
+        except Exception as e:
+            print(f'Lettura navetta_autisti non riuscita: {e}')
+            return []
+    
+    
+    def _ristorazione_disponibile(db, pren_id, pren=None):
+        """Famiglia Ristorazione collegata a questa prenotazione (creata in
+        automatico dal Calendario quando il trattamento è PC/MP — v.
+        sincronizzaFamigliaRistorazione in calendario/index.html). Cerca prima
+        per id diretto (convenzione 'cal_<prenId>'), poi per campo (nel caso sia
+        stata collegata a mano con un id diverso). None se il soggiorno non
+        include pasti o la sincronizzazione non è mai scattata."""
+        try:
+            f = None
+            diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
+            if diretta.exists:
+                f = diretta.to_dict() or {}
+            else:
+                q = (db.collection('famiglie_ristorazione')
+                       .where('calendario_prenotazione_id', '==', pren_id)
+                       .limit(1))
+                docs = list(q.stream())
+                if docs:
+                    f = docs[0].to_dict() or {}
+            if not f:
+                return None
+            if pren:
+                f = _risto_allinea(f, pren)
+            codice = _s(f.get('codice'))
+            trattamento = _s(f.get('trattamento'))
+            if not codice or trattamento not in ('PC', 'MP'):
+                return None
+            return {'codice': codice, 'trattamento': trattamento}
+        except Exception as e:
+            print(f'Lettura famiglia ristorazione non riuscita: {e}')
+            return None
+    
+    
+    def _navetta_corse_cliente(db, pren_id):
+        """Tutte le richieste navetta di questo ospite ancora presenti (oggi e
+        precedenti: la pulizia periodica elimina quelle chiuse piu' vecchie di N
+        giorni). L'ospite non ha accesso diretto a Firestore, le vede solo
+        tramite questa azione. Ordinate: prima oggi per orario, poi i giorni
+        precedenti dal piu' recente."""
+        try:
+            q = db.collection('navetta_prenotazioni').where('prenId', '==', pren_id)
+            out = []
+            for d in q.stream():
+                x = d.to_dict() or {}
+                out.append({
+                    'id': d.id,
+                    'data': _s(x.get('data'), 10),
+                    'orario': _s(x.get('orario')),
+                    'stato': _s(x.get('stato')) or 'in_attesa',
+                    'autista_nome': _s(x.get('autista_nome')),
+                    'persone': _persone(x),
+                    'spiaggia_nome': _s(x.get('spiaggia_nome')),
+                    'orario_precedente': _s(x.get('orario_precedente')),
+                })
+            oggi = _oggi_iso()
+            out.sort(key=lambda c: (c['data'] != oggi, '' if c['data'] == oggi else _inverti(c['data']), c['orario'] if c['data'] == oggi else _inverti(c['orario'])))
+            return out
+        except Exception as e:
+            print(f'Lettura navetta_prenotazioni cliente non riuscita: {e}')
+            return []
+    
+    
+    def _inverti(testo):
+        """Chiave di ordinamento decrescente per stringhe 'AAAA-MM-GG' / 'HH:MM'
+        (cifre complementate a 9, cosi' si ordina con sort crescente)."""
+        return ''.join(chr(ord('0') + 9 - int(ch)) if ch.isdigit() else ch for ch in (testo or ''))
+    
+    
+    def _alloggio_per_ospite(nome, checkin_iso, oggi_iso):
+        """Nome alloggio mostrato all'ospite: senza il numero finale finché non è
+        passato un giorno dall'arrivo (checkin) — in caso di cambi alloggio
+        dell'ultimo momento. Dal giorno dopo il check-in si vede il nome completo.
+        Usato SOLO per quanto l'ospite legge a schermo: le azioni operative
+        (es. navetta) usano sempre il nome reale letto da Firestore."""
+        if not nome or not checkin_iso or oggi_iso > checkin_iso:
+            return nome
+        return re.sub(r'\s+\S+$', '', nome)
+    
+    
+    def _conto_prenotazione(p):
+        """Riepilogo del conto per l'ospite (stesso calcolo di calcolaSaldoConto
+        in calendario/index.html): voci non-acconto fanno il totale del
+        soggiorno; le voci pagate e gli acconti riducono il residuo da pagare.
+        Il campo `conto.righe` vive sulla prenotazione stessa, scritto dal
+        Calendario — qui solo letto e sanificato, mai modificato."""
+        righe = (p.get('conto') or {}).get('righe') or []
+        totale = pagato_normale = acconti = 0.0
+        voci = []
+        for r in righe:
+            if not isinstance(r, dict):
                 continue
             try:
-                inizio = datetime.fromisoformat(str(b['ritiroTs']).replace('Z', '+00:00'))
-                ms = max(0, (datetime.now(inizio.tzinfo) - inizio).total_seconds() * 1000)
-                costo = round(float(_costo_bici(ms, t)), 2)
-            except (ValueError, TypeError, KeyError):
-                costo = None
-            out.append({'numero': b.get('numero'), 'tipologia': _s(b.get('tipologia'), 20),
-                        'ritiro': _s(b.get('ritiroTs'), 40), 'costo_stimato': costo,
-                        'pagata': bool(b.get('pagamentoAnticipato'))})
-        out.sort(key=lambda x: x['numero'] or 0)
-        return out
-    except Exception:
-        return []
-
-
-def _conto_con_spese(db, pren_id, p):
-    c = _conto_prenotazione(p)
-    extra = _spese_conti(db, pren_id, p)
-    if extra:
-        tot = round(sum(v['importo'] for v in extra), 2)
-        c['voci'] = c['voci'] + extra
-        c['totale'] = round(c['totale'] + tot, 2)
-        c['da_pagare'] = round(c['da_pagare'] + tot, 2)
-    return c
-
-
-def _token_nome(v):
-    return set(re.sub(r'[^a-z0-9 ]', ' ', (v or '').lower()).split())
-
-
-def _spese_conti(db, pren_id, p):
-    """Spese registrate nel modulo Conti (collezioni `ospiti` + `ordini`) per questo ospite,
-    ancora da incassare (dopo l'ultimo azzeramento `pagatoFinoA`). Il collegamento passa dalla
-    famiglia Ristorazione; se manca, si cerca il conto per alloggio + nome. Sola lettura."""
-    try:
-        ids = []
-        fam_id, fam = _risto_famiglia(db, pren_id)
-        if fam_id:
-            if fam.get('ospiteId'):
-                ids.append(fam['ospiteId'])
-            ids.append('osp_' + fam_id)
-        ospiti = []
-        for d in db.collection('ospiti').where('prenotazioneId', '==', pren_id).stream():
-            ospiti.append((d.id, d.to_dict() or {}))
-        for oid in dict.fromkeys(i for i in ids if i not in {x[0] for x in ospiti}):
-            d = db.collection('ospiti').document(oid).get()
-            if d.exists:
-                ospiti.append((d.id, d.to_dict() or {}))
-        if not ospiti:
-            nome_p = _token_nome(p.get('nome'))
-            alloggio = _s(p.get('alloggio_nome'))
-            if nome_p and alloggio:
-                for d in db.collection('ospiti').where('alloggio', '==', alloggio).stream():
-                    o = d.to_dict() or {}
-                    nome_o = _token_nome(f"{o.get('nome', '')} {o.get('cognome', '')}")
-                    if nome_o and (nome_o <= nome_p or nome_p <= nome_o):
-                        ospiti.append((d.id, o))
-        voci = []
-        for oid, o in ospiti:
-            soglia = _s(o.get('pagatoFinoA'), 20)
-            for d in db.collection('ordini').where('ospiteId', '==', oid).stream():
-                x = d.to_dict() or {}
-                ts = _s(x.get('ts'), 20)
-                if soglia and ts <= soglia:
+                importo = round(float(r.get('importo') or 0), 2)
+            except (TypeError, ValueError):
+                importo = 0.0
+            acconto = bool(r.get('acconto'))
+            pagato = bool(r.get('pagato'))
+            if acconto:
+                acconti += abs(importo)
+            else:
+                totale += importo
+                if pagato:
+                    pagato_normale += importo
+            voci.append({'label': _s(r.get('label'), 160), 'importo': importo, 'pagato': pagato, 'acconto': acconto})
+        return {
+            'voci': voci,
+            'totale': round(totale, 2),
+            'pagato': round(pagato_normale + acconti, 2),
+            'da_pagare': round(totale - pagato_normale - acconti, 2),
+        }
+    
+    
+    TARIFFE_BICI_DEFAULT = {
+        'oraria': 1, 'sogliaOrariaH': 5, 'mezzaGiornata': 5, 'sogliaMezzaGiornataH': 6,
+        'giornataIntera': 10, 'sogliaGiornataH': 24, 'settimana': 50,
+    }
+    
+    
+    def _costo_bici(ms, t):
+        """Stessa logica di calcolaCostoBici in bici/index.html."""
+        ore = ms / 3600000.0
+        if ore <= t['sogliaOrariaH']:
+            return max(1, -(-ore // 1)) * t['oraria']
+        if ore <= t['sogliaMezzaGiornataH']:
+            return t['mezzaGiornata']
+        if ore <= t['sogliaGiornataH']:
+            return t['giornataIntera']
+        giorni = -(-ore // 24)
+        return min(giorni * t['giornataIntera'], t['settimana'])
+    
+    
+    def _bici_attive(db, pren_id):
+        """Bici attualmente a noleggio per questa prenotazione (sola lettura).
+        Il costo e' una STIMA al momento: il conto vero lo scrive la Hub al rientro."""
+        try:
+            snap = db.collection('impostazioni').document('bici').get()
+            t = dict(TARIFFE_BICI_DEFAULT)
+            t.update(((snap.to_dict() or {}).get('tariffe') or {}) if snap.exists else {})
+            out = []
+            for d in db.collection('bici').where('clientePrenotazioneId', '==', pren_id).stream():
+                b = d.to_dict() or {}
+                if b.get('stato') != 'occupata' or not b.get('ritiroTs'):
                     continue
                 try:
-                    imp = round(float(x.get('importo') or 0), 2)
-                except (TypeError, ValueError):
-                    continue
-                if imp:
-                    voci.append((ts, {'label': _s(x.get('desc'), 160) or _s(x.get('punto'), 60) or 'Spesa',
-                                      'importo': imp, 'pagato': False, 'acconto': False}))
-        voci.sort(key=lambda v: v[0])
-        return [v for _, v in voci]
-    except Exception as e:
-        print(f'Lettura spese Conti non riuscita: {e}')
-        return []
-
-
-def _spiaggia_assegnata(db, pren_id, pren=None):
-    """Ombrellone/spiaggia già posizionati per questa prenotazione.
-    1) collegamento del Calendario (beach_prenotazioni.calendario_prenotazione_id);
-    2) ripiego per le posizioni inserite a mano dal modulo Spiaggia, che non
-       hanno il collegamento: stesso nome cliente e date che si sovrappongono
-       al soggiorno. Fra piu' candidate vince quella valida oggi. None se assente."""
-    try:
-        col = db.collection('beach_prenotazioni')
-        def _con_id(d):
-            x = d.to_dict() or {}
-            x['_id'] = d.id
-            return x
-        cand = [_con_id(d) for d in col.where('calendario_prenotazione_id', '==', pren_id).stream()]
-        if not cand and pren:
-            nome = _norm_nome(_s(pren.get('nome')))
-            ci, co = _s(pren.get('checkin'), 10), _s(pren.get('checkout'), 10)
-            if nome:
-                for d in col.where('cliente', '==', _s(pren.get('nome'))).stream():
-                    x = _con_id(d)
-                    if _norm_nome(_s(x.get('cliente'))) != nome:
+                    inizio = datetime.fromisoformat(str(b['ritiroTs']).replace('Z', '+00:00'))
+                    ms = max(0, (datetime.now(inizio.tzinfo) - inizio).total_seconds() * 1000)
+                    costo = round(float(_costo_bici(ms, t)), 2)
+                except (ValueError, TypeError, KeyError):
+                    costo = None
+                out.append({'numero': b.get('numero'), 'tipologia': _s(b.get('tipologia'), 20),
+                            'ritiro': _s(b.get('ritiroTs'), 40), 'costo_stimato': costo,
+                            'pagata': bool(b.get('pagamentoAnticipato'))})
+            out.sort(key=lambda x: x['numero'] or 0)
+            return out
+        except Exception:
+            return []
+    
+    
+    def _conto_con_spese(db, pren_id, p):
+        c = _conto_prenotazione(p)
+        extra = _spese_conti(db, pren_id, p)
+        if extra:
+            tot = round(sum(v['importo'] for v in extra), 2)
+            c['voci'] = c['voci'] + extra
+            c['totale'] = round(c['totale'] + tot, 2)
+            c['da_pagare'] = round(c['da_pagare'] + tot, 2)
+        return c
+    
+    
+    def _token_nome(v):
+        return set(re.sub(r'[^a-z0-9 ]', ' ', (v or '').lower()).split())
+    
+    
+    def _spese_conti(db, pren_id, p):
+        """Spese registrate nel modulo Conti (collezioni `ospiti` + `ordini`) per questo ospite,
+        ancora da incassare (dopo l'ultimo azzeramento `pagatoFinoA`). Il collegamento passa dalla
+        famiglia Ristorazione; se manca, si cerca il conto per alloggio + nome. Sola lettura."""
+        try:
+            ids = []
+            fam_id, fam = _risto_famiglia(db, pren_id)
+            if fam_id:
+                if fam.get('ospiteId'):
+                    ids.append(fam['ospiteId'])
+                ids.append('osp_' + fam_id)
+            ospiti = []
+            for d in db.collection('ospiti').where('prenotazioneId', '==', pren_id).stream():
+                ospiti.append((d.id, d.to_dict() or {}))
+            for oid in dict.fromkeys(i for i in ids if i not in {x[0] for x in ospiti}):
+                d = db.collection('ospiti').document(oid).get()
+                if d.exists:
+                    ospiti.append((d.id, d.to_dict() or {}))
+            if not ospiti:
+                nome_p = _token_nome(p.get('nome'))
+                alloggio = _s(p.get('alloggio_nome'))
+                if nome_p and alloggio:
+                    for d in db.collection('ospiti').where('alloggio', '==', alloggio).stream():
+                        o = d.to_dict() or {}
+                        nome_o = _token_nome(f"{o.get('nome', '')} {o.get('cognome', '')}")
+                        if nome_o and (nome_o <= nome_p or nome_p <= nome_o):
+                            ospiti.append((d.id, o))
+            voci = []
+            for oid, o in ospiti:
+                soglia = _s(o.get('pagatoFinoA'), 20)
+                for d in db.collection('ordini').where('ospiteId', '==', oid).stream():
+                    x = d.to_dict() or {}
+                    ts = _s(x.get('ts'), 20)
+                    if soglia and ts <= soglia:
                         continue
-                    dal, al = _s(x.get('dal'), 10), _s(x.get('al'), 10)
-                    if ci and co and dal and al and (al < ci or dal >= co):
+                    try:
+                        imp = round(float(x.get('importo') or 0), 2)
+                    except (TypeError, ValueError):
                         continue
-                    cand.append(x)
-        cand = [x for x in cand if _s(x.get('ombrellone'))]
-        if not cand:
+                    if imp:
+                        voci.append((ts, {'label': _s(x.get('desc'), 160) or _s(x.get('punto'), 60) or 'Spesa',
+                                          'importo': imp, 'pagato': False, 'acconto': False}))
+            voci.sort(key=lambda v: v[0])
+            return [v for _, v in voci]
+        except Exception as e:
+            print(f'Lettura spese Conti non riuscita: {e}')
+            return []
+    
+    
+    def _spiaggia_assegnata(db, pren_id, pren=None):
+        """Ombrellone/spiaggia già posizionati per questa prenotazione.
+        1) collegamento del Calendario (beach_prenotazioni.calendario_prenotazione_id);
+        2) ripiego per le posizioni inserite a mano dal modulo Spiaggia, che non
+           hanno il collegamento: stesso nome cliente e date che si sovrappongono
+           al soggiorno. Fra piu' candidate vince quella valida oggi. None se assente."""
+        try:
+            col = db.collection('beach_prenotazioni')
+            def _con_id(d):
+                x = d.to_dict() or {}
+                x['_id'] = d.id
+                return x
+            cand = [_con_id(d) for d in col.where('calendario_prenotazione_id', '==', pren_id).stream()]
+            if not cand and pren:
+                nome = _norm_nome(_s(pren.get('nome')))
+                ci, co = _s(pren.get('checkin'), 10), _s(pren.get('checkout'), 10)
+                if nome:
+                    for d in col.where('cliente', '==', _s(pren.get('nome'))).stream():
+                        x = _con_id(d)
+                        if _norm_nome(_s(x.get('cliente'))) != nome:
+                            continue
+                        dal, al = _s(x.get('dal'), 10), _s(x.get('al'), 10)
+                        if ci and co and dal and al and (al < ci or dal >= co):
+                            continue
+                        cand.append(x)
+            cand = [x for x in cand if _s(x.get('ombrellone'))]
+            if not cand:
+                return None
+            oggi = _oggi_iso()
+            cand.sort(key=lambda x: (not (_s(x.get('dal'), 10) <= oggi <= _s(x.get('al'), 10)), _s(x.get('dal'), 10)))
+            b = cand[0]
+            ombrellone = _s(b.get('ombrellone'))
+            nome_spiaggia = b.get('spiaggia_id') or ''
+            spiaggia_id = b.get('spiaggia_id')
+            if spiaggia_id:
+                sp = db.collection('beach_spiagge').document(spiaggia_id).get()
+                if sp.exists:
+                    nome_spiaggia = _s((sp.to_dict() or {}).get('nome')) or nome_spiaggia
+            # Dati del tagliandino (stessi di quello cartaceo del modulo Spiaggia): l'ospite lo
+            # mostra allo stabilimento dal telefono.
+            return {'spiaggia_nome': nome_spiaggia, 'ombrellone': ombrellone,
+                    'dal': _s(b.get('dal'), 10), 'al': _s(b.get('al'), 10),
+                    'cliente': _s(b.get('cliente'), 120) or _s((pren or {}).get('nome'), 120),
+                    'note': _s(b.get('note'), 300), 'stato': _s(b.get('stato'), 20) or 'confermata',
+                    'codice': _s(b.get('_id'), 40)[-4:].upper(),
+                    'navetta_fasce': _cfg_navetta(db).get('fasce') or []}
+        except Exception as e:
+            print(f'Lettura spiaggia assegnata non riuscita: {e}')
             return None
-        oggi = _oggi_iso()
-        cand.sort(key=lambda x: (not (_s(x.get('dal'), 10) <= oggi <= _s(x.get('al'), 10)), _s(x.get('dal'), 10)))
-        b = cand[0]
-        ombrellone = _s(b.get('ombrellone'))
-        nome_spiaggia = b.get('spiaggia_id') or ''
-        spiaggia_id = b.get('spiaggia_id')
-        if spiaggia_id:
-            sp = db.collection('beach_spiagge').document(spiaggia_id).get()
-            if sp.exists:
-                nome_spiaggia = _s((sp.to_dict() or {}).get('nome')) or nome_spiaggia
-        # Dati del tagliandino (stessi di quello cartaceo del modulo Spiaggia): l'ospite lo
-        # mostra allo stabilimento dal telefono.
-        return {'spiaggia_nome': nome_spiaggia, 'ombrellone': ombrellone,
-                'dal': _s(b.get('dal'), 10), 'al': _s(b.get('al'), 10),
-                'cliente': _s(b.get('cliente'), 120) or _s((pren or {}).get('nome'), 120),
-                'note': _s(b.get('note'), 300), 'stato': _s(b.get('stato'), 20) or 'confermata',
-                'codice': _s(b.get('_id'), 40)[-4:].upper(),
-                'navetta_fasce': _cfg_navetta(db).get('fasce') or []}
-    except Exception as e:
-        print(f'Lettura spiaggia assegnata non riuscita: {e}')
-        return None
-
-
-def _slot_validi(cfg):
-    """Elenco 'HH:MM' di tutte le fasce, passo configurato (bordo incluso)."""
-    out = []
-    for f in cfg['fasce']:
-        h0, m0 = map(int, f['dal'].split(':'))
-        h1, m1 = map(int, f['al'].split(':'))
-        t = h0 * 60 + m0
-        tf = h1 * 60 + m1
-        while t <= tf:
-            out.append(f'{t // 60:02d}:{t % 60:02d}')
-            t += cfg['passo_minuti']
-    return out
-
-
-def _minuti_da_ora(orario):
-    """Minuti tra adesso (ora di Roma) e l'orario 'HH:MM' passato, oggi."""
-    h, m = map(int, orario.split(':'))
-    ora = datetime.now(TZ_ROMA)
-    target = ora.replace(hour=h, minute=m, second=0, microsecond=0)
-    return (target - ora).total_seconds() / 60
-
-
-def _orario_valido(orario, cfg):
-    if not bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) or orario not in _slot_validi(cfg):
-        return False
-    return _minuti_da_ora(orario) >= cfg['preavviso_minimo_minuti']
-
-
-def _norm_nome(v):
-    return re.sub(r'\s+', ' ', (v or '').strip().lower())
-
-
-def _norm_tel(v):
-    cifre = re.sub(r'\D', '', v or '')
-    return cifre[-9:] if len(cifre) >= 7 else ''
-
-
-def _corse_attive_oggi(db, transaction=None):
-    """[(id, dict)] delle corse ancora attive oggi, di tutti gli ospiti."""
-    q = db.collection('navetta_prenotazioni').where('data', '==', _oggi_iso())
-    docs = q.stream(transaction=transaction) if transaction is not None else q.stream()
-    return [(d.id, d.to_dict() or {}) for d in docs
-            if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata') and not _scaduta(d.to_dict() or {})]
-
-
-def _scaduta(x):
-    """Corsa di oggi con l'orario passato da oltre SCADENZA_CORSA_MINUTI."""
-    try:
-        return _minuti_da_ora(x.get('orario') or '23:59') < -SCADENZA_CORSA_MINUTI
-    except Exception:
-        return False
-
-
-def _persone(x):
-    """Persone di una corsa (le vecchie corse senza il campo valgono 1)."""
-    try:
-        return max(1, int(x.get('persone') or 1))
-    except (TypeError, ValueError):
-        return 1
-
-
-def _occupazione(corse_ora):
-    """({autista normalizzato: persone}, persone senza autista) di un orario."""
-    per_aut, senza = {}, 0
-    for x in corse_ora:
-        a = _norm_nome(x.get('autista_nome'))
-        if a:
-            per_aut[a] = per_aut.get(a, 0) + _persone(x)
-        else:
-            senza += _persone(x)
-    return per_aut, senza
-
-
-def _liberi_autista(corse_ora, cfg, autista):
-    """Posti ancora liberi sul pulmino di quell'autista a quell'orario. Le corse
-    ancora senza autista tolgono posti a tutti (per prudenza). Senza autisti
-    configurati c'e' un unico gruppo di pulmini."""
-    per_aut, senza = _occupazione(corse_ora)
-    if not cfg['autisti']:
-        return cfg['posti_pulmino'] * cfg['max_corse_per_orario'] - sum(per_aut.values()) - senza
-    return cfg['posti_pulmino'] - per_aut.get(_norm_nome(autista), 0) - senza
-
-
-def _max_liberi(corse_ora, cfg):
-    """Il maggior numero di posti liberi su un singolo pulmino a quell'orario."""
-    if not cfg['autisti']:
-        return _liberi_autista(corse_ora, cfg, '')
-    return max(_liberi_autista(corse_ora, cfg, a) for a in cfg['autisti'])
-
-
-def _orari_occupati(attive, cfg):
-    """Orari in cui nessun pulmino ha piu' un posto libero (uguale per tutti
-    gli ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
-    per_ora = {}
-    for _id, x in attive:
-        if x.get('orario'):
-            per_ora.setdefault(x['orario'], []).append(x)
-    return sorted(o for o, corse in per_ora.items() if _max_liberi(corse, cfg) <= 0)
-
-
-def _puo_ospitare(corse_ora, cfg, autista, spiaggia, persone):
-    """Il pulmino di quell'autista puo' prendere questo gruppo a quell'orario?
-    Servono i posti e, se ha gia' altre prenotazioni a quell'ora, devono
-    andare alla STESSA spiaggia (un pulmino fa un solo giro). Una corsa senza
-    spiaggia indicata (vecchie richieste) non pone vincoli."""
-    if _liberi_autista(corse_ora, cfg, autista) < persone:
-        return False
-    if cfg['autisti']:
-        a, sp = _norm_nome(autista), _norm_nome(spiaggia)
+    
+    
+    def _slot_validi(cfg):
+        """Elenco 'HH:MM' di tutte le fasce, passo configurato (bordo incluso)."""
+        out = []
+        for f in cfg['fasce']:
+            h0, m0 = map(int, f['dal'].split(':'))
+            h1, m1 = map(int, f['al'].split(':'))
+            t = h0 * 60 + m0
+            tf = h1 * 60 + m1
+            while t <= tf:
+                out.append(f'{t // 60:02d}:{t % 60:02d}')
+                t += cfg['passo_minuti']
+        return out
+    
+    
+    def _minuti_da_ora(orario):
+        """Minuti tra adesso (ora di Roma) e l'orario 'HH:MM' passato, oggi."""
+        h, m = map(int, orario.split(':'))
+        ora = datetime.now(TZ_ROMA)
+        target = ora.replace(hour=h, minute=m, second=0, microsecond=0)
+        return (target - ora).total_seconds() / 60
+    
+    
+    def _orario_valido(orario, cfg):
+        if not bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) or orario not in _slot_validi(cfg):
+            return False
+        return _minuti_da_ora(orario) >= cfg['preavviso_minimo_minuti']
+    
+    
+    def _norm_nome(v):
+        return re.sub(r'\s+', ' ', (v or '').strip().lower())
+    
+    
+    def _norm_tel(v):
+        cifre = re.sub(r'\D', '', v or '')
+        return cifre[-9:] if len(cifre) >= 7 else ''
+    
+    
+    def _corse_attive_oggi(db, transaction=None):
+        """[(id, dict)] delle corse ancora attive oggi, di tutti gli ospiti."""
+        q = db.collection('navetta_prenotazioni').where('data', '==', _oggi_iso())
+        docs = q.stream(transaction=transaction) if transaction is not None else q.stream()
+        return [(d.id, d.to_dict() or {}) for d in docs
+                if (d.to_dict() or {}).get('stato') in ('in_attesa', 'accettata') and not _scaduta(d.to_dict() or {})]
+    
+    
+    def _scaduta(x):
+        """Corsa di oggi con l'orario passato da oltre SCADENZA_CORSA_MINUTI."""
+        try:
+            return _minuti_da_ora(x.get('orario') or '23:59') < -SCADENZA_CORSA_MINUTI
+        except Exception:
+            return False
+    
+    
+    def _persone(x):
+        """Persone di una corsa (le vecchie corse senza il campo valgono 1)."""
+        try:
+            return max(1, int(x.get('persone') or 1))
+        except (TypeError, ValueError):
+            return 1
+    
+    
+    def _occupazione(corse_ora):
+        """({autista normalizzato: persone}, persone senza autista) di un orario."""
+        per_aut, senza = {}, 0
         for x in corse_ora:
-            xs = _norm_nome(x.get('spiaggia_nome'))
-            if sp and xs and xs != sp and _norm_nome(x.get('autista_nome')) == a:
-                return False
-    return True
-
-
-def _posti_occupati(attive, cfg):
-    """{orario: {nome autista: {'n': persone gia' a bordo, 'spiagge': [...]}}}
-    (la chiave '' sono le corse senza autista): serve al cliente per sapere se
-    l'autista scelto ha ancora posto per il suo gruppo e va alla sua stessa
-    spiaggia. Nessun dato personale."""
-    out = {}
-    for _id, x in attive:
-        o = x.get('orario')
-        if not o:
-            continue
-        riga = out.setdefault(o, {}).setdefault(_s(x.get('autista_nome')), {'n': 0, 'spiagge': []})
-        riga['n'] += _persone(x)
-        sp = _s(x.get('spiaggia_nome'))
-        if sp and sp not in riga['spiagge']:
-            riga['spiagge'].append(sp)
-    return out
-
-
-def _stessa_persona(x, pren_id, tel):
-    """La corsa x e' dello stesso cliente? Per prenotazione (prenId); le corse
-    create dallo staff non hanno prenId e si riconoscono dal telefono. Il solo
-    nome non basta: troppi omonimi / cognomi uguali."""
-    if pren_id and x.get('prenId') == pren_id:
+            a = _norm_nome(x.get('autista_nome'))
+            if a:
+                per_aut[a] = per_aut.get(a, 0) + _persone(x)
+            else:
+                senza += _persone(x)
+        return per_aut, senza
+    
+    
+    def _liberi_autista(corse_ora, cfg, autista):
+        """Posti ancora liberi sul pulmino di quell'autista a quell'orario. Le corse
+        ancora senza autista tolgono posti a tutti (per prudenza). Senza autisti
+        configurati c'e' un unico gruppo di pulmini."""
+        per_aut, senza = _occupazione(corse_ora)
+        if not cfg['autisti']:
+            return cfg['posti_pulmino'] * cfg['max_corse_per_orario'] - sum(per_aut.values()) - senza
+        return cfg['posti_pulmino'] - per_aut.get(_norm_nome(autista), 0) - senza
+    
+    
+    def _max_liberi(corse_ora, cfg):
+        """Il maggior numero di posti liberi su un singolo pulmino a quell'orario."""
+        if not cfg['autisti']:
+            return _liberi_autista(corse_ora, cfg, '')
+        return max(_liberi_autista(corse_ora, cfg, a) for a in cfg['autisti'])
+    
+    
+    def _orari_occupati(attive, cfg):
+        """Orari in cui nessun pulmino ha piu' un posto libero (uguale per tutti
+        gli ospiti: e' l'unica informazione sugli altri che viene condivisa)."""
+        per_ora = {}
+        for _id, x in attive:
+            if x.get('orario'):
+                per_ora.setdefault(x['orario'], []).append(x)
+        return sorted(o for o, corse in per_ora.items() if _max_liberi(corse, cfg) <= 0)
+    
+    
+    def _puo_ospitare(corse_ora, cfg, autista, spiaggia, persone):
+        """Il pulmino di quell'autista puo' prendere questo gruppo a quell'orario?
+        Servono i posti e, se ha gia' altre prenotazioni a quell'ora, devono
+        andare alla STESSA spiaggia (un pulmino fa un solo giro). Una corsa senza
+        spiaggia indicata (vecchie richieste) non pone vincoli."""
+        if _liberi_autista(corse_ora, cfg, autista) < persone:
+            return False
+        if cfg['autisti']:
+            a, sp = _norm_nome(autista), _norm_nome(spiaggia)
+            for x in corse_ora:
+                xs = _norm_nome(x.get('spiaggia_nome'))
+                if sp and xs and xs != sp and _norm_nome(x.get('autista_nome')) == a:
+                    return False
         return True
-    return bool(tel) and _norm_tel(x.get('telefono')) == tel and (not pren_id or not x.get('prenId'))
-
-
-def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
-    """None se l'orario e' libero per questo cliente e per questo gruppo,
-    altrimenti il codice d'errore: 'corsa_duplicata' (il cliente ha gia' una
-    corsa a quell'ora); 'persone_esaurite' (con questa corsa le persone in
-    corse attive supererebbero quelle della prenotazione, `totale`);
-    'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
-    (l'autista scelto non puo' prendere il gruppo, per posti o perche' va a
-    un'altra spiaggia, ma un collega si); 'posti_insufficienti' (nessun
-    autista puo' prendere il gruppo)."""
-    t = _norm_tel(telefono)
-    altre = [x for i, x in attive if i != escludi_id]
-    sue = [x for x in altre if _stessa_persona(x, pren_id, t)]
-    if any(x.get('orario') == orario for x in sue):
-        return 'corsa_duplicata'
-    if totale and pren_id and sum(_persone(x) for x in sue) + persone > totale:
-        return 'persone_esaurite'
-    stessa_ora = [x for x in altre if x.get('orario') == orario]
-    if _puo_ospitare(stessa_ora, cfg, autista, spiaggia, persone):
+    
+    
+    def _posti_occupati(attive, cfg):
+        """{orario: {nome autista: {'n': persone gia' a bordo, 'spiagge': [...]}}}
+        (la chiave '' sono le corse senza autista): serve al cliente per sapere se
+        l'autista scelto ha ancora posto per il suo gruppo e va alla sua stessa
+        spiaggia. Nessun dato personale."""
+        out = {}
+        for _id, x in attive:
+            o = x.get('orario')
+            if not o:
+                continue
+            riga = out.setdefault(o, {}).setdefault(_s(x.get('autista_nome')), {'n': 0, 'spiagge': []})
+            riga['n'] += _persone(x)
+            sp = _s(x.get('spiaggia_nome'))
+            if sp and sp not in riga['spiagge']:
+                riga['spiagge'].append(sp)
+        return out
+    
+    
+    def _stessa_persona(x, pren_id, tel):
+        """La corsa x e' dello stesso cliente? Per prenotazione (prenId); le corse
+        create dallo staff non hanno prenId e si riconoscono dal telefono. Il solo
+        nome non basta: troppi omonimi / cognomi uguali."""
+        if pren_id and x.get('prenId') == pren_id:
+            return True
+        return bool(tel) and _norm_tel(x.get('telefono')) == tel and (not pren_id or not x.get('prenId'))
+    
+    
+    def _verifica_slot(attive, cfg, pren_id, orario, nome='', telefono='', escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
+        """None se l'orario e' libero per questo cliente e per questo gruppo,
+        altrimenti il codice d'errore: 'corsa_duplicata' (il cliente ha gia' una
+        corsa a quell'ora); 'persone_esaurite' (con questa corsa le persone in
+        corse attive supererebbero quelle della prenotazione, `totale`);
+        'orario_occupato' (nessun pulmino ha piu' posti); 'autista_occupato'
+        (l'autista scelto non puo' prendere il gruppo, per posti o perche' va a
+        un'altra spiaggia, ma un collega si); 'posti_insufficienti' (nessun
+        autista puo' prendere il gruppo)."""
+        t = _norm_tel(telefono)
+        altre = [x for i, x in attive if i != escludi_id]
+        sue = [x for x in altre if _stessa_persona(x, pren_id, t)]
+        if any(x.get('orario') == orario for x in sue):
+            return 'corsa_duplicata'
+        if totale and pren_id and sum(_persone(x) for x in sue) + persone > totale:
+            return 'persone_esaurite'
+        stessa_ora = [x for x in altre if x.get('orario') == orario]
+        if _puo_ospitare(stessa_ora, cfg, autista, spiaggia, persone):
+            return None
+        if any(_puo_ospitare(stessa_ora, cfg, a, spiaggia, persone) for a in cfg['autisti']):
+            return 'autista_occupato'
+        return 'orario_occupato' if _max_liberi(stessa_ora, cfg) <= 0 else 'posti_insufficienti'
+    
+    
+    @firestore.transactional
+    def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
+        """Controllo e scrittura nella stessa transazione: due richieste
+        contemporanee per l'ultimo posto di un orario non passano entrambe."""
+        err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone, spiaggia, totale)
+        if err:
+            return err
+        if escludi_id:
+            transaction.update(ref, scrittura)
+        else:
+            transaction.set(ref, scrittura)
         return None
-    if any(_puo_ospitare(stessa_ora, cfg, a, spiaggia, persone) for a in cfg['autisti']):
-        return 'autista_occupato'
-    return 'orario_occupato' if _max_liberi(stessa_ora, cfg) <= 0 else 'posti_insufficienti'
-
-
-@firestore.transactional
-def _scrivi_se_libero(transaction, db, cfg, ref, scrittura, pren_id, orario, nome, telefono, escludi_id=None, autista='', persone=1, spiaggia='', totale=None):
-    """Controllo e scrittura nella stessa transazione: due richieste
-    contemporanee per l'ultimo posto di un orario non passano entrambe."""
-    err = _verifica_slot(_corse_attive_oggi(db, transaction), cfg, pren_id, orario, nome, telefono, escludi_id, autista, persone, spiaggia, totale)
-    if err:
-        return err
-    if escludi_id:
-        transaction.update(ref, scrittura)
-    else:
-        transaction.set(ref, scrittura)
-    return None
-
-
-# ── azioni ─────────────────────────────────────────────────────────────────
-
-def _azione_carica(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    pid = pren_ref.id
-    r = _parallelo(
-        cfg=lambda: _cfg_navetta(db),
-        attive=lambda: _corse_attive_oggi(db),
-        conto=lambda: _conto_con_spese(db, pid, p),
-        bici=lambda: _bici_attive(db, pid),
-        spiaggia=lambda: _spiaggia_assegnata(db, pid, p),
-        spiagge=lambda: _spiagge_disponibili(db),
-        autisti=lambda: _autisti_elenco(db),
-        risto=lambda: _ristorazione_disponibile(db, pid, p),
-        corse=lambda: _navetta_corse_cliente(db, pid),
-    )
-    cfg, attive = r['cfg'], r['attive']
-
-    return _json(origin, {
-        'ok': True,
-        'prenotazione': {
-            'nome':          _s(p.get('nome')),
-            'nome_proprio':  _nome_proprio(p),
-            'telefono':      _s(p.get('tel')),
-            'persone_totali': _persone_prenotazione(p),
-            'alloggio_nome': _alloggio_per_ospite(_s(p.get('alloggio_nome')), _s(p.get('checkin'), 10), _oggi_iso()),
-            'checkin':       _s(p.get('checkin')),
-            'checkout':      _s(p.get('checkout')),
-        },
-        'conto': r['conto'],
-        'bici_attive': r['bici'],
-        'spiaggia': r['spiaggia'],
-        'spiagge': r['spiagge'],
-        'autisti': r['autisti'],
-        'ristorazione': r['risto'],
-        'shop_attivo': _shop_cfg(db)['attivo'],
-        'navetta_corse': r['corse'],
-        'orari_occupati': _orari_occupati(attive, cfg),
-        'posti_occupati': _posti_occupati(attive, cfg),
-        'posti_pulmino': cfg['posti_pulmino'],
-        'max_corse_per_orario': cfg['max_corse_per_orario'],
-        'punti_ritiro': cfg['punti_ritiro'],
-        'oggi': _oggi_iso(),
-        'fasce': cfg['fasce'],
-        'passo_minuti': cfg['passo_minuti'],
-        'preavviso_minimo_minuti': cfg['preavviso_minimo_minuti'],
-        'preavviso_modifica_minuti': cfg['preavviso_modifica_minuti'],
-    })
-
-
-def _azione_contenuti(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    return _json(origin, {'ok': True, **_contenuti(db)})
-
-
-def _azione_navetta_stato(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg_n = _cfg_navetta(db)
-    attive = _corse_attive_oggi(db)
-    return _json(origin, {
-        'ok': True,
-        'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
-        'orari_occupati': _orari_occupati(attive, cfg_n),
-        'posti_occupati': _posti_occupati(attive, cfg_n),
-        'oggi': _oggi_iso(),
-    })
-
-
-def _azione_navetta_prenota(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg = _cfg_navetta(db)
-
-    orario = _s(data.get('orario'), 5)
-    if not _orario_valido(orario, cfg):
-        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
-
-    nome = _s(data.get('nome')) or _s(p.get('nome'))
-    telefono = _s(data.get('telefono')) or _s(p.get('tel'))
-    # Nome alloggio reale (mai quello eventualmente mascherato lato ospite):
-    # l'autista deve sapere l'unita' esatta a cui riportare il cliente.
-    alloggio_nome = _s(p.get('alloggio_nome'))
-    # La spiaggia e' obbligatoria: l'autista deve sapere dove andare. Se il
-    # Calendario ha gia' assegnato l'ombrellone si usa quella.
-    assegnata = _spiaggia_assegnata(db, pren_ref.id, p)
-    spiaggia_nome = _s(data.get('spiaggia_nome')) or (assegnata or {}).get('spiaggia_nome') or ''
-    if not spiaggia_nome:
-        return _json(origin, {'ok': False, 'errore': 'spiaggia_obbligatoria'}, 400)
-    try:
-        persone = int(data.get('persone'))
-    except (TypeError, ValueError):
-        persone = 0
-    if persone < 1 or persone > cfg['posti_pulmino']:
-        return _json(origin, {'ok': False, 'errore': 'persone_non_valide'}, 400)
-    # Ogni corsa ha un autista preciso, scelto dal cliente tra quelli configurati
-    # (nessuna assegnazione 'a caso'). Se non e' stato configurato nessun autista
-    # la corsa resta senza.
-    autisti = [a['nome'] for a in _autisti_elenco(db)]
-    autista_nome = ''
-    if autisti:
-        scelto = _norm_nome(_s(data.get('autista_nome')))
-        autista_nome = next((n for n in autisti if _norm_nome(n) == scelto), '') if scelto else ''
-        if not autista_nome:
-            return _json(origin, {'ok': False, 'errore': 'autista_obbligatorio'}, 400)
-    if not nome or not telefono:
-        return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
-
-    doc = {
-        'prenId':        pren_ref.id,
-        'alloggio_nome': alloggio_nome,
-        'nome':          nome,
-        'telefono':      telefono,
-        'spiaggia_nome': spiaggia_nome,
-        'persone':       persone,
-        'data':          _oggi_iso(),
-        'orario':        orario,
-        # La richiesta e' subito confermata: l'autista non deve accettarla.
-        'stato':         'accettata',
-        'accettata_il':  _now_iso(),
-        'autista_nome':  autista_nome or None,
-        'creato_il':     _now_iso(),
-    }
-    ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome, totale=_persone_prenotazione(p))
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 409)
-    _telegram({'evento': 'navetta', 'orario': orario, 'nome': nome, 'alloggio_nome': alloggio_nome, 'spiaggia_nome': spiaggia_nome, 'persone': persone, 'autista_nome': autista_nome})
-    return _json(origin, {'ok': True, 'id': ref.id})
-
-
-def _azione_navetta_modifica_orario(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg = _cfg_navetta(db)
-
-    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
-    snap = ref.get()
-    c = snap.to_dict() if snap.exists else None
-    if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
-    if c.get('stato') not in ('in_attesa', 'accettata'):
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
-    # Si puo' spostare solo finche' mancano abbastanza minuti alla corsa attuale.
-    if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
-        return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
-
-    orario = _s(data.get('orario'), 5)
-    if not _orario_valido(orario, cfg):
-        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
-    if orario == c.get('orario'):
+    
+    
+    # ── azioni ─────────────────────────────────────────────────────────────────
+    
+    def _azione_carica(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        pid = pren_ref.id
+        r = _parallelo(
+            cfg=lambda: _cfg_navetta(db),
+            attive=lambda: _corse_attive_oggi(db),
+            conto=lambda: _conto_con_spese(db, pid, p),
+            bici=lambda: _bici_attive(db, pid),
+            spiaggia=lambda: _spiaggia_assegnata(db, pid, p),
+            spiagge=lambda: _spiagge_disponibili(db),
+            autisti=lambda: _autisti_elenco(db),
+            risto=lambda: _ristorazione_disponibile(db, pid, p),
+            corse=lambda: _navetta_corse_cliente(db, pid),
+        )
+        cfg, attive = r['cfg'], r['attive']
+    
+        return _json(origin, {
+            'ok': True,
+            'prenotazione': {
+                'nome':          _s(p.get('nome')),
+                'nome_proprio':  _nome_proprio(p),
+                'telefono':      _s(p.get('tel')),
+                'persone_totali': _persone_prenotazione(p),
+                'alloggio_nome': _alloggio_per_ospite(_s(p.get('alloggio_nome')), _s(p.get('checkin'), 10), _oggi_iso()),
+                'checkin':       _s(p.get('checkin')),
+                'checkout':      _s(p.get('checkout')),
+            },
+            'conto': r['conto'],
+            'bici_attive': r['bici'],
+            'spiaggia': r['spiaggia'],
+            'spiagge': r['spiagge'],
+            'autisti': r['autisti'],
+            'ristorazione': r['risto'],
+            'shop_attivo': _shop_cfg(db)['attivo'],
+            'navetta_corse': r['corse'],
+            'orari_occupati': _orari_occupati(attive, cfg),
+            'posti_occupati': _posti_occupati(attive, cfg),
+            'posti_pulmino': cfg['posti_pulmino'],
+            'max_corse_per_orario': cfg['max_corse_per_orario'],
+            'punti_ritiro': cfg['punti_ritiro'],
+            'oggi': _oggi_iso(),
+            'fasce': cfg['fasce'],
+            'passo_minuti': cfg['passo_minuti'],
+            'preavviso_minimo_minuti': cfg['preavviso_minimo_minuti'],
+            'preavviso_modifica_minuti': cfg['preavviso_modifica_minuti'],
+        })
+    
+    
+    def _azione_contenuti(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        return _json(origin, {'ok': True, **_contenuti(db)})
+    
+    
+    def _azione_navetta_stato(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        cfg_n = _cfg_navetta(db)
+        attive = _corse_attive_oggi(db)
+        return _json(origin, {
+            'ok': True,
+            'navetta_corse': _navetta_corse_cliente(db, pren_ref.id),
+            'orari_occupati': _orari_occupati(attive, cfg_n),
+            'posti_occupati': _posti_occupati(attive, cfg_n),
+            'oggi': _oggi_iso(),
+        })
+    
+    
+    def _azione_navetta_prenota(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        cfg = _cfg_navetta(db)
+    
+        orario = _s(data.get('orario'), 5)
+        if not _orario_valido(orario, cfg):
+            return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+    
+        nome = _s(data.get('nome')) or _s(p.get('nome'))
+        telefono = _s(data.get('telefono')) or _s(p.get('tel'))
+        # Nome alloggio reale (mai quello eventualmente mascherato lato ospite):
+        # l'autista deve sapere l'unita' esatta a cui riportare il cliente.
+        alloggio_nome = _s(p.get('alloggio_nome'))
+        # La spiaggia e' obbligatoria: l'autista deve sapere dove andare. Se il
+        # Calendario ha gia' assegnato l'ombrellone si usa quella.
+        assegnata = _spiaggia_assegnata(db, pren_ref.id, p)
+        spiaggia_nome = _s(data.get('spiaggia_nome')) or (assegnata or {}).get('spiaggia_nome') or ''
+        if not spiaggia_nome:
+            return _json(origin, {'ok': False, 'errore': 'spiaggia_obbligatoria'}, 400)
+        try:
+            persone = int(data.get('persone'))
+        except (TypeError, ValueError):
+            persone = 0
+        if persone < 1 or persone > cfg['posti_pulmino']:
+            return _json(origin, {'ok': False, 'errore': 'persone_non_valide'}, 400)
+        # Ogni corsa ha un autista preciso, scelto dal cliente tra quelli configurati
+        # (nessuna assegnazione 'a caso'). Se non e' stato configurato nessun autista
+        # la corsa resta senza.
+        autisti = [a['nome'] for a in _autisti_elenco(db)]
+        autista_nome = ''
+        if autisti:
+            scelto = _norm_nome(_s(data.get('autista_nome')))
+            autista_nome = next((n for n in autisti if _norm_nome(n) == scelto), '') if scelto else ''
+            if not autista_nome:
+                return _json(origin, {'ok': False, 'errore': 'autista_obbligatorio'}, 400)
+        if not nome or not telefono:
+            return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
+    
+        doc = {
+            'prenId':        pren_ref.id,
+            'alloggio_nome': alloggio_nome,
+            'nome':          nome,
+            'telefono':      telefono,
+            'spiaggia_nome': spiaggia_nome,
+            'persone':       persone,
+            'data':          _oggi_iso(),
+            'orario':        orario,
+            # La richiesta e' subito confermata: l'autista non deve accettarla.
+            'stato':         'accettata',
+            'accettata_il':  _now_iso(),
+            'autista_nome':  autista_nome or None,
+            'creato_il':     _now_iso(),
+        }
+        ref = db.collection('navetta_prenotazioni').document()
+        err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, pren_ref.id, orario, nome, telefono, autista=autista_nome, persone=persone, spiaggia=spiaggia_nome, totale=_persone_prenotazione(p))
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 409)
+        _telegram({'evento': 'navetta', 'orario': orario, 'nome': nome, 'alloggio_nome': alloggio_nome, 'spiaggia_nome': spiaggia_nome, 'persone': persone, 'autista_nome': autista_nome})
+        return _json(origin, {'ok': True, 'id': ref.id})
+    
+    
+    def _azione_navetta_modifica_orario(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        cfg = _cfg_navetta(db)
+    
+        ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+        snap = ref.get()
+        c = snap.to_dict() if snap.exists else None
+        if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+        if c.get('stato') not in ('in_attesa', 'accettata'):
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
+        # Si puo' spostare solo finche' mancano abbastanza minuti alla corsa attuale.
+        if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
+            return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
+    
+        orario = _s(data.get('orario'), 5)
+        if not _orario_valido(orario, cfg):
+            return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+        if orario == c.get('orario'):
+            return _json(origin, {'ok': True, 'id': snap.id})
+        err = _scrivi_se_libero(db.transaction(), db, cfg, ref, {
+            'orario': orario,
+            'orario_precedente': c.get('orario') or '',
+            'orario_modificato_il': _now_iso(),
+            'aggiornato_il': _now_iso(),
+        }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c), spiaggia=_s(c.get('spiaggia_nome')), totale=_persone_prenotazione(p))
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 409)
         return _json(origin, {'ok': True, 'id': snap.id})
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, {
-        'orario': orario,
-        'orario_precedente': c.get('orario') or '',
-        'orario_modificato_il': _now_iso(),
-        'aggiornato_il': _now_iso(),
-    }, pren_ref.id, orario, c.get('nome'), c.get('telefono'), escludi_id=snap.id, autista=_s(c.get('autista_nome')), persone=_persone(c), spiaggia=_s(c.get('spiaggia_nome')), totale=_persone_prenotazione(p))
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 409)
-    return _json(origin, {'ok': True, 'id': snap.id})
-
-
-def _azione_navetta_annulla(db, origin, data):
-    """L'ospite annulla una sua corsa di oggi (stesso preavviso del cambio
-    orario): cosi' puo' correggere un errore e prenotare di nuovo."""
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg = _cfg_navetta(db)
-    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
-    snap = ref.get()
-    c = snap.to_dict() if snap.exists else None
-    if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
-    if c.get('stato') not in ('in_attesa', 'accettata'):
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
-    if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
-        return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
-    ref.update({'stato': 'annullata', 'annullata_il': _now_iso(), 'annullata_da': 'ospite', 'aggiornato_il': _now_iso()})
-    _telegram({'evento': 'navetta_annullata', 'orario': c.get('orario'), 'nome': c.get('nome'), 'alloggio_nome': c.get('alloggio_nome'), 'spiaggia_nome': c.get('spiaggia_nome'), 'autista_nome': c.get('autista_nome'), 'annullata_da': 'Ospite'})
-    return _json(origin, {'ok': True, 'id': snap.id})
-
-
-# ── azioni dello staff (dashboard Navetta) ─────────────────────────────────
-# Stesse regole della prenotazione dell'ospite (posti, spiaggia, orari validi,
-# transazione): la dashboard non scrive piu' direttamente le corse. Autenticate
-# col token di Firebase Auth del dispositivo (lo stesso che le regole Firestore
-# richiedono gia' per scrivere).
-
-def _staff_autenticato(data):
-    try:
-        dec = fb_auth.verify_id_token(_s(data.get('id_token'), 4000))
-        # Solo operatori con sessione PIN: un token anonimo non basta più.
-        return bool(dec.get('operatore'))
-    except Exception as e:
-        print(f'Token staff non valido: {e}')
+    
+    
+    def _azione_navetta_annulla(db, origin, data):
+        """L'ospite annulla una sua corsa di oggi (stesso preavviso del cambio
+        orario): cosi' puo' correggere un errore e prenotare di nuovo."""
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        cfg = _cfg_navetta(db)
+        ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+        snap = ref.get()
+        c = snap.to_dict() if snap.exists else None
+        if not c or c.get('prenId') != pren_ref.id or c.get('data') != _oggi_iso():
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+        if c.get('stato') not in ('in_attesa', 'accettata'):
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_modificabile'}, 409)
+        if _minuti_da_ora(c.get('orario') or '00:00') < cfg['preavviso_modifica_minuti']:
+            return _json(origin, {'ok': False, 'errore': 'troppo_tardi'}, 409)
+        ref.update({'stato': 'annullata', 'annullata_il': _now_iso(), 'annullata_da': 'ospite', 'aggiornato_il': _now_iso()})
+        _telegram({'evento': 'navetta_annullata', 'orario': c.get('orario'), 'nome': c.get('nome'), 'alloggio_nome': c.get('alloggio_nome'), 'spiaggia_nome': c.get('spiaggia_nome'), 'autista_nome': c.get('autista_nome'), 'annullata_da': 'Ospite'})
+        return _json(origin, {'ok': True, 'id': snap.id})
+    
+    
+    # ── azioni dello staff (dashboard Navetta) ─────────────────────────────────
+    # Stesse regole della prenotazione dell'ospite (posti, spiaggia, orari validi,
+    # transazione): la dashboard non scrive piu' direttamente le corse. Autenticate
+    # col token di Firebase Auth del dispositivo (lo stesso che le regole Firestore
+    # richiedono gia' per scrivere).
+    
+    def _staff_autenticato(data):
+        try:
+            dec = fb_auth.verify_id_token(_s(data.get('id_token'), 4000))
+            # Solo operatori con sessione PIN: un token anonimo non basta più.
+            return bool(dec.get('operatore'))
+        except Exception as e:
+            print(f'Token staff non valido: {e}')
+            return False
+    
+    
+    def _orario_staff_valido(orario, cfg):
+        """Orario di una fascia/passo configurati; lo staff puo' prenotare anche con
+        poco preavviso, ma non nel passato."""
+        return bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) and orario in _slot_validi(cfg) and _minuti_da_ora(orario) >= -10
+    
+    
+    def _campi_corsa_staff(db, cfg, data):
+        """Valida e normalizza i campi di una corsa dello staff. Ritorna
+        (campi, errore)."""
+        nome, telefono = _s(data.get('nome')), _s(data.get('telefono'))
+        if not nome or not telefono:
+            return None, 'dati_incompleti'
+        spiaggia = _s(data.get('spiaggia_nome'))
+        if not spiaggia:
+            return None, 'spiaggia_obbligatoria'
+        try:
+            persone = int(data.get('persone'))
+        except (TypeError, ValueError):
+            persone = 0
+        if persone < 1 or persone > cfg['posti_pulmino']:
+            return None, 'persone_non_valide'
+        autista = ''
+        if cfg['autisti']:
+            scelto = _norm_nome(_s(data.get('autista_nome')))
+            autista = next((n for n in cfg['autisti'] if _norm_nome(n) == scelto), '') if scelto else ''
+            if not autista:
+                return None, 'autista_obbligatorio'
+        return {'nome': nome, 'telefono': telefono, 'alloggio_nome': _s(data.get('alloggio_nome')),
+                'spiaggia_nome': spiaggia, 'persone': persone, 'autista_nome': autista or None}, None
+    
+    
+    def _azione_staff_crea(db, origin, data):
+        if not _staff_autenticato(data):
+            return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+        cfg = _cfg_navetta(db)
+        campi, err = _campi_corsa_staff(db, cfg, data)
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 400)
+        orario = _s(data.get('orario'), 5)
+        if not _orario_staff_valido(orario, cfg):
+            return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+        doc = {**campi, 'data': _oggi_iso(), 'orario': orario, 'stato': 'accettata', 'accettata_il': _now_iso(),
+               'creato_il': _now_iso(), 'creato_da': _s(data.get('operatore'), 60), 'creata_da_staff': True}
+        ref = db.collection('navetta_prenotazioni').document()
+        err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, None, orario, campi['nome'], campi['telefono'],
+                                autista=campi['autista_nome'] or '', persone=campi['persone'], spiaggia=campi['spiaggia_nome'])
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 409)
+        _telegram({'evento': 'navetta', 'orario': orario, 'nome': campi['nome'], 'alloggio_nome': campi.get('alloggio_nome', ''), 'spiaggia_nome': campi.get('spiaggia_nome', ''), 'persone': campi['persone'], 'autista_nome': campi['autista_nome']})
+        return _json(origin, {'ok': True, 'id': ref.id})
+    
+    
+    def _carica_corsa_oggi(db, data):
+        ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
+        snap = ref.get()
+        return ref, snap, (snap.to_dict() if snap.exists else None)
+    
+    
+    def _totale_della_corsa(db, c):
+        """Persone della prenotazione a cui e' collegata la corsa (None se creata dallo staff)."""
+        if not c.get('prenId'):
+            return None
+        try:
+            pren = db.collection('prenotazioni').document(c['prenId']).get()
+            return _persone_prenotazione(pren.to_dict() or {}) or None if pren.exists else None
+        except Exception:
+            return None
+    
+    
+    def _azione_staff_modifica(db, origin, data):
+        if not _staff_autenticato(data):
+            return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+        cfg = _cfg_navetta(db)
+        ref, snap, c = _carica_corsa_oggi(db, data)
+        if not c:
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+        campi, err = _campi_corsa_staff(db, cfg, data)
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 400)
+        orario = _s(data.get('orario'), 5) or c.get('orario') or ''
+        cambia_ora = orario != c.get('orario')
+        if cambia_ora and not _orario_staff_valido(orario, cfg):
+            return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
+        scrittura = {**campi, 'orario': orario, 'aggiornato_il': _now_iso(), 'modificato_da': _s(data.get('operatore'), 60)}
+        if cambia_ora:
+            scrittura['orario_precedente'] = c.get('orario') or ''
+            scrittura['orario_modificato_il'] = _now_iso()
+        if c.get('stato') not in ('in_attesa', 'accettata'):
+            ref.update(scrittura)          # corsa chiusa: non occupa posti, nessun controllo
+            return _json(origin, {'ok': True, 'id': snap.id})
+        err = _scrivi_se_libero(db.transaction(), db, cfg, ref, scrittura, c.get('prenId'), orario, campi['nome'], campi['telefono'],
+                                escludi_id=snap.id, autista=campi['autista_nome'] or '', persone=campi['persone'],
+                                spiaggia=campi['spiaggia_nome'], totale=_totale_della_corsa(db, c))
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 409)
+        return _json(origin, {'ok': True, 'id': snap.id})
+    
+    
+    def _azione_staff_riapri(db, origin, data):
+        """Riapre una corsa completata/annullata: solo se posti, spiaggia e
+        persone della prenotazione lo permettono ancora."""
+        if not _staff_autenticato(data):
+            return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+        cfg = _cfg_navetta(db)
+        ref, snap, c = _carica_corsa_oggi(db, data)
+        if not c:
+            return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
+        if c.get('stato') in ('in_attesa', 'accettata'):
+            return _json(origin, {'ok': True, 'id': snap.id})
+        autista = _s(c.get('autista_nome'))
+        err = _scrivi_se_libero(db.transaction(), db, cfg, ref,
+                                {'stato': 'accettata' if autista else 'in_attesa', 'riaperta_il': _now_iso(), 'aggiornato_il': _now_iso()},
+                                c.get('prenId'), c.get('orario') or '', c.get('nome'), c.get('telefono'),
+                                escludi_id=snap.id, autista=autista, persone=_persone(c),
+                                spiaggia=_s(c.get('spiaggia_nome')), totale=_totale_della_corsa(db, c))
+        if err:
+            return _json(origin, {'ok': False, 'errore': err}, 409)
+        return _json(origin, {'ok': True, 'id': snap.id})
+    
+    
+    # ── Ristorazione (menu e ordini dentro l'Area ospite) ───────────────────────
+    # Prima il menu era un'app a parte (ristorazione/index.html) che parlava
+    # direttamente con Firestore. Ora l'ospite passa solo da qui: legge menu e
+    # ordini con 'ristorazione_menu' e invia l'ordine con 'ristorazione_ordina',
+    # che controlla tutte le regole lato server (quote, mezza pensione, orario
+    # limite) e manda la notifica allo staff.
+    
+    RISTO_CAT_DEFAULT = ['Antipasti', 'Primi Carne', 'Primi Pesce', 'Secondi Carne',
+                         'Secondi Pesce', 'Contorni', 'Dessert']
+    RISTO_BAMBINI_DEFAULT = ['Cotoletta', 'Patatine', 'Pasta in bianco', 'Pasta al pomodoro',
+                             'Pasta al pesto', 'Hamburger', 'Wurstel']
+    RISTO_BAMBINI_CAT = 'Menu Bambini'
+    # Categorie che condividono la quota (Primi carne+pesce, Secondi carne+pesce)
+    RISTO_GRUPPI = {'Primi Carne': 'Primi', 'Primi Pesce': 'Primi',
+                    'Secondi Carne': 'Secondi', 'Secondi Pesce': 'Secondi'}
+    RISTO_ORA_LIMITE = (8, 30)
+    
+    
+    def _risto_famiglia(db, pren_id):
+        """(id, dict) della famiglia Ristorazione collegata alla prenotazione."""
+        diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
+        if diretta.exists:
+            return diretta.id, (diretta.to_dict() or {})
+        docs = list(db.collection('famiglie_ristorazione')
+                      .where('calendario_prenotazione_id', '==', pren_id).limit(1).stream())
+        if docs:
+            return docs[0].id, (docs[0].to_dict() or {})
+        return None, None
+    
+    
+    def _risto_allinea(fam, p):
+        """La prenotazione del Calendario e' la fonte di verita': date, trattamento e numero
+        di ospiti vengono da li', non dalla copia nell'anagrafica Ristorazione (che puo'
+        essere rimasta indietro dopo un cambio di date)."""
+        fam = dict(fam or {})
+        for k in ('checkin', 'checkout'):
+            v = _s(p.get(k), 10)
+            if v:
+                fam[k] = v
+        tr = _s(p.get('trattamento_ristorazione'), 2)
+        if tr in ('PC', 'MP'):
+            fam['trattamento'] = tr
+        try:
+            ospiti = int(p.get('adulti') or 0) + int(p.get('bambini') or 0)
+        except (TypeError, ValueError):
+            ospiti = 0
+        if ospiti > 0:
+            fam['max_ospiti'] = ospiti
+        return fam
+    
+    
+    def _risto_impostazioni(db):
+        out = {'ciclo_start': None, 'categorie': list(RISTO_CAT_DEFAULT),
+               'menu_bambini': list(RISTO_BAMBINI_DEFAULT)}
+        try:
+            snap = db.collection('impostazioni').document('ristorazione').get()
+            d = (snap.to_dict() or {}) if snap.exists else {}
+            cs = _s(d.get('ciclo_start'), 10)
+            out['ciclo_start'] = cs if len(cs) == 10 else None
+            if isinstance(d.get('categorie'), list) and d['categorie']:
+                out['categorie'] = [_s(x, 40) for x in d['categorie'] if _s(x, 40)]
+            if isinstance(d.get('menu_bambini'), list) and d['menu_bambini']:
+                out['menu_bambini'] = [_s(x, 60) for x in d['menu_bambini'] if _s(x, 60)]
+        except Exception as e:
+            print(f'Lettura impostazioni/ristorazione non riuscita: {e}')
+        return out
+    
+    
+    def _risto_giorno_ciclo(ciclo_start, iso):
+        if not ciclo_start:
+            return None
+        try:
+            a = datetime.strptime(ciclo_start, '%Y-%m-%d')
+            b = datetime.strptime(iso, '%Y-%m-%d')
+        except ValueError:
+            return None
+        return ((b - a).days % 14) + 1
+    
+    
+    def _risto_giorni(fam, oggi):
+        """(primo, secondo): da oggi, o dal check-in se l'ospite non e' ancora arrivato."""
+        primo = oggi
+        checkin = _s(fam.get('checkin'), 10)
+        if checkin and checkin > oggi:
+            primo = checkin
+        secondo = (datetime.strptime(primo, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+        return primo, secondo
+    
+    
+    def _risto_ordini_chiusi(fam, data, oggi, ora):
+        """True se non si puo' piu' ordinare per questa data (passata, oppure oggi dopo le 8:30
+        senza lo sblocco dello staff)."""
+        if data < oggi:
+            return True
+        if data == oggi and (ora.hour, ora.minute) >= RISTO_ORA_LIMITE and _s(fam.get('sblocco_orario'), 10) != oggi:
+            return True
         return False
-
-
-def _orario_staff_valido(orario, cfg):
-    """Orario di una fascia/passo configurati; lo staff puo' prenotare anche con
-    poco preavviso, ma non nel passato."""
-    return bool(re.fullmatch(r'[0-2]\d:[0-5]\d', orario or '')) and orario in _slot_validi(cfg) and _minuti_da_ora(orario) >= -10
-
-
-def _campi_corsa_staff(db, cfg, data):
-    """Valida e normalizza i campi di una corsa dello staff. Ritorna
-    (campi, errore)."""
-    nome, telefono = _s(data.get('nome')), _s(data.get('telefono'))
-    if not nome or not telefono:
-        return None, 'dati_incompleti'
-    spiaggia = _s(data.get('spiaggia_nome'))
-    if not spiaggia:
-        return None, 'spiaggia_obbligatoria'
-    try:
-        persone = int(data.get('persone'))
-    except (TypeError, ValueError):
-        persone = 0
-    if persone < 1 or persone > cfg['posti_pulmino']:
-        return None, 'persone_non_valide'
-    autista = ''
-    if cfg['autisti']:
-        scelto = _norm_nome(_s(data.get('autista_nome')))
-        autista = next((n for n in cfg['autisti'] if _norm_nome(n) == scelto), '') if scelto else ''
-        if not autista:
-            return None, 'autista_obbligatorio'
-    return {'nome': nome, 'telefono': telefono, 'alloggio_nome': _s(data.get('alloggio_nome')),
-            'spiaggia_nome': spiaggia, 'persone': persone, 'autista_nome': autista or None}, None
-
-
-def _azione_staff_crea(db, origin, data):
-    if not _staff_autenticato(data):
-        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
-    cfg = _cfg_navetta(db)
-    campi, err = _campi_corsa_staff(db, cfg, data)
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 400)
-    orario = _s(data.get('orario'), 5)
-    if not _orario_staff_valido(orario, cfg):
-        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
-    doc = {**campi, 'data': _oggi_iso(), 'orario': orario, 'stato': 'accettata', 'accettata_il': _now_iso(),
-           'creato_il': _now_iso(), 'creato_da': _s(data.get('operatore'), 60), 'creata_da_staff': True}
-    ref = db.collection('navetta_prenotazioni').document()
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, doc, None, orario, campi['nome'], campi['telefono'],
-                            autista=campi['autista_nome'] or '', persone=campi['persone'], spiaggia=campi['spiaggia_nome'])
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 409)
-    _telegram({'evento': 'navetta', 'orario': orario, 'nome': campi['nome'], 'alloggio_nome': campi.get('alloggio_nome', ''), 'spiaggia_nome': campi.get('spiaggia_nome', ''), 'persone': campi['persone'], 'autista_nome': campi['autista_nome']})
-    return _json(origin, {'ok': True, 'id': ref.id})
-
-
-def _carica_corsa_oggi(db, data):
-    ref = db.collection('navetta_prenotazioni').document(_s(data.get('id'), 60) or '_')
-    snap = ref.get()
-    return ref, snap, (snap.to_dict() if snap.exists else None)
-
-
-def _totale_della_corsa(db, c):
-    """Persone della prenotazione a cui e' collegata la corsa (None se creata dallo staff)."""
-    if not c.get('prenId'):
-        return None
-    try:
-        pren = db.collection('prenotazioni').document(c['prenId']).get()
-        return _persone_prenotazione(pren.to_dict() or {}) or None if pren.exists else None
-    except Exception:
-        return None
-
-
-def _azione_staff_modifica(db, origin, data):
-    if not _staff_autenticato(data):
-        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
-    cfg = _cfg_navetta(db)
-    ref, snap, c = _carica_corsa_oggi(db, data)
-    if not c:
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
-    campi, err = _campi_corsa_staff(db, cfg, data)
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 400)
-    orario = _s(data.get('orario'), 5) or c.get('orario') or ''
-    cambia_ora = orario != c.get('orario')
-    if cambia_ora and not _orario_staff_valido(orario, cfg):
-        return _json(origin, {'ok': False, 'errore': 'orario_non_valido'}, 400)
-    scrittura = {**campi, 'orario': orario, 'aggiornato_il': _now_iso(), 'modificato_da': _s(data.get('operatore'), 60)}
-    if cambia_ora:
-        scrittura['orario_precedente'] = c.get('orario') or ''
-        scrittura['orario_modificato_il'] = _now_iso()
-    if c.get('stato') not in ('in_attesa', 'accettata'):
-        ref.update(scrittura)          # corsa chiusa: non occupa posti, nessun controllo
-        return _json(origin, {'ok': True, 'id': snap.id})
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref, scrittura, c.get('prenId'), orario, campi['nome'], campi['telefono'],
-                            escludi_id=snap.id, autista=campi['autista_nome'] or '', persone=campi['persone'],
-                            spiaggia=campi['spiaggia_nome'], totale=_totale_della_corsa(db, c))
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 409)
-    return _json(origin, {'ok': True, 'id': snap.id})
-
-
-def _azione_staff_riapri(db, origin, data):
-    """Riapre una corsa completata/annullata: solo se posti, spiaggia e
-    persone della prenotazione lo permettono ancora."""
-    if not _staff_autenticato(data):
-        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
-    cfg = _cfg_navetta(db)
-    ref, snap, c = _carica_corsa_oggi(db, data)
-    if not c:
-        return _json(origin, {'ok': False, 'errore': 'corsa_non_trovata'}, 404)
-    if c.get('stato') in ('in_attesa', 'accettata'):
-        return _json(origin, {'ok': True, 'id': snap.id})
-    autista = _s(c.get('autista_nome'))
-    err = _scrivi_se_libero(db.transaction(), db, cfg, ref,
-                            {'stato': 'accettata' if autista else 'in_attesa', 'riaperta_il': _now_iso(), 'aggiornato_il': _now_iso()},
-                            c.get('prenId'), c.get('orario') or '', c.get('nome'), c.get('telefono'),
-                            escludi_id=snap.id, autista=autista, persone=_persone(c),
-                            spiaggia=_s(c.get('spiaggia_nome')), totale=_totale_della_corsa(db, c))
-    if err:
-        return _json(origin, {'ok': False, 'errore': err}, 409)
-    return _json(origin, {'ok': True, 'id': snap.id})
-
-
-# ── Ristorazione (menu e ordini dentro l'Area ospite) ───────────────────────
-# Prima il menu era un'app a parte (ristorazione/index.html) che parlava
-# direttamente con Firestore. Ora l'ospite passa solo da qui: legge menu e
-# ordini con 'ristorazione_menu' e invia l'ordine con 'ristorazione_ordina',
-# che controlla tutte le regole lato server (quote, mezza pensione, orario
-# limite) e manda la notifica allo staff.
-
-RISTO_CAT_DEFAULT = ['Antipasti', 'Primi Carne', 'Primi Pesce', 'Secondi Carne',
-                     'Secondi Pesce', 'Contorni', 'Dessert']
-RISTO_BAMBINI_DEFAULT = ['Cotoletta', 'Patatine', 'Pasta in bianco', 'Pasta al pomodoro',
-                         'Pasta al pesto', 'Hamburger', 'Wurstel']
-RISTO_BAMBINI_CAT = 'Menu Bambini'
-# Categorie che condividono la quota (Primi carne+pesce, Secondi carne+pesce)
-RISTO_GRUPPI = {'Primi Carne': 'Primi', 'Primi Pesce': 'Primi',
-                'Secondi Carne': 'Secondi', 'Secondi Pesce': 'Secondi'}
-RISTO_ORA_LIMITE = (8, 30)
-
-
-def _risto_famiglia(db, pren_id):
-    """(id, dict) della famiglia Ristorazione collegata alla prenotazione."""
-    diretta = db.collection('famiglie_ristorazione').document(f'cal_{pren_id}').get()
-    if diretta.exists:
-        return diretta.id, (diretta.to_dict() or {})
-    docs = list(db.collection('famiglie_ristorazione')
-                  .where('calendario_prenotazione_id', '==', pren_id).limit(1).stream())
-    if docs:
-        return docs[0].id, (docs[0].to_dict() or {})
-    return None, None
-
-
-def _risto_allinea(fam, p):
-    """La prenotazione del Calendario e' la fonte di verita': date, trattamento e numero
-    di ospiti vengono da li', non dalla copia nell'anagrafica Ristorazione (che puo'
-    essere rimasta indietro dopo un cambio di date)."""
-    fam = dict(fam or {})
-    for k in ('checkin', 'checkout'):
-        v = _s(p.get(k), 10)
-        if v:
-            fam[k] = v
-    tr = _s(p.get('trattamento_ristorazione'), 2)
-    if tr in ('PC', 'MP'):
-        fam['trattamento'] = tr
-    try:
-        ospiti = int(p.get('adulti') or 0) + int(p.get('bambini') or 0)
-    except (TypeError, ValueError):
-        ospiti = 0
-    if ospiti > 0:
-        fam['max_ospiti'] = ospiti
-    return fam
-
-
-def _risto_impostazioni(db):
-    out = {'ciclo_start': None, 'categorie': list(RISTO_CAT_DEFAULT),
-           'menu_bambini': list(RISTO_BAMBINI_DEFAULT)}
-    try:
-        snap = db.collection('impostazioni').document('ristorazione').get()
-        d = (snap.to_dict() or {}) if snap.exists else {}
-        cs = _s(d.get('ciclo_start'), 10)
-        out['ciclo_start'] = cs if len(cs) == 10 else None
-        if isinstance(d.get('categorie'), list) and d['categorie']:
-            out['categorie'] = [_s(x, 40) for x in d['categorie'] if _s(x, 40)]
-        if isinstance(d.get('menu_bambini'), list) and d['menu_bambini']:
-            out['menu_bambini'] = [_s(x, 60) for x in d['menu_bambini'] if _s(x, 60)]
-    except Exception as e:
-        print(f'Lettura impostazioni/ristorazione non riuscita: {e}')
-    return out
-
-
-def _risto_giorno_ciclo(ciclo_start, iso):
-    if not ciclo_start:
-        return None
-    try:
-        a = datetime.strptime(ciclo_start, '%Y-%m-%d')
-        b = datetime.strptime(iso, '%Y-%m-%d')
-    except ValueError:
-        return None
-    return ((b - a).days % 14) + 1
-
-
-def _risto_giorni(fam, oggi):
-    """(primo, secondo): da oggi, o dal check-in se l'ospite non e' ancora arrivato."""
-    primo = oggi
-    checkin = _s(fam.get('checkin'), 10)
-    if checkin and checkin > oggi:
-        primo = checkin
-    secondo = (datetime.strptime(primo, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
-    return primo, secondo
-
-
-def _risto_ordini_chiusi(fam, data, oggi, ora):
-    """True se non si puo' piu' ordinare per questa data (passata, oppure oggi dopo le 8:30
-    senza lo sblocco dello staff)."""
-    if data < oggi:
-        return True
-    if data == oggi and (ora.hour, ora.minute) >= RISTO_ORA_LIMITE and _s(fam.get('sblocco_orario'), 10) != oggi:
-        return True
-    return False
-
-
-def _risto_menu_giorno(db, ciclo_start, iso):
-    g = _risto_giorno_ciclo(ciclo_start, iso)
-    if g is None:
-        return []
-    out = []
-    for d in db.collection('menu_ristorazione').where('giorno', '==', g).stream():
-        x = d.to_dict() or {}
-        out.append({'id': d.id, 'tipo': _s(x.get('tipo'), 10), 'piatto': _s(x.get('piatto'), 120),
-                    'categoria': _s(x.get('categoria'), 40) or 'Altro',
-                    'descrizione': _s(x.get('descrizione'), 200)})
-    out.sort(key=lambda m: m['tipo'])
-    return out
-
-
-def _risto_ordini(db, fam_id, giorni):
-    """Ordini gia' confermati: { 'YYYY-MM-DD_pranzo': {note, piatti:[{menu_id,piatto,quantita,categoria}]} }"""
-    out = {}
-    for iso in giorni:
-        for d in db.collection('ordini_ristorazione').where('famiglia_id', '==', fam_id).where('data', '==', iso).stream():
+    
+    
+    def _risto_menu_giorno(db, ciclo_start, iso):
+        g = _risto_giorno_ciclo(ciclo_start, iso)
+        if g is None:
+            return []
+        out = []
+        for d in db.collection('menu_ristorazione').where('giorno', '==', g).stream():
             x = d.to_dict() or {}
-            piatti = x.get('piatti')
-            if isinstance(piatti, dict):                  # formato storico {menuId: qty}
-                piatti = [{'menu_id': k, 'piatto': '', 'quantita': v, 'categoria': ''} for k, v in piatti.items()]
-            righe = []
-            for p in (piatti or []):
-                if isinstance(p, dict) and (p.get('quantita') or 0) > 0:
-                    righe.append({'menu_id': _s(p.get('menu_id'), 80), 'piatto': _s(p.get('piatto'), 120),
-                                  'quantita': int(p.get('quantita') or 0), 'categoria': _s(p.get('categoria'), 40)})
-            tipo = _s(x.get('tipo'), 10)
-            out[f'{_s(x.get("data"), 10)}_{tipo}'] = {'note': _s(x.get('note'), 300), 'piatti': righe}
-    return out
-
-
-def _azione_ristorazione_menu(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    fam_id, fam = _risto_famiglia(db, pren_ref.id)
-    if fam:
-        fam = _risto_allinea(fam, p)
-    if not fam or _s(fam.get('trattamento')) not in ('PC', 'MP'):
-        return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
-    ora = datetime.now(TZ_ROMA)
-    oggi = ora.strftime('%Y-%m-%d')
-    primo, secondo = _risto_giorni(fam, oggi)
-    giorni = [primo, secondo]      # prima dell'arrivo si parte dal giorno di arrivo
-    imp = _risto_impostazioni(db)
-    menu = {g: _risto_menu_giorno(db, imp['ciclo_start'], g) for g in giorni}
-    return _json(origin, {
-        'ok': True,
-        'oggi': oggi, 'ora': ora.strftime('%H:%M'),
-        'chiusura_oggi': _risto_ordini_chiusi(fam, oggi, oggi, ora),
-        'famiglia': {'trattamento': _s(fam.get('trattamento')), 'max_ospiti': int(fam.get('max_ospiti') or 1),
-                     'checkin': _s(fam.get('checkin'), 10), 'checkout': _s(fam.get('checkout'), 10),
-                     'ora_arrivo': _s(fam.get('ora_arrivo'), 20), 'sblocco_orario': _s(fam.get('sblocco_orario'), 10)},
-        'giorni': giorni,
-        'menu': menu,
-        'categorie': imp['categorie'], 'menu_bambini': imp['menu_bambini'],
-        'ordini': _risto_ordini(db, fam_id, giorni),
-    })
-
-
-def _risto_notifica(payload):
-    """Avvisa il gruppo Telegram Ristorazione (cloud-functions/telegram-bot)."""
-    _telegram(payload)
-
-
-def _azione_ristorazione_ordina(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    fam_id, fam = _risto_famiglia(db, pren_ref.id)
-    if fam:
-        fam = _risto_allinea(fam, p)
-    trattamento = _s((fam or {}).get('trattamento'))
-    if not fam or trattamento not in ('PC', 'MP'):
-        return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
-
-    ora = datetime.now(TZ_ROMA)
-    oggi = ora.strftime('%Y-%m-%d')
-    primo, secondo = _risto_giorni(fam, oggi)
-    giorno = _s(data.get('data'), 10)
-    if giorno not in (primo, secondo):
-        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
-    checkout = _s(fam.get('checkout'), 10)
-    if checkout and checkout <= oggi and giorno != oggi:
-        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
-    if _risto_ordini_chiusi(fam, giorno, oggi, ora):
-        return _json(origin, {'ok': False, 'errore': 'ordini_chiusi'}, 409)
-
-    max_ospiti = max(1, int(fam.get('max_ospiti') or 1))
-    imp = _risto_impostazioni(db)
-    menu = {m['id']: m for m in _risto_menu_giorno(db, imp['ciclo_start'], giorno)}
-    pasti = data.get('pasti')
-    if not isinstance(pasti, list) or not pasti:
-        return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
-
-    esistenti = _risto_ordini(db, fam_id, [giorno])
-    da_scrivere = []
-    for pasto in pasti[:2]:
-        if not isinstance(pasto, dict):
-            continue
-        tipo = _s(pasto.get('tipo'), 10)
-        if tipo not in ('pranzo', 'cena'):
-            return _json(origin, {'ok': False, 'errore': 'pasto_non_valido'}, 400)
-        if f'{giorno}_{tipo}' in esistenti:
-            return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
-        righe, quota = [], {}
-        for r in (pasto.get('piatti') or []):
+            out.append({'id': d.id, 'tipo': _s(x.get('tipo'), 10), 'piatto': _s(x.get('piatto'), 120),
+                        'categoria': _s(x.get('categoria'), 40) or 'Altro',
+                        'descrizione': _s(x.get('descrizione'), 200)})
+        out.sort(key=lambda m: m['tipo'])
+        return out
+    
+    
+    def _risto_ordini(db, fam_id, giorni):
+        """Ordini gia' confermati: { 'YYYY-MM-DD_pranzo': {note, piatti:[{menu_id,piatto,quantita,categoria}]} }"""
+        out = {}
+        for iso in giorni:
+            for d in db.collection('ordini_ristorazione').where('famiglia_id', '==', fam_id).where('data', '==', iso).stream():
+                x = d.to_dict() or {}
+                piatti = x.get('piatti')
+                if isinstance(piatti, dict):                  # formato storico {menuId: qty}
+                    piatti = [{'menu_id': k, 'piatto': '', 'quantita': v, 'categoria': ''} for k, v in piatti.items()]
+                righe = []
+                for p in (piatti or []):
+                    if isinstance(p, dict) and (p.get('quantita') or 0) > 0:
+                        righe.append({'menu_id': _s(p.get('menu_id'), 80), 'piatto': _s(p.get('piatto'), 120),
+                                      'quantita': int(p.get('quantita') or 0), 'categoria': _s(p.get('categoria'), 40)})
+                tipo = _s(x.get('tipo'), 10)
+                out[f'{_s(x.get("data"), 10)}_{tipo}'] = {'note': _s(x.get('note'), 300), 'piatti': righe}
+        return out
+    
+    
+    def _azione_ristorazione_menu(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        fam_id, fam = _risto_famiglia(db, pren_ref.id)
+        if fam:
+            fam = _risto_allinea(fam, p)
+        if not fam or _s(fam.get('trattamento')) not in ('PC', 'MP'):
+            return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
+        ora = datetime.now(TZ_ROMA)
+        oggi = ora.strftime('%Y-%m-%d')
+        primo, secondo = _risto_giorni(fam, oggi)
+        giorni = [primo, secondo]      # prima dell'arrivo si parte dal giorno di arrivo
+        imp = _risto_impostazioni(db)
+        menu = {g: _risto_menu_giorno(db, imp['ciclo_start'], g) for g in giorni}
+        return _json(origin, {
+            'ok': True,
+            'oggi': oggi, 'ora': ora.strftime('%H:%M'),
+            'chiusura_oggi': _risto_ordini_chiusi(fam, oggi, oggi, ora),
+            'famiglia': {'trattamento': _s(fam.get('trattamento')), 'max_ospiti': int(fam.get('max_ospiti') or 1),
+                         'checkin': _s(fam.get('checkin'), 10), 'checkout': _s(fam.get('checkout'), 10),
+                         'ora_arrivo': _s(fam.get('ora_arrivo'), 20), 'sblocco_orario': _s(fam.get('sblocco_orario'), 10)},
+            'giorni': giorni,
+            'menu': menu,
+            'categorie': imp['categorie'], 'menu_bambini': imp['menu_bambini'],
+            'ordini': _risto_ordini(db, fam_id, giorni),
+        })
+    
+    
+    def _risto_notifica(payload):
+        """Avvisa il gruppo Telegram Ristorazione (cloud-functions/telegram-bot)."""
+        _telegram(payload)
+    
+    
+    def _azione_ristorazione_ordina(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        fam_id, fam = _risto_famiglia(db, pren_ref.id)
+        if fam:
+            fam = _risto_allinea(fam, p)
+        trattamento = _s((fam or {}).get('trattamento'))
+        if not fam or trattamento not in ('PC', 'MP'):
+            return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
+    
+        ora = datetime.now(TZ_ROMA)
+        oggi = ora.strftime('%Y-%m-%d')
+        primo, secondo = _risto_giorni(fam, oggi)
+        giorno = _s(data.get('data'), 10)
+        if giorno not in (primo, secondo):
+            return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+        checkout = _s(fam.get('checkout'), 10)
+        if checkout and checkout <= oggi and giorno != oggi:
+            return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+        if _risto_ordini_chiusi(fam, giorno, oggi, ora):
+            return _json(origin, {'ok': False, 'errore': 'ordini_chiusi'}, 409)
+    
+        max_ospiti = max(1, int(fam.get('max_ospiti') or 1))
+        imp = _risto_impostazioni(db)
+        menu = {m['id']: m for m in _risto_menu_giorno(db, imp['ciclo_start'], giorno)}
+        pasti = data.get('pasti')
+        if not isinstance(pasti, list) or not pasti:
+            return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
+    
+        esistenti = _risto_ordini(db, fam_id, [giorno])
+        da_scrivere = []
+        for pasto in pasti[:2]:
+            if not isinstance(pasto, dict):
+                continue
+            tipo = _s(pasto.get('tipo'), 10)
+            if tipo not in ('pranzo', 'cena'):
+                return _json(origin, {'ok': False, 'errore': 'pasto_non_valido'}, 400)
+            if f'{giorno}_{tipo}' in esistenti:
+                return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
+            righe, quota = [], {}
+            for r in (pasto.get('piatti') or []):
+                if not isinstance(r, dict):
+                    continue
+                m = menu.get(_s(r.get('menu_id'), 80))
+                try:
+                    q = int(r.get('quantita') or 0)
+                except (TypeError, ValueError):
+                    q = 0
+                if q <= 0:
+                    continue
+                if not m or m['tipo'] != tipo:
+                    return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
+                gruppo = RISTO_GRUPPI.get(m['categoria'], m['categoria'])
+                quota[gruppo] = quota.get(gruppo, 0) + q
+                if quota[gruppo] > max_ospiti:
+                    return _json(origin, {'ok': False, 'errore': 'quota_superata'}, 409)
+                righe.append({'menu_id': m['id'], 'piatto': m['piatto'], 'quantita': q, 'categoria': m['categoria']})
+            bamb = pasto.get('bambini') if isinstance(pasto.get('bambini'), dict) else {}
+            for nome, q in bamb.items():
+                try:
+                    q = int(q or 0)
+                except (TypeError, ValueError):
+                    q = 0
+                if q <= 0:
+                    continue
+                if nome not in imp['menu_bambini'] or q > 20:
+                    return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
+                righe.append({'menu_id': 'bambino_' + nome, 'piatto': nome, 'quantita': q, 'categoria': RISTO_BAMBINI_CAT})
+            if righe:
+                da_scrivere.append((tipo, righe, _s(pasto.get('note'), 300)))
+        if not da_scrivere:
+            return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
+    
+        # Mezza pensione: un solo pasto al giorno (pranzo OPPURE cena)
+        if trattamento == 'MP':
+            tipi = {t for t, _, _ in da_scrivere} | {k.split('_')[-1] for k in esistenti}
+            if len(tipi) > 1:
+                return _json(origin, {'ok': False, 'errore': 'mezza_pensione_un_pasto'}, 409)
+    
+        scritti = []
+        for tipo, righe, note in da_scrivere:
+            doc_id = f'{fam_id}_{giorno}_{tipo}'
+            try:
+                db.collection('ordini_ristorazione').document(doc_id).create({
+                    'famiglia_id': fam_id, 'famiglia_nome': _s(fam.get('nome'), 120), 'unita': fam.get('unita'),
+                    'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note,
+                    'servito': False, 'notified': False, 'timestamp': _now_iso(),
+                })
+            except Exception as e:                      # AlreadyExists: doppio invio
+                print(f'Ordine {doc_id} non creato: {e}')
+                return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
+            scritti.append((doc_id, tipo, righe, note))
+    
+        for doc_id, tipo, righe, note in scritti:
+            _risto_notifica({'evento': 'ordine', 'doc_id': doc_id, 'famiglia_nome': _s(fam.get('nome'), 120),
+                             'unita': fam.get('unita'), 'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note})
+        return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
+    
+    
+    MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
+    MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
+    
+    
+    # Fasce da 30 minuti: 07:30-12:00 e 14:00-17:00.
+    MANUT_FASCE = {'%02d:%02d-%02d:%02d' % (m // 60, m % 60, (m + 30) // 60, (m + 30) % 60)
+                   for a, b in ((450, 720), (840, 1020)) for m in range(a, b, 30)}
+    
+    
+    def _azione_manutenzione_segnala(db, origin, data):
+        """Segnalazione guasto dall'ospite: crea un ticket in `maintenance_tickets`
+        (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram."""
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        if _s(p.get('checkin'), 10) > _oggi_iso():
+            return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
+        categoria = _s(data.get('categoria'), 30)
+        if categoria not in MANUT_CATEGORIE:
+            return _json(origin, {'ok': False, 'errore': 'categoria_non_valida'}, 400)
+        descrizione = _s(data.get('descrizione'), 1000)
+        if len(descrizione) < 5:
+            return _json(origin, {'ok': False, 'errore': 'descrizione_mancante'}, 400)
+        nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
+        if not nome:
+            return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
+        # Nome alloggio reale (l'ospite puo' vederlo senza numero fino al giorno dopo il check-in).
+        alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
+        if not alloggio:
+            return _json(origin, {'ok': False, 'errore': 'alloggio_mancante'}, 400)
+        accesso = data.get('accesso') is True
+        animali = data.get('animali') is True
+        fascia = _s(data.get('fascia'), 11)
+        if not accesso:
+            if fascia not in MANUT_FASCE:
+                return _json(origin, {'ok': False, 'errore': 'fascia_mancante'}, 400)
+        else:
+            fascia = ''
+        oggi = _oggi_iso()
+        try:
+            gia = sum(1 for d in db.collection('maintenance_tickets').where('prenId', '==', pren_ref.id).stream()
+                      if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
+        except Exception as e:
+            print(f'Conteggio ticket ospite non riuscito: {e}')
+            gia = 0
+        if gia >= MANUT_MAX_AL_GIORNO:
+            return _json(origin, {'ok': False, 'errore': 'troppe_segnalazioni'}, 429)
+        telefono = _s(p.get('tel'), 40)
+        ref = db.collection('maintenance_tickets').document()
+        ref.set({
+            'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
+            'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia, 'priority': 'normale', 'status': False,
+            'user_id': f'Ospite · {nome}',
+            'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
+            'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
+        })
+        _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
+                   'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia,
+                   'operatore': nome, 'telefono': telefono})
+        return _json(origin, {'ok': True, 'id': ref.id})
+    
+    
+    # ── Shop interno ─────────────────────────────────────────────────────────────
+    # Catalogo gestito dall'Hub (modulo `shop/`): collezioni `shop_categorie`,
+    # `shop_prodotti`, `shop_ordini` + `impostazioni/shop`. L'ospite non tocca mai
+    # Firestore: catalogo e ordini passano da qui. Il prezzo e la disponibilita'
+    # si rileggono sempre lato server al momento dell'ordine.
+    # Pagamento: per ora `pagamento.metodo = 'in_struttura'` (si paga al ritiro o
+    # in reception). Il campo `pagamento` e' gia' strutturato per agganciare PayPal.
+    SHOP_MAX_RIGHE = 30
+    SHOP_MAX_QTA = 20
+    SHOP_MAX_ORDINI_GIORNO = 10
+    
+    
+    def _shop_num(v, default=0):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return default
+    
+    
+    SHOP_FASCE_DEFAULT = {'passo': 15, 'intervalli': [['10:00', '12:00'], ['15:00', '18:30']]}
+    
+    
+    def _hhmm_min(v):
+        m = re.fullmatch(r'(\d{1,2}):(\d{2})', str(v or '').strip())
+        if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+            return None
+        return int(m.group(1)) * 60 + int(m.group(2))
+    
+    
+    def _min_hhmm(m):
+        return '%02d:%02d' % (m // 60, m % 60)
+    
+    
+    def _shop_fasce_norm(c):
+        """Configurazione fasce di consegna (passo in minuti + intervalli) validata; ripiego sui predefiniti."""
+        c = c if isinstance(c, dict) else {}
+        try:
+            passo = int(c.get('passo'))
+        except (TypeError, ValueError):
+            passo = 15
+        passo = passo if 5 <= passo <= 120 else 15
+        interv = []
+        for r in (c.get('intervalli') if isinstance(c.get('intervalli'), list) else []):
+            if isinstance(r, (list, tuple)) and len(r) == 2:
+                a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+                if a is not None and b is not None and b - a >= passo:
+                    interv.append([_min_hhmm(a), _min_hhmm(b)])
+        interv = interv[:6]
+        if not interv:
+            return dict(SHOP_FASCE_DEFAULT)
+        return {'passo': passo, 'intervalli': interv}
+    
+    
+    def _shop_ritiro_norm(v):
+        """Orari in cui si puo' ritirare al bar: lista di intervalli [dalle, alle]; vuota = nessun limite."""
+        out = []
+        for r in (v if isinstance(v, list) else []):
+            if isinstance(r, (list, tuple)) and len(r) == 2:
+                a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
+                if a is not None and b is not None and b > a:
+                    out.append([_min_hhmm(a), _min_hhmm(b)])
+        return out[:4]
+    
+    
+    def _shop_fasce_lista(fc):
+        out = []
+        for a, b in fc['intervalli']:
+            m, fine = _hhmm_min(a), _hhmm_min(b)
+            while m + fc['passo'] <= fine:
+                out.append(f'{_min_hhmm(m)}-{_min_hhmm(m + fc["passo"])}')
+                m += fc['passo']
+        return out
+    
+    
+    def _shop_cfg(db):
+        def leggi():
+            d = db.collection('impostazioni').document('shop').get()
+            c = (d.to_dict() or {}) if d.exists else {}
+            fc = _shop_fasce_norm(c.get('consegna_fasce'))
+            return {'fasce_cfg': fc, 'fasce': _shop_fasce_lista(fc), 'ritiro_orari': _shop_ritiro_norm(c.get('ritiro_orari')),
+                    'attivo': c.get('attivo') is True,
+                    'ritiro': c.get('ritiro') is not False,
+                    'consegna': c.get('consegna') is not False,
+                    'ritiro_luogo': _s(c.get('ritiro_luogo'), 120),
+                    'paypal_me': re.sub(r'[^A-Za-z0-9._-]', '', _s(c.get('paypal_me'), 80).rstrip('/').split('/')[-1])[:60],
+                    'messaggio': _s(c.get('messaggio'), 400)}
+        def con_carta():
+            r = leggi()
+            r['carta'] = bool(r['paypal_me'])
+            return r
+        return _con_cache('shop_cfg', 30, con_carta)
+    
+    
+    def _shop_catalogo_leggi(db):
+        def leggi():
+            cats = []
+            for d in db.collection('shop_categorie').stream():
+                c = d.to_dict() or {}
+                if c.get('attiva') is False:
+                    continue
+                cats.append({'id': d.id, 'nome': _s(c.get('nome'), 60), 'ordine': _shop_num(c.get('ordine'))})
+            cats.sort(key=lambda c: (c['ordine'], c['nome'].lower()))
+            ids = {c['id'] for c in cats}
+            prod = []
+            for d in db.collection('shop_prodotti').stream():
+                x = d.to_dict() or {}
+                if x.get('attivo') is False or x.get('categoriaId') not in ids:
+                    continue
+                foto = [f for f in (x.get('foto') or []) if isinstance(f, str)]
+                giac = x.get('giacenza')
+                giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
+                prod.append({'id': d.id, 'categoriaId': x.get('categoriaId'), 'titolo': _s(x.get('titolo'), 120),
+                             'descrizione': _s(x.get('descrizione'), 1500),
+                             'prezzo': round(_shop_num(x.get('prezzo')), 2),
+                             'foto': foto[0] if foto else '', 'n_foto': len(foto),
+                             'giacenza': giac,
+                             'evidenza': x.get('in_evidenza') is True, 'novita': x.get('novita') is True,
+                             'esaurito': x.get('esaurito') is True or (giac is not None and giac <= 0),
+                             'ordine': _shop_num(x.get('ordine'))})
+            prod.sort(key=lambda p: (p['ordine'], p['titolo'].lower()))
+            return {'categorie': cats, 'prodotti': prod}
+        return _con_cache('shop_catalogo', 45, leggi)
+    
+    
+    def _azione_shop_catalogo(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        cfg = _shop_cfg(db)
+        if not cfg['attivo']:
+            return _json(origin, {'ok': True, 'attivo': False, 'categorie': [], 'prodotti': [], 'cfg': cfg})
+        cat = _shop_catalogo_leggi(db)
+        ora = datetime.now(TZ_ROMA)
+        return _json(origin, {'ok': True, 'attivo': True, 'cfg': cfg, 'oggi': ora.strftime('%Y-%m-%d'),
+                              'ora': ora.strftime('%H:%M'), 'checkout': _s(p.get('checkout'), 10), **cat})
+    
+    
+    def _azione_shop_prodotto(db, origin, data):
+        """Tutte le foto di un prodotto (il catalogo ne porta solo la prima)."""
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        pid = _s(data.get('id'), 80)
+        if not pid:
+            return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 400)
+        d = db.collection('shop_prodotti').document(pid).get()
+        if not d.exists or (d.to_dict() or {}).get('attivo') is False:
+            return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 404)
+        foto = [f for f in ((d.to_dict() or {}).get('foto') or []) if isinstance(f, str)]
+        return _json(origin, {'ok': True, 'foto': foto})
+    
+    
+    class _ShopErrore(Exception):
+        pass
+    
+    
+    @firestore.transactional
+    def _shop_scrivi(transaction, db, ordine_ref, richieste):
+        """Rilegge i prodotti, controlla disponibilita', scala la giacenza e crea l'ordine.
+        Ritorna (righe, totale)."""
+        snaps = {pid: db.collection('shop_prodotti').document(pid).get(transaction=transaction) for pid in richieste}
+        righe, totale, scrivi = [], 0.0, []
+        for pid, q in richieste.items():
+            s = snaps[pid]
+            x = (s.to_dict() or {}) if s.exists else {}
+            if not s.exists or x.get('attivo') is False:
+                raise _ShopErrore('prodotto_non_disponibile')
+            giac = x.get('giacenza')
+            giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
+            if x.get('esaurito') is True or (giac is not None and giac < q):
+                raise _ShopErrore('esaurito:' + _s(x.get('titolo'), 60))
+            prezzo = round(_shop_num(x.get('prezzo')), 2)
+            righe.append({'id': pid, 'titolo': _s(x.get('titolo'), 120), 'prezzo': prezzo, 'quantita': q,
+                          'importo': round(prezzo * q, 2)})
+            totale += prezzo * q
+            if giac is not None:
+                scrivi.append((s.reference, giac - q))
+        for ref, nuova in scrivi:
+            transaction.update(ref, {'giacenza': nuova})
+        return righe, round(totale, 2)
+    
+    
+    def _azione_shop_ordina(db, origin, data):
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        oggi = _oggi_iso()
+        if _s(p.get('checkin'), 10) > oggi:
+            return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
+        if _s(p.get('checkout'), 10) and _s(p.get('checkout'), 10) < oggi:
+            return _json(origin, {'ok': False, 'errore': 'soggiorno_concluso'}, 403)
+        cfg = _shop_cfg(db)
+        if not cfg['attivo']:
+            return _json(origin, {'ok': False, 'errore': 'shop_chiuso'}, 409)
+        modalita = _s(data.get('modalita'), 10)
+        if modalita not in ('ritiro', 'consegna') or not cfg[modalita]:
+            return _json(origin, {'ok': False, 'errore': 'modalita_non_valida'}, 400)
+        giorno, fascia = '', ''
+        if modalita == 'consegna':
+            ora = datetime.now(TZ_ROMA)
+            domani = (ora + timedelta(days=1)).strftime('%Y-%m-%d')
+            giorno = _s(data.get('giorno'), 10)
+            fascia = _s(data.get('fascia'), 11)
+            chk = _s(p.get('checkout'), 10)
+            if giorno not in (oggi, domani) or (chk and giorno > chk):
+                return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+            if fascia not in cfg['fasce']:
+                return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
+            if giorno == oggi and _hhmm_min(fascia[:5]) < ora.hour * 60 + ora.minute:
+                return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
+        grezze = data.get('righe')
+        if not isinstance(grezze, list) or not grezze or len(grezze) > SHOP_MAX_RIGHE:
+            return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
+        richieste = {}
+        for r in grezze:
             if not isinstance(r, dict):
                 continue
-            m = menu.get(_s(r.get('menu_id'), 80))
+            pid = _s(r.get('id'), 80)
             try:
                 q = int(r.get('quantita') or 0)
             except (TypeError, ValueError):
                 q = 0
-            if q <= 0:
-                continue
-            if not m or m['tipo'] != tipo:
-                return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
-            gruppo = RISTO_GRUPPI.get(m['categoria'], m['categoria'])
-            quota[gruppo] = quota.get(gruppo, 0) + q
-            if quota[gruppo] > max_ospiti:
-                return _json(origin, {'ok': False, 'errore': 'quota_superata'}, 409)
-            righe.append({'menu_id': m['id'], 'piatto': m['piatto'], 'quantita': q, 'categoria': m['categoria']})
-        bamb = pasto.get('bambini') if isinstance(pasto.get('bambini'), dict) else {}
-        for nome, q in bamb.items():
-            try:
-                q = int(q or 0)
-            except (TypeError, ValueError):
-                q = 0
-            if q <= 0:
-                continue
-            if nome not in imp['menu_bambini'] or q > 20:
-                return _json(origin, {'ok': False, 'errore': 'piatto_non_valido'}, 400)
-            righe.append({'menu_id': 'bambino_' + nome, 'piatto': nome, 'quantita': q, 'categoria': RISTO_BAMBINI_CAT})
-        if righe:
-            da_scrivere.append((tipo, righe, _s(pasto.get('note'), 300)))
-    if not da_scrivere:
-        return _json(origin, {'ok': False, 'errore': 'ordine_vuoto'}, 400)
-
-    # Mezza pensione: un solo pasto al giorno (pranzo OPPURE cena)
-    if trattamento == 'MP':
-        tipi = {t for t, _, _ in da_scrivere} | {k.split('_')[-1] for k in esistenti}
-        if len(tipi) > 1:
-            return _json(origin, {'ok': False, 'errore': 'mezza_pensione_un_pasto'}, 409)
-
-    scritti = []
-    for tipo, righe, note in da_scrivere:
-        doc_id = f'{fam_id}_{giorno}_{tipo}'
+            if not pid or q <= 0 or q > SHOP_MAX_QTA:
+                return _json(origin, {'ok': False, 'errore': 'quantita_non_valida'}, 400)
+            richieste[pid] = richieste.get(pid, 0) + q
+        if not richieste or any(q > SHOP_MAX_QTA for q in richieste.values()):
+            return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
+        nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
+        alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
+        if not nome or (modalita == 'consegna' and not alloggio):
+            return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
         try:
-            db.collection('ordini_ristorazione').document(doc_id).create({
-                'famiglia_id': fam_id, 'famiglia_nome': _s(fam.get('nome'), 120), 'unita': fam.get('unita'),
-                'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note,
-                'servito': False, 'notified': False, 'timestamp': _now_iso(),
-            })
-        except Exception as e:                      # AlreadyExists: doppio invio
-            print(f'Ordine {doc_id} non creato: {e}')
-            return _json(origin, {'ok': False, 'errore': 'gia_ordinato'}, 409)
-        scritti.append((doc_id, tipo, righe, note))
-
-    for doc_id, tipo, righe, note in scritti:
-        _risto_notifica({'evento': 'ordine', 'doc_id': doc_id, 'famiglia_nome': _s(fam.get('nome'), 120),
-                         'unita': fam.get('unita'), 'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note})
-    return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
-
-
-MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
-MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
-
-
-# Fasce da 30 minuti: 07:30-12:00 e 14:00-17:00.
-MANUT_FASCE = {'%02d:%02d-%02d:%02d' % (m // 60, m % 60, (m + 30) // 60, (m + 30) % 60)
-               for a, b in ((450, 720), (840, 1020)) for m in range(a, b, 30)}
-
-
-def _azione_manutenzione_segnala(db, origin, data):
-    """Segnalazione guasto dall'ospite: crea un ticket in `maintenance_tickets`
-    (stesso formato dell'Hub, marcato origine='ospite') e avvisa Telegram."""
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    if _s(p.get('checkin'), 10) > _oggi_iso():
-        return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
-    categoria = _s(data.get('categoria'), 30)
-    if categoria not in MANUT_CATEGORIE:
-        return _json(origin, {'ok': False, 'errore': 'categoria_non_valida'}, 400)
-    descrizione = _s(data.get('descrizione'), 1000)
-    if len(descrizione) < 5:
-        return _json(origin, {'ok': False, 'errore': 'descrizione_mancante'}, 400)
-    nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
-    if not nome:
-        return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
-    # Nome alloggio reale (l'ospite puo' vederlo senza numero fino al giorno dopo il check-in).
-    alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
-    if not alloggio:
-        return _json(origin, {'ok': False, 'errore': 'alloggio_mancante'}, 400)
-    accesso = data.get('accesso') is True
-    animali = data.get('animali') is True
-    fascia = _s(data.get('fascia'), 11)
-    if not accesso:
-        if fascia not in MANUT_FASCE:
-            return _json(origin, {'ok': False, 'errore': 'fascia_mancante'}, 400)
-    else:
-        fascia = ''
-    oggi = _oggi_iso()
-    try:
-        gia = sum(1 for d in db.collection('maintenance_tickets').where('prenId', '==', pren_ref.id).stream()
-                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
-    except Exception as e:
-        print(f'Conteggio ticket ospite non riuscito: {e}')
-        gia = 0
-    if gia >= MANUT_MAX_AL_GIORNO:
-        return _json(origin, {'ok': False, 'errore': 'troppe_segnalazioni'}, 429)
-    telefono = _s(p.get('tel'), 40)
-    ref = db.collection('maintenance_tickets').document()
-    ref.set({
-        'housing_unit': alloggio, 'category': categoria, 'issue_description': descrizione,
-        'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia, 'priority': 'normale', 'status': False,
-        'user_id': f'Ospite · {nome}',
-        'origine': 'ospite', 'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': telefono,
-        'created_at': firestore.SERVER_TIMESTAMP, 'creato_il': _now_iso(),
-    })
-    _telegram({'evento': 'ticket', 'origine': 'ospite', 'doc_id': ref.id, 'housing_unit': alloggio, 'category': categoria,
-               'issue_description': descrizione, 'priority': 'normale', 'access_permission': accesso, 'animali': animali, 'fascia_oraria': fascia,
-               'operatore': nome, 'telefono': telefono})
-    return _json(origin, {'ok': True, 'id': ref.id})
-
-
-# ── Shop interno ─────────────────────────────────────────────────────────────
-# Catalogo gestito dall'Hub (modulo `shop/`): collezioni `shop_categorie`,
-# `shop_prodotti`, `shop_ordini` + `impostazioni/shop`. L'ospite non tocca mai
-# Firestore: catalogo e ordini passano da qui. Il prezzo e la disponibilita'
-# si rileggono sempre lato server al momento dell'ordine.
-# Pagamento: per ora `pagamento.metodo = 'in_struttura'` (si paga al ritiro o
-# in reception). Il campo `pagamento` e' gia' strutturato per agganciare PayPal.
-SHOP_MAX_RIGHE = 30
-SHOP_MAX_QTA = 20
-SHOP_MAX_ORDINI_GIORNO = 10
-
-
-def _shop_num(v, default=0):
-    try:
-        return float(v)
-    except (TypeError, ValueError):
-        return default
-
-
-SHOP_FASCE_DEFAULT = {'passo': 15, 'intervalli': [['10:00', '12:00'], ['15:00', '18:30']]}
-
-
-def _hhmm_min(v):
-    m = re.fullmatch(r'(\d{1,2}):(\d{2})', str(v or '').strip())
-    if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
-        return None
-    return int(m.group(1)) * 60 + int(m.group(2))
-
-
-def _min_hhmm(m):
-    return '%02d:%02d' % (m // 60, m % 60)
-
-
-def _shop_fasce_norm(c):
-    """Configurazione fasce di consegna (passo in minuti + intervalli) validata; ripiego sui predefiniti."""
-    c = c if isinstance(c, dict) else {}
-    try:
-        passo = int(c.get('passo'))
-    except (TypeError, ValueError):
-        passo = 15
-    passo = passo if 5 <= passo <= 120 else 15
-    interv = []
-    for r in (c.get('intervalli') if isinstance(c.get('intervalli'), list) else []):
-        if isinstance(r, (list, tuple)) and len(r) == 2:
-            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
-            if a is not None and b is not None and b - a >= passo:
-                interv.append([_min_hhmm(a), _min_hhmm(b)])
-    interv = interv[:6]
-    if not interv:
-        return dict(SHOP_FASCE_DEFAULT)
-    return {'passo': passo, 'intervalli': interv}
-
-
-def _shop_ritiro_norm(v):
-    """Orari in cui si puo' ritirare al bar: lista di intervalli [dalle, alle]; vuota = nessun limite."""
-    out = []
-    for r in (v if isinstance(v, list) else []):
-        if isinstance(r, (list, tuple)) and len(r) == 2:
-            a, b = _hhmm_min(r[0]), _hhmm_min(r[1])
-            if a is not None and b is not None and b > a:
-                out.append([_min_hhmm(a), _min_hhmm(b)])
-    return out[:4]
-
-
-def _shop_fasce_lista(fc):
-    out = []
-    for a, b in fc['intervalli']:
-        m, fine = _hhmm_min(a), _hhmm_min(b)
-        while m + fc['passo'] <= fine:
-            out.append(f'{_min_hhmm(m)}-{_min_hhmm(m + fc["passo"])}')
-            m += fc['passo']
-    return out
-
-
-def _shop_cfg(db):
-    def leggi():
-        d = db.collection('impostazioni').document('shop').get()
-        c = (d.to_dict() or {}) if d.exists else {}
-        fc = _shop_fasce_norm(c.get('consegna_fasce'))
-        return {'fasce_cfg': fc, 'fasce': _shop_fasce_lista(fc), 'ritiro_orari': _shop_ritiro_norm(c.get('ritiro_orari')),
-                'attivo': c.get('attivo') is True,
-                'ritiro': c.get('ritiro') is not False,
-                'consegna': c.get('consegna') is not False,
-                'ritiro_luogo': _s(c.get('ritiro_luogo'), 120),
-                'messaggio': _s(c.get('messaggio'), 400)}
-    return _con_cache('shop_cfg', 30, leggi)
-
-
-def _shop_catalogo_leggi(db):
-    def leggi():
-        cats = []
-        for d in db.collection('shop_categorie').stream():
-            c = d.to_dict() or {}
-            if c.get('attiva') is False:
-                continue
-            cats.append({'id': d.id, 'nome': _s(c.get('nome'), 60), 'ordine': _shop_num(c.get('ordine'))})
-        cats.sort(key=lambda c: (c['ordine'], c['nome'].lower()))
-        ids = {c['id'] for c in cats}
-        prod = []
-        for d in db.collection('shop_prodotti').stream():
+            gia = sum(1 for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream()
+                      if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
+        except Exception as e:
+            print(f'Conteggio ordini shop non riuscito: {e}')
+            gia = 0
+        if gia >= SHOP_MAX_ORDINI_GIORNO:
+            return _json(origin, {'ok': False, 'errore': 'troppi_ordini'}, 429)
+        # Pagamento: solo con consegna in alloggio l'ospite sceglie contanti o carta (PayPal).
+        metodo = 'in_struttura'
+        if modalita == 'consegna':
+            scelta = _s(data.get('pagamento'), 10)
+            if scelta == 'carta':
+                if not cfg.get('paypal_me'):
+                    return _json(origin, {'ok': False, 'errore': 'carta_non_disponibile'}, 400)
+                metodo = 'paypal'
+            else:
+                metodo = 'contanti'
+        ref = db.collection('shop_ordini').document()
+        try:
+            righe, totale = _shop_scrivi(db.transaction(), db, ref, richieste)
+        except _ShopErrore as e:
+            cod = str(e)
+            if cod.startswith('esaurito:'):
+                return _json(origin, {'ok': False, 'errore': 'esaurito', 'prodotto': cod[9:]}, 409)
+            return _json(origin, {'ok': False, 'errore': cod}, 409)
+        ref.set({
+            'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': _s(p.get('tel'), 40), 'alloggio': alloggio,
+            'righe': righe, 'totale': totale, 'modalita': modalita, 'note': _s(data.get('note'), 300),
+            'consegna_data': giorno, 'consegna_fascia': fascia,
+            'stato': 'nuovo',
+            'pagamento': {'metodo': metodo, 'stato': 'da_pagare', 'importo': totale},
+            'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
+        })
+        _CACHE.pop('shop_catalogo', None)       # la giacenza e' cambiata
+        _telegram({'evento': 'shop_ordine', 'doc_id': ref.id, 'ospite_nome': nome, 'alloggio': alloggio, 'ospite_tel': _s(p.get('tel'), 40),
+                   'righe': righe, 'totale': totale, 'modalita': modalita, 'consegna_data': giorno, 'consegna_fascia': fascia,
+                   'note': _s(data.get('note'), 300), 'ritiro_orari': cfg['ritiro_orari'], 'metodo': metodo})
+        return _json(origin, {'ok': True, 'id': ref.id, 'totale': totale, 'metodo': metodo,
+                              'paypal_url': _shop_paypal_url(cfg, totale) if metodo == 'paypal' else ''})
+    
+    
+    def _shop_paypal_url(cfg, importo):
+        """Link PayPal.Me con l'importo gia' compilato (nessuna API: il pagamento si segna da Hub o Telegram)."""
+        h = cfg.get('paypal_me') or ''
+        if not h:
+            return ''
+        return f"https://www.paypal.com/paypalme/{h}/{float(importo):.2f}EUR"
+    
+    
+    def _azione_shop_foto_consegna(db, origin, data):
+        """La foto scattata dall'operatore dove ha lasciato la spesa (solo per l'ospite proprietario dell'ordine)."""
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        oid = _s(data.get('id'), 80)
+        if not oid:
+            return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
+        d = db.collection('shop_ordini').document(oid).get()
+        x = (d.to_dict() or {}) if d.exists else {}
+        foto = x.get('foto_consegna')
+        if x.get('prenId') != pren_ref.id or not isinstance(foto, str) or not foto.startswith('data:image/'):
+            return _json(origin, {'ok': False, 'errore': 'non_trovata'}, 404)
+        return _json(origin, {'ok': True, 'foto': foto, 'il': _s(x.get('foto_consegna_il'), 25)})
+    
+    
+    def _azione_shop_ordini(db, origin, data):
+        """Gli ordini fatti da questa prenotazione, per mostrarne lo stato all'ospite."""
+        pren_ref, p = _risolvi_token(db, data.get('token'))
+        if not p:
+            return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+        out = []
+        for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream():
             x = d.to_dict() or {}
-            if x.get('attivo') is False or x.get('categoriaId') not in ids:
-                continue
-            foto = [f for f in (x.get('foto') or []) if isinstance(f, str)]
-            giac = x.get('giacenza')
-            giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
-            prod.append({'id': d.id, 'categoriaId': x.get('categoriaId'), 'titolo': _s(x.get('titolo'), 120),
-                         'descrizione': _s(x.get('descrizione'), 1500),
-                         'prezzo': round(_shop_num(x.get('prezzo')), 2),
-                         'foto': foto[0] if foto else '', 'n_foto': len(foto),
-                         'giacenza': giac,
-                         'evidenza': x.get('in_evidenza') is True, 'novita': x.get('novita') is True,
-                         'esaurito': x.get('esaurito') is True or (giac is not None and giac <= 0),
-                         'ordine': _shop_num(x.get('ordine'))})
-        prod.sort(key=lambda p: (p['ordine'], p['titolo'].lower()))
-        return {'categorie': cats, 'prodotti': prod}
-    return _con_cache('shop_catalogo', 45, leggi)
-
-
-def _azione_shop_catalogo(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    cfg = _shop_cfg(db)
-    if not cfg['attivo']:
-        return _json(origin, {'ok': True, 'attivo': False, 'categorie': [], 'prodotti': [], 'cfg': cfg})
-    cat = _shop_catalogo_leggi(db)
-    ora = datetime.now(TZ_ROMA)
-    return _json(origin, {'ok': True, 'attivo': True, 'cfg': cfg, 'oggi': ora.strftime('%Y-%m-%d'),
-                          'ora': ora.strftime('%H:%M'), 'checkout': _s(p.get('checkout'), 10), **cat})
-
-
-def _azione_shop_prodotto(db, origin, data):
-    """Tutte le foto di un prodotto (il catalogo ne porta solo la prima)."""
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    pid = _s(data.get('id'), 80)
-    if not pid:
-        return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 400)
-    d = db.collection('shop_prodotti').document(pid).get()
-    if not d.exists or (d.to_dict() or {}).get('attivo') is False:
-        return _json(origin, {'ok': False, 'errore': 'prodotto_non_valido'}, 404)
-    foto = [f for f in ((d.to_dict() or {}).get('foto') or []) if isinstance(f, str)]
-    return _json(origin, {'ok': True, 'foto': foto})
-
-
-class _ShopErrore(Exception):
-    pass
-
-
-@firestore.transactional
-def _shop_scrivi(transaction, db, ordine_ref, richieste):
-    """Rilegge i prodotti, controlla disponibilita', scala la giacenza e crea l'ordine.
-    Ritorna (righe, totale)."""
-    snaps = {pid: db.collection('shop_prodotti').document(pid).get(transaction=transaction) for pid in richieste}
-    righe, totale, scrivi = [], 0.0, []
-    for pid, q in richieste.items():
-        s = snaps[pid]
-        x = (s.to_dict() or {}) if s.exists else {}
-        if not s.exists or x.get('attivo') is False:
-            raise _ShopErrore('prodotto_non_disponibile')
-        giac = x.get('giacenza')
-        giac = int(giac) if isinstance(giac, (int, float)) and not isinstance(giac, bool) else None
-        if x.get('esaurito') is True or (giac is not None and giac < q):
-            raise _ShopErrore('esaurito:' + _s(x.get('titolo'), 60))
-        prezzo = round(_shop_num(x.get('prezzo')), 2)
-        righe.append({'id': pid, 'titolo': _s(x.get('titolo'), 120), 'prezzo': prezzo, 'quantita': q,
-                      'importo': round(prezzo * q, 2)})
-        totale += prezzo * q
-        if giac is not None:
-            scrivi.append((s.reference, giac - q))
-    for ref, nuova in scrivi:
-        transaction.update(ref, {'giacenza': nuova})
-    return righe, round(totale, 2)
-
-
-def _azione_shop_ordina(db, origin, data):
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    oggi = _oggi_iso()
-    if _s(p.get('checkin'), 10) > oggi:
-        return _json(origin, {'ok': False, 'errore': 'non_ancora_arrivato'}, 403)
-    if _s(p.get('checkout'), 10) and _s(p.get('checkout'), 10) < oggi:
-        return _json(origin, {'ok': False, 'errore': 'soggiorno_concluso'}, 403)
-    cfg = _shop_cfg(db)
-    if not cfg['attivo']:
-        return _json(origin, {'ok': False, 'errore': 'shop_chiuso'}, 409)
-    modalita = _s(data.get('modalita'), 10)
-    if modalita not in ('ritiro', 'consegna') or not cfg[modalita]:
-        return _json(origin, {'ok': False, 'errore': 'modalita_non_valida'}, 400)
-    giorno, fascia = '', ''
-    if modalita == 'consegna':
-        ora = datetime.now(TZ_ROMA)
-        domani = (ora + timedelta(days=1)).strftime('%Y-%m-%d')
-        giorno = _s(data.get('giorno'), 10)
-        fascia = _s(data.get('fascia'), 11)
-        chk = _s(p.get('checkout'), 10)
-        if giorno not in (oggi, domani) or (chk and giorno > chk):
-            return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
-        if fascia not in cfg['fasce']:
-            return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
-        if giorno == oggi and _hhmm_min(fascia[:5]) < ora.hour * 60 + ora.minute:
-            return _json(origin, {'ok': False, 'errore': 'fascia_non_valida'}, 400)
-    grezze = data.get('righe')
-    if not isinstance(grezze, list) or not grezze or len(grezze) > SHOP_MAX_RIGHE:
-        return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
-    richieste = {}
-    for r in grezze:
-        if not isinstance(r, dict):
-            continue
-        pid = _s(r.get('id'), 80)
+            out.append({'id': d.id, 'righe': x.get('righe') or [], 'totale': x.get('totale') or 0,
+                        'modalita': _s(x.get('modalita'), 10), 'stato': _s(x.get('stato'), 12),
+                        'consegna_data': _s(x.get('consegna_data'), 10), 'consegna_fascia': _s(x.get('consegna_fascia'), 11),
+                        'pagamento': x.get('pagamento') or {}, 'creato_il': _s(x.get('creato_il'), 25),
+                        'ha_foto': bool(x.get('foto_consegna'))})
+        out.sort(key=lambda o: o['creato_il'], reverse=True)
+        cfg = _shop_cfg(db)
+        for o in out:
+            pg = o['pagamento']
+            if pg.get('metodo') == 'paypal' and pg.get('stato') != 'pagato' and o['stato'] != 'annullato':
+                o['paypal_url'] = _shop_paypal_url(cfg, o['totale'])
+        return _json(origin, {'ok': True, 'ordini': out[:30], 'ritiro_orari': cfg['ritiro_orari']})
+    
+    
+    AZIONI = {
+        'carica':                  _azione_carica,
+        'contenuti':               _azione_contenuti,
+        'navetta_stato':           _azione_navetta_stato,
+        'navetta_prenota':         _azione_navetta_prenota,
+        'navetta_modifica_orario': _azione_navetta_modifica_orario,
+        'navetta_annulla':         _azione_navetta_annulla,
+        'manutenzione_segnala':    _azione_manutenzione_segnala,
+        'staff_crea':              _azione_staff_crea,
+        'staff_modifica':          _azione_staff_modifica,
+        'staff_riapri':            _azione_staff_riapri,
+        'ristorazione_menu':       _azione_ristorazione_menu,
+        'ristorazione_ordina':     _azione_ristorazione_ordina,
+        'shop_catalogo':           _azione_shop_catalogo,
+        'shop_prodotto':           _azione_shop_prodotto,
+        'shop_ordina':             _azione_shop_ordina,
+        'shop_ordini':             _azione_shop_ordini,
+        'shop_foto_consegna':      _azione_shop_foto_consegna,
+    }
+    
+    
+    @functions_framework.http
+    def area_ospite(request):
+        origin = request.headers.get('Origin', '')
+    
+        if request.method == 'OPTIONS':
+            return ('', 204, _cors_headers(origin))
+        if request.method != 'POST':
+            return _json(origin, {'ok': False, 'errore': 'metodo_non_permesso'}, 405)
+    
+        data = request.get_json(silent=True) or {}
+        handler = AZIONI.get(data.get('azione'))
+        if not handler:
+            return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
+    
         try:
-            q = int(r.get('quantita') or 0)
-        except (TypeError, ValueError):
-            q = 0
-        if not pid or q <= 0 or q > SHOP_MAX_QTA:
-            return _json(origin, {'ok': False, 'errore': 'quantita_non_valida'}, 400)
-        richieste[pid] = richieste.get(pid, 0) + q
-    if not richieste or any(q > SHOP_MAX_QTA for q in richieste.values()):
-        return _json(origin, {'ok': False, 'errore': 'carrello_vuoto'}, 400)
-    nome = _s(data.get('nome'), 80) or _s(p.get('nome'), 80)
-    alloggio = _s(p.get('alloggio_nome'), 80) or _s(data.get('alloggio_nome'), 80)
-    if not nome or (modalita == 'consegna' and not alloggio):
-        return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
-    try:
-        gia = sum(1 for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream()
-                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
-    except Exception as e:
-        print(f'Conteggio ordini shop non riuscito: {e}')
-        gia = 0
-    if gia >= SHOP_MAX_ORDINI_GIORNO:
-        return _json(origin, {'ok': False, 'errore': 'troppi_ordini'}, 429)
-    ref = db.collection('shop_ordini').document()
-    try:
-        righe, totale = _shop_scrivi(db.transaction(), db, ref, richieste)
-    except _ShopErrore as e:
-        cod = str(e)
-        if cod.startswith('esaurito:'):
-            return _json(origin, {'ok': False, 'errore': 'esaurito', 'prodotto': cod[9:]}, 409)
-        return _json(origin, {'ok': False, 'errore': cod}, 409)
-    ref.set({
-        'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': _s(p.get('tel'), 40), 'alloggio': alloggio,
-        'righe': righe, 'totale': totale, 'modalita': modalita, 'note': _s(data.get('note'), 300),
-        'consegna_data': giorno, 'consegna_fascia': fascia,
-        'stato': 'nuovo',
-        'pagamento': {'metodo': 'in_struttura', 'stato': 'da_pagare', 'importo': totale},
-        'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
-    })
-    _CACHE.pop('shop_catalogo', None)       # la giacenza e' cambiata
-    _telegram({'evento': 'shop_ordine', 'doc_id': ref.id, 'ospite_nome': nome, 'alloggio': alloggio, 'ospite_tel': _s(p.get('tel'), 40),
-               'righe': righe, 'totale': totale, 'modalita': modalita, 'consegna_data': giorno, 'consegna_fascia': fascia,
-               'note': _s(data.get('note'), 300), 'ritiro_orari': cfg['ritiro_orari']})
-    return _json(origin, {'ok': True, 'id': ref.id, 'totale': totale})
-
-
-def _azione_shop_ordini(db, origin, data):
-    """Gli ordini fatti da questa prenotazione, per mostrarne lo stato all'ospite."""
-    pren_ref, p = _risolvi_token(db, data.get('token'))
-    if not p:
-        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
-    out = []
-    for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream():
-        x = d.to_dict() or {}
-        out.append({'id': d.id, 'righe': x.get('righe') or [], 'totale': x.get('totale') or 0,
-                    'modalita': _s(x.get('modalita'), 10), 'stato': _s(x.get('stato'), 12),
-                    'consegna_data': _s(x.get('consegna_data'), 10), 'consegna_fascia': _s(x.get('consegna_fascia'), 11),
-                    'pagamento': x.get('pagamento') or {}, 'creato_il': _s(x.get('creato_il'), 25)})
-    out.sort(key=lambda o: o['creato_il'], reverse=True)
-    return _json(origin, {'ok': True, 'ordini': out[:30], 'ritiro_orari': _shop_cfg(db)['ritiro_orari']})
-
-
-AZIONI = {
-    'carica':                  _azione_carica,
-    'contenuti':               _azione_contenuti,
-    'navetta_stato':           _azione_navetta_stato,
-    'navetta_prenota':         _azione_navetta_prenota,
-    'navetta_modifica_orario': _azione_navetta_modifica_orario,
-    'navetta_annulla':         _azione_navetta_annulla,
-    'manutenzione_segnala':    _azione_manutenzione_segnala,
-    'staff_crea':              _azione_staff_crea,
-    'staff_modifica':          _azione_staff_modifica,
-    'staff_riapri':            _azione_staff_riapri,
-    'ristorazione_menu':       _azione_ristorazione_menu,
-    'ristorazione_ordina':     _azione_ristorazione_ordina,
-    'shop_catalogo':           _azione_shop_catalogo,
-    'shop_prodotto':           _azione_shop_prodotto,
-    'shop_ordina':             _azione_shop_ordina,
-    'shop_ordini':             _azione_shop_ordini,
-}
-
-
-@functions_framework.http
-def area_ospite(request):
-    origin = request.headers.get('Origin', '')
-
-    if request.method == 'OPTIONS':
-        return ('', 204, _cors_headers(origin))
-    if request.method != 'POST':
-        return _json(origin, {'ok': False, 'errore': 'metodo_non_permesso'}, 405)
-
-    data = request.get_json(silent=True) or {}
-    handler = AZIONI.get(data.get('azione'))
-    if not handler:
-        return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
-
-    try:
-        return handler(firestore.client(), origin, data)
-    except Exception as e:
-        print(f'Errore azione {data.get("azione")}: {e}')
-        return _json(origin, {'ok': False, 'errore': 'errore_interno'}, 500)
+            return handler(firestore.client(), origin, data)
+        except Exception as e:
+            print(f'Errore azione {data.get("azione")}: {e}')
+            return _json(origin, {'ok': False, 'errore': 'errore_interno'}, 500)

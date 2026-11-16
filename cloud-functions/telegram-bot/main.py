@@ -246,7 +246,7 @@ def _shop_testo(o, chi=''):
             f"👤 {_e(o.get('ospite_nome'), 80) or '—'} · 🏠 {_e(o.get('alloggio'), 60) or '—'}\n"
             + (f"📞 {tel}\n" if tel else '') +
             f"\n{righe}\n\n"
-            f"💶 <b>Totale {_eur(o.get('totale'))}</b> · {'✅ pagato' if pagato else 'da pagare'}\n{dove}\n"
+            f"💶 <b>Totale {_eur(o.get('totale'))}</b> · {'✅ pagato' if pagato else 'da pagare ' + {'contanti': 'in contanti', 'paypal': 'con carta (PayPal)'}.get((o.get('pagamento') or {}).get('metodo'), '')}\n{dove}\n"
             + (f"📝 {_e(o.get('note'), 300)}\n" if o.get('note') else '') +
             f"\n📌 <b>Stato:</b> {SHOP_STATI.get(stato, stato)}" + (f" · {_e(chi, 40)}" if chi and stato != 'nuovo' else ''))
 
@@ -273,7 +273,7 @@ def _shop_tastiera(doc_id, o):
 
 def _notifica_shop(data):
     doc_id = str(data.get('doc_id') or '')[:40]
-    o = {**data, 'stato': 'nuovo', 'pagamento': {'stato': 'da_pagare'}}
+    o = {**data, 'stato': 'nuovo', 'pagamento': {'stato': 'da_pagare', 'metodo': data.get('metodo')}}
     return _invia(['market'], _shop_testo(o), tastiera=_shop_tastiera(doc_id, o) if doc_id else None)
 
 
