@@ -75,3 +75,8 @@ giorni), nella collezione `area_ospite_links/{token}`.
 Variabili d'ambiente della CF (mai nel codice): `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_ENV` (`sandbox` oppure `live`, default sandbox).
 Azioni: `shop_paypal_crea` (crea l'ordine PayPal con l'importo riletto dal database) e `shop_paypal_cattura` (cattura, verifica importo e stato COMPLETED, segna l'ordine `pagamento.stato = pagato` e avvisa il gruppo Market).
 Senza le variabili resta attivo il fallback con link PayPal.Me (se compilato in Hub → Shop → Impostazioni). La carta e' offerta solo con consegna in alloggio, come ultima opzione.
+
+### Pagamento prima dell'ordine (carta)
+- Con la carta l'ordine nasce `in_attesa_pagamento` (nascosto a Hub e ospite, giacenza scalata). Solo `shop_paypal_cattura` riuscita lo porta a `nuovo`, lo segna `pagato` e manda UN messaggio Telegram (con metodo e stato). Se l'ospite annulla (`shop_annulla_attesa`) o dopo 30 minuti la giacenza torna disponibile (`abbandonato` / `scaduto`).
+- PayPal: intent AUTHORIZE → controllo circuito (solo Visa, Mastercard, Maestro, `SHOP_CARTE_OK`) e importo → capture; altrimenti void dell'autorizzazione.
+- Importo minimo carta: `impostazioni/shop.carta_min` (default 5 euro), controllato anche lato server.

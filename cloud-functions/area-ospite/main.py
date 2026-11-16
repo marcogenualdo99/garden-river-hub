@@ -1735,6 +1735,8 @@ def _shop_cfg(db):
                 'ritiro': c.get('ritiro') is not False,
                 'consegna': c.get('consegna') is not False,
                 'ritiro_luogo': _s(c.get('ritiro_luogo'), 120),
+                'venditore': _s(c.get('venditore'), 200),
+                'carta_min': max(0.0, _shop_num(c.get('carta_min'), 5.0)) if c.get('carta_min') is not None else 5.0,
                 'paypal_me': re.sub(r'[^A-Za-z0-9._-]', '', _s(c.get('paypal_me'), 80).rstrip('/').split('/')[-1])[:60],
                 'messaggio': _s(c.get('messaggio'), 400)}
     def con_carta():
@@ -1837,6 +1839,46 @@ def _shop_scrivi(transaction, db, ordine_ref, richieste):
     return righe, round(totale, 2)
 
 
+SHOP_STATI_NASCOSTI = ('in_attesa_pagamento', 'abbandonato', 'scaduto')
+SHOP_ATTESA_MIN = 30          # un ordine con pagamento non completato libera la merce dopo 30 minuti
+
+
+@firestore.transactional
+def _shop_rilascia_tx(tr, db, ref, nuovo_stato):
+    """Ordine rimasto in attesa di pagamento: rimette la giacenza e lo chiude. Solo se e' ancora in attesa."""
+    x = ref.get(transaction=tr).to_dict() or {}
+    if x.get('stato') != 'in_attesa_pagamento':
+        return False
+    righe = x.get('righe') or []
+    prod = {r['id']: db.collection('shop_prodotti').document(r['id']).get(transaction=tr) for r in righe if r.get('id')}
+    for r in righe:
+        ps = prod.get(r.get('id'))
+        giac = (ps.to_dict() or {}).get('giacenza') if ps is not None and ps.exists else None
+        if isinstance(giac, (int, float)) and not isinstance(giac, bool):
+            tr.update(ps.reference, {'giacenza': int(giac) + int(r.get('quantita') or 0)})
+    tr.update(ref, {'stato': nuovo_stato, 'aggiornato_il': _now_iso()})
+    return True
+
+
+def _shop_scadenze(db):
+    """Chiude gli ordini in attesa di pagamento da piu' di SHOP_ATTESA_MIN minuti (chiamata a ogni ordine/elenco)."""
+    try:
+        limite = (datetime.now(TZ_ROMA) - timedelta(minutes=SHOP_ATTESA_MIN)).isoformat()
+        for d in db.collection('shop_ordini').where('stato', '==', 'in_attesa_pagamento').stream():
+            if _s((d.to_dict() or {}).get('creato_il'), 40) < limite:
+                _shop_rilascia_tx(db.transaction(), db, d.reference, 'scaduto')
+    except Exception as e:
+        print(f'Scadenza ordini in attesa non riuscita: {e}')
+
+
+def _shop_notifica(db, oid, x, pagato=False):
+    pg = x.get('pagamento') or {}
+    _telegram({'evento': 'shop_ordine', 'doc_id': oid, 'ospite_nome': x.get('ospite_nome'), 'alloggio': x.get('alloggio'), 'ospite_tel': x.get('ospite_tel'),
+               'righe': x.get('righe'), 'totale': x.get('totale'), 'modalita': x.get('modalita'), 'consegna_data': x.get('consegna_data'),
+               'consegna_fascia': x.get('consegna_fascia'), 'note': x.get('note'), 'ritiro_orari': _shop_cfg(db)['ritiro_orari'],
+               'metodo': pg.get('metodo'), 'pagato': bool(pagato)})
+
+
 def _azione_shop_ordina(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
@@ -1849,6 +1891,7 @@ def _azione_shop_ordina(db, origin, data):
     cfg = _shop_cfg(db)
     if not cfg['attivo']:
         return _json(origin, {'ok': False, 'errore': 'shop_chiuso'}, 409)
+    _shop_scadenze(db)
     modalita = _s(data.get('modalita'), 10)
     if modalita not in ('ritiro', 'consegna') or not cfg[modalita]:
         return _json(origin, {'ok': False, 'errore': 'modalita_non_valida'}, 400)
@@ -1888,7 +1931,7 @@ def _azione_shop_ordina(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'dati_incompleti'}, 400)
     try:
         gia = sum(1 for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream()
-                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi)
+                  if _s((d.to_dict() or {}).get('creato_il'), 10) == oggi and (d.to_dict() or {}).get('stato') not in SHOP_STATI_NASCOSTI)
     except Exception as e:
         print(f'Conteggio ordini shop non riuscito: {e}')
         gia = 0
@@ -1901,6 +1944,13 @@ def _azione_shop_ordina(db, origin, data):
         if scelta == 'carta':
             if not cfg.get('carta'):
                 return _json(origin, {'ok': False, 'errore': 'carta_non_disponibile'}, 400)
+            try:
+                cat = {x['id']: x['prezzo'] for x in _shop_catalogo_leggi(db)['prodotti']}
+                stima = sum(float(cat.get(pid, 0)) * q for pid, q in richieste.items())
+            except Exception:
+                stima = 0.0
+            if cfg.get('carta_api') and stima < cfg.get('carta_min', 5.0):
+                return _json(origin, {'ok': False, 'errore': 'carta_importo_minimo', 'minimo': cfg.get('carta_min', 5.0)}, 400)
             metodo = 'paypal'
         else:
             metodo = 'contanti'
@@ -1912,19 +1962,22 @@ def _azione_shop_ordina(db, origin, data):
         if cod.startswith('esaurito:'):
             return _json(origin, {'ok': False, 'errore': 'esaurito', 'prodotto': cod[9:]}, 409)
         return _json(origin, {'ok': False, 'errore': cod}, 409)
+    attesa = metodo == 'paypal' and bool(cfg.get('carta_api'))   # si paga PRIMA: l'ordine resta nascosto finche' il pagamento non e' completato
     ref.set({
         'prenId': pren_ref.id, 'ospite_nome': nome, 'ospite_tel': _s(p.get('tel'), 40), 'alloggio': alloggio,
         'righe': righe, 'totale': totale, 'modalita': modalita, 'note': _s(data.get('note'), 300),
         'consegna_data': giorno, 'consegna_fascia': fascia,
-        'stato': 'nuovo',
+        'stato': 'in_attesa_pagamento' if attesa else 'nuovo',
         'pagamento': {'metodo': metodo, 'stato': 'da_pagare', 'importo': totale},
         'creato_il': _now_iso(), 'created_at': firestore.SERVER_TIMESTAMP,
     })
     _CACHE.pop('shop_catalogo', None)       # la giacenza e' cambiata
-    _telegram({'evento': 'shop_ordine', 'doc_id': ref.id, 'ospite_nome': nome, 'alloggio': alloggio, 'ospite_tel': _s(p.get('tel'), 40),
-               'righe': righe, 'totale': totale, 'modalita': modalita, 'consegna_data': giorno, 'consegna_fascia': fascia,
-               'note': _s(data.get('note'), 300), 'ritiro_orari': cfg['ritiro_orari'], 'metodo': metodo})
+    if not attesa:
+        _shop_notifica(db, ref.id, {'ospite_nome': nome, 'alloggio': alloggio, 'ospite_tel': _s(p.get('tel'), 40), 'righe': righe, 'totale': totale,
+                                    'modalita': modalita, 'consegna_data': giorno, 'consegna_fascia': fascia, 'note': _s(data.get('note'), 300),
+                                    'pagamento': {'metodo': metodo}})
     return _json(origin, {'ok': True, 'id': ref.id, 'totale': totale, 'metodo': metodo,
+                          'attesa': attesa,
                           'paypal_url': _shop_paypal_url(cfg, totale) if metodo == 'paypal' and not cfg.get('carta_api') else ''})
 
 
@@ -1982,11 +2035,15 @@ def _paypal_ordine_da_pagare(db, origin, data):
     d = ref.get() if ref else None
     x = (d.to_dict() or {}) if d is not None and d.exists else {}
     pg = x.get('pagamento') or {}
-    if not x or x.get('prenId') != pren_ref.id or x.get('stato') == 'annullato' or pg.get('metodo') != 'paypal':
+    if not x or x.get('prenId') != pren_ref.id or x.get('stato') in ('annullato', 'abbandonato', 'scaduto') or pg.get('metodo') != 'paypal':
         return None, _json(origin, {'ok': False, 'errore': 'ordine_non_valido'}, 404)
     if pg.get('stato') == 'pagato':
         return None, _json(origin, {'ok': False, 'errore': 'gia_pagato'}, 409)
     return (ref, x), None
+
+
+SHOP_CONDIZIONI_VER = '2026-11-16'   # versione del testo delle condizioni mostrato in area-ospite/index.html (shCondizioniHtml)
+SHOP_CARTE_OK = ('VISA', 'MASTERCARD', 'MASTER_CARD', 'MAESTRO')   # circuiti accettati: gli altri (Amex, estere...) hanno commissioni piu' alte
 
 
 def _azione_shop_paypal_crea(db, origin, data):
@@ -1994,25 +2051,31 @@ def _azione_shop_paypal_crea(db, origin, data):
     if err:
         return err
     ref, x = r
-    importo = f"{float(x.get('totale') or 0):.2f}"
+    if data.get('accetta') is not True:      # l'ospite deve aver accettato le condizioni (pagamento non rimborsabile)
+        return _json(origin, {'ok': False, 'errore': 'condizioni_non_accettate'}, 400)
+    tot = float(x.get('totale') or 0)
+    minimo = _shop_cfg(db).get('carta_min', 5.0)
+    if tot + 1e-9 < minimo:
+        return _json(origin, {'ok': False, 'errore': 'carta_importo_minimo', 'minimo': minimo}, 400)
+    importo = f"{tot:.2f}"
+    corpo = {'intent': 'AUTHORIZE',
+             'purchase_units': [{'reference_id': ref.id, 'custom_id': ref.id, 'description': 'Garden River Shop',
+                                 'amount': {'currency_code': 'EUR', 'value': importo}}]}
+    corpo['payment_source'] = {'card': {'attributes': {'verification': {'method': 'SCA_WHEN_REQUIRED'}}}}
     try:
-        j = _paypal_chiama('POST', '/v2/checkout/orders', {
-            'intent': 'CAPTURE',
-            'purchase_units': [{'reference_id': ref.id, 'custom_id': ref.id, 'description': 'Garden River Shop',
-                                'amount': {'currency_code': 'EUR', 'value': importo}}],
-            'payment_source': {'card': {'attributes': {'verification': {'method': 'SCA_WHEN_REQUIRED'}}}},
-        }, request_id=f'gh-{ref.id}-{importo}')
+        j = _paypal_chiama('POST', '/v2/checkout/orders', corpo, request_id=f'gh-{ref.id}-{importo}-card')
     except Exception as e:
         print(f'PayPal crea ordine fallito: {e}')
         return _json(origin, {'ok': False, 'errore': 'paypal_non_raggiungibile'}, 502)
     if j.get('_errore') or not j.get('id'):
         print(f"PayPal crea ordine rifiutato: {str(j)[:400]}")
         return _json(origin, {'ok': False, 'errore': 'paypal_rifiutato'}, 502)
-    ref.update({'pagamento.paypal_order_id': j['id']})
+    ref.update({'pagamento.paypal_order_id': j['id'], 'pagamento.condizioni_accettate_il': _now_iso(), 'pagamento.condizioni_versione': SHOP_CONDIZIONI_VER})
     return _json(origin, {'ok': True, 'paypal_order_id': j['id']})
 
 
 def _azione_shop_paypal_cattura(db, origin, data):
+    """Autorizza il pagamento, controlla circuito e importo, poi incassa. Solo a incasso riuscito l'ordine diventa visibile."""
     r, err = _paypal_ordine_da_pagare(db, origin, data)
     if err:
         return err
@@ -2020,18 +2083,50 @@ def _azione_shop_paypal_cattura(db, origin, data):
     pid = _s(data.get('paypal_order_id'), 60)
     if not pid or pid != (x.get('pagamento') or {}).get('paypal_order_id'):
         return _json(origin, {'ok': False, 'errore': 'ordine_non_valido'}, 400)
+    atteso = f"{float(x.get('totale') or 0):.2f}"
     try:
-        j = _paypal_chiama('POST', f'/v2/checkout/orders/{pid}/capture', {}, request_id=f'gh-cap-{pid}')
+        j = _paypal_chiama('POST', f'/v2/checkout/orders/{pid}/authorize', {}, request_id=f'gh-aut-{pid}')
+        aut = (((j.get('purchase_units') or [{}])[0].get('payments') or {}).get('authorizations') or [{}])[0]
+        aid = _s(aut.get('id'), 40)
+        if j.get('status') != 'COMPLETED' or not aid or aut.get('status') != 'CREATED' or (aut.get('amount') or {}).get('value') != atteso:
+            print(f"PayPal autorizzazione non riuscita: {str(j)[:400]}")
+            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito'}, 402)
+        ps = j.get('payment_source') or {}
+        brand = _s((ps.get('card') or {}).get('brand'), 30).upper().replace(' ', '_')
+        if brand and brand not in SHOP_CARTE_OK:
+            _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/void', None, request_id=f'gh-void-{aid}')
+            print(f'Carta rifiutata per circuito: {brand}')
+            return _json(origin, {'ok': False, 'errore': 'carta_non_accettata'}, 402)
+        c = _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/capture', {'final_capture': True}, request_id=f'gh-cap-{aid}')
+        if c.get('status') != 'COMPLETED':
+            print(f"PayPal incasso non completato: {str(c)[:400]}")
+            _paypal_chiama('POST', f'/v2/payments/authorizations/{aid}/void', None, request_id=f'gh-void2-{aid}')
+            return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito'}, 402)
     except Exception as e:
         print(f'PayPal cattura fallita: {e}')
         return _json(origin, {'ok': False, 'errore': 'paypal_non_raggiungibile'}, 502)
-    cap = (((j.get('purchase_units') or [{}])[0].get('payments') or {}).get('captures') or [{}])[0]
-    atteso = f"{float(x.get('totale') or 0):.2f}"
-    if j.get('status') != 'COMPLETED' or cap.get('status') != 'COMPLETED' or (cap.get('amount') or {}).get('value') != atteso:
-        print(f"PayPal cattura non completata: {str(j)[:400]}")
-        return _json(origin, {'ok': False, 'errore': 'pagamento_non_riuscito'}, 402)
-    ref.update({'pagamento.stato': 'pagato', 'pagamento.pagato_il': _now_iso(), 'pagamento.paypal_capture_id': _s(cap.get('id'), 40)})
-    _telegram({'evento': 'shop_pagato', 'doc_id': ref.id, 'ospite_nome': x.get('ospite_nome'), 'alloggio': x.get('alloggio'), 'totale': x.get('totale')})
+    era_attesa = x.get('stato') == 'in_attesa_pagamento'
+    agg = {'pagamento.stato': 'pagato', 'pagamento.pagato_il': _now_iso(), 'pagamento.paypal_capture_id': _s(c.get('id'), 40), 'pagamento.circuito': brand}
+    if era_attesa:
+        agg['stato'] = 'nuovo'
+    ref.update(agg)
+    if era_attesa:   # un solo messaggio su Telegram: dopo il pagamento, con metodo e stato
+        _shop_notifica(db, ref.id, {**x, 'pagamento': {'metodo': 'paypal'}}, pagato=True)
+    return _json(origin, {'ok': True})
+
+
+def _azione_shop_annulla_attesa(db, origin, data):
+    """L'ospite rinuncia a pagare con carta: l'ordine in attesa si chiude e la merce torna disponibile."""
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    oid = _s(data.get('id'), 80)
+    ref = db.collection('shop_ordini').document(oid) if oid else None
+    x = ((ref.get().to_dict() or {}) if ref else {})
+    if not x or x.get('prenId') != pren_ref.id:
+        return _json(origin, {'ok': False, 'errore': 'ordine_non_valido'}, 404)
+    _shop_rilascia_tx(db.transaction(), db, ref, 'abbandonato')
+    _CACHE.pop('shop_catalogo', None)
     return _json(origin, {'ok': True})
 
 
@@ -2056,9 +2151,12 @@ def _azione_shop_ordini(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
         return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    _shop_scadenze(db)
     out = []
     for d in db.collection('shop_ordini').where('prenId', '==', pren_ref.id).stream():
         x = d.to_dict() or {}
+        if x.get('stato') in SHOP_STATI_NASCOSTI:
+            continue
         out.append({'id': d.id, 'righe': x.get('righe') or [], 'totale': x.get('totale') or 0,
                     'modalita': _s(x.get('modalita'), 10), 'stato': _s(x.get('stato'), 12),
                     'consegna_data': _s(x.get('consegna_data'), 10), 'consegna_fascia': _s(x.get('consegna_fascia'), 11),
@@ -2096,6 +2194,7 @@ AZIONI = {
     'shop_foto_consegna':      _azione_shop_foto_consegna,
     'shop_paypal_crea':        _azione_shop_paypal_crea,
     'shop_paypal_cattura':     _azione_shop_paypal_cattura,
+    'shop_annulla_attesa':     _azione_shop_annulla_attesa,
 }
 
 

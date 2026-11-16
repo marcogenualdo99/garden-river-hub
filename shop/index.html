@@ -430,8 +430,8 @@ async function startSync() {
   onSnapshot(collection(db, 'shop_categorie'), s => { CATS = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(byOrdine); setSync('live'); pronto('c'); render(); }, err('categorie'));
   onSnapshot(collection(db, 'shop_prodotti'), s => { PRODS = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(byOrdine); pronto('p'); render(); }, err('prodotti'));
   onSnapshot(collection(db, 'shop_ordini'), s => {
-    const nuovi = _ordiniPronti ? s.docChanges().filter(c => c.type === 'added' && !c.doc.metadata.hasPendingWrites).length : 0;
-    ORDINI = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.creato_il || '').localeCompare(String(a.creato_il || '')));
+    const nuovi = _ordiniPronti ? s.docChanges().filter(c => c.type === 'added' && !c.doc.metadata.hasPendingWrites && !NASCOSTI.includes((c.doc.data() || {}).stato)).length : 0;
+    ORDINI = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => !NASCOSTI.includes(o.stato)).sort((a, b) => String(b.creato_il || '').localeCompare(String(a.creato_il || '')));
     _ordiniPronti = true; pronto('o'); render();
     if (nuovi) showToast(nuovi === 1 ? 'Nuovo ordine dallo shop' : nuovi + ' nuovi ordini dallo shop');
   }, err('ordini'));
@@ -453,6 +453,7 @@ function render() {
 function vaiTab(t) { tab = t; render(); window.scrollTo(0, 0); }
 
 // ── ORDINI ──────────────────────────────────────────────────────────────────
+const NASCOSTI = ['in_attesa_pagamento', 'abbandonato', 'scaduto'];   // ordini con pagamento carta non completato: l'operatore non li vede
 const STATI = { nuovo: ['Nuovo', 'o'], pronto: ['Pronto', 'a'], consegnato: ['Consegnato', 'g'], annullato: ['Annullato', 'r'] };
 function renderOrdini(el) {
   const lista = ORDINI.filter(o => ordFiltro === 'tutti' ? true : (o.stato === 'nuovo' || o.stato === 'pronto'));
@@ -480,7 +481,7 @@ function cardOrdine(o) {
     <div class="sh-oh"><div><b>${esc(o.ospite_nome || 'Ospite')}${o.alloggio ? ' · ' + esc(o.alloggio) : ''}</b><small>${esc(fmtQuando(o.creato_il))}${o.ospite_tel ? ' · ' + esc(o.ospite_tel) : ''}</small></div>
       <span class="sh-pill ${st[1]}" style="margin:0">${st[0]}</span></div>
     <div class="sh-meta"><div><span>Dove e quando</span><b>${dest}</b></div>
-      <div><span>Pagamento</span><b>${met}<br><em style="font-style:normal;color:${pagato ? 'var(--green-ok)' : 'var(--amber)'}">${pagato ? 'Pagato' : 'Da pagare'}</em></b></div></div>
+      <div><span>Pagamento</span><b>${met}<br><em style="font-style:normal;color:${pagato ? 'var(--green-ok)' : 'var(--amber)'}">${pagato ? 'Pagato' : 'Da pagare'}</em>${pag.condizioni_accettate_il ? `<br><small style="font-weight:600;color:var(--gray-500)">Condizioni accettate il ${esc(fmtQuando(pag.condizioni_accettate_il))}</small>` : ''}</b></div></div>
     <div><div class="sh-ol">${(o.righe || []).map(r => `<div><span>${esc(r.quantita)} × ${esc(r.titolo)}</span><span>${eur(r.importo)}</span></div>`).join('')}</div>
       <div class="sh-tot" style="margin-top:8px"><span>Totale</span><span>${eur(o.totale)}</span></div></div>
     ${o.note ? `<div class="sh-note">Nota dell'ospite: ${esc(o.note)}</div>` : ''}
@@ -693,7 +694,9 @@ function renderImpostazioni(el) {
         <span class="sh-hint">L'ospite sceglie una fascia per oggi o per domani. Le fasce già passate non compaiono.</span></div></div>
     <div class="sh-card-set"><h3>Pagamento con carta</h3>
       <label class="sh-f">Link PayPal.Me (facoltativo)<input id="s-paypal" maxlength="80" value="${esc(CFG.paypal_me || '')}" placeholder="Es. paypal.me/gardenriver o solo gardenriver"></label>
-      <span class="sh-hint">Se compilato, chi sceglie la consegna in alloggio può pagare con carta: viene mandato su PayPal con l'importo già inserito. Il pagamento non si registra da solo: segnalo come pagato dall'ordine (o da Telegram).</span></div>
+      <label class="sh-f">Dati del venditore mostrati nelle condizioni (ragione sociale, P.IVA, sede)<input id="s-venditore" maxlength="200" value="${esc(CFG.venditore || '')}" placeholder="Es. Ragione sociale S.r.l. · P.IVA 00000000000 · Via ..."></label>
+      <label class="sh-f">Importo minimo per pagare con carta (€)<input id="s-cartamin" type="number" min="0" step="0.5" value="${esc(CFG.carta_min != null ? CFG.carta_min : 5)}"></label>
+      <span class="sh-hint">Con le chiavi PayPal impostate nella Cloud Function l'ospite paga direttamente nel sito con la carta e l'ordine ti arriva solo a pagamento riuscito, già segnato come pagato. Sono accettate Visa, Mastercard e Maestro. Sotto l'importo minimo resta solo il contante. Il link PayPal.Me serve solo se le chiavi non ci sono.</span></div>
     </div>
     <div style="margin-top:16px"><button class="sh-btn p" onclick="salvaImpostazioni()">Salva impostazioni</button></div>`;
   renderFasce(); renderRitiro();
@@ -717,7 +720,7 @@ function renderFasce() {
 }
 async function salvaImpostazioni() {
   const dati = { attivo: $('#s-attivo').checked, ritiro: $('#s-ritiro').checked, consegna: $('#s-consegna').checked,
-    ritiro_luogo: $('#s-luogo').value.trim(), paypal_me: $('#s-paypal').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
+    ritiro_luogo: $('#s-luogo').value.trim(), paypal_me: $('#s-paypal').value.trim(), carta_min: Math.max(0, parseFloat($('#s-cartamin').value) || 0), venditore: $('#s-venditore').value.trim(), consegna_fasce: fasceCorrenti(), ritiro_orari: ritiroCorrente(), messaggio: $('#s-msg').value.trim(), aggiornato_il: new Date().toISOString() };
   if (!dati.ritiro && !dati.consegna) return showToast('Attiva almeno una modalità: ritiro o consegna');
   for (const [a, b] of dati.ritiro_orari) { if (!a || !b || b <= a) return showToast('Orari di ritiro: «Alle» deve venire dopo «Dalle»'); }
   const fc = dati.consegna_fasce;

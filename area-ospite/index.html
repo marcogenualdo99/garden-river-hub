@@ -645,8 +645,19 @@
   .sh-hi { width: 44px; height: 44px; border-radius: 14px; background: var(--green-700); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0 } .sh-hc.pronto .sh-hi { background: var(--orange) } .sh-hi svg { width: 22px; height: 22px }
   .sh-hd { font-weight: 700; font-size: 14.5px; margin-top: 6px } .sh-hw { color: var(--gray-500); font-weight: 600; font-size: 13px; margin-top: 2px }
   .sh-hl { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 999px; background: var(--green-100); color: var(--green-700); font-weight: 800; font-size: 14px } .sh-hc.pronto .sh-hl { background: var(--orange); color: #fff }
-  .sh-cf > div, .sh-cf2 > div { height: 48px; margin-bottom: 10px; border: 2px solid var(--gray-300); border-radius: var(--radius); padding: 0 8px; background: #fff; overflow: hidden }
-.sh-cf2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+  .pp-tot { font-family: var(--font-display); font-size: 32px; color: var(--green-700); margin: 2px 0 4px }
+.pp-lbl { display: block; font-size: 13px; font-weight: 800; color: var(--gray-700); margin: 14px 0 6px }
+.pp-f { height: 54px; border: 2px solid var(--gray-300); border-radius: var(--radius); background: #fff; overflow: hidden; transition: border-color .15s, box-shadow .15s }
+.pp-f.on { border-color: var(--green-700); box-shadow: 0 0 0 3px rgba(11, 93, 70, .12) }
+.pp-f.ko { border-color: #B42318 }
+.pp-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.pp-sic { display: flex; gap: 8px; align-items: flex-start; margin-top: 16px; font-size: 12.5px; font-weight: 600; line-height: 1.45; color: var(--gray-500) }
+.pp-sic svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--green-700); margin-top: 1px }
+.pp-acc { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px; border: 2px solid var(--gray-300); border-radius: var(--radius); font-size: 13.5px; font-weight: 600; line-height: 1.45; cursor: pointer }
+.pp-acc input { width: 20px; height: 20px; margin-top: 1px; flex-shrink: 0; accent-color: var(--green-700) }
+.pp-cond { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: var(--gray-700) }
+.pp-cond summary { cursor: pointer; font-weight: 800; color: var(--green-700) }
+.pp-cond p { margin-top: 8px }
 .sh-hl svg { width: 16px; height: 16px; flex-shrink: 0; transform: rotate(-90deg) } .sh-hl { white-space: nowrap }
   .sh-prog { display: flex; align-items: flex-start; margin: 12px 0 4px }
   .sh-prog > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 700 11.5px var(--font); color: var(--gray-500); text-align: center; position: relative }
@@ -2018,20 +2029,22 @@ function shCheckout(box) {
       <div class="sh-tt"><span>Totale</span><b>${shEur(shTot())}</b></div></div>
     <div class="card"><h2>Modalità di consegna</h2><p style="font-weight:700;font-size:15px;margin:6px 0 0">${esc(dest)}</p>
       <div class="field" style="margin-top:12px"><label for="sh-note">Note (facoltative)</label><textarea id="sh-note" rows="2" maxlength="300" style="width:100%;padding:12px;border:2px solid var(--gray-300);border-radius:var(--radius);font:inherit;font-size:16px" oninput="SH.note=this.value">${esc(SH.note || '')}</textarea></div>
-      <p class="hint">${SH.mod === 'consegna' && SH.pag === 'carta' ? (SH.cfg.carta_api ? 'Pagamento con carta online: dopo l\'invio inserisci i dati della carta.' : 'Pagamento con carta online: dopo l\'invio ti portiamo su PayPal.') : 'Pagamento ' + (SH.mod === 'consegna' ? 'in contanti alla consegna' : 'al ritiro') + '.'}</p>
+      <p class="hint">${SH.mod === 'consegna' && SH.pag === 'carta' ? (SH.cfg.carta_api ? 'Pagamento online gestito dalla piattaforma PayPal, non rimborsabile: nel passo successivo inserisci i dati della carta e accetti le condizioni.' : 'Pagamento con carta online: dopo l\'invio ti portiamo su PayPal.') : 'Pagamento ' + (SH.mod === 'consegna' ? 'in contanti alla consegna' : 'al ritiro') + '.'}</p>
       <div class="errbox" id="sh-err" style="display:none"></div></div>
-    <button type="button" class="submit" id="sh-invia" onclick="shInvia()">Invia l'ordine</button>
+    <button type="button" class="submit" id="sh-invia" onclick="shInvia()">${SH.mod === 'consegna' && SH.pag === 'carta' && SH.cfg.carta_api ? 'Vai al pagamento' : 'Invia l\'ordine'}</button>
     <button type="button" class="btn-secondary" onclick="SH.step=2;shDisegna()">Indietro</button>`;
 }
 function shPronto2() { return SH.mod === 'ritiro' || (SH.mod === 'consegna' && SH.giorno && SH.fascia && SH.pag); }
 function shPagamentoHtml() {
-  if (!SH.cfg.carta) SH.pag = 'contanti';
-  const op = (v, t, s) => `<label class="sh-mod${SH.pag === v ? ' on' : ''}"><input type="radio" name="shp" ${SH.pag === v ? 'checked' : ''} onchange="SH.pag='${v}';shDisegna()"><span><b>${t}</b><small>${s}</small></span></label>`;
+  const min = Number(SH.cfg.carta_min != null ? SH.cfg.carta_min : 5), sotto = !!SH.cfg.carta_api && shTot() + 1e-9 < min;
+  if (!SH.cfg.carta || sotto) { if (SH.pag === 'carta') SH.pag = ''; if (!SH.cfg.carta || sotto) SH.pag = SH.pag || 'contanti'; }
+  const op = (v, t, s, dis) => `<label class="sh-mod${SH.pag === v ? ' on' : ''}"${dis ? ' style="opacity:.55;cursor:default"' : ''}><input type="radio" name="shp" ${SH.pag === v ? 'checked' : ''}${dis ? ' disabled' : ''} onchange="SH.pag='${v}';shDisegna()"><span><b>${t}</b><small>${s}</small></span></label>`;
+  const carta = !SH.cfg.carta ? '' : SH.cfg.carta_api
+    ? op('carta', 'Carta di credito o debito', sotto ? `Disponibile per ordini da ${shEur(min)}` : 'Paghi subito tramite PayPal (Visa, Mastercard, Maestro). Pagamento non rimborsabile', sotto)
+    : op('carta', 'Carta online (PayPal)', 'Dopo l\'invio ti portiamo su PayPal per pagare in sicurezza');
   return `<div class="card"><h2>Come vuoi pagare?</h2>
-    ${op('contanti', 'Contanti alla consegna', 'Paghi quando ricevi l\'ordine')}
-    ${SH.cfg.carta ? op('carta', 'Carta online', SH.cfg.carta_api ? 'Dopo l\'invio inserisci i dati della carta e paghi subito, in sicurezza' : 'Dopo l\'invio ti portiamo su PayPal per pagare in sicurezza') : ''}</div>`;
+    ${op('contanti', 'Contanti alla consegna', 'Paghi quando ricevi l\'ordine')}${carta}</div>`;
 }
-function shAvanti2() { if (!shPronto2()) return; SH.step = 3; shDisegna(); window.scrollTo(0, 0); }
 function shOrariRitiro(iv) {
   if (!Array.isArray(iv) || !iv.length) return '';
   return 'Ritiro ' + iv.map(r => `${String(r[0]).replace(/^0/, '')} – ${String(r[1]).replace(/^0/, '')}`).join(' e ');
@@ -2062,6 +2075,7 @@ async function shInvia() {
   err.style.display = 'none'; SH.invio = true; btn.disabled = true; btn.textContent = 'Invio in corso…';
   try {
     const d = await chiama({ azione: 'shop_ordina', modalita: SH.mod, giorno: SH.giorno, fascia: SH.fascia, pagamento: SH.mod === 'consegna' ? (SH.pag || 'contanti') : '', note: SH.note || '', righe: Object.entries(SH.cart).map(([id, quantita]) => ({ id, quantita })) });
+    if (d.ok && d.attesa) { shPagaCarta(d.id, d.totale, true); window.scrollTo(0, 0); return; }
     if (d.ok) {
       const tot = d.totale, url = d.paypal_url || '', mod = SH.mod, fascia = SH.fascia, giorno = SH.giorno; SH.cart = {}; SH.note = ''; SH.caricato = false; SH.vista = 'catalogo'; SH.step = 1; SH.fascia = ''; shBadge(); SHO.t = 0;
       if (d.metodo === 'paypal' && SH.cfg.carta_api) { shPagaCarta(d.id, tot); window.scrollTo(0, 0); return; }
@@ -2074,6 +2088,7 @@ async function shInvia() {
     }
     err.textContent = d.errore === 'esaurito' ? `«${d.prodotto || 'Un prodotto'}» non è più disponibile nella quantità richiesta. Torna al carrello e controlla.`
       : d.errore === 'troppi_ordini' ? 'Hai già fatto molti ordini oggi. Per altro rivolgiti alla reception.'
+      : d.errore === 'carta_importo_minimo' ? `Il pagamento con carta è disponibile da ${shEur(d.minimo || 5)}. Scegli contanti.`
       : d.errore === 'carta_non_disponibile' ? 'Il pagamento con carta non è al momento disponibile. Scegli contanti.'
       : d.errore === 'fascia_non_valida' ? 'La fascia scelta non è più disponibile. Torna indietro e scegline un\'altra.'
       : d.errore === 'giorno_non_valido' ? 'Il giorno scelto non è valido. Torna indietro e riprova.'
@@ -2086,54 +2101,96 @@ async function shInvia() {
     if (d.errore === 'esaurito' || d.errore === 'prodotto_non_disponibile') SH.caricato = false;
     err.style.display = 'block';
   } catch (e) { err.textContent = 'Connessione assente. Controlla la rete e riprova.'; err.style.display = 'block'; }
-  finally { SH.invio = false; if (btn.isConnected) { btn.disabled = false; btn.textContent = "Invia l'ordine"; } }
+  finally { SH.invio = false; if (btn.isConnected) { btn.disabled = false; btn.textContent = (SH.mod === 'consegna' && SH.pag === 'carta' && SH.cfg.carta_api) ? 'Vai al pagamento' : "Invia l'ordine"; } }
 }
 
-// ── Pagamento con carta (PayPal, campi carta nel nostro sito) ───────────────
+// ── Pagamento con carta (PayPal) ────────────────────
+// I dati della carta vivono in iframe di PayPal: non passano dal nostro sito ne' dal nostro server.
+// Si paga PRIMA: l'ordine (gia' creato ma nascosto) diventa visibile solo a pagamento riuscito.
 let _ppSdk = null;
 function shCaricaPaypal() {
   if (_ppSdk) return _ppSdk;
   _ppSdk = new Promise((ok, ko) => {
     if (window.paypal && window.paypal.CardFields) return ok();
-    const s = document.createElement('script');
-    s.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(SH.cfg.paypal_client_id) + '&components=card-fields&currency=EUR&intent=capture&locale=it_IT';
-    s.onload = ok; s.onerror = () => { _ppSdk = null; ko(new Error('sdk')); };
-    document.head.appendChild(s);
+    const x = document.createElement('script');
+    x.src = 'https://www.paypal.com/sdk/js?client-id=' + encodeURIComponent(SH.cfg.paypal_client_id) + '&components=card-fields&currency=EUR&intent=authorize&locale=it_IT';
+    x.onload = ok; x.onerror = () => { _ppSdk = null; ko(new Error('sdk')); };
+    document.head.appendChild(x);
   });
   return _ppSdk;
 }
-async function shPagaCarta(id, tot) {
-  const box = $('#service-content');
-  box.innerHTML = `<div class="card"><h2>Paga con carta</h2><p class="guida">Totale ${shEur(tot)}. I dati della carta vanno direttamente a PayPal: noi non li vediamo.</p>
-    <div class="sh-cf"><div id="pp-name"></div><div id="pp-num"></div></div><div class="sh-cf2"><div id="pp-exp"></div><div id="pp-cvv"></div></div>
-    <div class="errbox" id="pp-err" style="display:none"></div></div>
+function shCondizioniHtml() {
+  const v = SH.cfg.venditore ? esc(SH.cfg.venditore) : 'la struttura Garden River';
+  return `<details class="pp-cond"><summary>Leggi le condizioni di pagamento</summary>
+    <p><b>Venditore.</b> ${v}.</p>
+    <p><b>Pagamento non rimborsabile.</b> Il pagamento con carta è definitivo: dopo il pagamento l'ordine non può essere annullato dall'ospite e l'importo non viene rimborsato.</p>
+    <p><b>Diritti di legge.</b> Restano salvi i diritti che la legge riconosce al consumatore: se un prodotto non è disponibile, non viene consegnato o risulta difettoso o non conforme, rimborsiamo l'importo o lo sostituiamo. Il diritto di recesso non si applica ai beni che rischiano di deteriorarsi o scadere rapidamente e ai beni sigillati aperti per motivi igienici (art. 59 D.Lgs. 206/2005).</p>
+    <p><b>Piattaforma di pagamento.</b> Il pagamento è gestito da PayPal. I dati della carta sono trattati direttamente da PayPal secondo le sue condizioni e la sua informativa privacy: la struttura non li riceve e non li conserva. Alla struttura restano i dati dell'ordine e l'esito del pagamento.</p>
+    <p><b>Ordine e consegna.</b> Il prezzo è quello mostrato nel riepilogo, in euro, IVA inclusa. La consegna avviene nella fascia scelta oppure il ritiro al Bar piscina negli orari indicati.</p>
+    <p><b>Assistenza.</b> Per qualsiasi problema con un ordine rivolgiti alla reception.</p></details>`;
+}
+async function ppCrea(id) { const d = await chiama({ azione: 'shop_paypal_crea', id, accetta: true }, { ms: 20000 }); if (!d.ok) { const e = new Error(d.errore || 'crea'); e.cod = d.errore; throw e; } return d.paypal_order_id; }
+function ppMsg(cod) {
+  return cod === 'carta_non_accettata' ? 'Questa carta non è accettata: usa una carta Visa, Mastercard o Maestro, oppure scegli contanti.'
+    : cod === 'condizioni_non_accettate' ? 'Per pagare devi accettare le condizioni di pagamento.'
+    : cod === 'gia_pagato' ? 'Questo ordine risulta già pagato.'
+    : cod === 'carta_importo_minimo' ? 'Il pagamento online è disponibile solo per ordini di importo maggiore. Scegli contanti.'
+    : 'Pagamento non riuscito. Controlla i dati e riprova, oppure usa un\'altra carta.';
+}
+async function shPagaCarta(id, tot, attesa) {
+  const box = $('#service-content'), min = Number(SH.cfg.carta_min != null ? SH.cfg.carta_min : 5);
+  box.innerHTML = `<div class="card"><h2>Pagamento</h2><div class="pp-tot">${shEur(tot)}</div>
+    <label class="pp-lbl" for="pp-name">Intestatario</label><div class="pp-f" id="pp-name"></div>
+    <label class="pp-lbl">Numero della carta</label><div class="pp-f" id="pp-num"></div>
+    <div class="pp-2"><div><label class="pp-lbl">Scadenza</label><div class="pp-f" id="pp-exp"></div></div><div><label class="pp-lbl">CVV</label><div class="pp-f" id="pp-cvv"></div></div></div>
+    <label class="pp-acc"><input type="checkbox" id="pp-acc"><span>Ho letto e accetto le condizioni di pagamento: <b>il pagamento con carta non è rimborsabile</b>, salvi i diritti di legge del consumatore.</span></label>
+    ${shCondizioniHtml()}
+    <div class="errbox" id="pp-err" style="display:none;margin-top:14px"></div>
+    <div class="pp-sic">${ICONS.LOCK || ICONS.CHECK}<span>Pagamento sicuro gestito da PayPal. I dati della carta vanno direttamente a PayPal: noi non li vediamo e non li salviamo. Carte accettate: Visa, Mastercard e Maestro.</span></div></div>
     <button type="button" class="submit" id="pp-paga" disabled>Paga ${shEur(tot)}</button>
-    <button type="button" class="btn-secondary" style="margin-top:8px" onclick="shApriOrdini()">Più tardi</button>`;
+    <button type="button" class="btn-secondary" style="margin-top:8px" id="pp-ind">${attesa ? 'Annulla e torna al carrello' : 'Più tardi'}</button>`;
+  $('#pp-ind').onclick = async () => {
+    if (!attesa) return shApriOrdini();
+    $('#pp-ind').disabled = true;
+    try { await chiama({ azione: 'shop_annulla_attesa', id }, { ms: 15000 }); } catch (e) {}
+    SH.caricato = false; SH.vista = 'checkout'; SH.step = 3; renderShop('checkout');
+  };
   const err = m => { const e = $('#pp-err'); if (e) { e.textContent = m; e.style.display = 'block'; } }, btn = $('#pp-paga');
-  const ripristina = () => { if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Paga ' + shEur(tot); } };
-  try { await shCaricaPaypal(); } catch (e) { return err('Non riesco a collegarmi a PayPal. Controlla la rete e riprova, oppure scegli «Più tardi».'); }
+  const accettato = () => { const c = $('#pp-acc'); return !!(c && c.checked); };
+  const nonAccettato = () => { err('Per pagare spunta prima l\'accettazione delle condizioni di pagamento.'); const c = $('#pp-acc'); if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  const ripristina = () => { if (btn.isConnected) { btn.disabled = !accettato(); btn.textContent = 'Paga ' + shEur(tot); } };
+  $('#pp-acc').onchange = () => { if (btn.textContent.startsWith('Paga')) btn.disabled = !accettato(); const e = $('#pp-err'); if (e && accettato()) e.style.display = 'none'; };
+  const fatto = () => {
+    if (attesa) { SH.cart = {}; SH.note = ''; SH.fascia = ''; shBadge(); }
+    SH.caricato = false; SH.vista = 'catalogo'; SH.step = 1; SHO.t = 0;
+    $('#service-content').innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Pagamento riuscito</div>
+      <p style="font-size:16px;line-height:1.5;margin-top:8px">Abbiamo ricevuto ${shEur(tot)}. Il tuo ordine è stato inviato: ti avvisiamo qui quando è in arrivo. Il pagamento con carta non è rimborsabile; per qualsiasi problema rivolgiti alla reception.</p>
+      <button type="button" class="submit" style="margin-top:14px" onclick="shApriOrdini()">Segui il tuo ordine</button></div>`;
+    window.scrollTo(0, 0);
+  };
+  const cattura = async oid => {
+    const d = await chiama({ azione: 'shop_paypal_cattura', id, paypal_order_id: oid }, { ms: 40000 });
+    if (d.ok) return fatto();
+    ripristina(); err(ppMsg(d.errore));
+  };
+  try { await shCaricaPaypal(); } catch (e) { return err('Non riesco a collegarmi a PayPal. Controlla la rete e riprova.'); }
   if (!$('#pp-paga')) return;                                     // l'ospite ha cambiato schermata
-  const cf = window.paypal.CardFields({
-    style: { input: { 'font-size': '16px', 'font-family': 'sans-serif', color: '#1f2937' } },
-    createOrder: async () => { const d = await chiama({ azione: 'shop_paypal_crea', id }, { ms: 20000 }); if (!d.ok) throw new Error(d.errore || 'crea'); return d.paypal_order_id; },
-    onApprove: async data => {
-      const d = await chiama({ azione: 'shop_paypal_cattura', id, paypal_order_id: data.orderID }, { ms: 30000 });
-      if (d.ok) {
-        SH.caricato = false; SHO.t = 0;
-        $('#service-content').innerHTML = `<div class="conferma-box"><div class="ok">${ICONS.CHECK}Pagamento riuscito</div>
-          <p style="font-size:16px;line-height:1.5;margin-top:8px">Abbiamo ricevuto ${shEur(tot)}. Ti avvisiamo qui quando l'ordine è in arrivo.</p>
-          <button type="button" class="submit" style="margin-top:14px" onclick="shApriOrdini()">Segui il tuo ordine</button></div>`;
-      } else { ripristina(); err(d.errore === 'gia_pagato' ? 'Questo ordine risulta già pagato.' : 'Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); }
-    },
-    onError: () => { ripristina(); err('Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); },
+  const pp = window.paypal;
+  const cf = pp.CardFields({
+    style: { input: { 'font-size': '16px', 'font-family': 'sans-serif', color: '#1f2937', padding: '0 14px', border: 'none', background: 'transparent', 'box-shadow': 'none', outline: 'none', 'line-height': '52px' }, '.invalid': { color: '#B42318' } },
+    createOrder: () => ppCrea(id),
+    onApprove: d => cattura(d.orderID),
+    onError: e => { ripristina(); err('Pagamento non riuscito. Controlla i dati della carta o prova con un\'altra carta.'); },
   });
-  if (!cf.isEligible()) return err('Il pagamento con carta non è al momento disponibile. Scegli «Più tardi» e paga in contanti.');
-  cf.NameField({ placeholder: 'Nome sulla carta' }).render('#pp-name');
-  cf.NumberField({ placeholder: 'Numero della carta' }).render('#pp-num');
-  cf.ExpiryField({ placeholder: 'MM/AA' }).render('#pp-exp');
-  cf.CVVField({ placeholder: 'CVV' }).render('#pp-cvv');
-  btn.disabled = false;
-  btn.onclick = () => { btn.disabled = true; btn.textContent = 'Pagamento in corso…'; $('#pp-err').style.display = 'none'; cf.submit().catch(() => { ripristina(); err('Controlla i dati della carta e riprova.'); }); };
+  if (!cf.isEligible()) return err('Il pagamento con carta non è al momento disponibile. Torna indietro e scegli contanti.');
+  const ev = nome => ({ onFocus: () => $('#' + nome) && $('#' + nome).classList.add('on'), onBlur: () => $('#' + nome) && $('#' + nome).classList.remove('on'),
+    onChange: d => { const f = d && d.fields && d.fields[d.emittedBy]; const el = $('#' + nome); if (el && f) el.classList.toggle('ko', f.isValid === false && f.isPotentiallyValid === false); } });
+  cf.NameField({ placeholder: 'Nome e cognome', inputEvents: ev('pp-name') }).render('#pp-name');
+  cf.NumberField({ placeholder: '1234 1234 1234 1234', inputEvents: ev('pp-num') }).render('#pp-num');
+  cf.ExpiryField({ placeholder: 'MM/AA', inputEvents: ev('pp-exp') }).render('#pp-exp');
+  cf.CVVField({ placeholder: '123', inputEvents: ev('pp-cvv') }).render('#pp-cvv');
+  btn.disabled = !accettato();
+  btn.onclick = () => { if (!accettato()) return nonAccettato(); btn.disabled = true; btn.textContent = 'Pagamento in corso…'; $('#pp-err').style.display = 'none'; cf.submit().catch(() => { ripristina(); err('Controlla i dati della carta e riprova.'); }); };
 }
 
 async function shFotoConsegna(id, btn) {
