@@ -1618,7 +1618,11 @@ function dataOggi() {
 
 function applyHeader() {
   const admin = isAdmin();
-  document.getElementById('header-avatar').textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+  { const av = document.getElementById('header-avatar'), me = operatori.find(o => o.nome === currentOperatore);
+    av.textContent = (currentOperatore||'?').slice(0,2).toUpperCase();
+    av.style.backgroundImage = me && me.foto ? `url("${me.foto}")` : '';
+    av.style.backgroundSize = 'cover'; av.style.backgroundPosition = 'center';
+    if (me && me.foto) av.textContent = ''; }
   document.getElementById('header-name').textContent   = currentOperatore ? `${saluto()}, ${currentOperatore}` : '';
   document.getElementById('header-role').textContent   = admin ? 'Amministratore' : 'Operatore';
   document.getElementById('btn-settings').style.display = admin ? '' : 'none';
@@ -2441,25 +2445,62 @@ async function inviaNotificaTestHub() {
   if (btn) { btn.disabled = false; btn.textContent = 'Invia notifica di test'; }
 }
 
+const SVG_CAM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 function renderOperatoriList() {
   document.getElementById('operatori-list').innerHTML = operatori.map(o => {
     const isSuper = o.nome === SUPER_ADMIN_NAME;
     const hasPIN = !!o.haPin;
     const admin = o.ruolo === 'admin';
-    return `<div class="op-row">
-      <div class="op-avatar" style="background:${admin?'var(--green-700)':'var(--gray-100)'};color:${admin?'var(--white)':'var(--gray-500)'}">${esc(o.nome.slice(0,2).toUpperCase())}</div>
-      <span class="op-name">${esc(o.nome)}</span>
-      ${isSuper
-        ? `<span style="font-size:10px;color:var(--orange);font-weight:700;text-transform:uppercase">Admin principale</span>`
-        : `<select class="op-ruolo-select" onchange="changeRuolo(${jsq(o.nome)}, this.value)">
-             <option value="operatore" ${!admin?'selected':''}>Operatore</option>
-             <option value="admin" ${admin?'selected':''}>Amministratore</option>
-           </select>`}
-      <span class="op-pin-status" style="color:${hasPIN?'var(--green-ok)':'var(--amber)'}">${hasPIN?'PIN ok':'Nessun PIN'}</span>
-      ${hasPIN?`<button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>`:''}
-      ${!isSuper?`<button class="op-del" onclick="deleteOperatore(${jsq(o.nome)})" title="Rimuovi">&#10005;</button>`:''}
+    const av = o.foto ? '' : esc(o.nome.slice(0,2).toUpperCase());
+    return `<div class="op-card">
+      <div class="op-top">
+        <button type="button" class="op-av ${admin ? 'adm' : ''}" ${o.foto ? `style="background-image:url('${o.foto}')"` : ''} onclick="scegliFotoOperatore(${jsq(o.nome)})" aria-label="Cambia la foto di ${esc(o.nome)}">${av}<span class="op-cam">${SVG_CAM}</span></button>
+        <div class="op-id"><span class="op-name">${esc(o.nome)}</span><small>${isSuper ? 'Amministratore principale' : (admin ? 'Amministratore' : 'Operatore')}</small></div>
+        ${!isSuper ? `<button class="op-del" onclick="deleteOperatore(${jsq(o.nome)})" title="Rimuovi" aria-label="Rimuovi ${esc(o.nome)}">&#10005;</button>` : ''}
+      </div>
+      <div class="op-ctl">
+        ${isSuper ? '' : `<select class="op-ruolo-select" onchange="changeRuolo(${jsq(o.nome)}, this.value)">
+          <option value="operatore" ${!admin?'selected':''}>Operatore</option>
+          <option value="admin" ${admin?'selected':''}>Amministratore</option>
+        </select>`}
+        <span class="op-pill ${hasPIN ? 'ok' : 'no'}">${hasPIN ? 'PIN impostato' : 'Nessun PIN'}</span>
+        ${hasPIN ? `<button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>` : ''}
+        ${o.foto ? `<button class="op-btn" onclick="togliFotoOperatore(${jsq(o.nome)})">Rimuovi foto</button>` : ''}
+      </div>
     </div>`;
   }).join('') || `<p style="font-size:13px;color:var(--gray-500);text-align:center;padding:16px 0">Nessun operatore.</p>`;
+}
+
+// Foto avatar: ritagliata quadrata e ridotta a 160px (circa 6 KB) cosi' sta nel documento dell'operatore.
+function scegliFotoOperatore(nome) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => { const f = inp.files && inp.files[0]; if (f) salvaFotoOperatore(nome, f); };
+  inp.click();
+}
+function foto160(file) {
+  return new Promise((ok, ko) => {
+    const r = new FileReader();
+    r.onerror = () => ko(new Error('lettura'));
+    r.onload = () => {
+      const im = new Image();
+      im.onerror = () => ko(new Error('immagine'));
+      im.onload = () => {
+        const lato = Math.min(im.width, im.height), c = document.createElement('canvas'); c.width = c.height = 160;
+        c.getContext('2d').drawImage(im, (im.width - lato) / 2, (im.height - lato) / 2, lato, lato, 0, 0, 160, 160);
+        ok(c.toDataURL('image/jpeg', 0.82));
+      };
+      im.src = r.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+async function salvaFotoOperatore(nome, file) {
+  try { const foto = await foto160(file); await fsUpdateOperatore(nome, { foto }); showToast('Foto aggiornata'); }
+  catch(e) { console.error(e); showToast('Foto non valida o salvataggio non riuscito'); }
+}
+async function togliFotoOperatore(nome) {
+  try { await fsUpdateOperatore(nome, { foto: '' }); showToast('Foto rimossa'); }
+  catch(e) { console.error(e); showToast('Errore rimozione foto'); }
 }
 
 async function addOperatore() {
