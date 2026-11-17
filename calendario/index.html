@@ -1470,10 +1470,11 @@ const LISTINI_DEFAULT = {
     // Va scelto esplicitamente (checkbox dedicata): non scatta da solo per aver
     // selezionato Spiaggia o un kit biancheria.
     pacchettoServiziPerMese: { 6:140, 7:155, 8:170, 9:140 },
-    // Con il pacchetto servizi, dalla persona n. "pacchettoSogliaPersone" in su (adulti
-    // e bambini dai 3 anni; i 0-2 non contano) si paga un supplemento a settimana
-    // per ogni persona aggiuntiva (biancheria e spiaggia in più).
-    pacchettoSogliaPersone: 4,
+    // Con il pacchetto servizi, dalla persona n. "pacchettoSogliaPersone" in su (si
+    // contano tutti, neonati compresi) si paga un supplemento a settimana per ogni
+    // persona aggiuntiva. Verificato sui dati reali: 4 persone = nessun supplemento
+    // (Reale, Puppini), 5 persone con un neonato = +15/settimana (Bolla).
+    pacchettoSogliaPersone: 5,
     pacchettoSupplementoPersona: 15,
     // Arrotondamento accettato dalla verifica tariffe all'import: base fissa + per notte.
     tolleranzaVerificaBase: 2,
@@ -1622,7 +1623,7 @@ function calcolaPreventivo(input) {
       // persone aggiuntive oltre la soglia (impostazioni listino): supplemento a settimana a persona
       const soglia = Number(listino.pacchettoSogliaPersone) || 0;
       const supplemento = Number(listino.pacchettoSupplementoPersona) || 0;
-      const paganti = (adulti || 0) + (b3_4 || 0) + (b5_9 || 0) + (b10_17 || 0);
+      const paganti = (adulti || 0) + (b0_2 || 0) + (b3_4 || 0) + (b5_9 || 0) + (b10_17 || 0); // tutti, neonati compresi
       if (soglia > 0 && supplemento > 0 && paganti >= soglia) {
         const extraPers = paganti - soglia + 1;
         const impExtra = extraPers * supplemento * settimane;
@@ -8081,7 +8082,7 @@ function renderListinoVilliniPanel() {
     </div>
     <div class="listino-card">
       <h3>Extra e pacchetti</h3>
-      <p class="subtitle">Con il pacchetto servizi, dalla persona indicata in su (adulti e bambini dai 3 anni, i 0-2 non contano) si aggiunge il supplemento a settimana per ogni persona in più. La tolleranza serve alla verifica tariffe quando importi da Scidoo o MrPreno.</p>
+      <p class="subtitle">Con il pacchetto servizi, dalla persona indicata in su (si contano tutti, neonati compresi; default dalla quinta) si aggiunge il supplemento a settimana per ogni persona in più. La tolleranza serve alla verifica tariffe quando importi da Scidoo o MrPreno.</p>
       <div class="listino-extra-grid">
         <div class="listino-extra-field"><label>Posto aggiuntivo</label><input type="number" step="0.01" min="0" id="lv-posto-aggiuntivo" value="${l.postoAggiuntivo}"></div>
         <div class="listino-extra-field"><label>Animali / notte</label><input type="number" step="0.01" min="0" id="lv-animali-notte" value="${l.animaliPerNotte}"></div>
