@@ -156,14 +156,43 @@
   .conto-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
     border-bottom: 1px solid var(--gray-100); font-size: 13.5px; color: var(--gray-700) }
   .conto-row:last-child { border-bottom: none }
-  .sg-nav { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; margin: 0 -2px; scrollbar-width: none }
+  .sg-sum { background: var(--green-700); color: #fff; border-radius: var(--radius-lg); padding: 20px 20px 16px; margin: 4px 0 14px; position: relative; overflow: hidden }
+  .sg-sum .al { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
+  .sg-sum h2 { color: #fff; font-size: 22px; margin: 2px 0 14px }
+  .sg-date { display: flex; align-items: center; gap: 12px }
+  .sg-date > div { flex: 1 } .sg-date small { display: block; font-size: 11.5px; opacity: .75; font-weight: 700; text-transform: uppercase; letter-spacing: .06em }
+  .sg-date b { display: block; font-size: 19px; font-weight: 800; margin-top: 2px }
+  .sg-date .fr { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center } .sg-date .fr svg { width: 16px; height: 16px; transform: rotate(180deg) }
+  .sg-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px }
+  .sg-chips span { background: rgba(255,255,255,.14); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700 }
+  .sg-nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 10px; margin: 0 0 6px; background: var(--gray-50, #f9fafb); scrollbar-width: none }
   .sg-nav::-webkit-scrollbar { display: none }
-  .sg-nav button { flex: 0 0 auto; border: 1px solid var(--gray-100); background: #fff; color: var(--green-700); font: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer }
-  .sg-sez { scroll-margin-top: 12px }
-  .sg-h { display: flex; justify-content: space-between; align-items: center; gap: 10px }
-  .sg-link { border: none; background: none; color: var(--green-700); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; white-space: nowrap }
-  .sg-sub { margin: 12px 0 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray-500) }
-  .sg-giorno { margin: 10px 0 0; font-size: 13px; font-weight: 700 }
+  .sg-nav button { flex: 0 0 auto; border: 1.5px solid var(--green-200); background: #fff; color: var(--green-700); font: inherit; font-size: 13px; font-weight: 800; padding: 7px 15px; border-radius: 999px; cursor: pointer }
+  .sg-nav button:active { background: var(--green-50) }
+  .sg-sez { scroll-margin-top: 58px; padding-bottom: 14px }
+  .sg-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px }
+  .sg-h .ic { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 12px; background: var(--green-100); color: var(--green-700); display: flex; align-items: center; justify-content: center } .sg-h .ic svg { width: 19px; height: 19px }
+  .sg-h h2 { flex: 1; margin: 0; font-size: 17px }
+  .sg-link { border: none; background: var(--green-50); color: var(--green-700); font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; padding: 7px 13px; border-radius: 999px; white-space: nowrap }
+  .sg-sub { margin: 14px 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gray-500) }
+  .sg-giorno { margin: 12px 0 0; font-size: 13px; font-weight: 800; color: var(--gray-700) }
+  .sg-it { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--gray-100) }
+  .sg-it:last-child { border-bottom: none }
+  .sg-it .l b { display: block; font-size: 15px; font-weight: 700; color: var(--gray-900) }
+  .sg-it .l em { display: block; font-style: normal; font-size: 12.5px; color: var(--gray-500); margin-top: 1px }
+  .sg-it .r { text-align: right; font-weight: 800; font-size: 15px; white-space: nowrap }
+  .sg-pill { display: inline-block; font-size: 11.5px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: var(--gray-100); color: var(--gray-700) }
+  .sg-pill.ok { background: var(--green-100); color: var(--green-700) } .sg-pill.warn { background: var(--orange-bg); color: var(--orange) }
+  .sg-saldo { display: flex; justify-content: space-between; align-items: center; border-radius: var(--radius); padding: 14px 16px; margin: 0 0 6px; background: var(--green-50) }
+  .sg-saldo.warn { background: var(--orange-bg) } .sg-saldo small { display: block; font-size: 12px; font-weight: 700; color: var(--gray-500) }
+  .sg-saldo strong { font-size: 24px; font-weight: 800; color: var(--green-700) } .sg-saldo.warn strong { color: var(--orange) }
+  .sg-tot { display: flex; justify-content: space-between; padding: 12px 0 0; font-weight: 800 }
+  .sg-ombr { display: flex; align-items: center; gap: 16px; background: var(--green-50); border-radius: var(--radius); padding: 14px 16px }
+  .sg-ombr .n { font-size: 36px; line-height: 1; font-weight: 800; color: var(--green-700); min-width: 54px; text-align: center }
+  .sg-ombr small { display: block; font-size: 11.5px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .06em }
+  .sg-ombr b { font-size: 15px }
+  .sg-cta { display: block; width: 100%; margin-top: 12px; border: none; background: var(--green-700); color: #fff; font: inherit; font-weight: 800; font-size: 14.5px; padding: 13px; border-radius: 999px; cursor: pointer }
+  .sg-vuoto { font-size: 14px; color: var(--gray-500); margin: 2px 0 0; line-height: 1.5 }
   .conto-row em { font-style: normal; color: var(--gray-500); font-size: 12px }
   .conto-tot { display: flex; justify-content: space-between; align-items: center;
     padding-top: 10px; margin-top: 8px; border-top: 1.5px solid var(--gray-200);
@@ -1304,7 +1333,7 @@ function fmtDataLunga(iso) {
   return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(LOCALE[LANG], { day: 'numeric', month: 'short', year: 'numeric' });
 }
 function apriVista(id, titolo, sotto, banner, fn) {
-  _servizioAperto = id; _infoSub = null;
+  _servizioAperto = id; _infoSub = null; $('#titolo').style.fontSize = '';
   $('#home-view').style.display = 'none'; $('#service-view').style.display = 'block';
   $('#titolo').textContent = titolo; $('#sottotitolo').textContent = sotto;
   impostaBanner(banner); hydrateIcons($('#service-view')); window.scrollTo(0, 0);
@@ -1425,7 +1454,7 @@ function apriServizio(id) {
   if ((preArrivo() && SOLO_DOPO_ARRIVO.includes(id)) || dopoPartenza()) return;
   if (id === 'soggiorno') return apriSoggiorno();
   _servizioAperto = id;
-  _infoSub = null;
+  _infoSub = null; $('#titolo').style.fontSize = '';
   const s = SERVIZI.find(x => x.id === id) || {};
   $('#home-view').style.display = 'none';
   $('#service-view').style.display = 'block';
@@ -1452,94 +1481,94 @@ const _ordSogg = { ordini: null, pasti: null };
 function apriSoggiorno() {
   _ordSogg.ordini = null; _ordSogg.pasti = null;
   apriVista('soggiorno', t('Il mio soggiorno'), t('Tutto quello che riguarda la tua vacanza'), 'info', renderSoggiorno);
+  $('#titolo').style.fontSize = '23px';   // titolo lungo: evita che la foto del banner lo tagli
 }
 function sgEur(n) { return (Number(n) || 0).toLocaleString(LOCALE[LANG], { style: 'currency', currency: 'EUR' }); }
-function sgSez(id, titolo, corpo, azione) {
-  return `<div class="card sg-sez" id="sg-${id}"><div class="sg-h"><h2>${esc(titolo)}</h2>${azione || ''}</div>${corpo}</div>`;
+function sgBreve(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return '—';
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(LOCALE[LANG], { weekday: 'short', day: 'numeric', month: 'short' });
 }
+function sgSez(id, icona, titolo, corpo, azione) {
+  return `<div class="card sg-sez" id="sg-${id}"><div class="sg-h"><span class="ic">${ICONS[icona] || ''}</span><h2>${esc(titolo)}</h2>${azione || ''}</div><div class="sg-b">${corpo}</div></div>`;
+}
+// riga: sx = titolo, sotto = dettaglio, dx = importo o pillola
 function sgRiga(sx, dx, sotto) {
-  return `<div class="conto-row"><span>${sx}${sotto ? `<em style="display:block">${sotto}</em>` : ''}</span><span>${dx || ''}</span></div>`;
+  return `<div class="sg-it"><div class="l"><b>${sx}</b>${sotto ? `<em>${sotto}</em>` : ''}</div><div class="r">${dx || ''}</div></div>`;
 }
+function sgPill(txt, tipo) { return `<span class="sg-pill ${tipo || ''}">${esc(txt)}</span>`; }
 function sgBtn(txt, fn) { return `<button type="button" class="sg-link" onclick="${fn}">${esc(t(txt))}</button>`; }
 function renderSoggiorno() {
   const p = CFG.prenotazione || {}, c = CFG.conto || { voci: [], totale: 0, pagato: 0, da_pagare: 0 }, sp = CFG.spiaggia || {};
   const oggi = oggiData(), notti = (p.checkin && p.checkout) ? Math.round((new Date(p.checkout + 'T12:00:00') - new Date(p.checkin + 'T12:00:00')) / 86400000) : null;
   const sezioni = [];
-  // 1. Prenotazione
-  sezioni.push(['pren', t('Prenotazione'), sgSez('pren', t('La tua prenotazione'), `
-    <div class="info-kv"><span>${esc(t('Alloggio'))}</span><strong>${esc(p.alloggio_nome || '—')}</strong></div>
-    <div class="info-kv"><span>${esc(t('Arrivo'))}</span><strong>${esc(fmtDataLunga(p.checkin))}</strong></div>
-    <div class="info-kv"><span>${esc(t('Partenza'))}</span><strong>${esc(fmtDataLunga(p.checkout))}</strong></div>
-    ${notti ? `<div class="info-kv"><span>${esc(t('Notti'))}</span><strong>${notti}</strong></div>` : ''}
-    <div class="info-kv"><span>${esc(t('Persone'))}</span><strong>${p.persone_totali || '—'}</strong></div>`)]);
-  // 2. Conto: voci del soggiorno + spese in struttura raggruppate per giorno
+  // Riepilogo in testa: alloggio, date, notti e persone
+  const riepilogo = `<div class="sg-sum"><div class="al">${esc(t('Alloggio'))}</div><h2>${esc(p.alloggio_nome || '—')}</h2>
+    <div class="sg-date"><div><small>${esc(t('Arrivo'))}</small><b>${esc(sgBreve(p.checkin))}</b></div><span class="fr">${ICONS.BACK}</span><div><small>${esc(t('Partenza'))}</small><b>${esc(sgBreve(p.checkout))}</b></div></div>
+    <div class="sg-chips">${notti ? `<span>${notti} ${esc(notti === 1 ? t('notte') : t('notti'))}</span>` : ''}${p.persone_totali ? `<span>${p.persone_totali} ${esc(p.persone_totali === 1 ? t('persona') : t('persone'))}</span>` : ''}</div></div>`;
+  // Conto
   const isBici = r => /^bici\b/i.test(r.label || '');
   const voci = c.voci || [], vSogg = voci.filter(r => !r.data && !isBici(r)), vSpese = voci.filter(r => r.data), vBici = voci.filter(r => !r.data && isBici(r));
-  const riga = r => sgRiga(esc(r.label || '—') + (r.acconto ? ` <em>(${esc(t('acconto'))})</em>` : '') + (r.pagato ? ` <em>· ${esc(t('pagato'))}</em>` : ''), sgEur(Math.abs(r.importo || 0)));
+  const riga = r => sgRiga(esc(r.label || '—'), sgEur(Math.abs(r.importo || 0)), r.acconto ? esc(t('acconto')) : (r.pagato ? esc(t('pagato')) : ''));
   const giorni = {}; vSpese.forEach(r => (giorni[r.data] = giorni[r.data] || []).push(r));
   const spese = Object.keys(giorni).sort().map(g => `<div class="sg-giorno">${esc(fmtDataLunga(g))}</div>` +
     giorni[g].map(r => sgRiga(esc(r.label), sgEur(r.importo), r.punto && r.punto !== r.label ? esc(r.punto) : '')).join('')).join('');
   const saldato = (c.da_pagare || 0) <= 0.004;
-  sezioni.push(['conto', t('Conto'), sgSez('conto', t('Il tuo conto'), `
+  sezioni.push(['conto', t('Conto'), sgSez('conto', 'CONTI', t('Il tuo conto'), !voci.length ? `<p class="sg-vuoto">${esc(t('Il conto non è ancora disponibile.'))}</p>` : `
+    <div class="sg-saldo ${saldato ? '' : 'warn'}"><div><small>${esc(saldato ? t('Saldato') : t('Da pagare'))}</small><span style="font-size:12.5px;color:var(--gray-500)">${esc(t('Totale soggiorno'))} ${sgEur(c.totale)}</span></div><strong>${saldato ? `<span style="display:inline-flex;width:28px;height:28px">${ICONS.CHECK}</span>` : sgEur(c.da_pagare)}</strong></div>
     ${vSogg.length ? `<div class="sg-sub">${esc(t('Soggiorno'))}</div>${vSogg.map(riga).join('')}` : ''}
-    ${spese ? `<div class="sg-sub">${esc(t('Spese in struttura'))}</div>${spese}` : ''}
-    ${!voci.length ? `<p class="hint">${esc(t('Il conto non è ancora disponibile.'))}</p>` : `
-      <div class="conto-tot"><span>${esc(t('Totale soggiorno'))}</span><strong>${sgEur(c.totale)}</strong></div>
-      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${esc(saldato ? t('Saldato') : t('Da pagare'))}</span><strong>${saldato ? esc(t('Nessun residuo')) : sgEur(c.da_pagare)}</strong></div>`}`)]);
-  // 3. Spiaggia
-  sezioni.push(['spiaggia', t('Spiaggia'), sgSez('spiaggia', t('La tua spiaggia'), sp.ombrellone ? `
-    <div class="info-kv"><span>${esc(t('Ombrellone'))}</span><strong>${esc(sp.ombrellone)}</strong></div>
-    ${sp.spiaggia_nome ? `<div class="info-kv"><span>${esc(t('Spiaggia'))}</span><strong>${esc(sp.spiaggia_nome)}</strong></div>` : ''}
-    <div class="info-kv"><span>${esc(t('Dal'))}</span><strong>${esc(fmtDataLunga(sp.dal || p.checkin))}</strong></div>
-    <div class="info-kv"><span>${esc(t('Fino al'))}</span><strong>${esc(fmtDataLunga(sp.al || p.checkout))}</strong></div>` : `<p class="hint">${esc(t('L\'ombrellone non è ancora stato assegnato. Chiedi alla reception.'))}</p>`,
-    sp.ombrellone ? sgBtn('Apri il tagliandino', 'apriTicketSpiaggia()') : '')]);
-  // 4. Navetta: attuali e passate
+    ${spese ? `<div class="sg-sub">${esc(t('Spese in struttura'))}</div>${spese}` : ''}`)]);
+  // Spiaggia
+  sezioni.push(['spiaggia', t('Spiaggia'), sgSez('spiaggia', 'SPIAGGIA', t('La tua spiaggia'), sp.ombrellone ? `
+    <div class="sg-ombr"><div class="n">${esc(sp.ombrellone)}</div><div><small>${esc(t('Ombrellone'))}</small><b>${esc(sp.spiaggia_nome || '')}</b>
+      <div style="font-size:12.5px;color:var(--gray-500);margin-top:2px">${esc(sgBreve(sp.dal || p.checkin))} → ${esc(sgBreve(sp.al || p.checkout))}</div></div></div>
+    <button type="button" class="sg-cta" onclick="apriTicketSpiaggia()">${esc(t('Apri il tagliandino'))}</button>` : `<p class="sg-vuoto">${esc(t('L\'ombrellone non è ancora stato assegnato. Chiedi alla reception.'))}</p>`)]);
+  // Navetta
   const corse = CFG.navetta_corse || [], attive = corse.filter(x => x.data >= oggi && (x.stato === 'in_attesa' || x.stato === 'accettata')), passate = corse.filter(x => !attive.includes(x));
-  const rigaCorsa = x => sgRiga(`${esc(fmtDataLunga(x.data))} · ${esc(x.orario || '')}`, `<span class="stato-badge ${statoInfo(x.stato).cls}">${esc(t(statoInfo(x.stato).label))}</span>`,
+  const pillCorsa = x => sgPill(t(statoInfo(x.stato).label), x.stato === 'accettata' || x.stato === 'completata' ? 'ok' : (x.stato === 'in_attesa' ? 'warn' : ''));
+  const rigaCorsa = x => sgRiga(`${esc(sgBreve(x.data))} · ${esc(x.orario || '')}`, pillCorsa(x),
     esc([x.spiaggia_nome, x.autista_nome, x.persone ? `${x.persone} ${x.persone === 1 ? t('persona') : t('persone')}` : ''].filter(Boolean).join(' · ')));
-  sezioni.push(['navetta', t('Navetta'), sgSez('navetta', t('Navetta'), `
-    ${attive.length ? `<div class="sg-sub">${esc(t('In programma'))}</div>${attive.map(rigaCorsa).join('')}` : ''}
+  sezioni.push(['navetta', t('Navetta'), sgSez('navetta', 'NAVETTA', t('Navetta'), `
+    ${attive.length ? `<div class="sg-sub" style="margin-top:0">${esc(t('In programma'))}</div>${attive.map(rigaCorsa).join('')}` : ''}
     ${passate.length ? `<div class="sg-sub">${esc(t('Passate'))}</div>${passate.map(rigaCorsa).join('')}` : ''}
-    ${!corse.length ? `<p class="hint">${esc(t('Nessuna corsa prenotata.'))}</p>` : ''}`,
+    ${!corse.length ? `<p class="sg-vuoto">${esc(t('Nessuna corsa prenotata.'))}</p>` : ''}`,
     sgBtn('Prenota una corsa', "apriServizio('navetta')"))]);
-  // 5. Ordini shop e 6. Pasti: caricati dopo
-  if (CFG.shop_attivo) sezioni.push(['shop', t('Ordini shop'), sgSez('shop', t('Ordini shop'), `<p class="hint">${esc(t('Carico i tuoi ordini…'))}</p>`, sgBtn('Apri lo shop', "apriServizio('shop')"))]);
-  if (CFG.ristorazione) sezioni.push(['pasti', t('Pasti'), sgSez('pasti', t('Pasti ordinati'), `<p class="hint">${esc(t('Carico i tuoi pasti…'))}</p>`, sgBtn('Ordina i pasti', "apriServizio('ristorazione')"))]);
-  // 7. Bici
+  if (CFG.shop_attivo) sezioni.push(['shop', t('Ordini shop'), sgSez('shop', 'BAG', t('Ordini shop'), `<p class="sg-vuoto">${esc(t('Carico i tuoi ordini…'))}</p>`, sgBtn('Apri lo shop', "apriServizio('shop')"))]);
+  if (CFG.ristorazione) sezioni.push(['pasti', t('Pasti'), sgSez('pasti', 'UTENSILS', t('Pasti ordinati'), `<p class="sg-vuoto">${esc(t('Carico i tuoi pasti…'))}</p>`, sgBtn('Ordina i pasti', "apriServizio('ristorazione')"))]);
   const bAtt = CFG.bici_attive || [];
   if (bAtt.length || vBici.length) {
     const fmtOra = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(LOCALE[LANG], { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString(LOCALE[LANG], { hour: '2-digit', minute: '2-digit' }); };
-    sezioni.push(['bici', t('Bici'), sgSez('bici', t('Noleggio bici'), `
-      ${bAtt.length ? `<div class="sg-sub">${esc(t('In corso adesso'))}</div>${bAtt.map(b => sgRiga(`${esc(t('Bici N°'))} ${esc(b.numero)}`, b.pagata ? esc(t('pagata')) : sgEur(b.costo_stimato), esc(t('ritirata il')) + ' ' + esc(fmtOra(b.ritiro)))).join('')}` : ''}
+    sezioni.push(['bici', t('Bici'), sgSez('bici', 'BICI', t('Noleggio bici'), `
+      ${bAtt.length ? `<div class="sg-sub" style="margin-top:0">${esc(t('In corso adesso'))}</div>${bAtt.map(b => sgRiga(`${esc(t('Bici N°'))} ${esc(b.numero)}`, b.pagata ? sgPill(t('pagata'), 'ok') : sgEur(b.costo_stimato), esc(t('ritirata il')) + ' ' + esc(fmtOra(b.ritiro)))).join('')}` : ''}
       ${vBici.length ? `<div class="sg-sub">${esc(t('Noleggi conclusi'))}</div>${vBici.map(riga).join('')}` : ''}`)]);
   }
-  $('#service-content').innerHTML = `<div class="sg-nav">${sezioni.map(s => `<button type="button" onclick="document.getElementById('sg-${s[0]}').scrollIntoView({behavior:'smooth',block:'start'})">${esc(s[1])}</button>`).join('')}</div>` + sezioni.map(s => s[2]).join('');
+  // il conto va subito sotto il riepilogo, poi spiaggia, navetta ecc. nell'ordine in cui sono stati creati
+  $('#service-content').innerHTML = riepilogo + `<div class="sg-nav">${sezioni.map(s => `<button type="button" onclick="document.getElementById('sg-${s[0]}').scrollIntoView({behavior:'smooth',block:'start'})">${esc(s[1])}</button>`).join('')}</div>` + sezioni.map(s => s[2]).join('');
   hydrateIcons($('#service-content'));
   if (CFG.shop_attivo) sgCaricaShop();
   if (CFG.ristorazione) sgCaricaPasti();
 }
 async function sgCaricaShop() {
   let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: 2 }); } catch (e) { d = null; }
-  const el = document.getElementById('sg-shop'); if (!el || _servizioAperto !== 'soggiorno') return;
-  const h = el.querySelector('.sg-h').outerHTML;
-  if (!d || !d.ok) { el.innerHTML = h + `<p class="hint">${esc(t('Non riesco a caricare gli ordini ora.'))}</p>`; traduciDom(el); return; }
+  const el = document.querySelector('#sg-shop .sg-b'); if (!el || _servizioAperto !== 'soggiorno') return;
+  if (!d || !d.ok) { el.innerHTML = `<p class="sg-vuoto">${esc(t('Non riesco a caricare gli ordini ora.'))}</p>`; traduciDom(el); return; }
   SHO.ordini = d.ordini; SHO.orari = d.ritiro_orari || []; SHO.t = Date.now();
-  const card = o => sgRiga(`${esc(new Date(o.creato_il).toLocaleDateString(LOCALE[LANG], { day: '2-digit', month: '2-digit' }))} · ${esc(o.righe.map(r => r.quantita + ' × ' + r.titolo).join(', '))}`,
-    `<b>${shEur(o.totale)}</b>`, esc(t(SH_STATO[o.stato] || o.stato)) + ' · ' + esc((o.pagamento || {}).stato === 'pagato' ? t('Pagato') : t('Da pagare')));
+  const card = o => sgRiga(esc(o.righe.map(r => r.quantita + ' × ' + r.titolo).join(', ')),
+    `${sgEur(o.totale)}<div style="margin-top:3px">${sgPill(t(SH_STATO[o.stato] || o.stato), o.stato === 'consegnato' ? 'ok' : (o.stato === 'annullato' ? '' : 'warn'))}</div>`,
+    esc(new Date(o.creato_il).toLocaleDateString(LOCALE[LANG], { day: 'numeric', month: 'short' })) + ' · ' + esc((o.pagamento || {}).stato === 'pagato' ? t('Pagato') : t('Da pagare')));
   const att = d.ordini.filter(o => o.stato === 'nuovo' || o.stato === 'pronto'), resto = d.ordini.filter(o => !att.includes(o));
-  el.innerHTML = h + (!d.ordini.length ? `<p class="hint">${esc(t('Non hai ancora fatto ordini.'))}</p>` :
-    (att.length ? `<div class="sg-sub">${esc(t('In corso'))}</div>${att.map(card).join('')}` : '') + (resto.length ? `<div class="sg-sub">${esc(t('Conclusi'))}</div>${resto.map(card).join('')}` : ''));
+  el.innerHTML = !d.ordini.length ? `<p class="sg-vuoto">${esc(t('Non hai ancora fatto ordini.'))}</p>` :
+    (att.length ? `<div class="sg-sub" style="margin-top:0">${esc(t('In corso'))}</div>${att.map(card).join('')}` : '') + (resto.length ? `<div class="sg-sub">${esc(t('Conclusi'))}</div>${resto.map(card).join('')}` : '');
   traduciDom(el);
 }
 async function sgCaricaPasti() {
   let d; try { d = await ristoDati(); } catch (e) { d = null; }
-  const el = document.getElementById('sg-pasti'); if (!el || _servizioAperto !== 'soggiorno') return;
-  const h = el.querySelector('.sg-h').outerHTML, ord = (d && d.ok && d.ordini) || {}, chiavi = Object.keys(ord).sort();
-  if (!d || !d.ok) { el.innerHTML = h + `<p class="hint">${esc(t('Non riesco a caricare i pasti ora.'))}</p>`; traduciDom(el); return; }
-  el.innerHTML = h + (chiavi.length ? chiavi.map(k => { const [g, tipo] = k.split('_'), o = ord[k];
-    return sgRiga(`${esc(fmtDataLunga(g))} · ${esc(tipo === 'pranzo' ? t('Pranzo') : (tipo === 'cena' ? t('Cena') : t('Pasto')))}`, '',
+  const el = document.querySelector('#sg-pasti .sg-b'); if (!el || _servizioAperto !== 'soggiorno') return;
+  const ord = (d && d.ok && d.ordini) || {}, chiavi = Object.keys(ord).sort();
+  if (!d || !d.ok) { el.innerHTML = `<p class="sg-vuoto">${esc(t('Non riesco a caricare i pasti ora.'))}</p>`; traduciDom(el); return; }
+  el.innerHTML = chiavi.length ? chiavi.map(k => { const [g, tipo] = k.split('_'), o = ord[k];
+    return sgRiga(`${esc(sgBreve(g))} · ${esc(tipo === 'pranzo' ? t('Pranzo') : (tipo === 'cena' ? t('Cena') : t('Pasto')))}`, '',
       esc((o.piatti || []).map(x => x.quantita + ' × ' + (x.piatto || '')).join(', ')));
-  }).join('') : `<p class="hint">${esc(t('Nessun pasto ordinato.'))}</p>`);
+  }).join('') : `<p class="sg-vuoto">${esc(t('Nessun pasto ordinato.'))}</p>`;
   traduciDom(el);
 }
 
@@ -1553,7 +1582,7 @@ function handleBack() {
 
 function tornaHome() {
   if (typeof shChiudiDett === 'function' && SH) shChiudiDett();
-  _servizioAperto = null; _editId = null; _infoSub = null;
+  _servizioAperto = null; _editId = null; _infoSub = null; $('#titolo').style.fontSize = '';
   { const wf = $('#wa-footer'); if (wf) wf.style.display = ''; }
   const bb = $('#service-view').querySelector('.home-back-btn'); if (bb) bb.style.display = '';
   $('#service-view').style.display = 'none';

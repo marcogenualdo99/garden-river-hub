@@ -250,6 +250,8 @@ const _LISTA = [
   _D('In attesa', 'Pending', 'Ausstehend'),
   _D('Completata', 'Completed', 'Abgeschlossen'),
   _D('Annullata', 'Cancelled', 'Storniert'),
+  _D('notte', 'night', 'Nacht'),
+  _D('notti', 'nights', 'Nächte'),
 ];
 const DIZ = { en: {}, de: {} };
 _LISTA.forEach(e => { DIZ.en[e.it] = e.en; DIZ.de[e.it] = e.de; });
