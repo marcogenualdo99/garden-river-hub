@@ -279,6 +279,22 @@
 .elenco-table th:hover { color: var(--green-700); }
 .elenco-table tbody tr { cursor: pointer; }
 .elenco-table tbody tr:hover { background: var(--green-bg); }
+.elenco-cols { display: grid; grid-template-columns: 1.6fr 1fr 1.1fr 1.5fr 1.1fr 1.2fr 84px; gap: 16px; align-items: start; }
+.elenco-head { padding: 0 16px 8px; font-size: 11.5px; font-weight: 700; color: var(--gray-500); user-select: none; }
+.elenco-head span { cursor: pointer; }
+.elenco-head span:hover { color: var(--green-700); }
+.elenco-riga { padding: 14px 16px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); margin-bottom: 10px; background: var(--white); cursor: pointer; font-size: 13px; }
+.elenco-riga:hover { border-color: var(--green-400); background: var(--green-bg); }
+.elenco-nome { font-weight: 800; font-size: 14.5px; color: var(--gray-900); }
+.elenco-sub { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.elenco-cod { font-weight: 800; font-size: 14px; color: var(--gray-900); }
+.elenco-chip { display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 20px; background: var(--green-bg); color: var(--green-700); font-size: 11px; font-weight: 700; }
+.elenco-nota { margin-top: 6px; padding: 5px 8px; background: var(--gray-50); border-radius: 6px; font-size: 11.5px; color: var(--gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.elenco-importo { text-align: right; font-size: 20px; font-weight: 800; color: var(--gray-900); }
+.elenco-importo-sub { text-align: right; font-size: 11.5px; color: var(--gray-700); margin-top: 6px; line-height: 1.5; }
+.elenco-vedi { height: 34px; padding: 0 14px; border: 1.5px solid var(--terracotta-2); background: var(--white); color: var(--terracotta-2); border-radius: 6px; font-weight: 800; font-size: 13px; font-family: var(--font); cursor: pointer; }
+.elenco-riga:hover .elenco-vedi { background: var(--terracotta-2); color: #fff; }
+@media (max-width: 900px) { .elenco-cols { grid-template-columns: 1fr; gap: 8px; } .elenco-head { display: none; } .elenco-importo, .elenco-importo-sub { text-align: left; } }
 .listino-input { width: 66px; height: 28px; text-align: center; border: 1px solid var(--gray-200); border-radius: 6px; font-family: var(--font); font-size: 12px; color: var(--gray-900); }
 .listino-input:focus { border-color: var(--green-400); outline: none; }
 .listino-extra-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-bottom: 16px; }
@@ -844,18 +860,16 @@
     <p class="subtitle" style="margin-top:10px" id="elenco-count"></p>
   </div>
   <div class="listino-card">
-    <div class="listino-scroll"><table class="elenco-table">
-      <thead><tr>
-        <th onclick="elencoOrdinaPer('nome')">Ospite</th>
-        <th onclick="elencoOrdinaPer('alloggio_nome')">Alloggio</th>
-        <th onclick="elencoOrdinaPer('checkin')">Check-in</th>
-        <th onclick="elencoOrdinaPer('checkout')">Check-out</th>
-        <th onclick="elencoOrdinaPer('persone')">Persone</th>
-        <th onclick="elencoOrdinaPer('stato')">Stato</th>
-        <th onclick="elencoOrdinaPer('provenienza')">Provenienza</th>
-      </tr></thead>
-      <tbody id="elenco-tbody"></tbody>
-    </table></div>
+    <div class="elenco-head elenco-cols">
+      <span onclick="elencoOrdinaPer('nome')">Cliente</span>
+      <span onclick="elencoOrdinaPer('creata')">Prenotazione</span>
+      <span onclick="elencoOrdinaPer('checkin')">Periodo di soggiorno</span>
+      <span onclick="elencoOrdinaPer('alloggio_nome')">Dettagli</span>
+      <span onclick="elencoOrdinaPer('importo')" style="text-align:right">Importo</span>
+      <span onclick="elencoOrdinaPer('stato')">Stato</span>
+      <span>Azioni</span>
+    </div>
+    <div id="elenco-lista"></div>
   </div>
 </main>
 
@@ -7625,8 +7639,8 @@ function elencoOrdinaPer(campo) {
   renderElencoPrenotazioni();
 }
 function renderElencoPrenotazioni() {
-  const tbody = document.getElementById('elenco-tbody');
-  if (!tbody) return;
+  const lista = document.getElementById('elenco-lista');
+  if (!lista) return;
   let righe = prenotazioni.slice();
   if (elencoFiltri.testo) righe = righe.filter(p => prenotazioneCorrispondeRicerca(p, elencoFiltri.testo));
   if (elencoFiltri.categoria) {
@@ -7639,30 +7653,66 @@ function renderElencoPrenotazioni() {
   // scelto (non solo quelli che iniziano dentro), coerente con la griglia.
   if (elencoFiltri.dataDa) righe = righe.filter(p => (p.checkout || '9999-99-99') >= elencoFiltri.dataDa);
   if (elencoFiltri.dataA)  righe = righe.filter(p => (p.checkin  || '0000-00-00') <= elencoFiltri.dataA);
+  const totaleDi = p => { const r = (p.conto && p.conto.righe) || []; return r.length ? calcolaSaldoConto(r).totale : (p.preventivo_stimato != null ? Number(p.preventivo_stimato) : 0); };
   const campo = elencoOrdine.campo;
   righe.sort((a, b) => {
     let va, vb;
-    if (campo === 'persone') { va = (a.adulti||0)+(a.bambini||0); vb = (b.adulti||0)+(b.bambini||0); }
-    else if (campo === 'stato') { va = statoPrenotazione(a).label; vb = statoPrenotazione(b).label; }
+    if (campo === 'importo') { va = totaleDi(a); vb = totaleDi(b); }
+    else if (campo === 'creata') { va = a.createdAt || ''; vb = b.createdAt || ''; }
+    else if (campo === 'stato') { va = statoPrenotazione(a).step; vb = statoPrenotazione(b).step; }
     else { va = (a[campo] || '').toString().toLowerCase(); vb = (b[campo] || '').toString().toLowerCase(); }
     if (va < vb) return -1 * elencoOrdine.dir;
     if (va > vb) return 1 * elencoOrdine.dir;
     return 0;
   });
   document.getElementById('elenco-count').textContent = `${righe.length} prenotazion${righe.length===1?'e':'i'}`;
-  tbody.innerHTML = righe.length ? righe.map(p => {
+  const nomeTratt = { no: 'Solo pernottamento', MP: 'Mezza pensione', PC: 'Pensione completa' };
+  lista.innerHTML = righe.length ? righe.map(p => {
     const persone = (p.adulti||0) + (p.bambini||0);
     const st = statoPrenotazione(p);
-    return `<tr onclick="apriModificaPrenotazione('${esc(p.id)}')">
-      <td>${esc(p.nome || '—')}</td>
-      <td>${esc(p.alloggio_nome || 'Da assegnare')}</td>
-      <td>${esc(fmtDataIt(p.checkin))}</td>
-      <td>${esc(fmtDataIt(p.checkout))}</td>
-      <td>${persone}</td>
-      <td><span class="stato-badge ${st.cls}">${esc(st.label.split(' · ')[0])}</span></td>
-      <td>${esc(p.provenienza || '')}</td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:20px">Nessuna prenotazione trovata.</td></tr>`;
+    const [stNome, ...stRest] = st.label.split(' · ');
+    const notti = nottiTra(p.checkin, p.checkout);
+    const conto = (p.conto && p.conto.righe) || [];
+    const saldo = calcolaSaldoConto(conto);
+    const acconti = conto.filter(r => r.acconto).reduce((t, r) => t + Math.abs(r.importo || 0), 0);
+    const importo = conto.length ? `€ ${saldo.totale.toFixed(2).replace('.', ',')}` : (p.preventivo_stimato != null ? `stima € ${Number(p.preventivo_stimato).toFixed(2).replace('.', ',')}` : '—');
+    const nota = (p.note || []).map(n => n.testo).filter(Boolean)[0] || '';
+    const dettagli = [nomeTratt[p.trattamento_ristorazione] || '', p.pacchetto_servizi ? 'Pacchetto servizi' : '', p.animali ? 'Animali' : ''].filter(Boolean);
+    return `<div class="elenco-riga elenco-cols" onclick="apriModificaPrenotazione('${esc(p.id)}')">
+      <div>
+        <div class="elenco-nome">${esc(p.nome || '—')}</div>
+        ${p.tel ? `<div class="elenco-sub">${esc(p.tel)}</div>` : ''}
+        ${p.email ? `<div class="elenco-sub">${esc(p.email)}</div>` : ''}
+        ${p.provenienza ? `<span class="elenco-chip">${esc(p.provenienza)}</span>` : ''}
+        ${nota ? `<div class="elenco-nota" title="${esc(nota)}">${esc(nota)}</div>` : ''}
+      </div>
+      <div>
+        <div class="elenco-cod">${esc(p.agenzia_id || p.codice || '—')}</div>
+        ${p.createdAt ? `<div class="elenco-sub">${esc(fmtDataOraIt(p.createdAt))}</div>` : ''}
+      </div>
+      <div>
+        <div>&rarr; ${esc(fmtDataIt(p.checkin))}</div>
+        <div>&larr; ${esc(fmtDataIt(p.checkout))}</div>
+        <div class="elenco-sub">${notti} nott${notti === 1 ? 'e' : 'i'} · ${persone} person${persone === 1 ? 'a' : 'e'}</div>
+      </div>
+      <div>
+        <div style="font-weight:700">${esc(p.alloggio_nome || 'Da assegnare')}</div>
+        ${dettagli.map(d => `<div class="elenco-sub">${esc(d)}</div>`).join('')}
+      </div>
+      <div>
+        <div class="elenco-importo">${importo}</div>
+        <div class="elenco-importo-sub">
+          ${acconti > 0 ? `Caparra ricevuta: <b>€ ${acconti.toFixed(2).replace('.', ',')}</b><br>` : ''}
+          ${conto.length && saldo.daPagare > 0.004 ? `<span style="color:var(--red);font-weight:700">Da saldare: € ${saldo.daPagare.toFixed(2).replace('.', ',')}</span>` : ''}
+        </div>
+      </div>
+      <div>
+        <span class="stato-badge ${st.cls}">${esc(stNome)}</span>
+        ${stRest.length ? `<div class="elenco-sub" style="margin-top:6px">${esc(stRest.join(' · '))}</div>` : ''}
+      </div>
+      <div><button type="button" class="elenco-vedi" onclick="event.stopPropagation(); apriModificaPrenotazione('${esc(p.id)}')">Vedi</button></div>
+    </div>`;
+  }).join('') : `<p style="text-align:center;color:var(--gray-500);padding:20px">Nessuna prenotazione trovata.</p>`;
 }
 function openSettingsListini() {
   if (!isAdmin()) return;
