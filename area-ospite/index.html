@@ -58,6 +58,14 @@
     display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent }
   header.top .info-btn svg { width: 18px; height: 18px }
   header.top .info-btn:active { background: rgba(255,255,255,.25) }
+  header.top .bell-btn { position: relative; margin-left: 0 } header.top .bell-btn + .info-btn { margin-left: 0 }
+  header.top:not(.home-top) .bell-btn { display: none }
+  .bell-badge { display: none; position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--orange); color: #fff; border: 2px solid var(--green-700); font: 800 10.5px/1 var(--font); font-style: normal; align-items: center; justify-content: center }
+  #notif-sheet { position: fixed; inset: 0; z-index: 310; display: none } #notif-sheet .bg { position: absolute; inset: 0; background: rgba(0,0,0,.5) }
+  #notif-sheet .pn { position: absolute; left: 0; right: 0; bottom: 0; max-width: 560px; margin: 0 auto; max-height: 82vh; overflow-y: auto; background: var(--gray-50, #f7f8fa); border-radius: 26px 26px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom)) }
+  #notif-sheet .pn-h { display: flex; align-items: center; justify-content: space-between } #notif-sheet .pn-h h2 { font-size: 20px; font-weight: 800; color: var(--gray-900) }
+  #notif-sheet .pn-x { width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--gray-100); color: var(--gray-500); display: flex; align-items: center; justify-content: center; cursor: pointer } #notif-sheet .pn-x svg { width: 16px; height: 16px }
+  #notif-sheet .pn-vuoto { text-align: center; color: var(--gray-500); font-size: 14.5px; padding: 34px 10px }
   header.top .avatar { width: 38px; height: 38px; border-radius: 50%; background: #fff; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--green-700) }
   header.top .top-back { display: none; align-items: center; gap: 6px; height: 38px; padding: 0 16px 0 10px; border-radius: 999px;
@@ -685,6 +693,8 @@
   <p id="err-testo">Questo link non è valido o è scaduto. Contatta la struttura per riceverne uno nuovo.</p>
 </div>
 
+<div id="notif-sheet" onclick="if(event.target.closest('.az'))chiudiNotifiche()"><div class="bg" onclick="chiudiNotifiche()"></div><div class="pn"><div class="pn-h"><h2>Notifiche</h2><button type="button" class="pn-x" onclick="chiudiNotifiche()" aria-label="Chiudi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 7l10 10M17 7 7 17"/></svg></button></div><div id="notif-list"></div></div></div>
+
 <div id="app" style="display:none">
   <header class="top verde d-sole" id="hero">
     <div class="inner">
@@ -692,6 +702,7 @@
         <div class="avatar" id="avatar"></div>
         <button type="button" class="top-back" onclick="handleBack()" aria-label="Torna indietro"><span data-icon="BACK"></span>Torna indietro</button>
         <button type="button" class="lang-btn" id="lang-btn" onclick="menuLingua(event)" aria-label="Language">IT</button>
+        <button type="button" class="info-btn bell-btn" id="bell-btn" onclick="apriNotifiche()" aria-label="Notifiche" style="display:none"><span data-icon="BELL"></span><i class="bell-badge" id="bell-badge"></i></button>
         <button type="button" class="info-btn" onclick="apriPrenotazioneInfo()" aria-label="I tuoi dati e il conto"><span data-icon="INFO"></span></button>
         <button type="button" class="shop-btn" onclick="shApriOrdini()" aria-label="Cronologia ordini"><span data-icon="CLOCK"></span></button>
         <button type="button" class="shop-btn" onclick="shApriCarrello()" aria-label="Carrello"><span data-icon="CART"></span><i class="shop-badge" id="shop-badge"></i></button>
@@ -1011,7 +1022,7 @@ function avvisiHome() {
   const out = [], chiusi = _chiusi(), p = CFG.prenotazione || {};
   const staff = () => ((CONTENUTI && CONTENUTI.avvisi) || []).filter(pubblicoOk).forEach(a => {
     const tl = (LANG !== 'it' && a['titolo_' + LANG]) || a.titolo, tx = (LANG !== 'it' && a['testo_' + LANG]) || a.testo;
-    out.push({ id: 'st-' + a.id, cls: a.tipo === 'importante' ? 'stop' : 'info', icon: a.tipo === 'importante' ? IC.WARN : ICONS.INFO, tag: a.tipo === 'importante' ? t('Importante') : t('Informazione'), titolo: tl, testo: tx, chiudibile: a.chiudibile !== false });
+    out.push({ home: true, id: 'st-' + a.id, cls: a.tipo === 'importante' ? 'stop' : 'info', icon: a.tipo === 'importante' ? IC.WARN : ICONS.INFO, tag: a.tipo === 'importante' ? t('Importante') : t('Informazione'), titolo: tl, testo: tx, chiudibile: a.chiudibile !== false });
   });
   const peso = a => a.pin ? 0.5 : (a.cls === 'todo' ? 0 : (a.cls === 'stop' ? 1 : 2));
   const filtra = l => l.filter(a => !(a.id && a.chiudibile !== false && chiusi.includes(a.id))).sort((a, b) => peso(a) - peso(b));
@@ -1044,12 +1055,27 @@ function avvisiHome() {
   }
   const oggi = oggiData();
   const corsa = (CFG.navetta_corse || []).find(c => c.data === oggi && (c.stato === 'accettata' || c.stato === 'in_attesa'));
-  if (vis('navetta') && corsa) out.push({ cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
+  if (vis('navetta') && corsa) out.push({ home: true, cls: 'info', icon: ICONS.NAVETTA, tag: t('Navetta'), titolo: corsa.stato === 'accettata' ? t('La tua corsa delle {o} è confermata', { o: corsa.orario }) : t('Richiesta navetta delle {o} in attesa', { o: corsa.orario }), testo: corsa.autista_nome ? t('Autista: {n}', { n: corsa.autista_nome }) : '', azione: { label: t('Vedi la corsa'), fn: "apriServizio('navetta')" } });
   const m = HOME_X.meteo;
   if (vis('pioggia') && m && m.pioggia >= 60) out.push({ id: 'pioggia', cls: 'info', icon: IC.RAIN, tag: t('Meteo'), titolo: t('Possibile pioggia oggi'), testo: t('Alcune attività all\'aperto potrebbero spostarsi al coperto: chiedi allo staff di animazione.'), chiudibile: true });
   staff();
   return filtra(out);
 }
+// Campanella: gli avvisi che non sono dello staff, dello shop o della navetta (pasti da completare, benvenuto, partenza, meteo...)
+let _notifiche = [];
+function aggiornaCampanella() {
+  const b = $('#bell-btn'), n = $('#bell-badge'); if (!b) return;
+  b.style.display = dopoPartenza() ? 'none' : '';
+  const c = _notifiche.length; n.textContent = c; n.style.display = c ? 'flex' : 'none';
+  if ($('#notif-sheet').style.display === 'block') disegnaNotifiche();
+}
+function disegnaNotifiche() {
+  const el = $('#notif-list');
+  el.innerHTML = _notifiche.length ? _notifiche.map(avvisoHtml).join('') : `<div class="pn-vuoto">${esc(t('Nessuna notifica'))}</div>`;
+  traduciDom(el);
+}
+function apriNotifiche() { $('#notif-sheet').style.display = 'block'; disegnaNotifiche(); }
+function chiudiNotifiche() { $('#notif-sheet').style.display = 'none'; }
 function avvisoHtml(a) {
   return `<div class="av ${a.cls}"><span class="ic">${a.icon}</span><div class="tx"><div class="tg">${esc(a.tag)}</div><b>${esc(a.titolo)}</b>${a.testo ? `<p>${esc(a.testo)}</p>` : ''}${a.lista ? `<ul class="av-lista">${a.lista.map(x => `<li>${ICONS.CHECK}<span>${esc(x)}</span></li>`).join('')}</ul>` : ''}
     ${a.azione ? `<a class="az" href="#" onclick="${a.azione.fn};return false">${esc(a.azione.label)} ${GO}</a>` : ''}</div>
@@ -1244,6 +1270,7 @@ function renderHomeExtra() {
   const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
+    _notifiche = []; aggiornaCampanella();
     const nome = (CFG.prenotazione || {}).nome_proprio || '';
     av.innerHTML = `<div class="grazie"><div class="gz-ic">${IC.STAR}</div><h2>${esc(nome ? t('Grazie, {n}!', { n: nome }) : t('Grazie!'))}</h2>
       <p>${esc(t('È stato un piacere averti con noi. Speriamo di rivederti presto al Garden River!'))}</p></div>
@@ -1252,8 +1279,10 @@ function renderHomeExtra() {
     traduciDom($('#home-view'));
     return;
   }
-  const l = avvisiHome();
+  const tutti = avvisiHome(), l = tutti.filter(a => a.home);
+  _notifiche = tutti.filter(a => !a.home);
   av.innerHTML = l.length ? `<div class="sez">${esc(t('Da sapere'))}</div>${l.map(avvisoHtml).join('')}` : '';
+  aggiornaCampanella();
   renderSera(); renderOggi(); renderAdesso();
   traduciDom($('#home-view'));
 }

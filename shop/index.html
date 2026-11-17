@@ -466,9 +466,11 @@ function normalizzaCfg(c) {
 const NASCOSTI = ['in_attesa_pagamento', 'abbandonato', 'scaduto'];   // ordini con pagamento carta non completato: l'operatore non li vede
 const STATI = { nuovo: ['Nuovo', 'o'], pronto: ['Pronto', 'a'], consegnato: ['Consegnato', 'g'], annullato: ['Annullato', 'r'] };
 function renderOrdini(el) {
+  const gestiti = ORDINI.filter(o => o.stato === 'consegnato' || o.stato === 'annullato').length;
   const lista = ORDINI.filter(o => ordFiltro === 'tutti' ? true : (o.stato === 'nuovo' || o.stato === 'pronto'));
   el.innerHTML = `<div class="sh-bar">
       <select onchange="ordFiltro=this.value;render()"><option value="aperti"${ordFiltro === 'aperti' ? ' selected' : ''}>Da gestire</option><option value="tutti"${ordFiltro === 'tutti' ? ' selected' : ''}>Tutti gli ordini</option></select>
+      ${gestiti ? `<button class="sh-btn d" onclick="eliminaGestiti()">Elimina ordini gestiti (${gestiti})</button>` : ''}
     </div>` + (lista.length ? `<div class="sh-list ord">${lista.map(cardOrdine).join('')}</div>`
     : `<div class="sh-empty">${ordFiltro === 'aperti' ? 'Nessun ordine da gestire.' : 'Ancora nessun ordine.'}</div>`);
 }
@@ -533,6 +535,18 @@ function annullaOrdine(id) {
       }
     } catch (e) { console.error(e); }
     if (await aggiornaOrdine(id, { stato: 'annullato' })) showToast('Ordine annullato');
+  });
+}
+
+function eliminaGestiti() {
+  const da = ORDINI.filter(o => o.stato === 'consegnato' || o.stato === 'annullato');
+  if (!da.length) return;
+  showModal('Eliminare gli ordini gestiti?', da.length + (da.length === 1 ? ' ordine consegnato o annullato verrà eliminato' : ' ordini consegnati o annullati verranno eliminati') + ' per sempre, anche dall\'elenco degli ospiti. Gli ordini da gestire non vengono toccati. Non si può annullare.', 'Elimina', async () => {
+    try {
+      await waitForFirebase(); const { db, doc, deleteDoc } = window._fb;
+      for (const o of da) await deleteDoc(doc(db, 'shop_ordini', o.id));
+      showToast(da.length === 1 ? 'Ordine eliminato' : da.length + ' ordini eliminati');
+    } catch (e) { console.error(e); showToast('Eliminazione non riuscita'); }
   });
 }
 
