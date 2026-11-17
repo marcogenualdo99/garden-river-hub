@@ -592,8 +592,9 @@ function toggleExcelSede(sedeId, checked) {
 function toggleExcelOrdine(sedeId, ordineId, checked) {
   if (!excelOptions.ordini[sedeId]) excelOptions.ordini[sedeId] = {};
   excelOptions.ordini[sedeId][ordineId] = checked;
+  renderExcelOptionsPanel();
 }
-function toggleExcelCategoria(catId, checked) { excelOptions.categorie[catId] = checked; }
+function toggleExcelCategoria(catId, checked) { excelOptions.categorie[catId] = checked; renderExcelOptionsPanel(); }
 function excelCategorieHtml() {
   ensureExcelOptionsDefaults();
   return categorieAttive().map(c => `<label class="chk-pill">
@@ -623,7 +624,21 @@ function excelSediOrdiniHtml() {
     </div>`;
   }).join('');
 }
+function excelRiepilogoTesto() {
+  ensureExcelOptionsDefaults();
+  const sedi = sediList.filter(s => s.attiva !== false);
+  const sediOn = sedi.filter(s => excelOptions.sedi[s.id] !== false);
+  const cats = categorieAttive();
+  const catsOn = cats.filter(c => excelOptions.categorie[c.id] !== false);
+  let ordTot = 0, ordOn = 0;
+  sedi.forEach(s => ordiniAttiviSede(s).forEach(o => { ordTot++; if (excelOptions.sedi[s.id] !== false && excelOptions.ordini[s.id]?.[o.id] !== false) ordOn++; }));
+  const tutto = sediOn.length === sedi.length && catsOn.length === cats.length && ordOn === ordTot;
+  if (tutto) return 'Includerà tutte le sedi, tutti gli ordini e tutte le categorie' + (excelOptions.contabile ? ', con dati contabili.' : ', senza dati contabili.');
+  return `Includerà ${sediOn.length} di ${sedi.length} sedi, ${ordOn} di ${ordTot} ordini, ${catsOn.length} di ${cats.length} categorie` + (excelOptions.contabile ? ', con dati contabili.' : ', senza dati contabili.');
+}
 function renderExcelOptionsPanel() {
+  const rs = document.getElementById('excel-riepilogo');
+  if (rs) rs.textContent = excelRiepilogoTesto();
   const wrap = document.getElementById('excel-sedi-ordini');
   if (wrap) wrap.innerHTML = excelSediOrdiniHtml();
   const tgl = document.getElementById('excel-contabile-toggle');
@@ -1559,31 +1574,40 @@ function renderReport(sedeFiltro) {
       `</div>`;
   }
 
-  html += `<div class="rpt-actions">
-    <button class="rpt-btn primary" onclick="esportaExcelReport()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
+  html += `<div class="card" style="margin-bottom:20px">
+    <h3 style="margin-bottom:2px">Esporta questo report</h3>
+    <p class="subtitle" style="margin-bottom:12px">Periodo: <b>${escHtml(periodoReportLabel())}</b></p>
+    <div class="rpt-actions" style="margin-bottom:12px">
+      <button class="rpt-btn primary" onclick="esportaExcelReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
+        Scarica Excel
+      </button>
+      <button class="rpt-btn ghost" onclick="stampaReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 11v6M9 14h6"/></svg>
       Esporta Excel
     </button>
     <button class="rpt-btn ghost" onclick="stampaReport()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-      Stampa
-    </button>
-  </div>
-  <div class="card" style="margin-bottom:20px">
-    <h3 style="margin-bottom:4px">Cosa esportare in Excel</h3>
-    <p class="subtitle">Sedi e ordini scolastici da includere — indipendente da quello che stai guardando qui sopra.</p>
-    <div id="excel-sedi-ordini">${excelSediOrdiniHtml()}</div>
-    <div style="padding:10px 0;border-top:1px solid var(--gray-100)">
-      <div class="field-label" style="margin-bottom:8px">Categorie da esportare</div>
-      <div class="chk-grid" id="excel-categorie">${excelCategorieHtml()}</div>
+        Stampa
+      </button>
     </div>
-    <div class="toggle-row">
-      <div class="toggle-label-wrap">
-        <div class="toggle-label">Dati contabili nel riepilogo</div>
-        <div class="toggle-sub">Prezzo, imponibile, IVA e totale. Il foglio RIEPILOGO con i pasti c'è sempre comunque.</div>
+    <div id="excel-riepilogo" class="subtitle" style="margin-bottom:8px">${excelRiepilogoTesto()}</div>
+    <details id="excel-dettagli" style="border-top:1px solid var(--gray-100);padding-top:10px">
+      <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--green-700)">Scegli cosa includere nell'Excel</summary>
+      <p class="subtitle" style="margin:8px 0 4px">Valgono solo per il file Excel, non cambiano ciò che vedi qui sotto. La stampa include sempre tutto.</p>
+      <div id="excel-sedi-ordini">${excelSediOrdiniHtml()}</div>
+      <div style="padding:10px 0;border-top:1px solid var(--gray-100)">
+        <div class="field-label" style="margin-bottom:8px">Categorie</div>
+        <div class="chk-grid" id="excel-categorie">${excelCategorieHtml()}</div>
       </div>
-      <button class="toggle-switch${excelOptions.contabile?' on':''}" id="excel-contabile-toggle" onclick="toggleExcelContabile()"></button>
-    </div>
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="toggle-label">Dati contabili nel riepilogo</div>
+          <div class="toggle-sub">Prezzo, imponibile, IVA e totale. Il foglio RIEPILOGO con i pasti c'è sempre comunque.</div>
+        </div>
+        <button class="toggle-switch${excelOptions.contabile?' on':''}" id="excel-contabile-toggle" onclick="toggleExcelContabile()"></button>
+      </div>
+    </details>
   </div>`;
 
   html += buildTabelleReportHtml(sediInGioco, dal, al);
