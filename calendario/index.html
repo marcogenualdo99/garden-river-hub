@@ -2684,6 +2684,57 @@ function prenotazioneContoNonSaldato(p) {
 // ── NAVIGAZIONE TIMELINE ─────────────────────────────────────────────────
 function navWeek(dir) { viewStart = addDaysIso(viewStart, dir*7); renderGrid(); }
 function goToday()    { viewStart = isoToday(0); renderGrid(); }
+// ── SCORRIMENTO LATERALE ──────────────────────────────────────────────────
+// Trackpad (swipe orizzontale a due dita), shift + rotella e swipe col dito
+// spostano la vista di un giorno ogni DAY_W px, andando avanti/indietro nelle
+// date senza usare le frecce. Se il contenuto è più largo dello schermo
+// (telefono) si scorre prima il contenuto e solo al bordo cambiano le date.
+// Il ridisegno è raggruppato (uno per frame) perché la griglia è pesante.
+let _scorrimentoPending = 0, _scorrimentoRaf = 0;
+function scorriGiorni(n) {
+  _scorrimentoPending += n;
+  if (_scorrimentoRaf) return;
+  _scorrimentoRaf = requestAnimationFrame(() => {
+    _scorrimentoRaf = 0;
+    const g = _scorrimentoPending; _scorrimentoPending = 0;
+    if (g) { viewStart = addDaysIso(viewStart, g); renderGrid(); }
+  });
+}
+(function abilitaScorrimentoLaterale() {
+  const box = document.getElementById('cal-scroll');
+  if (!box) return;
+  // true se il contenuto non può più scorrere nella direzione richiesta (avanti = a destra)
+  const alBordo = avanti => avanti ? box.scrollLeft + box.clientWidth >= box.scrollWidth - 2 : box.scrollLeft <= 0;
+  let accRuota = 0;
+  box.addEventListener('wheel', (e) => {
+    let dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+    if (!dx) return;
+    if (e.deltaMode === 1) dx *= 16; // rotella a righe (Firefox)
+    if (!alBordo(dx > 0)) return;    // il contenuto scorre ancora da solo
+    e.preventDefault();
+    accRuota += dx;
+    const g = Math.trunc(accRuota / DAY_W);
+    if (g) { accRuota -= g * DAY_W; scorriGiorni(g); }
+  }, { passive: false });
+  let ultimoX = null, ultimoY = null, accTocco = 0, orizzontale = null;
+  box.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { ultimoX = null; return; }
+    ultimoX = e.touches[0].clientX; ultimoY = e.touches[0].clientY; accTocco = 0; orizzontale = null;
+  }, { passive: true });
+  box.addEventListener('touchmove', (e) => {
+    if (ultimoX === null || e.touches.length !== 1) return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    const d = x - ultimoX;
+    if (orizzontale === null && (Math.abs(d) > 6 || Math.abs(y - ultimoY) > 6)) orizzontale = Math.abs(d) > Math.abs(y - ultimoY);
+    ultimoX = x;
+    if (!orizzontale || !d) return;
+    if (!alBordo(d < 0)) return; // dito verso sinistra = date in avanti
+    e.preventDefault();
+    accTocco -= d;
+    const g = Math.trunc(accTocco / DAY_W);
+    if (g) { accTocco -= g * DAY_W; scorriGiorni(g); }
+  }, { passive: false });
+})();
 // Click sull'etichetta del periodo (ora un selettore data nativo invisibile
 // sovrapposto): salta direttamente a qualunque data invece di scorrere a
 // settimane con le frecce.
