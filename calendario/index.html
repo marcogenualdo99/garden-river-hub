@@ -4668,7 +4668,6 @@ function verificaContoConHub(r, jsonRiga) {
     const suggerisci = (k, diff) => {
       if (k === 'retta') {
         if (posto && [1, 2].some(q => Math.abs(diff - posto * notti * q) <= tol)) return `probabile posto aggiuntivo (€ ${_numIt(posto)}/notte), non previsto nel preventivo Hub`;
-        if (/divano/i.test(String(jsonRiga.preparazione || '')) && Math.abs(diff - 15 * settimane) <= tol) return 'probabile divano letto (+€ 15/settimana nel pacchetto, ipotesi da confermare)';
       }
       if (k === 'alloggio' && diff > tol) return 'residuo probabile: extra non separabili nell\'addebito libero (es. noleggio bici)';
       return '';
