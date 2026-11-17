@@ -261,6 +261,7 @@
 .servizi-sub-divider { border-top: 1.5px solid var(--gray-200); margin: 16px -18px 0; padding: 16px 18px 0; }
 .conto-ripristina-btn { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; border: 2px solid var(--white); border-radius: 50%; background: var(--red-bg); color: var(--red); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .conto-ripristina-btn:hover { background: var(--red); color: #fff; }
+.conto-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .conto-fiscalizza-btn { height: 26px; padding: 0 12px; border: none; border-radius: 14px; background: var(--green-700); color: #fff; font-size: 11px; font-weight: 800; text-transform: none; letter-spacing: 0; cursor: pointer; font-family: var(--font); }
 .conto-fiscalizza-btn:hover { opacity: .9; }
 .conto-row-add { cursor: pointer; color: var(--gray-400); }
@@ -1082,9 +1083,8 @@
       </div>
 
       <div class="pren-panel" data-panel="conto">
-        <label class="f-label">Conto</label>
+        <div class="conto-head"><label class="f-label" style="margin:0">Conto</label><button type="button" class="stato-btn" id="btn-aggiorna-preventivo" onclick="aggiornaPreventivoDaListino()" title="Ricalcola le voci del listino con le tariffe Hub attuali, senza toccare caparre e tassa di soggiorno">Aggiorna preventivo</button></div>
         <div class="prev-box" id="conto-box">
-          <button type="button" class="conto-ripristina-btn" onclick="ricaricaContoDaPreventivo()" title="Riparti dal preventivo: cancella tutte le voci del conto e le sostituisce con quelle attuali calcolate dal listino">&#8635;</button>
           <div id="conto-list-inline"></div>
           <div class="conto-row-inline conto-row-add" onclick="aggiungiVoceConto()">
             <span class="conto-add-icon">+</span>
@@ -6276,6 +6276,36 @@ async function ricaricaContoDaPreventivo() {
   renderContoInline();
   aggiornaRiepilogoPrenotazione();
   scheduleAutosave();
+}
+// Ricalcola le voci del listino con le tariffe Hub attuali. Restano sempre le
+// caparre/acconti incassati e la tassa di soggiorno; le voci aggiunte a mano
+// restano tranne che su un conto importato da Scidoo/MrPreno, che viene
+// sostituito per intero dal preventivo Hub (conferma esplicita).
+async function aggiornaPreventivoDaListino() {
+  const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
+  if (!risultato.disponibile) { showToast(risultato.motivo || 'Preventivo non disponibile'); return; }
+  if (contoCorrente.some(r => r.fiscalizzato && !(r.label || '').startsWith('Tassa di soggiorno'))) {
+    showToast('Il conto ha voci già fiscalizzate: non si può ricalcolare dal preventivo');
+    return;
+  }
+  const importato = contoDaAgenzia();
+  const ok = await confermaAsync('Aggiornare il preventivo?', importato
+    ? 'Il conto importato (Scidoo/MrPreno) viene sostituito dalle voci del listino Hub attuale. Restano le caparre incassate e la tassa di soggiorno.'
+    : 'Le voci del listino (alloggio, persone, animali, pacchetto, kit, spiaggia) vengono ricalcolate con le tariffe attuali. Restano caparre, tassa di soggiorno e le voci aggiunte a mano.');
+  if (!ok) return;
+  const pagatoPerLabel = {};
+  contoCorrente.forEach(r => { if (!r.acconto) pagatoPerLabel[r.label] = r.pagato; });
+  const acconti = contoCorrente.filter(r => r.acconto);
+  const tassa = contoCorrente.filter(r => !r.acconto && (r.label || '').startsWith('Tassa di soggiorno'));
+  const esterne = importato ? [] : contoCorrente.filter(r => !r.acconto && !tassa.includes(r) && !PREFISSI_RIGHE_LISTINO.some(pre => r.label.startsWith(pre)));
+  const nuove = risultato.righe.map(r => ({ label: r.label, importo: Math.round(r.importo * 100) / 100, pagato: !!pagatoPerLabel[r.label] }));
+  contoCorrente = [...nuove, ...esterne, ...tassa, ...acconti];
+  contoModificatoManualmente = importato; // un conto importato resta staccato dal ricalcolo automatico
+  aggiornaVociContoConosciute(contoCorrente);
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  scheduleAutosave();
+  showToast('Preventivo aggiornato con le tariffe Hub');
 }
 function raccogliConto() {
   return { righe: contoCorrente, totale: calcolaSaldoConto(contoCorrente).totale };
