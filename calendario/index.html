@@ -4993,11 +4993,30 @@ async function righeDaPdf(file) {
   const righe = [];
   for (let p = 1; p <= pdf.numPages; p++) {
     const content = await (await pdf.getPage(p)).getTextContent();
+    // pdf.js a volte restituisce un pezzo per lettera (testo in grassetto o con
+    // spaziatura): si riuniscono i pezzi guardando lo spazio reale tra uno e
+    // l'altro, altrimenti "Blue House" diventa "B l u e H o u s e".
     const items = content.items.filter(it => String(it.str).trim())
-      .map(it => ({ s: it.str, x: it.transform[4], y: it.transform[5] }))
+      .map(it => ({ s: it.str, x: it.transform[4], y: it.transform[5], w: it.width || 0, h: Math.abs(it.height || it.transform[3] || 10) }))
       .sort((a, b) => (b.y - a.y) || (a.x - b.x));
     let riga = [], yRif = null;
-    const chiudi = () => { if (riga.length) righe.push(riga.sort((a, b) => a.x - b.x).map(i => i.s.trim()).join(' ')); riga = []; };
+    const chiudi = () => {
+      if (riga.length) {
+        riga.sort((a, b) => a.x - b.x);
+        let t = '';
+        riga.forEach((it, i) => {
+          if (i > 0) {
+            const prev = riga[i - 1];
+            const gap = it.x - (prev.x + prev.w);
+            const attaccato = prev.w > 0 && gap < prev.h * 0.2 && !/\s$/.test(prev.s) && !/^\s/.test(it.s);
+            if (!attaccato) t += ' ';
+          }
+          t += it.s.trim();
+        });
+        righe.push(t);
+      }
+      riga = [];
+    };
     items.forEach(it => {
       if (yRif !== null && Math.abs(it.y - yRif) > 3) chiudi();
       if (!riga.length) yRif = it.y;
