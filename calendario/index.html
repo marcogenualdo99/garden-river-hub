@@ -4837,8 +4837,7 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
       if (ded) { risultato.trattamento = ded.trattamento; risultato.trattamentoDedotto = ded; }
     }
     if (risultato.righeConto) {
-      risultato.verifica = verificaContoConHub(risultato, jsonRiga);
-      if (risultato.verifica.eseguita && !risultato.verifica.ok) risultato.note.push({ categoria: 'Generali', testo: 'Import Scidoo - ' + risultato.verifica.msg });
+      risultato.verifica = verificaContoConHub(risultato, jsonRiga); // solo in anteprima, non nelle note
     }
     if (!risultato.righeConto) risultato.erroreMsg = 'Le voci del conto non quadrano col totale: importato come riga unica';
     else {
@@ -5207,8 +5206,7 @@ function elaboraRigaImportazioneMrPreno(row, riservatePerCategoria) {
     else note.push({ categoria: 'Generali', testo: `Caparra richiesta da MrPreno: € ${_numIt(q.caparra)} (stato "${q.stato || 'n/d'}", non ancora incassata)` });
   }
   if (risultato.righeConto && q.sistemazioni <= 1) {
-    risultato.verifica = verificaPreventivoMrPreno(risultato, q);
-    if (risultato.verifica.eseguita && !risultato.verifica.ok) note.push({ categoria: 'Generali', testo: 'Import MrPreno - ' + risultato.verifica.msg });
+    risultato.verifica = verificaPreventivoMrPreno(risultato, q); // solo in anteprima, non nelle note
   }
   risultato.note = note;
   const info = [`Stato MrPreno: ${q.stato || 'n/d'}`, ...avvisi];
