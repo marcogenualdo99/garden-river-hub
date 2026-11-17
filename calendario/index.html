@@ -4644,6 +4644,35 @@ function verificaContoConHub(r, jsonRiga) {
     return { eseguita: true, ok: !diffs.length, diffs, msg };
   } catch (e) { return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + e.message }; }
 }
+// Senza CSV il JSON non dice la pensione: si prova no/MP/PC e si sceglie quella
+// il cui totale retta (pacchetto + persone) col listino Hub è più vicino al
+// totale retta di Scidoo. ok=false se nessuna è entro l'arrotondamento.
+function deduciTrattamentoDaJson(r, jsonRiga) {
+  try {
+    const categoria = mappaCategoriaAgenzia(r.tipoAlloggio);
+    if (!categoria || categoria === 'piazzole') return null;
+    const notti = Math.max(1, diffDays(r.checkin, r.checkout));
+    const rettaScidoo = Number(jsonRiga.totale_rette) || 0;
+    let migliore = null;
+    // La fascia "2-5" di Scidoo può valere 3-4 o 5-9 nel listino Hub (un bambino di
+    // 5 anni paga 5-9): si provano entrambe le letture e si tiene la più vicina.
+    for (const t of ['no', 'MP', 'PC']) {
+      for (const comeB59 of [false, true]) {
+        const b = r.bambiniFasce;
+        const prev = calcolaPreventivo({
+          categoria, checkin: r.checkin, checkout: r.checkout, adulti: r.adulti,
+          b0_2: b.b0_2, b3_4: comeB59 ? 0 : b.b3_4, b5_9: b.b5_9 + (comeB59 ? b.b3_4 : 0), b10_17: b.b10_17,
+          animali: false, trattamento: t, spiaggia: false, pacchettoServizi: !!r.pacchettoServizi, kitBagno: 0, kitSingolo: 0, kitMatrimoniale: 0,
+        });
+        if (!prev.disponibile) return null;
+        const retta = prev.righe.filter(x => /^(Adulti|Ragazzi 10-17|Bambini [0-9-]+) ×|^Pacchetto/.test(x.label)).reduce((t2, x) => t2 + x.importo, 0);
+        const diff = Math.abs(retta - rettaScidoo);
+        if (!migliore || diff < migliore.diff - 0.001) migliore = { trattamento: t, diff };
+      }
+    }
+    return migliore ? { trattamento: migliore.trattamento, ok: migliore.diff <= 2 + 0.2 * notti } : null;
+  } catch (e) { return null; }
+}
 // Righe del conto dal JSON: retta + addebiti (sconto incluso) + incassi
 // registrati come "acconto". Se le voci non quadrano col totale della
 // prenotazione si torna alla riga unica (restituisce null).
@@ -4758,6 +4787,13 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
       const scad = String((jsonRiga.depositi[0] || {}).data_scadenza || '');
       risultato.note.push({ categoria: 'Generali', testo: `Caparra richiesta da Scidoo: € ${_numIt(richiesto)}${scad ? ' entro il ' + fmtDataIt(scad) : ''} (non ancora incassata)` });
     }
+    if (row.__soloJson) {
+      // Senza CSV la "retta" del JSON è solo "Pacchetto Servizi" / "Pernottamento":
+      // il pacchetto si riconosce dal nome, la pensione si deduce dal totale retta.
+      risultato.pacchettoServizi = /pacchetto servizi/i.test(String(jsonRiga.retta || ''));
+      const ded = deduciTrattamentoDaJson(risultato, jsonRiga);
+      if (ded) { risultato.trattamento = ded.trattamento; risultato.trattamentoDedotto = ded; }
+    }
     if (risultato.righeConto) {
       risultato.verifica = verificaContoConHub(risultato, jsonRiga);
       if (risultato.verifica.eseguita && !risultato.verifica.ok) risultato.note.push({ categoria: 'Generali', testo: 'Import Scidoo - ' + risultato.verifica.msg });
@@ -4769,7 +4805,12 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
         ? `Animali: ${stimata.nAnimali} dedotti dal prezzo alloggio (€ ${_numIt(stimata.importo)})`
         : `Animali: € ${_numIt(stimata.importo)} assumendo 1 animale, da verificare`;
     }
-    if (risultato.righeConto && row.__soloJson) risultato.erroreMsg = (risultato.erroreMsg ? risultato.erroreMsg + ' · ' : '') + 'Manca il CSV: pensione/tariffa e provenienza da controllare';
+    if (risultato.righeConto && row.__soloJson) {
+      const d = risultato.trattamentoDedotto;
+      const nomeT = { no: 'solo pernottamento', MP: 'mezza pensione', PC: 'pensione completa' };
+      risultato.erroreMsg = (risultato.erroreMsg ? risultato.erroreMsg + ' · ' : '') +
+        `Solo JSON: ${d ? 'trattamento dedotto dal totale retta (' + nomeT[d.trattamento] + (d.ok ? '' : ', da verificare') + ')' : 'trattamento non deducibile'}, provenienza non disponibile`;
+    }
   }
   if (!agenziaId || !cliente || !checkin || !checkout || checkout <= checkin) {
     risultato.stato = 'errore';
@@ -4988,6 +5029,49 @@ function costruisciDatiImportRiga(r) {
   };
   return { idDoc: `agenzia_${r.agenziaId}`, data };
 }
+// Prenotazioni già importate col vecchio import (CSV: conto = una sola riga
+// "Soggiorno (agenzia)"): si può sostituire quella riga con le voci di Scidoo,
+// lasciando intatte le altre righe (tassa di soggiorno, voci manuali, bici...).
+// Non si tocca nulla se la riga unica è già fiscalizzata.
+function contoAggiornabileDaImport(r) {
+  if (!r || !r.righeConto || !r.righeConto.length) return null;
+  const p = trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
+  if (!p || !p.conto || !Array.isArray(p.conto.righe)) return null;
+  const vecchia = p.conto.righe.find(x => x.label === 'Soggiorno (agenzia)');
+  if (!vecchia || vecchia.fiscalizzato) return null;
+  return { p, vecchia };
+}
+function righeContoAggiornate(r, p, vecchia) {
+  const nuove = righeContoImport(r);
+  if (vecchia.pagato) nuove.forEach(x => { if (!x.acconto) x.pagato = true; });
+  const mantenute = p.conto.righe.filter(x => x !== vecchia && x.label !== 'Caparra agenzia');
+  return [...nuove, ...mantenute];
+}
+function chiediAggiornaContiImportati() {
+  const daAggiornare = _importRighe.filter(r => r.stato === 'esistente' && contoAggiornabileDaImport(r));
+  if (!daAggiornare.length) return;
+  apriModaleConferma(
+    `Aggiornare il conto di ${daAggiornare.length} prenotazioni?`,
+    `La riga unica "Soggiorno (agenzia)" di queste prenotazioni viene sostituita dalle voci di Scidoo (retta, addebiti, sconto, animali, caparre). Le altre righe del conto (tassa di soggiorno, voci manuali) restano.<br><br>${daAggiornare.map(r => esc(r.cliente)).join(', ')}`,
+    aggiornaContiImportati, 'Aggiorna i conti', false
+  );
+}
+async function aggiornaContiImportati() {
+  const { db, doc, updateDoc } = window._fb;
+  let ok = 0, falliti = 0;
+  for (const r of _importRighe.filter(x => x.stato === 'esistente')) {
+    const c = contoAggiornabileDaImport(r);
+    if (!c) continue;
+    try {
+      const righe = righeContoAggiornate(r, c.p, c.vecchia);
+      await updateDoc(doc(db, 'prenotazioni', c.p.id), { conto: { righe, totale: calcolaSaldoConto(righe).totale }, updatedAt: new Date().toISOString() });
+      r.stato = 'aggiornata';
+      ok++;
+    } catch (e) { console.error('Errore aggiornamento conto importato:', r, e); falliti++; }
+  }
+  showToast(`Conti aggiornati: ${ok}${falliti ? `, ${falliti} falliti` : ''}`);
+  renderRisultatiImportazione();
+}
 function toggleSelezioneImport(i, checked) {
   if (_importRighe[i]) _importRighe[i].selezionata = checked;
   aggiornaContatoreImportSelezionati();
@@ -5008,18 +5092,25 @@ function renderRisultatiImportazione() {
   const daAssegnare = _importRighe.filter(r => r.stato === 'da_assegnare');
   const esistenti = _importRighe.filter(r => r.stato === 'esistente');
   const errori = _importRighe.filter(r => r.stato === 'errore');
-  const summaryHtml = `<div class="import-summary">
+  const aggiornabili = esistenti.filter(r => contoAggiornabileDaImport(r));
+  const aggiornate = _importRighe.filter(r => r.stato === 'aggiornata');
+  const aggiornaHtml = aggiornabili.length
+    ? `<div style="margin:-6px 0 12px"><button type="button" class="listino-save-btn" onclick="chiediAggiornaContiImportati()">Aggiorna il conto di ${aggiornabili.length} prenotazion${aggiornabili.length === 1 ? 'e già presente' : 'i già presenti'} (riga unica → voci di Scidoo)</button></div>`
+    : '';
+  const summaryHtml = aggiornaHtml + `<div class="import-summary">
     <span style="color:var(--green-700)">● ${nuove.length} nuove</span>
     <span style="color:var(--terracotta-2)">● ${daAssegnare.length} da assegnare a mano</span>
     <span style="color:var(--gray-500)">● ${esistenti.length} già presenti (saltate)</span>
+    ${aggiornate.length ? `<span style="color:var(--green-700)">● ${aggiornate.length} conti aggiornati</span>` : ''}
     ${errori.length ? `<span style="color:var(--red)">● ${errori.length} con errori (saltate)</span>` : ''}
   </div>
   <p class="section-hint" style="margin-top:-4px">Usa le spunte per escludere una riga dall'importazione in blocco, oppure clicca sull'anagrafica per aprirla già compilata e completarla a mano prima di salvarla.</p>`;
-  const statoLabel = { nuova: 'Nuova', da_assegnare: 'Da assegnare', esistente: 'Già presente', errore: 'Errore' };
+  const statoLabel = { nuova: 'Nuova', da_assegnare: 'Da assegnare', esistente: 'Già presente', aggiornata: 'Conto aggiornato', errore: 'Errore' };
   const statoColore = {
     nuova: ['var(--green-bg)', 'var(--green-700)'],
     da_assegnare: ['#FEF3C7', 'var(--terracotta-2)'],
     esistente: ['var(--gray-100)', 'var(--gray-500)'],
+    aggiornata: ['var(--green-bg)', 'var(--green-700)'],
     errore: ['var(--red-bg)', 'var(--red)'],
   };
   const righeHtml = _importRighe.map((r, i) => {
@@ -5027,7 +5118,8 @@ function renderRisultatiImportazione() {
     if (r.checkin && r.checkout) metaParts.push(`${esc(fmtDataIt(r.checkin))} → ${esc(fmtDataIt(r.checkout))}`);
     metaParts.push(esc(r.alloggioNome || r.tipoAlloggio || ''));
     if (r.erroreMsg) metaParts.push(esc(r.erroreMsg));
-    if (r.verifica && (r.stato === 'nuova' || r.stato === 'da_assegnare')) {
+    if (r.stato === 'esistente' && contoAggiornabileDaImport(r)) metaParts.push('<span style="font-weight:700">Conto ancora a riga unica: aggiornabile</span>');
+    if (r.verifica && (r.stato === 'nuova' || r.stato === 'da_assegnare' || r.stato === 'esistente' || r.stato === 'aggiornata')) {
       const col = !r.verifica.eseguita ? 'var(--gray-500)' : r.verifica.ok ? 'var(--green-700)' : 'var(--red)';
       metaParts.push(`<span style="color:${col};font-weight:700">${esc(r.verifica.msg)}</span>`);
     }
@@ -5064,7 +5156,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   const r = _importRighe[idx];
   if (!r || r.stato === 'errore') return;
   document.getElementById('import-modal-overlay').classList.add('hidden');
-  if (r.stato === 'esistente') {
+  if (r.stato === 'esistente' || r.stato === 'aggiornata') {
     const esistente = trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
     if (!esistente) { document.getElementById('import-modal-overlay').classList.remove('hidden'); return; }
     _importReviewActive = true;
