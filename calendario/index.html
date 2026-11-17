@@ -5568,11 +5568,23 @@ function contoAggiornabileDaImport(r) {
   const p = trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
   if (!p || !p.conto || !Array.isArray(p.conto.righe)) return null;
   const vecchia = p.conto.righe.find(x => x.label === 'Soggiorno (agenzia)');
-  if (!vecchia || vecchia.fiscalizzato) return null;
-  return { p, vecchia };
+  if (vecchia) return vecchia.fiscalizzato ? null : { p, vecchia };
+  // conto Scidoo rovinato dal vecchio bug (voci del listino Hub sommate a quelle importate)
+  const righe = p.conto.righe;
+  const doppio = !/^bk\//.test(String(p.agenzia_id || '')) &&
+    righe.some(x => x.label.startsWith('Alloggio ·')) &&
+    righe.some(x => x.manuale && !x.acconto && !PREFISSI_RIGHE_LISTINO.some(pre => x.label.startsWith(pre)));
+  if (!doppio || righe.some(x => x.fiscalizzato)) return null;
+  return { p, vecchia: null, doppio: true };
 }
 function righeContoAggiornate(r, p, vecchia) {
   const nuove = righeContoImport(r);
+  if (!vecchia) {
+    // ripristino: via le voci del listino Hub e quelle già presenti nell'import; restano tassa di soggiorno e voci esterne
+    const etichette = new Set(nuove.map(x => x.label));
+    const mantenute = p.conto.righe.filter(x => !PREFISSI_RIGHE_LISTINO.some(pre => x.label.startsWith(pre)) && !etichette.has(x.label) && !x.acconto && !x.manuale);
+    return [...nuove, ...mantenute];
+  }
   if (vecchia.pagato) nuove.forEach(x => { if (!x.acconto) x.pagato = true; });
   const mantenute = p.conto.righe.filter(x => x !== vecchia && x.label !== 'Caparra agenzia');
   return [...nuove, ...mantenute];
@@ -5625,7 +5637,7 @@ function renderRisultatiImportazione() {
   const aggiornabili = esistenti.filter(r => contoAggiornabileDaImport(r));
   const aggiornate = _importRighe.filter(r => r.stato === 'aggiornata');
   const aggiornaHtml = aggiornabili.length
-    ? `<div style="margin:-6px 0 12px"><button type="button" class="listino-save-btn" onclick="chiediAggiornaContiImportati()">Aggiorna il conto di ${aggiornabili.length} prenotazion${aggiornabili.length === 1 ? 'e già presente' : 'i già presenti'} (riga unica → voci di Scidoo)</button></div>`
+    ? `<div style="margin:-6px 0 12px"><button type="button" class="listino-save-btn" onclick="chiediAggiornaContiImportati()">Aggiorna il conto di ${aggiornabili.length} prenotazion${aggiornabili.length === 1 ? 'e già presente' : 'i già presenti'} (riga unica o voci doppie → voci di Scidoo)</button></div>`
     : '';
   const summaryHtml = aggiornaHtml + `<div class="import-summary">
     <span style="color:var(--green-700)">● ${nuove.length} nuove</span>
@@ -5648,7 +5660,7 @@ function renderRisultatiImportazione() {
     if (r.checkin && r.checkout) metaParts.push(`${esc(fmtDataIt(r.checkin))} → ${esc(fmtDataIt(r.checkout))}`);
     metaParts.push(esc(r.alloggioNome || r.tipoAlloggio || ''));
     if (r.erroreMsg) metaParts.push(esc(r.erroreMsg));
-    if (r.stato === 'esistente' && contoAggiornabileDaImport(r)) metaParts.push('<span style="font-weight:700">Conto ancora a riga unica: aggiornabile</span>');
+    if (r.stato === 'esistente' && contoAggiornabileDaImport(r)) metaParts.push(`<span style="font-weight:700">${contoAggiornabileDaImport(r).doppio ? 'Conto con voci doppie: ripristinabile' : 'Conto ancora a riga unica: aggiornabile'}</span>`);
     if (r.verifica && (r.stato === 'nuova' || r.stato === 'da_assegnare' || r.stato === 'esistente' || r.stato === 'aggiornata')) {
       const col = !r.verifica.eseguita ? 'var(--gray-500)' : r.verifica.ok ? 'var(--green-700)' : 'var(--red)';
       metaParts.push(`<span style="color:${col};font-weight:700">${esc(r.verifica.msg)}</span>`);
@@ -5913,7 +5925,13 @@ function impostaConto(conto) {
   impostaVociContoConosciute(contoCorrente);
 }
 function contoDaAgenzia() {
-  return contoCorrente.some(r => r.label === 'Soggiorno (agenzia)' || r.label === 'Caparra agenzia');
+  if (contoCorrente.some(r => r.label === 'Soggiorno (agenzia)' || r.label === 'Caparra agenzia')) return true;
+  // Conto importato da Scidoo/MrPreno con le voci vere (retta, addebiti, sconto, caparre):
+  // ha già il totale concordato, riaprirlo non deve riagganciarlo al listino Hub
+  // (era il bug: le voci Alloggio/Adulti/Pacchetto del listino si sommavano a quelle importate).
+  if (!contoCorrente.length) return false;
+  const p = editingId ? prenotazioni.find(x => x.id === editingId) : null;
+  return !!((p && p.agenzia_id) || _importAgenziaIdCorrente);
 }
 // Quante volte abbiamo già "visto e incorporato" ogni etichetta del conto,
 // da quando la scheda è aperta — cresce solo quando arriva davvero una voce
