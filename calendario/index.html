@@ -149,6 +149,8 @@
 .cal-bar.st-checkin     { background: var(--blue); }
 .cal-bar.st-checkin-web { background: var(--green-ok); }
 .cal-bar.st-andata      { background: var(--gray-400); }
+.cal-bar.st-ricevuta    { background: var(--gray-300); color: var(--gray-700); }
+.cal-bar.st-checkin-completato { background: #0F8B8D; }
 .cal-flag { display: inline-flex; align-items: center; justify-content: center; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 4px; background: rgba(255,255,255,0.28); font-size: 8.5px; font-weight: 800; margin-right: 3px; }
 
 /* Anteprima al passaggio del mouse su una barra del calendario: compare solo
@@ -206,7 +208,20 @@
 .stato-badge.st-checkin     { background: var(--blue); }
 .stato-badge.st-checkin-web { background: var(--green-ok); }
 .stato-badge.st-andata      { background: var(--gray-400); }
-.stato-box-btns { display: flex; gap: 8px; }
+.stato-badge.st-ricevuta    { background: var(--gray-300); color: var(--gray-700); }
+.stato-badge.st-checkin-completato { background: #0F8B8D; }
+.stato-box { flex-direction: column; align-items: stretch; }
+.stato-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.stato-step { flex: 1 1 110px; min-width: 0; text-align: center; padding: 8px 6px; border-radius: 10px; font-size: 11.5px; font-weight: 700; background: var(--white); border: 1.5px solid var(--gray-200); color: var(--gray-400); }
+.stato-step.done { color: var(--green-ok); border-color: var(--green-bd, var(--gray-200)); background: var(--green-bg); }
+.stato-step.on { color: #fff; border-color: transparent; font-size: 13px; font-weight: 800; padding: 10px 6px; }
+.stato-step.on.st-confermata { background: var(--terracotta-2); color: #4A3208; }
+.stato-step.on.st-checkin { background: var(--blue); }
+.stato-step.on.st-checkin-web { background: var(--green-ok); }
+.stato-step.on.st-andata { background: var(--gray-400); }
+.stato-step.on.st-ricevuta { background: var(--gray-300); color: var(--gray-700); }
+.stato-step.on.st-checkin-completato { background: #0F8B8D; }
+.stato-box-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .stato-btn { height: 32px; padding: 0 12px; border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 20px; font-size: 11.5px; font-weight: 700; color: var(--gray-700); cursor: pointer; font-family: var(--font); white-space: nowrap; }
 .stato-btn:hover { border-color: var(--green-400); color: var(--green-700); }
 .stato-btn.on { background: var(--green-bg); border-color: var(--green-ok); color: var(--green-ok); }
@@ -760,10 +775,12 @@
   </div>
   <div class="cal-import-banner hidden" id="cal-import-banner" onclick="apriElencoNonAssegnate()"></div>
   <div class="cal-legend">
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-300)"></span>Ricevuta</div>
     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--terracotta-2)"></span>Confermata</div>
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--blue)"></span>Check-in fatto · Alloggiati Web da inviare</div>
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-ok)"></span>Check-in + Alloggiati Web inviato</div>
-    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-400)"></span>Andata via</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#0F8B8D"></span>Check-in completato</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--blue)"></span>Cliente in struttura · Alloggiati Web da inviare</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--green-ok)"></span>Cliente in struttura · Alloggiati Web inviato</div>
+    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:var(--gray-400)"></span>Partito</div>
     <div class="cal-legend-item">B = biancheria · C = bici · S = spiaggia · A = animali</div>
   </div>
   <div class="cal-scroll" id="cal-scroll">
@@ -868,10 +885,12 @@
     </div>
 
     <div class="stato-box hidden" id="stato-prenotazione-box">
-      <span class="stato-badge" id="stato-badge">Confermata</span>
+      <div class="stato-steps" id="stato-steps"></div>
+      <span class="stato-badge hidden" id="stato-badge">Confermata</span>
       <div class="stato-box-btns">
-        <button type="button" class="stato-btn" id="btn-checkin" onclick="toggleCheckin()">Segna check-in</button>
-        <button type="button" class="stato-btn" id="btn-checkout" onclick="toggleCheckout()">Segna check-out</button>
+        <button type="button" class="stato-btn" id="btn-conferma" onclick="toggleConferma()">Segna confermata</button>
+        <button type="button" class="stato-btn" id="btn-checkin" onclick="toggleCheckin()">Segna cliente in struttura</button>
+        <button type="button" class="stato-btn" id="btn-checkout" onclick="toggleCheckout()">Segna partito</button>
       </div>
     </div>
 
@@ -2544,18 +2563,36 @@ function descrizioneKit(p) {
 // Check-in e check-out sono azioni manuali dello staff (v. toggleCheckin/
 // toggleCheckout), non scattano da sole in base alle date: riflettono quando
 // l'ospite è arrivato/partito davvero, non quando era previsto.
+// Cinque stati in sequenza: Ricevuta → Confermata → Check-in completato →
+// Cliente in struttura → Partito. "Ricevuta" è l'unico impostato a mano
+// (p.confermata === false, es. prenotazione MrPreno in attesa di pagamento);
+// le prenotazioni senza il campo contano come Confermate. "Check-in completato"
+// = l'ospite ha compilato il check-in online; "Cliente in struttura" e "Partito"
+// sono le azioni dello staff (arrivo / partenza), e passano anche all'alloggio
+// (Occupata / Da pulire) così le pulizie lo vedono (v. sincronizzaAlloggioConStato).
+const STATI_PRENOTAZIONE_STEP = ['Ricevuta', 'Confermata', 'Check-in completato', 'Cliente in struttura', 'Partito'];
 function statoPrenotazione(p) {
-  if (p.checkout_fatto) return { cls: 'st-andata', label: 'Andata via' };
+  if (p.checkout_fatto) return { step: 4, cls: 'st-andata', label: 'Partito' };
   if (p.checkin_fatto) {
     const webInviato = !!(p.alloggiati_web && p.alloggiati_web.stato === 'simulato');
     return webInviato
-      ? { cls: 'st-checkin-web', label: 'Check-in · Alloggiati Web inviato' }
-      : { cls: 'st-checkin',     label: 'Check-in · Alloggiati Web da inviare' };
+      ? { step: 3, cls: 'st-checkin-web', label: 'Cliente in struttura · Alloggiati Web inviato' }
+      : { step: 3, cls: 'st-checkin',     label: 'Cliente in struttura · Alloggiati Web da inviare' };
   }
   if (p.checkin_online && p.checkin_online.stato === 'ricevuto') {
-    return { cls: 'st-confermata', label: 'Confermata · check-in online ricevuto' };
+    return { step: 2, cls: 'st-checkin-completato', label: 'Check-in completato · check-in online ricevuto' };
   }
-  return { cls: 'st-confermata', label: 'Confermata' };
+  if (p.confermata === false) return { step: 0, cls: 'st-ricevuta', label: 'Ricevuta' };
+  return { step: 1, cls: 'st-confermata', label: 'Confermata' };
+}
+// Il cliente in struttura segna l'alloggio "Occupata" (visibile a Pulizie e
+// modulo Alloggi); annullando l'arrivo torna "Pronta" solo se era "Occupata".
+function sincronizzaAlloggioConStato(p, inStruttura) {
+  if (!p || !p.alloggio_id) return;
+  const a = alloggiList.find(x => x.id === p.alloggio_id);
+  if (!a) return;
+  if (inStruttura) impostaStatoAlloggioDaCalendario(p.alloggio_id, 'occupata');
+  else if (a.stato === 'occupata') impostaStatoAlloggioDaCalendario(p.alloggio_id, 'pronta');
 }
 
 // Dati ospiti/alloggiati incompleti: mancano ospiti censiti rispetto alle
@@ -3612,11 +3649,19 @@ function renderStatoBox() {
   badge.className = 'stato-badge ' + stato.cls;
   const btnCheckin  = document.getElementById('btn-checkin');
   const btnCheckout = document.getElementById('btn-checkout');
-  btnCheckin.textContent  = p.checkin_fatto  ? 'Annulla check-in'  : 'Segna check-in';
-  btnCheckout.textContent = p.checkout_fatto ? 'Annulla check-out' : 'Segna check-out';
+  btnCheckin.textContent  = p.checkin_fatto  ? 'Annulla cliente in struttura'  : 'Segna cliente in struttura';
+  btnCheckout.textContent = p.checkout_fatto ? 'Annulla partito' : 'Segna partito';
   btnCheckin.classList.toggle('on', !!p.checkin_fatto);
   btnCheckout.classList.toggle('on', !!p.checkout_fatto);
+  // i cinque stati in fila: quelli già superati in verde, quello attuale in evidenza
+  document.getElementById('stato-steps').innerHTML = STATI_PRENOTAZIONE_STEP.map((nome, i) =>
+    `<div class="stato-step ${i < stato.step ? 'done' : i === stato.step ? 'on ' + stato.cls : ''}">${esc(nome)}</div>`).join('');
+  const btnConferma = document.getElementById('btn-conferma');
+  btnConferma.classList.toggle('hidden', stato.step >= 2);
+  btnConferma.textContent = p.confermata === false ? 'Segna confermata' : 'Riporta a ricevuta';
+  btnConferma.classList.toggle('on', p.confermata !== false);
 }
+function toggleConferma() { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('confermata', p.confermata === false); }
 async function impostaStatoPrenotazione(campo, valore) {
   if (!editingId) return;
   const p = prenotazioni.find(x => x.id === editingId);
@@ -3634,7 +3679,13 @@ async function impostaStatoPrenotazione(campo, valore) {
     renderStatoBox();
   }
 }
-function toggleCheckin()  { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('checkin_fatto', !p.checkin_fatto); }
+function toggleCheckin() {
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p) return;
+  const nuovoValore = !p.checkin_fatto;
+  impostaStatoPrenotazione('checkin_fatto', nuovoValore);
+  sincronizzaAlloggioConStato(p, nuovoValore); // le pulizie vedono l'alloggio Occupata
+}
 function toggleCheckout() {
   const p = prenotazioni.find(x => x.id === editingId);
   if (!p) return;
@@ -5214,6 +5265,7 @@ function elaboraRigaImportazioneMrPreno(row, riservatePerCategoria) {
     totale: q.totale || 0, caparra: 0,
   };
   const attesa = /attesa/i.test(q.stato);
+  risultato.daConfermare = attesa; // MrPreno ancora in attesa: la scheda parte come Ricevuta
   const note = [];
   if (q.nota) note.push({ categoria: 'Generali', testo: q.nota });
   const avvisi = [...q.avvisi];
@@ -5431,6 +5483,7 @@ function costruisciDatiImportRiga(r) {
     conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
     ospiti: [],
     agenzia_id: r.agenziaId,
+    ...(r.daConfermare ? { confermata: false } : {}),
     codice: generaCodice(),
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
@@ -7405,7 +7458,7 @@ async function simulaInvioAlloggiatiWeb() {
       checkin_fatto: true,
     });
     const p = prenotazioni.find(x => x.id === editingId);
-    if (p) { p.checkin_fatto = true; p.alloggiati_web = { stato: 'simulato' }; }
+    if (p) { p.checkin_fatto = true; p.alloggiati_web = { stato: 'simulato' }; sincronizzaAlloggioConStato(p, true); }
     renderStatoBox();
     showToast('Invio simulato e check-in registrato — nessuna chiamata reale effettuata');
     chiudiAnteprimaSchedina();
