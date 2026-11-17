@@ -210,17 +210,29 @@
 .stato-badge.st-andata      { background: var(--gray-400); }
 .stato-badge.st-ricevuta    { background: var(--gray-300); color: var(--gray-700); }
 .stato-badge.st-checkin-completato { background: #0F8B8D; }
-.stato-box { flex-direction: column; align-items: stretch; }
-.stato-steps { display: flex; gap: 6px; flex-wrap: wrap; }
-.stato-step { flex: 1 1 110px; min-width: 0; text-align: center; padding: 8px 6px; border-radius: 10px; font-size: 11.5px; font-weight: 700; background: var(--white); border: 1.5px solid var(--gray-200); color: var(--gray-400); }
-.stato-step.done { color: var(--green-ok); border-color: var(--green-bd, var(--gray-200)); background: var(--green-bg); }
-.stato-step.on { color: #fff; border-color: transparent; font-size: 13px; font-weight: 800; padding: 10px 6px; }
-.stato-step.on.st-confermata { background: var(--terracotta-2); color: #4A3208; }
-.stato-step.on.st-checkin { background: var(--blue); }
-.stato-step.on.st-checkin-web { background: var(--green-ok); }
-.stato-step.on.st-andata { background: var(--gray-400); }
-.stato-step.on.st-ricevuta { background: var(--gray-300); color: var(--gray-700); }
-.stato-step.on.st-checkin-completato { background: #0F8B8D; }
+.stato-box { display: block; padding: 16px 18px 14px; }
+.stato-steps { display: grid; grid-template-columns: repeat(5, 1fr); margin-bottom: 14px; }
+.stato-step { position: relative; text-align: center; padding: 30px 4px 0; font-size: 12px; font-weight: 700; color: var(--gray-400); line-height: 1.25; --stc: var(--green-ok); }
+.stato-step::before { content: ''; position: absolute; top: 0; left: 50%; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: var(--white) center / 13px no-repeat; border: 2px solid var(--gray-300); box-sizing: border-box; z-index: 1; }
+.stato-step::after { content: ''; position: absolute; top: 10px; left: -50%; width: 100%; height: 2px; background: var(--gray-300); }
+.stato-step:first-child::after { display: none; }
+.stato-step.done { color: var(--green-700); }
+.stato-step.done::before { background-color: var(--green-ok); border-color: var(--green-ok); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
+.stato-step.done::after, .stato-step.on::after { background: var(--green-ok); }
+.stato-step.on { color: var(--gray-900); font-weight: 800; }
+.stato-step.on::before { background-color: var(--stc); border-color: var(--stc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--stc) 25%, transparent); }
+.stato-step.on.st-confermata { --stc: var(--terracotta-2); }
+.stato-step.on.st-checkin { --stc: var(--blue); }
+.stato-step.on.st-checkin-web { --stc: var(--green-ok); }
+.stato-step.on.st-andata { --stc: var(--gray-400); }
+.stato-step.on.st-ricevuta { --stc: var(--gray-400); }
+.stato-step.on.st-checkin-completato { --stc: #0F8B8D; }
+.stato-detail { display: block; margin-top: 3px; font-size: 10.5px; font-weight: 600; color: var(--gray-500); }
+.stato-azioni { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--gray-200); padding-top: 12px; }
+.stato-btn.primary { height: 36px; padding: 0 18px; background: var(--green-ok); border-color: var(--green-ok); color: #fff; font-size: 12.5px; }
+.stato-btn.primary:hover { filter: brightness(.93); color: #fff; }
+.stato-btn.ghost { border-color: transparent; background: transparent; color: var(--gray-500); text-decoration: underline; }
+.stato-btn.ghost:hover { color: var(--red); }
 .stato-box-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .stato-btn { height: 32px; padding: 0 12px; border: 1.5px solid var(--gray-300); background: var(--white); border-radius: 20px; font-size: 11.5px; font-weight: 700; color: var(--gray-700); cursor: pointer; font-family: var(--font); white-space: nowrap; }
 .stato-btn:hover { border-color: var(--green-400); color: var(--green-700); }
@@ -279,7 +291,8 @@
 .elenco-table th:hover { color: var(--green-700); }
 .elenco-table tbody tr { cursor: pointer; }
 .elenco-table tbody tr:hover { background: var(--green-bg); }
-.elenco-cols { display: grid; grid-template-columns: 1.6fr 1fr 1.1fr 1.5fr 1.1fr 1.2fr 84px; gap: 16px; align-items: start; }
+.elenco-cols { display: grid; grid-template-columns: minmax(0, 1.5fr) 130px 150px minmax(0, 1.2fr) 150px 130px 84px; gap: 16px; align-items: start; }
+.elenco-cols > * { min-width: 0; }
 .elenco-head { padding: 0 16px 8px; font-size: 11.5px; font-weight: 700; color: var(--gray-500); user-select: none; }
 .elenco-head span { cursor: pointer; }
 .elenco-head span:hover { color: var(--green-700); }
@@ -290,11 +303,11 @@
 .elenco-cod { font-weight: 800; font-size: 14px; color: var(--gray-900); }
 .elenco-chip { display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 20px; background: var(--green-bg); color: var(--green-700); font-size: 11px; font-weight: 700; }
 .elenco-nota { margin-top: 6px; padding: 5px 8px; background: var(--gray-50); border-radius: 6px; font-size: 11.5px; color: var(--gray-700); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.elenco-importo { text-align: right; font-size: 20px; font-weight: 800; color: var(--gray-900); }
-.elenco-importo-sub { text-align: right; font-size: 11.5px; color: var(--gray-700); margin-top: 6px; line-height: 1.5; }
+.elenco-importo { text-align: right; font-size: 20px; font-weight: 800; color: var(--gray-900); white-space: nowrap; }
+.elenco-importo-sub { white-space: nowrap; text-align: right; font-size: 11.5px; color: var(--gray-700); margin-top: 6px; line-height: 1.5; }
 .elenco-vedi { height: 34px; padding: 0 14px; border: 1.5px solid var(--terracotta-2); background: var(--white); color: var(--terracotta-2); border-radius: 6px; font-weight: 800; font-size: 13px; font-family: var(--font); cursor: pointer; }
 .elenco-riga:hover .elenco-vedi { background: var(--terracotta-2); color: #fff; }
-@media (max-width: 900px) { .elenco-cols { grid-template-columns: 1fr; gap: 8px; } .elenco-head { display: none; } .elenco-importo, .elenco-importo-sub { text-align: left; } }
+@media (max-width: 1100px) { .elenco-cols { grid-template-columns: 1fr; gap: 8px; } .elenco-head { display: none; } .elenco-importo, .elenco-importo-sub { text-align: left; } }
 .listino-input { width: 66px; height: 28px; text-align: center; border: 1px solid var(--gray-200); border-radius: 6px; font-family: var(--font); font-size: 12px; color: var(--gray-900); }
 .listino-input:focus { border-color: var(--green-400); outline: none; }
 .listino-extra-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 10px; margin-bottom: 16px; }
@@ -900,11 +913,9 @@
 
     <div class="stato-box hidden" id="stato-prenotazione-box">
       <div class="stato-steps" id="stato-steps"></div>
-      <span class="stato-badge hidden" id="stato-badge">Confermata</span>
-      <div class="stato-box-btns">
-        <button type="button" class="stato-btn" id="btn-conferma" onclick="toggleConferma()">Segna confermata</button>
-        <button type="button" class="stato-btn" id="btn-checkin" onclick="toggleCheckin()">Segna cliente in struttura</button>
-        <button type="button" class="stato-btn" id="btn-checkout" onclick="toggleCheckout()">Segna partito</button>
+      <div class="stato-azioni">
+        <button type="button" class="stato-btn primary" id="stato-avanti" onclick="avanzaStatoPrenotazione()">Conferma prenotazione</button>
+        <button type="button" class="stato-btn ghost" id="stato-indietro" onclick="tornaIndietroStatoPrenotazione()">Annulla</button>
       </div>
     </div>
 
@@ -3689,22 +3700,35 @@ function renderStatoBox() {
   if (!p) { box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   const stato = statoPrenotazione(p);
-  const badge = document.getElementById('stato-badge');
-  badge.textContent = stato.label;
-  badge.className = 'stato-badge ' + stato.cls;
-  const btnCheckin  = document.getElementById('btn-checkin');
-  const btnCheckout = document.getElementById('btn-checkout');
-  btnCheckin.textContent  = p.checkin_fatto  ? 'Annulla cliente in struttura'  : 'Segna cliente in struttura';
-  btnCheckout.textContent = p.checkout_fatto ? 'Annulla partito' : 'Segna partito';
-  btnCheckin.classList.toggle('on', !!p.checkin_fatto);
-  btnCheckout.classList.toggle('on', !!p.checkout_fatto);
-  // i cinque stati in fila: quelli già superati in verde, quello attuale in evidenza
+  const dettaglio = stato.label.split(' · ').slice(1).join(' · ');
+  // i cinque stati in fila: superati con la spunta, quello attuale in evidenza
   document.getElementById('stato-steps').innerHTML = STATI_PRENOTAZIONE_STEP.map((nome, i) =>
-    `<div class="stato-step ${i < stato.step ? 'done' : i === stato.step ? 'on ' + stato.cls : ''}">${esc(nome)}</div>`).join('');
-  const btnConferma = document.getElementById('btn-conferma');
-  btnConferma.classList.toggle('hidden', stato.step >= 2);
-  btnConferma.textContent = p.confermata === false ? 'Segna confermata' : 'Riporta a ricevuta';
-  btnConferma.classList.toggle('on', p.confermata !== false);
+    `<div class="stato-step ${i < stato.step ? 'done' : i === stato.step ? 'on ' + stato.cls : ''}">${esc(nome)}${i === stato.step && dettaglio ? `<span class="stato-detail">${esc(dettaglio)}</span>` : ''}</div>`).join('');
+  // un solo pulsante principale per andare al passo successivo, uno discreto per tornare indietro
+  const avanti = document.getElementById('stato-avanti');
+  const indietro = document.getElementById('stato-indietro');
+  const prossimo = ['Conferma prenotazione', 'Segna cliente in struttura', 'Segna cliente in struttura', 'Segna partito', null][stato.step];
+  avanti.classList.toggle('hidden', !prossimo);
+  if (prossimo) avanti.textContent = prossimo;
+  const precedente = [null, 'Riporta a ricevuta', null, 'Annulla arrivo', 'Annulla partenza'][stato.step];
+  indietro.classList.toggle('hidden', !precedente);
+  if (precedente) indietro.textContent = precedente;
+}
+function avanzaStatoPrenotazione() {
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p) return;
+  const step = statoPrenotazione(p).step;
+  if (step === 0) toggleConferma();
+  else if (step === 1 || step === 2) toggleCheckin();
+  else if (step === 3) toggleCheckout();
+}
+function tornaIndietroStatoPrenotazione() {
+  const p = prenotazioni.find(x => x.id === editingId);
+  if (!p) return;
+  const step = statoPrenotazione(p).step;
+  if (step === 1) toggleConferma();
+  else if (step === 3) toggleCheckin();
+  else if (step === 4) toggleCheckout();
 }
 function toggleConferma() { const p = prenotazioni.find(x => x.id === editingId); if (p) impostaStatoPrenotazione('confermata', p.confermata === false); }
 async function impostaStatoPrenotazione(campo, valore) {
