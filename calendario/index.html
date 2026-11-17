@@ -476,6 +476,10 @@
 .export-doc-sub { font-size: 11.5px; color: var(--gray-500); }
 .import-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 14px; font-size: 12.5px; font-weight: 700; }
 .import-summary span { display: inline-flex; align-items: center; gap: 5px; }
+.import-guida { margin-bottom: 14px; padding: 12px 14px; background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.5; }
+.import-guida-titolo { font-weight: 700; margin-bottom: 6px; }
+.import-guida ol { margin: 0; padding-left: 20px; }
+.import-guida li { margin-bottom: 4px; }
 .import-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--gray-50); border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 12px; }
 .import-row-check { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--green-700); cursor: pointer; }
 .import-row-check-spacer { flex-shrink: 0; width: 16px; }
@@ -1202,11 +1206,12 @@
   <div class="form-modal-box">
   <div class="form-modal-scroll">
     <div class="form-modal-title">Importa arrivi da file agenzia</div>
-    <p class="section-hint">Carica il file .xls/.xlsx che ricevi dall'agenzia: le prenotazioni già presenti (stesso ID prenotazione) vengono riconosciute e saltate automaticamente, quelle nuove ti vengono mostrate qui prima di essere importate — nulla viene scritto finché non confermi.</p>
+    <p class="section-hint">Scegli il canale da cui arrivano le prenotazioni e segui i passaggi: le prenotazioni già presenti vengono riconosciute e saltate automaticamente, quelle nuove ti vengono mostrate qui prima di essere importate — nulla viene scritto finché non confermi.</p>
     <div style="margin-bottom:12px">
-      <label class="f-label">Sorgente</label>
+      <label class="f-label">Canale</label>
       <select class="f-select" id="import-sorgente-select" onchange="cambiaSorgenteImport(this.value)"></select>
     </div>
+    <div id="import-guida" class="import-guida"></div>
     <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv,.json" multiple onchange="analizzaFileImportazione(this)">
     <div id="import-risultati" style="margin-top:16px"></div>
   </div>
@@ -4954,13 +4959,350 @@ function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
   }
   return risultato;
 }
-// Elenco delle sorgenti/agenzie supportate: ognuna ha solo il proprio
-// "elaboraRiga" (formato colonne del file). Per collegarne una nuova basta
-// aggiungere una voce qui — il resto del flusso di importazione (spunte,
-// apertura scheda, conferma in blocco) resta identico e non va toccato.
+// ── IMPORT MRPRENO (PDF della prenotazione, uno per prenotazione) ───────────
+// MrPreno (backoffice Titanka) non esporta elenchi: si scarica un PDF per volta.
+// Il PDF contiene tutto il preventivo (cliente, date, categoria|pensione, voci
+// con quantità e prezzo, sconti, totale, caparra). Il testo si estrae nel
+// browser con pdf.js (caricato solo quando serve) e si ricostruiscono le righe
+// visive; leggiPreventivoMrPreno() è pura (righe di testo → oggetto) così si
+// può provare senza PDF.
+let _pdfjsPromise = null;
+function caricaPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (_pdfjsPromise) return _pdfjsPromise;
+  const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  _pdfjsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = base + 'pdf.min.js';
+    s.onload = async () => {
+      try {
+        // il worker va servito dalla stessa origine: lo scarichiamo e lo passiamo come blob
+        const codice = await (await fetch(base + 'pdf.worker.min.js')).text();
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([codice], { type: 'text/javascript' }));
+        resolve(window.pdfjsLib);
+      } catch (e) { reject(e); }
+    };
+    s.onerror = () => reject(new Error('lettore PDF non caricato (serve la connessione internet)'));
+    document.head.appendChild(s);
+  });
+  _pdfjsPromise.catch(() => { _pdfjsPromise = null; });
+  return _pdfjsPromise;
+}
+async function righeDaPdf(file) {
+  const pdfjs = await caricaPdfJs();
+  const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const righe = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const content = await (await pdf.getPage(p)).getTextContent();
+    const items = content.items.filter(it => String(it.str).trim())
+      .map(it => ({ s: it.str, x: it.transform[4], y: it.transform[5] }))
+      .sort((a, b) => (b.y - a.y) || (a.x - b.x));
+    let riga = [], yRif = null;
+    const chiudi = () => { if (riga.length) righe.push(riga.sort((a, b) => a.x - b.x).map(i => i.s.trim()).join(' ')); riga = []; };
+    items.forEach(it => {
+      if (yRif !== null && Math.abs(it.y - yRif) > 3) chiudi();
+      if (!riga.length) yRif = it.y;
+      riga.push(it);
+    });
+    chiudi();
+  }
+  return righe;
+}
+const _eurMrp = s => parseFloat(String(s).replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
+function leggiPreventivoMrPreno(righe) {
+  const L = righe.map(s => String(s).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const testo = L.join('\n');
+  const q = { avvisi: [], voci: [], sconti: [], persone: [] };
+  const dopo = (re) => { const l = L.find(s => re.test(s)); return l ? l.replace(re, '').trim() : ''; };
+  const iTel = L.findIndex(s => /^Telefono:/i.test(s));
+  q.nome = '';
+  for (let i = iTel - 1; i >= 0; i--) { if (!/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(L[i])) { q.nome = L[i]; break; } }
+  const mTel = iTel >= 0 ? L[iTel].match(/^Telefono:\s*(.*?)(?:\s+-\s+([^\s]+@[^\s]+))?$/i) : null;
+  q.tel = mTel ? (mTel[1] || '').replace(/\s*-\s*$/, '').trim() : '';
+  q.email = mTel && mTel[2] ? mTel[2] : '';
+  q.provenienza = dopo(/^Provenienza:\s*/i);
+  q.codice = ((testo.match(/Codice prenotazione:\s*(\S+)/i) || [])[1] || '').trim();
+  q.stato = ((testo.match(/Stato:\s*(.+?)(?:\s+Codice prenotazione:|\n|$)/i) || [])[1] || '').trim();
+  q.checkin = parseDataAgenzia((testo.match(/Arrivo:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i) || [])[1]);
+  q.checkout = parseDataAgenzia((testo.match(/Partenza:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i) || [])[1]);
+  q.sistemazioni = parseInt((testo.match(/Sistemazioni:\s*(\d+)/i) || [])[1], 10) || 1;
+  const iNote = L.findIndex(s => /^Note \/ Richieste/i.test(s));
+  q.nota = '';
+  if (iNote >= 0) {
+    const acc = [L[iNote].replace(/^Note \/ Richieste\s*/i, '')];
+    for (let k = iNote + 1; k < L.length && !/^(Attenzione:|TOTALE)/i.test(L[k]); k++) acc.push(L[k]);
+    q.nota = acc.join(' ').replace(/\bparticolari:\s*/i, '').replace(/\s+/g, ' ').trim();
+  }
+  const mTot = testo.match(/^TOTALE\s+(-?[\d.]+,\d{2})\s*€/m);
+  q.totale = mTot ? _eurMrp(mTot[1]) : null;
+  const mCap = testo.match(/Caparra richiesta\s*:?\s*([\d.]+,\d{2})\s*€/i);
+  q.caparra = mCap ? _eurMrp(mCap[1]) : 0;
+  const iDett = L.findIndex(s => /^Dettagli soggiorno/i.test(s));
+  const iCat = L.findIndex((s, i) => i > iDett && /^.+?\s*\|\s*.+$/.test(s));
+  const mCat = iCat >= 0 ? L[iCat].match(/^(.+?)\s*\|\s*(.+)$/) : null;
+  q.categoriaTesto = mCat ? mCat[1].trim() : '';
+  q.pensioneTesto = mCat ? mCat[2].trim() : '';
+  if (L.filter(s => /^Periodo da/i.test(s)).length > 1) q.sistemazioni = Math.max(q.sistemazioni, 2);
+  const iHead = L.findIndex((s, i) => i > iDett && /^Descrizione\b/i.test(s));
+  const iSub = L.findIndex((s, i) => i > iHead && /^Subtotale\b/i.test(s));
+  const tab = iHead >= 0 && iSub > iHead ? L.slice(iHead + 1, iSub) : [];
+  q.notti = diffDays(q.checkin, q.checkout) || 0;
+  // righe della tabella: la descrizione può andare a capo (le cifre stanno sull'ultima riga)
+  let pend = '';
+  const RE_PERS = /adult|bambin|ragazz|neonat|infant/i;
+  tab.forEach(s => {
+    if (/^Notti\)?$/i.test(s)) return;
+    const mm = s.match(/^(.*?)\s*([\d.]+,\d{2})\s*€\s+([\d.]+,\d{2})\s*€$/);
+    const mp = s.match(/^(.*?)\s+(\d+)\s*x\s*(\d+)(?:\s*Notti)?$/i);
+    if (!mm) {
+      if (mp && RE_PERS.test(mp[1])) { q.persone.push({ desc: (pend + ' ' + mp[1]).trim(), qty: +mp[2], importo: 0 }); pend = ''; return; }
+      pend = (pend + ' ' + s).trim();
+      return;
+    }
+    let desc = (pend + ' ' + mm[1]).trim(); pend = '';
+    const importo = _eurMrp(mm[3]), prezzo = _eurMrp(mm[2]);
+    const mpx = desc.match(/^(.*?)\s*(\d+)\s*x\s*\d+(?:\s*Notti)?$/i);
+    if (mpx && RE_PERS.test(mpx[1])) { q.persone.push({ desc: mpx[1].trim(), qty: +mpx[2], prezzo, importo }); return; }
+    let qty = 1;
+    const mq = desc.match(/^(.*?)\s+(\d+)$/);
+    if (mq) { desc = mq[1].trim(); qty = +mq[2]; }
+    const tipo = /pacchetto/i.test(desc) ? 'pacchetto' : /pulizi/i.test(desc) ? 'pulizia' : /animal/i.test(desc) ? 'animali' : 'altro';
+    q.voci.push({ desc, qty, prezzo, importo, tipo });
+  });
+  // tra le "altre" voci, quella col nome della categoria (o la prima) è l'alloggio
+  const altre = q.voci.filter(v => v.tipo === 'altro');
+  const alloggio = altre.find(v => q.categoriaTesto && v.desc.toLowerCase().includes(q.categoriaTesto.toLowerCase())) || altre[0];
+  if (alloggio) alloggio.tipo = 'alloggio';
+  q.voci.filter(v => v.tipo === 'altro').forEach(v => { v.tipo = 'extra'; });
+  // sconti: righe con importo negativo tra "Subtotale" e il totale finale
+  if (iSub >= 0) {
+    const mSub = L[iSub].match(/([\d.]+,\d{2})\s*€/);
+    q.subtotale = mSub ? _eurMrp(mSub[1]) : null;
+    for (let k = iSub + 1; k < L.length && !/^TOTALE\b/i.test(L[k]); k++) {
+      const ms = L[k].match(/^(.*?)\s*-\s*([\d.]+,\d{2})\s*€$/);
+      if (ms) q.sconti.push({ desc: ms[1].trim(), importo: -_eurMrp(ms[2]) });
+    }
+  }
+  if (!q.persone.length) q.avvisi.push('persone non riconosciute nel PDF');
+  if (!q.voci.some(v => v.tipo === 'alloggio')) q.avvisi.push('voce alloggio non riconosciuta');
+  return q;
+}
+function bucketPersoneMrPreno(persone, avvisi) {
+  const b = { b0_2: 0, b3_4: 0, b5_9: 0, b10_17: 0, adultiExtra: 0 };
+  let adulti = 0;
+  persone.forEach(p => {
+    if (/adult/i.test(p.desc)) { adulti += p.qty; return; }
+    const m = p.desc.match(/(\d+)\s*(?:-|–|a)\s*(\d+)/);
+    const lo = m ? parseInt(m[1], 10) : (/neonat|infant/i.test(p.desc) ? 0 : null);
+    if (lo === null) { avvisi.push(`fascia età non riconosciuta ("${p.desc}"): contati come adulti, da correggere`); adulti += p.qty; return; }
+    if (lo <= 2) b.b0_2 += p.qty; else if (lo <= 4) b.b3_4 += p.qty; else if (lo <= 9) b.b5_9 += p.qty; else b.b10_17 += p.qty;
+  });
+  return { adulti, fasce: b };
+}
+// Conto da PDF MrPreno, con le stesse etichette del preventivo Hub (così la
+// scheda lo tratta come un preventivo). Restituisce null se le voci non
+// quadrano col totale del PDF.
+function righeContoMrPreno(q, r) {
+  const labelTratt = r.trattamento === 'PC' ? 'pensione completa' : r.trattamento === 'MP' ? 'mezza pensione' : 'solo pernottamento';
+  const notti = q.notti;
+  const righe = [];
+  q.persone.filter(p => p.importo).forEach(p => {
+    const fascia = p.desc.match(/(\d+)\s*(?:-|–|a)\s*(\d+)/);
+    const etichetta = /adult/i.test(p.desc) ? 'Adulti' : fascia ? (parseInt(fascia[1], 10) >= 10 ? 'Ragazzi 10-17' : `Bambini ${fascia[1]}-${fascia[2]}`) : p.desc;
+    righe.push({ label: `${etichetta} × ${p.qty} (${labelTratt})`, importo: _r2(p.importo), manuale: true, pagato: false });
+  });
+  [...q.voci].sort((a, b) => (b.tipo === 'alloggio') - (a.tipo === 'alloggio')).forEach(v => {
+    let label = v.desc;
+    const extra = {};
+    if (v.tipo === 'alloggio') label = `Alloggio · ${notti} nott${notti === 1 ? 'e' : 'i'} (${fmtDataIt(q.checkin).slice(0, 5)}–${fmtDataIt(q.checkout).slice(0, 5)})`;
+    else if (v.tipo === 'animali') { label = `Animali · ${notti} nott${notti === 1 ? 'e' : 'i'}`; extra.nAnimali = v.qty; extra.nAnimaliDedotto = true; }
+    else if (v.tipo === 'pulizia') label = /animal/i.test(v.desc) ? 'Pulizia finale in presenza di animali' : v.desc;
+    else if (v.tipo === 'pacchetto') { const sett = Math.max(1, Math.ceil(notti / 7)); label = sett > 1 ? `Pacchetto biancheria + spiaggia × ${sett} settimane` : 'Pacchetto biancheria + spiaggia'; }
+    righe.push({ label, importo: _r2(v.importo), manuale: true, pagato: false, ...extra });
+  });
+  q.sconti.forEach(s => righe.push({ label: /prenota prima/i.test(s.desc) ? 'Sconto Prenota prima' : `Sconto ${s.desc}`, importo: _r2(s.importo), manuale: true, pagato: false }));
+  const somma = righe.reduce((t, x) => t + x.importo, 0);
+  if (q.totale == null || Math.abs(somma - q.totale) > 0.01) return null;
+  return righe;
+}
+// Doppia verifica come per Scidoo: voce per voce contro il preventivo con le
+// tariffe Hub, accettando un piccolo arrotondamento.
+function verificaPreventivoMrPreno(r, q) {
+  try {
+    const categoria = mappaCategoriaAgenzia(r.tipoAlloggio);
+    if (!categoria || categoria === 'piazzole') return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: categoria non riconosciuta' };
+    const notti = Math.max(1, q.notti);
+    const tol = 2 + 0.2 * notti;
+    const nAnim = q.voci.filter(v => v.tipo === 'animali').reduce((t, v) => t + (v.qty || 1), 0);
+    const b = r.bambiniFasce;
+    const prev = calcolaPreventivo({
+      categoria, checkin: r.checkin, checkout: r.checkout, adulti: r.adulti,
+      b0_2: b.b0_2, b3_4: b.b3_4, b5_9: b.b5_9, b10_17: b.b10_17,
+      animali: nAnim > 0, trattamento: r.trattamento, spiaggia: false, pacchettoServizi: !!r.pacchettoServizi,
+      kitBagno: 0, kitSingolo: 0, kitMatrimoniale: 0,
+    });
+    if (!prev.disponibile) return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + prev.motivo };
+    const somma = (lista, re) => lista.filter(x => re.test(x.label)).reduce((t, x) => t + x.importo, 0);
+    const mr = tipo => q.voci.filter(v => v.tipo === tipo).reduce((t, v) => t + v.importo, 0);
+    const hub = {
+      alloggio: somma(prev.righe, /^Alloggio ·/),
+      persone: somma(prev.righe, /^(Adulti|Ragazzi 10-17|Bambini [0-9-]+) ×/),
+      animali: somma(prev.righe, /^Animali ·/) * nAnim,
+      pulizia: somma(prev.righe, /^Pulizia finale/),
+      pacchetto: somma(prev.righe, /^Pacchetto/),
+    };
+    const mrp = { alloggio: mr('alloggio'), persone: q.persone.reduce((t, p) => t + (p.importo || 0), 0), animali: mr('animali'), pulizia: mr('pulizia'), pacchetto: mr('pacchetto') };
+    const nomi = { alloggio: 'Alloggio', persone: 'Persone', animali: 'Animali', pulizia: 'Pulizia finale', pacchetto: 'Pacchetto servizi' };
+    const diffs = Object.keys(nomi)
+      .map(k => ({ voce: nomi[k], mrpreno: _r2(mrp[k]), hub: _r2(hub[k]), diff: _r2(mrp[k] - hub[k]) }))
+      .filter(d => Math.abs(d.diff) > tol);
+    const extra = q.voci.filter(v => v.tipo === 'extra');
+    const extraTxt = extra.length ? ` · voci extra non confrontate: ${extra.map(v => v.desc).join(', ')}` : '';
+    const msg = diffs.length
+      ? 'Verifica tariffe Hub: DIFFERENZE · ' + diffs.map(d => `${d.voce}: MrPreno € ${_numIt(d.mrpreno)} / Hub € ${_numIt(d.hub)}`).join(' · ') + extraTxt
+      : 'Verifica tariffe Hub: OK' + extraTxt;
+    return { eseguita: true, ok: !diffs.length, diffs, msg };
+  } catch (e) { return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + e.message }; }
+}
+async function leggiRigheMrPreno(files) {
+  const out = [];
+  for (const f of files) {
+    if (!/\.pdf$/i.test(f.name)) { out.push({ __errore: 'serve il PDF della prenotazione MrPreno', __file: f.name }); continue; }
+    try { out.push({ __mrpreno: leggiPreventivoMrPreno(await righeDaPdf(f)), __file: f.name }); }
+    catch (e) { out.push({ __errore: 'PDF non leggibile: ' + e.message, __file: f.name }); }
+  }
+  return out;
+}
+const STATI_MRPRENO_NON_IMPORTABILI = ['annullat', 'rifiutat', 'scadut', 'cancellat'];
+const _normNomeConfronto = s => String(s || '').toLowerCase().replace(/[^a-zà-ÿ ]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+function elaboraRigaImportazioneMrPreno(row, riservatePerCategoria) {
+  const q = row.__mrpreno;
+  const base = {
+    agenziaId: '', cliente: row.__file || '', checkin: '', checkout: '', tel: '', email: '', provenienza: 'MrPreno',
+    adulti: 0, bambiniFasce: { b0_2: 0, b3_4: 0, b5_9: 0, b10_17: 0, adultiExtra: 0 },
+    animali: false, noteAnimali: '', noteGenerali: '', note: [], tipoAlloggio: '', trattamento: 'no', pacchettoServizi: false,
+    totale: 0, caparra: 0, alloggioId: null, alloggioNome: null, stato: null, erroreMsg: null, selezionata: true,
+  };
+  if (!q) return { ...base, stato: 'errore', erroreMsg: `${row.__file}: ${row.__errore}` };
+  const persone = bucketPersoneMrPreno(q.persone, q.avvisi);
+  const risultato = {
+    ...base,
+    agenziaId: q.codice, cliente: q.nome, checkin: q.checkin, checkout: q.checkout, tel: q.tel, email: q.email,
+    provenienza: q.provenienza || 'MrPreno',
+    adulti: persone.adulti, bambiniFasce: persone.fasce,
+    tipoAlloggio: q.categoriaTesto, trattamento: mappaTrattamentoAgenzia(q.pensioneTesto),
+    pacchettoServizi: q.voci.some(v => v.tipo === 'pacchetto'),
+    animali: q.voci.some(v => v.tipo === 'animali'),
+    totale: q.totale || 0, caparra: 0,
+  };
+  const attesa = /attesa/i.test(q.stato);
+  const note = [];
+  if (q.nota) note.push({ categoria: 'Generali', testo: q.nota });
+  const avvisi = [...q.avvisi];
+  risultato.righeConto = righeContoMrPreno(q, risultato);
+  if (!risultato.righeConto) avvisi.push(q.totale == null ? 'totale non trovato: conto non importato a voci' : 'le voci non quadrano col totale del PDF: importato come riga unica');
+  // caparra: entra nel conto come acconto solo se la prenotazione è confermata
+  if (q.caparra > 0) {
+    if (risultato.righeConto && /confermat/i.test(q.stato) && !attesa) risultato.righeConto.push({ label: `Caparra (MrPreno)`, importo: _r2(q.caparra), acconto: true, manuale: true, pagato: true });
+    else note.push({ categoria: 'Generali', testo: `Caparra richiesta da MrPreno: € ${_numIt(q.caparra)} (stato "${q.stato || 'n/d'}", non ancora incassata)` });
+  }
+  if (risultato.righeConto && q.sistemazioni <= 1) {
+    risultato.verifica = verificaPreventivoMrPreno(risultato, q);
+    if (risultato.verifica.eseguita && !risultato.verifica.ok) note.push({ categoria: 'Generali', testo: 'Import MrPreno - ' + risultato.verifica.msg });
+  }
+  risultato.note = note;
+  const info = [`Stato MrPreno: ${q.stato || 'n/d'}`, ...avvisi];
+  risultato.erroreMsg = info.join(' · ');
+  if (!q.codice || !q.nome || !q.checkin || !q.checkout || q.checkout <= q.checkin) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `${row.__file}: dati mancanti o PDF non riconosciuto come prenotazione MrPreno`;
+    return risultato;
+  }
+  if (q.sistemazioni > 1) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Prenotazione con ${q.sistemazioni} sistemazioni: inseriscila a mano`;
+    return risultato;
+  }
+  if (STATI_MRPRENO_NON_IMPORTABILI.some(s => q.stato.toLowerCase().includes(s))) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Prenotazione non confermata (stato: "${q.stato}")`;
+    return risultato;
+  }
+  riservatePerCategoria.__mrpCodici = riservatePerCategoria.__mrpCodici || new Set();
+  if (riservatePerCategoria.__mrpCodici.has(q.codice)) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Codice ${q.codice} già caricato in questa importazione (PDF doppio)`;
+    return risultato;
+  }
+  riservatePerCategoria.__mrpCodici.add(q.codice);
+  // stessa prenotazione già entrata da un altro canale (es. Scidoo riceve quelle di MrPreno)
+  const esistente = trovaPrenotazioneEsistentePerAgenziaId(q.codice) || prenotazioni.find(p =>
+    p.checkin === q.checkin && p.checkout === q.checkout && _normNomeConfronto(p.nome) === _normNomeConfronto(q.nome));
+  if (esistente) {
+    risultato.stato = 'esistente';
+    risultato.esistenteId = esistente.id;
+    if (esistente.agenzia_id !== q.codice) risultato.erroreMsg = `Già presente (stesso cliente e date, importata con ID ${esistente.agenzia_id || 'manuale'})`;
+    return risultato;
+  }
+  const categoria = mappaCategoriaAgenzia(q.categoriaTesto);
+  if (!categoria) {
+    risultato.stato = 'errore';
+    risultato.erroreMsg = `Categoria "${q.categoriaTesto}" non riconosciuta`;
+    return risultato;
+  }
+  const libero = alloggiList.filter(a => a.categoria === categoria).find(a => {
+    if (trovaOverlap(a.id, q.checkin, q.checkout, null)) return false;
+    return !(riservatePerCategoria[a.id] || []).some(r => q.checkin < r.checkout && q.checkout > r.checkin);
+  });
+  if (libero) {
+    risultato.alloggioId = libero.id;
+    risultato.alloggioNome = libero.nome;
+    (riservatePerCategoria[libero.id] = riservatePerCategoria[libero.id] || []).push({ checkin: q.checkin, checkout: q.checkout });
+    risultato.stato = 'nuova';
+  } else {
+    risultato.stato = 'da_assegnare';
+  }
+  return risultato;
+}
+// ── Elenco delle sorgenti/canali supportati ─────────────────────────────────
+// Ognuna ha solo il proprio "elaboraRiga" (formato del file), il tipo di file
+// accettato e i passaggi guida mostrati sopra al selettore file. Per collegarne
+// una nuova basta aggiungere una voce qui — il resto del flusso di
+// importazione (spunte, apertura scheda, conferma in blocco) resta identico.
 const SORGENTI_IMPORT = {
-  agenzia_standard: { nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard },
-  scidoo: { nome: 'SCIDOO (JSON + CSV)', elaboraRiga: elaboraRigaImportazioneScidoo, leggiRighe: (file, files) => leggiRigheScidoo(files) },
+  agenzia_standard: {
+    nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard, accept: '.xls,.xlsx,.csv',
+    guida: [
+      'Scarica dall\'agenzia il file delle prenotazioni (<b>.xls o .xlsx</b>) così come lo ricevi di solito.',
+      'Non modificare il file né rinominare le colonne: l\'Hub legge <i>ID prenotazione, Cliente, Arrivo, Partenza, Adulti, Età bambini, Tipo alloggio, Trattamento, Totale, Caparra</i>.',
+      'Scegli il file qui sotto (uno alla volta).',
+      'Controlla l\'anteprima: le prenotazioni con lo stesso ID già presenti vengono saltate, quelle con categoria piena restano «da assegnare a mano».',
+      'Togli la spunta alle righe che non vuoi importare e premi <b>Conferma importazione</b>. Il conto parte come riga unica «Soggiorno (agenzia)» con il totale e la caparra del file.',
+    ],
+  },
+  scidoo: {
+    nome: 'SCIDOO (JSON + CSV)', elaboraRiga: elaboraRigaImportazioneScidoo, accept: '.json,.csv', leggiRighe: (file, files) => leggiRigheScidoo(files),
+    guida: [
+      'In Scidoo apri l\'elenco delle prenotazioni e imposta il periodo da importare.',
+      'Esporta lo stesso elenco <b>due volte</b>: in formato <b>JSON</b> (voci complete del conto: addebiti, sconti, caparre) e in formato <b>CSV</b> (nome della tariffa/pensione e provenienza).',
+      'Scegli <b>entrambi i file insieme</b> qui sotto (tieni premuto Cmd/Ctrl per selezionarne due). Con solo il JSON funziona lo stesso, ma la pensione viene dedotta dal totale e la provenienza manca.',
+      'Nell\'anteprima guarda la riga <b>«Verifica tariffe Hub»</b>: in verde il conto Scidoo torna col tariffario Hub, in rosso c\'è una differenza oltre l\'arrotondamento (da controllare).',
+      'Le prenotazioni già presenti con conto a riga unica si aggiornano col pulsante in alto; le nuove con <b>Conferma importazione</b>.',
+      'Le prenotazioni che arrivano da MrPreno compaiono anche in Scidoo: importale da un solo canale. L\'Hub riconosce comunque i doppioni (stessa prenotazione già presente) e le salta.',
+    ],
+  },
+  mrpreno: {
+    nome: 'MRPRENO (PDF prenotazione)', elaboraRiga: elaboraRigaImportazioneMrPreno, accept: '.pdf', leggiRighe: (file, files) => leggiRigheMrPreno(files),
+    guida: [
+      'Accedi al backoffice di MrPreno (backoffice3.titanka.com) e apri la prenotazione.',
+      'Scarica o stampa il <b>PDF della prenotazione</b> (il documento con «Dettagli soggiorno», le voci e il totale). MrPreno ne scarica una per volta.',
+      'Ripeti per ogni prenotazione, poi scegli <b>tutti i PDF insieme</b> qui sotto (Cmd/Ctrl per selezionarne più di uno).',
+      'L\'Hub legge codice (bk/…), cliente, contatti, provenienza, date, categoria, pensione, persone, voci del conto (alloggio, animali, pulizia, pacchetto servizi, sconti), note del cliente e caparra.',
+      'Nell\'anteprima la riga <b>«Verifica tariffe Hub»</b> confronta voce per voce il preventivo MrPreno con il listino Hub: in rosso le differenze, spesso errori di preventivo in MrPreno da correggere lì.',
+      'La caparra entra nel conto come acconto solo se la prenotazione è confermata; se è «In attesa di pagamento» resta solo una nota sulla scheda.',
+      'Se la prenotazione c\'è già (stesso codice, oppure stesso cliente e stesse date arrivata da Scidoo) viene saltata. Le prenotazioni con più sistemazioni vanno inserite a mano.',
+    ],
+  },
 };
 let sorgenteImportSelezionata = 'agenzia_standard';
 function popolaSelectSorgenteImport() {
@@ -4968,9 +5310,20 @@ function popolaSelectSorgenteImport() {
   if (!sel) return;
   sel.innerHTML = Object.entries(SORGENTI_IMPORT).map(([k, s]) => `<option value="${esc(k)}">${esc(s.nome)}</option>`).join('');
   sel.value = sorgenteImportSelezionata;
+  renderGuidaImport();
+}
+// Passaggi guida del canale scelto + tipo di file accettato dal selettore.
+function renderGuidaImport() {
+  const s = SORGENTI_IMPORT[sorgenteImportSelezionata];
+  const input = document.getElementById('import-file-input');
+  if (input && s && s.accept) input.accept = s.accept;
+  const el = document.getElementById('import-guida');
+  if (!el || !s) return;
+  el.innerHTML = `<div class="import-guida-titolo">Come importare da ${esc(s.nome)}</div><ol>${(s.guida || []).map(p => `<li>${p}</li>`).join('')}</ol>`;
 }
 function cambiaSorgenteImport(valore) {
   sorgenteImportSelezionata = valore;
+  renderGuidaImport();
   // Cambiare sorgente a metà lettura non avrebbe senso: si riparte da capo.
   document.getElementById('import-file-input').value = '';
   document.getElementById('import-risultati').innerHTML = '';
@@ -5064,7 +5417,8 @@ function costruisciDatiImportRiga(r) {
     codice: generaCodice(),
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   };
-  return { idDoc: `agenzia_${r.agenziaId}`, data };
+  // i codici MrPreno sono "bk/2026/474": la "/" non è ammessa in un id documento
+  return { idDoc: `agenzia_${String(r.agenziaId).replace(/[\/\s]+/g, '-')}`, data };
 }
 // Prenotazioni già importate col vecchio import (CSV: conto = una sola riga
 // "Soggiorno (agenzia)"): si può sostituire quella riga con le voci di Scidoo,
@@ -5194,7 +5548,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   if (!r || r.stato === 'errore') return;
   document.getElementById('import-modal-overlay').classList.add('hidden');
   if (r.stato === 'esistente' || r.stato === 'aggiornata') {
-    const esistente = trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
+    const esistente = (r.esistenteId && prenotazioni.find(p => p.id === r.esistenteId)) || trovaPrenotazioneEsistentePerAgenziaId(r.agenziaId);
     if (!esistente) { document.getElementById('import-modal-overlay').classList.remove('hidden'); return; }
     _importReviewActive = true;
     apriModificaPrenotazione(esistente.id);
@@ -6352,7 +6706,7 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
     // "agenzia_<id>" e riporta il riferimento all'agenzia sul documento —
     // altrimenti un id casuale come sempre.
     const agenziaId = _importAgenziaIdCorrente;
-    idPrenotazione = agenziaId ? `agenzia_${agenziaId}` : `${alloggioId}_${checkin}_${Date.now().toString(36)}`;
+    idPrenotazione = agenziaId ? `agenzia_${String(agenziaId).replace(/[\/\s]+/g, '-')}` :`${alloggioId}_${checkin}_${Date.now().toString(36)}`;
     const extra = agenziaId ? { agenzia_id: agenziaId } : {};
     await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, ...extra, codice: generaCodice(), createdAt: new Date().toISOString() });
     editingId = idPrenotazione;
