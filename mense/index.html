@@ -429,10 +429,17 @@ main { max-width: 980px; margin: 0 auto; }
       <div class="ctrl-seg" id="seg-viewmode">
         <button class="active" onclick="setReportView('mese')">Mese</button>
         <button onclick="setReportView('anno')">Anno scolastico</button>
+        <button onclick="setReportView('custom')">Personalizzato</button>
       </div>
       <select class="ctrl-select" id="sel-sede-report" onchange="loadReport()"></select>
       <input type="month" class="ctrl-date" id="inp-mese-report" onchange="loadReport()">
       <select class="ctrl-select" id="sel-anno-report" style="display:none" onchange="loadReport()"></select>
+      <span id="wrap-custom-report" style="display:none;align-items:center;gap:6px">
+        <label style="font-size:12px;color:var(--text-2,#666)">Dal</label>
+        <input type="date" class="ctrl-date" id="inp-dal-report" onchange="loadReport()">
+        <label style="font-size:12px;color:var(--text-2,#666)">al</label>
+        <input type="date" class="ctrl-date" id="inp-al-report" onchange="loadReport()">
+      </span>
     </div>
 
     <div id="report-body">
@@ -558,7 +565,7 @@ let baselineMeta  = { chiuso:false, motivo:'', note:'' };
 let _autosaveTimer = null, _retryTimer = null;
 
 // ── Stato scheda Report ────────────────────────────────────────────────────
-let reportView  = 'mese'; // 'mese' | 'anno'
+let reportView  = 'mese'; // 'mese' | 'anno' | 'custom'
 let reportRows  = [];     // righe presenze caricate per il periodo
 let reportLog   = [];
 let _lastSedeFiltro = 'tutte';
@@ -675,8 +682,7 @@ function meseRangeOfPeriod() {
   if (reportView === 'mese') {
     return [document.getElementById('inp-mese-report').value || meseOf(todayStr())];
   }
-  const label = document.getElementById('sel-anno-report').value;
-  const { dal, al } = scuolaAnnoRange(label);
+  const { dal, al } = datesOfPeriod();
   const out = [];
   let [y,m] = dal.split('-').map(Number);
   const [yEnd,mEnd] = al.split('-').map(Number);
@@ -692,6 +698,13 @@ function datesOfPeriod() {
     const [y,m] = mese.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     return { dal: `${mese}-01`, al: `${mese}-${String(lastDay).padStart(2,'0')}` };
+  }
+  if (reportView === 'custom') {
+    const t = todayStr();
+    let dal = document.getElementById('inp-dal-report').value || t.slice(0,8) + '01';
+    let al  = document.getElementById('inp-al-report').value  || t;
+    if (al < dal) [dal, al] = [al, dal];
+    return { dal, al };
   }
   const label = document.getElementById('sel-anno-report').value;
   return scuolaAnnoRange(label);
@@ -1392,7 +1405,8 @@ function shakeField(id) {
 // ── REPORT ────────────────────────────────────────────────────────────────
 function setReportView(v) {
   reportView = v;
-  document.querySelectorAll('#seg-viewmode button').forEach((b,i) => b.classList.toggle('active', (i===0)===(v==='mese')));
+  document.querySelectorAll('#seg-viewmode button').forEach((b,i) => b.classList.toggle('active', ['mese','anno','custom'][i]===v));
+  document.getElementById('wrap-custom-report').style.display = v === 'custom' ? 'inline-flex' : 'none';
   document.getElementById('inp-mese-report').style.display = v === 'mese' ? '' : 'none';
   document.getElementById('sel-anno-report').style.display = v === 'anno' ? '' : 'none';
   loadReport();
@@ -1400,6 +1414,9 @@ function setReportView(v) {
 function initReportControls() {
   const im = document.getElementById('inp-mese-report');
   if (!im.value) im.value = meseOf(todayStr());
+  const idal = document.getElementById('inp-dal-report'), ial = document.getElementById('inp-al-report');
+  if (!idal.value) idal.value = todayStr().slice(0,8) + '01';
+  if (!ial.value) ial.value = todayStr();
   const sa = document.getElementById('sel-anno-report');
   if (!sa.options.length) {
     sa.innerHTML = anniScolasticiDisponibili().map(a => `<option value="${a}">${a}</option>`).join('');
@@ -1434,6 +1451,11 @@ async function loadReport() {
     });
   } catch(e) { console.error('Errore caricamento report:', e); wrap.innerHTML = '<p class="perm-hint">Errore nel caricamento dei dati.</p>'; return; }
 
+  if (reportView === 'custom') {
+    const { dal, al } = datesOfPeriod();
+    rows = rows.filter(r => r.data && r.data >= dal && r.data <= al);
+    logRows = logRows.filter(r => !r.data || (r.data >= dal && r.data <= al));
+  }
   if (sedeFiltro !== 'tutte') {
     rows = rows.filter(r => r.sedeId === sedeFiltro);
     logRows = logRows.filter(r => r.sedeId === sedeFiltro);
@@ -1592,6 +1614,10 @@ function periodoReportLabel() {
   if (reportView === 'mese') {
     const mese = document.getElementById('inp-mese-report').value || meseOf(todayStr());
     return fmtDateIt(mese + '-01', { month: 'long', year: 'numeric' });
+  }
+  if (reportView === 'custom') {
+    const { dal, al } = datesOfPeriod();
+    return 'dal ' + fmtDateIt(dal) + ' al ' + fmtDateIt(al);
   }
   return 'Anno scolastico ' + document.getElementById('sel-anno-report').value;
 }
@@ -1787,7 +1813,9 @@ async function esportaExcelReport() {
     const blob = new Blob([buf], { type: 'application/octet-stream' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const periodo = reportView === 'mese' ? document.getElementById('inp-mese-report').value : document.getElementById('sel-anno-report').value.replace('/','-');
+    const periodo = reportView === 'mese' ? document.getElementById('inp-mese-report').value
+      : reportView === 'custom' ? (() => { const r = datesOfPeriod(); return r.dal + '_' + r.al; })()
+      : document.getElementById('sel-anno-report').value.replace('/','-');
     a.download = `Mense_${periodo}.xlsx`;
     a.click();
     URL.revokeObjectURL(a.href);
