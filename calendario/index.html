@@ -1207,7 +1207,7 @@
       <label class="f-label">Sorgente</label>
       <select class="f-select" id="import-sorgente-select" onchange="cambiaSorgenteImport(this.value)"></select>
     </div>
-    <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv" onchange="analizzaFileImportazione(this)">
+    <input type="file" id="import-file-input" accept=".xls,.xlsx,.csv,.json" multiple onchange="analizzaFileImportazione(this)">
     <div id="import-risultati" style="margin-top:16px"></div>
   </div>
     <div class="form-actions">
@@ -1735,10 +1735,34 @@ let _unsubListini = null;
 // qualsiasi (riconnessione, altro dispositivo) per far sparire il listino appena
 // importato o i valori digitati, prima di premere "Salva".
 const _listiniSporchi = { villini: false, campeggio: false };
+// Versione (campo "aggiornatoIl") del listino come l'ha vista questa pagina
+// l'ultima volta che è stato letto da Firestore: al salvataggio serve a
+// scoprire se nel frattempo qualcun altro l'ha cambiato (v. salvaListinoSicuro).
+const _listiniVersione = {};
 document.addEventListener('input', (e) => {
   if (e.target.closest && e.target.closest('#listino-villini-panel')) _listiniSporchi.villini = true;
   if (e.target.closest && e.target.closest('#listino-campeggio-panel')) _listiniSporchi.campeggio = true;
+  aggiornaBannerListinoSporco();
 });
+// Avviso rosso in cima al pannello finché ci sono modifiche (o un import da
+// file) non ancora salvate su Firestore: senza, l'import sembrava "fatto" ma
+// ricaricando la pagina tornava il listino vecchio.
+function aggiornaBannerListinoSporco() {
+  [['villini', 'listino-villini-panel', 'Villini'], ['campeggio', 'listino-campeggio-panel', 'Campeggio']].forEach(([id, panelId, nome]) => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    let b = panel.querySelector('.listino-dirty-banner');
+    if (_listiniSporchi[id]) {
+      if (!b) {
+        b = document.createElement('div');
+        b.className = 'listino-dirty-banner';
+        b.style.cssText = 'position:sticky;top:0;z-index:5;background:#FEE2E2;color:#991B1B;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:700;font-size:13px';
+        b.textContent = `Listino ${nome}: modifiche NON ancora salvate. Premi "Salva listino ${nome}" in fondo alla pagina, altrimenti ricaricando tornano i valori precedenti.`;
+        panel.prepend(b);
+      }
+    } else if (b) b.remove();
+  });
+}
 window.addEventListener('beforeunload', (e) => {
   if (_listiniSporchi.villini || _listiniSporchi.campeggio) { e.preventDefault(); e.returnValue = ''; }
 });
@@ -1746,7 +1770,17 @@ function startListiniSync() {
   waitForFirebase().then(() => {
     const { db, collection, onSnapshot } = window._fb;
     _unsubListini = onSnapshot(collection(db, 'listini'), (snap) => {
-      snap.docs.forEach(d => { if (!_listiniSporchi[d.id]) listini[d.id] = d.data(); });
+      snap.docs.forEach(d => {
+        if (_listiniSporchi[d.id]) return;
+        listini[d.id] = d.data();
+        _listiniVersione[d.id] = d.data().aggiornatoIl || null;
+      });
+      // Se un listino non esiste su Firestore NON lo si crea: si usa quello di
+      // partenza solo in memoria (v. ensureDefaultListini), così non può
+      // più riportare i valori 2026 sopra un listino già caricato.
+      ['villini', 'campeggio'].forEach(id => {
+        if (!listini[id]) listini[id] = JSON.parse(JSON.stringify(LISTINI_DEFAULT[id]));
+      });
       normalizzaListinoVillini(listini.villini);
       if (document.getElementById('form-modal-overlay') && !document.getElementById('form-modal-overlay').classList.contains('hidden')) aggiornaPreventivo();
       if (!_listiniSporchi.villini && !_listiniSporchi.campeggio && document.getElementById('settings-view') && !document.getElementById('settings-view').classList.contains('hidden')) renderListiniSettings();
@@ -1757,16 +1791,38 @@ function startListiniSync() {
 // (stesso pattern del "riempimento automatico" di alloggi/index.html): dopo
 // il primo avvio, l'unico modo per modificarli è dalle Impostazioni.
 async function ensureDefaultListini() {
-  await waitForFirebase();
-  const { db, collection, getDocs, doc, setDoc, limit, query } = window._fb;
-  try {
-    const snap = await getDocs(query(collection(db, 'listini'), limit(1)));
-    if (!snap.empty) return;
-    await Promise.all([
-      setDoc(doc(db, 'listini', 'villini'), LISTINI_DEFAULT.villini),
-      setDoc(doc(db, 'listini', 'campeggio'), LISTINI_DEFAULT.campeggio),
-    ]);
-  } catch(e) { console.error('Errore init listini:', e); }
+  // Prima riscriveva i listini 2026 se la collezione risultava vuota: bastava un
+  // doc eliminato o una lettura vuota per far tornare il listino vecchio sopra
+  // quello 2027. Ora non scrive più nulla: i valori di partenza restano solo in
+  // memoria finché qualcuno non preme "Salva" dalle Impostazioni.
+}
+
+// Salvataggio protetto dei listini: (1) se il listino su Firestore è cambiato
+// da quando questa pagina l'ha letto, chiede conferma prima di sovrascriverlo;
+// (2) prima di scrivere conserva la versione attuale in "listini/<id>__backup_<data>",
+// così non si perde mai un listino. Ritorna true se ha salvato.
+async function salvaListinoSicuro(id, l) {
+  const { db, doc, getDoc, setDoc } = window._fb;
+  const rif = doc(db, 'listini', id);
+  const remoto = await getDoc(rif);
+  if (remoto.exists()) {
+    const verRemota = remoto.data().aggiornatoIl || null;
+    if (verRemota !== (_listiniVersione[id] || null)) {
+      const ok = await confermaAsync(
+        'Il listino è stato modificato altrove',
+        `Dopo l'apertura di questa pagina il listino ${esc(id)} è stato salvato da un altro dispositivo o scheda${verRemota ? ' (' + esc(new Date(verRemota).toLocaleString('it-IT')) + ')' : ''}. Salvando ora lo sovrascrivi con la copia di questa pagina, che potrebbe essere più vecchia. La versione attuale viene comunque conservata come copia di sicurezza.`
+      );
+      if (!ok) return false;
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    await setDoc(doc(db, 'listini', `${id}__backup_${ts}`), remoto.data());
+  }
+  const dati = JSON.parse(JSON.stringify(l));
+  dati.aggiornatoIl = new Date().toISOString();
+  await setDoc(rif, dati);
+  l.aggiornatoIl = dati.aggiornatoIl;
+  _listiniVersione[id] = dati.aggiornatoIl;
+  return true;
 }
 
 // ── SINCRONIZZAZIONE IMPOSTAZIONI GENERALI (Firestore, doc singolo) ────────
@@ -4468,6 +4524,186 @@ function formattaProvenienzaScidoo(s) {
   const t = String(s || '').trim();
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
 }
+// ── Scidoo: export JSON (righe vere del conto) + CSV (nome tariffa, provenienza)
+// Il CSV ha solo i totali (Totale Rette / Totale Extra); il JSON ha l'array
+// "addebiti" con le singole voci, lo sconto col segno, caparre con metodo e
+// data. Il JSON però riduce "retta" a "Pacchetto Servizi" (perde la pensione:
+// "Mezza Pensione Premium Mrpreno") e non ha la provenienza: per questo si
+// possono caricare i DUE file insieme e le righe si uniscono per ID.
+const _r2 = n => Math.round((Number(n) || 0) * 100) / 100;
+const _numIt = n => (Number(n) || 0).toFixed(2).replace('.', ',');
+function righaScidooDaJson(j) {
+  const prima = a => (Array.isArray(a) && a[0] && a[0].nome) ? String(a[0].nome) : '';
+  const soloData = s => String(s || '').slice(0, 10);
+  return {
+    '__json': j,
+    'ID': String(j.id || ''), 'Stato': j.stato || '',
+    'Checkin': soloData(j.checkin), 'Checkout': soloData(j.checkout),
+    'Alloggio': prima(j.alloggio), 'Categoria Richiesta': prima(j.categoria_richiesta),
+    'Nome Cliente': `${String(j.cognome || '').trim()} ${String(j.nome || '').trim()}`.trim(),
+    'Retta': j.retta || '', 'Totale': _numIt(j.totale_prenotazione), 'Caparra': _numIt(j.pagato),
+    'Email': j.email || '', 'Cellulare': j.telefono || '',
+    'Adulti': j.Adulto || 0, 'Neonati 0-2': j['Neonato 0-2'] || 0, 'Bambini 2-6': j['Bambino 2-5'] || 0,
+    'Bambini 6-10': j['Bambino 6-10'] || 0, 'Ragazzi 11-17': j['Ragazzo 11-17'] || 0,
+    'Nota Generica': j['nota Generica'] || '', 'Nota Ristorante': j['nota Ristorante'] || '',
+    'Nota OTA': j['nota OTA'] || '', 'Nota Pulizie': j['nota Pulizie'] || '', 'Nota Bar': j['nota Bar'] || '',
+  };
+}
+async function leggiRigheScidoo(files) {
+  const csvRows = [], jsonRecs = [];
+  for (const f of files) {
+    const testo = await f.text();
+    const t = testo.trimStart();
+    if (/\.json$/i.test(f.name) || t.startsWith('{') || t.startsWith('[')) {
+      const d = JSON.parse(testo);
+      jsonRecs.push(...(Array.isArray(d) ? d : Object.values(d)));
+    } else {
+      // la riga finale del CSV (totali generali) ha l'ID vuoto: va scartata
+      csvRows.push(...parseCsvScidoo(testo).filter(r => String(campoScidoo(r, 'ID') || '').trim()));
+    }
+  }
+  if (!jsonRecs.length) return csvRows;
+  const csvPerId = {};
+  csvRows.forEach(r => { csvPerId[String(campoScidoo(r, 'ID')).trim()] = r; });
+  const usati = new Set();
+  const righe = jsonRecs.map(j => {
+    const riga = righaScidooDaJson(j);
+    const csv = csvPerId[String(j.id)];
+    if (csv) {
+      usati.add(String(j.id));
+      // dal CSV solo ciò che il JSON non ha o riduce
+      const retta = campoScidoo(csv, 'Retta'), prov = campoScidoo(csv, 'Provenienza');
+      if (retta) riga['Retta'] = retta;
+      if (prov) riga['Provenienza'] = prov;
+    } else riga.__soloJson = true;
+    return riga;
+  });
+  csvRows.forEach(r => { if (!usati.has(String(campoScidoo(r, 'ID')).trim())) righe.push(r); });
+  return righe;
+}
+// Prezzo alloggio dal listino Hub per la categoria e le notti del soggiorno;
+// null se il listino non è caricato o non copre tutte le notti.
+function prezzoAlloggioListinoScidoo(tipoAlloggio, checkin, checkout) {
+  try {
+    const l = (typeof listini !== 'undefined') ? listini.villini : null;
+    const cat = mappaCategoriaAgenzia(tipoAlloggio);
+    if (!l || !l.periodi || !cat || !checkin || !checkout) return null;
+    let tot = 0;
+    for (let d = checkin; d < checkout; d = addDaysIso(d, 1)) {
+      const per = trovaPeriodoListino(l.periodi, d);
+      const prezzo = per && per.prezzi ? per.prezzi[cat] : null;
+      if (prezzo == null) return null;
+      tot += prezzo;
+    }
+    return _r2(tot);
+  } catch (e) { return null; }
+}
+// ── Doppia verifica: conto da Scidoo contro preventivo con le tariffe Hub ───
+// Ricalcola il soggiorno col listino Hub (stessa funzione del preventivo) e lo
+// confronta voce per voce con gli importi scaricati da Scidoo: retta
+// (pacchetto + persone), alloggio + animali, pulizia finale. Si accetta un
+// piccolo arrotondamento (il listino arrotonda la tariffa a notte); sopra
+// soglia la differenza viene segnalata nell'anteprima e in una nota.
+function verificaContoConHub(r, jsonRiga) {
+  try {
+    const categoria = mappaCategoriaAgenzia(r.tipoAlloggio);
+    if (!categoria || categoria === 'piazzole') return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: categoria non riconosciuta' };
+    const righe = r.righeConto || [];
+    const stim = righe.find(x => x.stimato);
+    const haAnimali = !!stim || righe.some(x => /animal/i.test(x.label));
+    const prev = calcolaPreventivo({
+      categoria, checkin: r.checkin, checkout: r.checkout, adulti: r.adulti,
+      b0_2: r.bambiniFasce.b0_2, b3_4: r.bambiniFasce.b3_4, b5_9: r.bambiniFasce.b5_9, b10_17: r.bambiniFasce.b10_17,
+      animali: haAnimali, trattamento: r.trattamento, spiaggia: false, pacchettoServizi: !!r.pacchettoServizi,
+      kitBagno: 0, kitSingolo: 0, kitMatrimoniale: 0,
+    });
+    if (!prev.disponibile) return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + prev.motivo };
+    const somma = (lista, re) => lista.filter(x => re.test(x.label)).reduce((t, x) => t + x.importo, 0);
+    const notti = Math.max(1, diffDays(r.checkin, r.checkout));
+    const nAnim = stim ? (stim.nAnimali || 1) : (haAnimali ? 1 : 0);
+    const hub = {
+      retta: somma(prev.righe, /^(Adulti|Ragazzi 10-17|Bambini [0-9-]+) ×|^Pacchetto/),
+      alloggio: somma(prev.righe, /^Alloggio ·/) + somma(prev.righe, /^Animali ·/) * nAnim,
+      pulizia: somma(prev.righe, /^Pulizia finale/),
+    };
+    const nonAcconto = righe.filter(x => !x.acconto);
+    const libero = nonAcconto.find(x => x.label === 'Addebito libero (Scidoo)');
+    const scidoo = {
+      retta: Number(jsonRiga.totale_rette) || 0,
+      alloggio: (libero ? libero.importo : 0) + (stim ? stim.importo : 0),
+      pulizia: somma(nonAcconto.filter(x => !x.stimato), /pulizia finale/i),
+    };
+    const tol = 2 + 0.2 * notti; // arrotondamento accettato per voce
+    const nomi = { retta: 'Retta (pacchetto + persone)', alloggio: 'Alloggio + animali', pulizia: 'Pulizia finale' };
+    const diffs = Object.keys(nomi)
+      .map(k => ({ voce: nomi[k], scidoo: _r2(scidoo[k]), hub: _r2(hub[k]), diff: _r2(scidoo[k] - hub[k]) }))
+      .filter(d => Math.abs(d.diff) > tol);
+    const msg = diffs.length
+      ? 'Verifica tariffe Hub: DIFFERENZE · ' + diffs.map(d => `${d.voce}: Scidoo € ${_numIt(d.scidoo)} / Hub € ${_numIt(d.hub)}`).join(' · ')
+      : 'Verifica tariffe Hub: OK';
+    return { eseguita: true, ok: !diffs.length, diffs, msg };
+  } catch (e) { return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + e.message }; }
+}
+// Righe del conto dal JSON: retta + addebiti (sconto incluso) + incassi
+// registrati come "acconto". Se le voci non quadrano col totale della
+// prenotazione si torna alla riga unica (restituisce null).
+function righeContoScidooDaJson(j, rettaNome, animaliPerNotte, alloggioListino) {
+  const righe = [];
+  const rette = _r2(j.totale_rette);
+  if (rette) righe.push({ label: rettaNome || 'Retta', importo: rette, manuale: true, pagato: false });
+  const nota = String(j['nota OTA'] || '');
+  (j.addebiti || []).forEach(a => {
+    const prezzo = _r2(a.prezzo);
+    let label = String(a.nome || 'Addebito').trim();
+    if (/^addebito libero$/i.test(label)) label = 'Addebito libero (Scidoo)';
+    if (/^sconto$/i.test(label) && prezzo < 0) {
+      // lo sconto "Early Booking" ecc. si legge dalla nota, se l'importo coincide
+      const m = nota.match(/^\s*Sconto\s+([^\n\d]+?)\s+(\d+(?:[.,]\d+)?)\s*$/im);
+      if (m && Math.abs(parseFloat(m[2].replace(',', '.')) - Math.abs(prezzo)) < 0.01) label = `Sconto ${m[1].trim()}`;
+    }
+    righe.push({ label, importo: prezzo, manuale: true, pagato: false });
+  });
+  // Scidoo fonde nell'"Addebito libero" anche la voce animali (es. 105 + alloggio
+  // 1030 = 1135). Se c'è la pulizia finale per animali sappiamo che sono presenti:
+  // stimiamo notti × tariffa animali del listino Hub, la mostriamo come voce
+  // separata ("Animali · N notti", come nel preventivo) e la togliamo dall'addebito
+  // libero. La somma del conto non cambia; la voce è marcata "stimato".
+  const notti = Number(j.notti) || 0;
+  const conPuliziaAnimali = (j.addebiti || []).some(a => /animal/i.test(a.nome || ''));
+  const libero = righe.find(r => r.label === 'Addebito libero (Scidoo)');
+  const tariffaNotte = Number(animaliPerNotte) || 0;
+  if (conPuliziaAnimali && libero && tariffaNotte > 0 && notti > 0) {
+    // Quanti animali? Scidoo esporta sempre 0. Se il listino Hub copre il soggiorno,
+    // il resto dell'addebito libero dopo l'alloggio è n × notti × tariffa: se n
+    // viene intero (come in MrPreno: "Presenza animali 3 × 35,00") lo usiamo,
+    // altrimenti assumiamo 1 animale e lo segnaliamo.
+    let n = 1, dedotto = false;
+    if (alloggioListino != null) {
+      // il listino arrotonda la tariffa a notte (es. 147,28 × 7 = 1030,96 contro 1030):
+      // si accetta uno scarto fino a 2,50 € rispetto a n × notti × tariffa
+      const unita = notti * tariffaNotte;
+      const q = Math.round((libero.importo - alloggioListino) / unita);
+      if (q >= 1 && Math.abs(libero.importo - alloggioListino - q * unita) <= 2.5) { n = q; dedotto = true; }
+    }
+    const costoAnimali = _r2(n * notti * tariffaNotte);
+    if (libero.importo > costoAnimali) {
+      libero.importo = _r2(libero.importo - costoAnimali);
+      righe.splice(righe.indexOf(libero) + 1, 0, { label: `Animali · ${notti} nott${notti === 1 ? 'e' : 'i'}`, importo: costoAnimali, manuale: true, pagato: false, stimato: true, nAnimali: n, nAnimaliDedotto: dedotto });
+    }
+  }
+  const totaleVoci = righe.reduce((s, r) => s + r.importo, 0);
+  if (Math.abs(totaleVoci - (Number(j.totale_prenotazione) || 0)) > 0.01) return null;
+  [['Caparra', j.caparre], ['Pagamento', j.pagamenti]].forEach(([tipo, lista]) => {
+    (lista || []).forEach(c => {
+      const v = _r2(parseFloat(c.valore !== undefined ? c.valore : c.importo));
+      if (!(v > 0)) return;
+      const data = String(c.data || '').slice(0, 10);
+      const dettaglio = [c.nome, data ? fmtDataIt(data) : ''].filter(Boolean).join(', ');
+      righe.push({ label: dettaglio ? `${tipo} (${dettaglio})` : tipo, importo: v, acconto: true, manuale: true, pagato: true });
+    });
+  });
+  return righe;
+}
 const STATI_SCIDOO_NON_IMPORTABILI = ['annullata', 'annullato', 'rifiutata', 'scaduta'];
 function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
   const agenziaId = String(campoScidoo(row, 'ID') || '').trim();
@@ -4477,9 +4713,12 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
   // risultano invertiti. Cognomi composti ("De Rossi Mario") restano ambigui
   // e vanno corretti a mano nel form di revisione.
   const clientePartiScidoo = String(campoScidoo(row, 'Nome Cliente') || '').trim().split(/\s+/).filter(Boolean);
-  const cliente = clientePartiScidoo.length > 1
+  const clienteDaCsv = clientePartiScidoo.length > 1
     ? [...clientePartiScidoo.slice(1), clientePartiScidoo[0]].join(' ')
     : (clientePartiScidoo[0] || '');
+  const jsonRiga = row.__json || null;
+  // dal JSON nome e cognome arrivano separati: niente ambiguità sui cognomi composti
+  const cliente = jsonRiga ? `${String(jsonRiga.nome || '').trim()} ${String(jsonRiga.cognome || '').trim()}`.trim() : clienteDaCsv;
   const checkin = parseDataISO(campoScidoo(row, 'Checkin'));
   const checkout = parseDataISO(campoScidoo(row, 'Checkout'));
   const stato = String(campoScidoo(row, 'Stato') || '').trim();
@@ -4508,6 +4747,30 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
     stato: null, erroreMsg: null,
     selezionata: true,
   };
+  if (jsonRiga) {
+    risultato.animali = (Number(jsonRiga.Animale) || 0) > 0 || (jsonRiga.addebiti || []).some(a => /animal/i.test(a.nome || ''));
+    risultato.righeConto = righeContoScidooDaJson(jsonRiga, String(campoScidoo(row, 'Retta') || '').trim(),
+      (typeof listini !== 'undefined' && listini.villini) ? listini.villini.animaliPerNotte : 0,
+      prezzoAlloggioListinoScidoo(tipoAlloggio, checkin, checkout));
+    // caparra richiesta da Scidoo ma non ancora incassata: non è una riga del conto, si segnala nelle note
+    const richiesto = (jsonRiga.depositi || []).reduce((s, d) => s + (parseFloat(d.prezzo) || 0), 0);
+    if (richiesto > (Number(jsonRiga.pagato) || 0) + 0.01) {
+      const scad = String((jsonRiga.depositi[0] || {}).data_scadenza || '');
+      risultato.note.push({ categoria: 'Generali', testo: `Caparra richiesta da Scidoo: € ${_numIt(richiesto)}${scad ? ' entro il ' + fmtDataIt(scad) : ''} (non ancora incassata)` });
+    }
+    if (risultato.righeConto) {
+      risultato.verifica = verificaContoConHub(risultato, jsonRiga);
+      if (risultato.verifica.eseguita && !risultato.verifica.ok) risultato.note.push({ categoria: 'Generali', testo: 'Import Scidoo - ' + risultato.verifica.msg });
+    }
+    if (!risultato.righeConto) risultato.erroreMsg = 'Le voci del conto non quadrano col totale: importato come riga unica';
+    else {
+      const stimata = risultato.righeConto.find(x => x.stimato);
+      if (stimata) risultato.erroreMsg = stimata.nAnimaliDedotto
+        ? `Animali: ${stimata.nAnimali} dedotti dal prezzo alloggio (€ ${_numIt(stimata.importo)})`
+        : `Animali: € ${_numIt(stimata.importo)} assumendo 1 animale, da verificare`;
+    }
+    if (risultato.righeConto && row.__soloJson) risultato.erroreMsg = (risultato.erroreMsg ? risultato.erroreMsg + ' · ' : '') + 'Manca il CSV: pensione/tariffa e provenienza da controllare';
+  }
   if (!agenziaId || !cliente || !checkin || !checkout || checkout <= checkin) {
     risultato.stato = 'errore';
     risultato.erroreMsg = 'Dati mancanti o date non valide';
@@ -4619,7 +4882,7 @@ function elaboraRigaImportazioneAgenziaStandard(row, riservatePerCategoria) {
 // apertura scheda, conferma in blocco) resta identico e non va toccato.
 const SORGENTI_IMPORT = {
   agenzia_standard: { nome: 'OFFERTE VILLAGGI', elaboraRiga: elaboraRigaImportazioneAgenziaStandard },
-  scidoo: { nome: 'SCIDOO', elaboraRiga: elaboraRigaImportazioneScidoo, leggiRighe: async (file) => parseCsvScidoo(await file.text()) },
+  scidoo: { nome: 'SCIDOO (JSON + CSV)', elaboraRiga: elaboraRigaImportazioneScidoo, leggiRighe: (file, files) => leggiRigheScidoo(files) },
 };
 let sorgenteImportSelezionata = 'agenzia_standard';
 function popolaSelectSorgenteImport() {
@@ -4662,7 +4925,7 @@ async function analizzaFileImportazione(inputEl) {
     const sorgente = SORGENTI_IMPORT[sorgenteImportSelezionata];
     let righeGrezze;
     if (sorgente.leggiRighe) {
-      righeGrezze = await sorgente.leggiRighe(file);
+      righeGrezze = await sorgente.leggiRighe(file, [...inputEl.files]);
     } else {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
@@ -4683,10 +4946,17 @@ async function analizzaFileImportazione(inputEl) {
 // l'import in blocco e l'apertura singola della scheda (v.
 // apriPrenotazioneDaImportRiga), così le due strade producono esattamente
 // lo stesso risultato.
+// Conto di una riga importata: se la sorgente ha già le voci vere (Scidoo
+// JSON) si usano quelle, altrimenti una riga unica col totale + la caparra.
+function righeContoImport(r) {
+  if (r.righeConto && r.righeConto.length) return r.righeConto.map(x => ({ ...x }));
+  const righe = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
+  if (r.caparra > 0) righe.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  return righe;
+}
 function costruisciDatiImportRiga(r) {
   const bambiniTotale = r.bambiniFasce.b0_2 + r.bambiniFasce.b3_4 + r.bambiniFasce.b5_9 + r.bambiniFasce.b10_17;
-  const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
-  if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  const righeConto = righeContoImport(r);
   // Le sorgenti con note già divise per categoria (es. Scidoo) passano
   // "note" pronto; l'altra sorgente passa solo testo libero da incapsulare.
   const noteTesto = [r.noteGenerali, r.noteAnimali ? `Animali: ${r.noteAnimali}` : ''].filter(Boolean).join(' — ');
@@ -4757,6 +5027,10 @@ function renderRisultatiImportazione() {
     if (r.checkin && r.checkout) metaParts.push(`${esc(fmtDataIt(r.checkin))} → ${esc(fmtDataIt(r.checkout))}`);
     metaParts.push(esc(r.alloggioNome || r.tipoAlloggio || ''));
     if (r.erroreMsg) metaParts.push(esc(r.erroreMsg));
+    if (r.verifica && (r.stato === 'nuova' || r.stato === 'da_assegnare')) {
+      const col = !r.verifica.eseguita ? 'var(--gray-500)' : r.verifica.ok ? 'var(--green-700)' : 'var(--red)';
+      metaParts.push(`<span style="color:${col};font-weight:700">${esc(r.verifica.msg)}</span>`);
+    }
     const selezionabile = r.stato === 'nuova' || r.stato === 'da_assegnare';
     const apribile = r.stato !== 'errore';
     const checkboxHtml = selezionabile
@@ -4838,8 +5112,7 @@ function apriPrenotazioneDaImportRiga(idx) {
   aggiornaBadgeOspiti();
   // Il totale/caparra riportati dall'agenzia sostituiscono il preventivo da
   // listino appena calcolato sopra — restano comunque modificabili a mano.
-  const righeConto = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
-  if (r.caparra > 0) righeConto.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  const righeConto = righeContoImport(r);
   contoCorrente = righeConto;
   contoModificatoManualmente = true;
   renderContoInline();
@@ -7119,6 +7392,7 @@ async function importaListinoVilliniDaFile() {
     };
     _listiniSporchi.villini = true;
     renderListinoVilliniPanel();
+    aggiornaBannerListinoSporco();
     showToast(`Letti ${periodi.length} periodi dai 3 file${nonAbbinate.length ? ` — categorie non trovate nel file: ${nonAbbinate.join(', ')}` : ''}. Controlla i valori e premi "Salva listino Villini" per confermare.`);
   } catch(e) {
     console.error('Errore import listino da file:', e);
@@ -7189,6 +7463,7 @@ function renderListinoVilliniPanel() {
       </div>
       <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="salvaListinoVillini()">Salva listino Villini</button></div>
     </div>`;
+  aggiornaBannerListinoSporco();
 }
 
 async function salvaListinoVillini() {
@@ -7216,9 +7491,9 @@ async function salvaListinoVillini() {
   };
   l.spiaggiaPerGiorno = parseFloat(document.getElementById('lv-spiaggia-giorno').value) || 0;
   try {
-    const { db, doc, setDoc } = window._fb;
-    await setDoc(doc(db, 'listini', 'villini'), JSON.parse(JSON.stringify(l)));
+    if (!(await salvaListinoSicuro('villini', l))) { showToast('Salvataggio annullato: il listino su Firestore non è stato toccato'); return; }
     _listiniSporchi.villini = false;
+    aggiornaBannerListinoSporco();
     showToast('Listino Villini salvato');
   } catch(e) { console.error('Errore salvataggio listino villini:', e); showToast('Errore: ' + e.message); }
 }
@@ -7251,6 +7526,7 @@ function renderListinoCampeggioPanel() {
       </div>
       <div class="listino-save-row"><button type="button" class="listino-save-btn" onclick="salvaListinoCampeggio()">Salva listino Campeggio</button></div>
     </div>`;
+  aggiornaBannerListinoSporco();
 }
 
 async function salvaListinoCampeggio() {
@@ -7265,9 +7541,9 @@ async function salvaListinoCampeggio() {
     max6: parseFloat(document.getElementById('lc-tessera-6').value) || 0,
   };
   try {
-    const { db, doc, setDoc } = window._fb;
-    await setDoc(doc(db, 'listini', 'campeggio'), JSON.parse(JSON.stringify(l)));
+    if (!(await salvaListinoSicuro('campeggio', l))) { showToast('Salvataggio annullato: il listino su Firestore non è stato toccato'); return; }
     _listiniSporchi.campeggio = false;
+    aggiornaBannerListinoSporco();
     showToast('Listino Campeggio salvato');
   } catch(e) { console.error('Errore salvataggio listino campeggio:', e); showToast('Errore: ' + e.message); }
 }
