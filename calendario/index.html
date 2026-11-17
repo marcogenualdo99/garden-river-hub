@@ -1551,10 +1551,18 @@ function calcolaPreventivo(input) {
   // voci singole), oppure i kit biancheria e/o la spiaggia a la carte, mai
   // entrambi insieme — altrimenti si pagherebbe due volte la stessa cosa.
   if (pacchettoServizi) {
-    const mese = Number(checkin.slice(5,7));
-    const pacchetto = listino.pacchettoServiziPerMese[mese];
-    if (pacchetto != null) {
-      righe.push({ label: 'Pacchetto biancheria + spiaggia', importo: pacchetto });
+    // Come nei preventivi MrPreno ("Pacchetto Servizi Luglio, quantità 2 × 170"):
+    // il pacchetto si paga PER SETTIMANA, e ogni settimana prende il prezzo del
+    // mese in cui cade la maggior parte delle sue notti (31/07-07/08 = Agosto).
+    const settimane = Math.max(1, Math.ceil(notti / 7));
+    let pacchetto = 0, trovato = false;
+    for (let w = 0; w < settimane; w++) {
+      const mese = Number(addDaysIso(checkin, w * 7 + 3).slice(5, 7));
+      const prezzoMese = listino.pacchettoServiziPerMese[mese];
+      if (prezzoMese != null) { pacchetto += prezzoMese; trovato = true; }
+    }
+    if (trovato) {
+      righe.push({ label: settimane > 1 ? `Pacchetto biancheria + spiaggia × ${settimane} settimane` : 'Pacchetto biancheria + spiaggia', importo: pacchetto });
       totale += pacchetto;
     }
   } else {
@@ -4611,18 +4619,36 @@ function verificaContoConHub(r, jsonRiga) {
     const righe = r.righeConto || [];
     const stim = righe.find(x => x.stimato);
     const haAnimali = !!stim || righe.some(x => /animal/i.test(x.label));
-    const prev = calcolaPreventivo({
-      categoria, checkin: r.checkin, checkout: r.checkout, adulti: r.adulti,
-      b0_2: r.bambiniFasce.b0_2, b3_4: r.bambiniFasce.b3_4, b5_9: r.bambiniFasce.b5_9, b10_17: r.bambiniFasce.b10_17,
-      animali: haAnimali, trattamento: r.trattamento, spiaggia: false, pacchettoServizi: !!r.pacchettoServizi,
-      kitBagno: 0, kitSingolo: 0, kitMatrimoniale: 0,
-    });
-    if (!prev.disponibile) return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + prev.motivo };
     const somma = (lista, re) => lista.filter(x => re.test(x.label)).reduce((t, x) => t + x.importo, 0);
     const notti = Math.max(1, diffDays(r.checkin, r.checkout));
+    const rettaScidoo = Number(jsonRiga.totale_rette) || 0;
+    const tol = 2 + 0.2 * notti; // arrotondamento accettato per voce
+    // La fascia "2-5/2-6" di Scidoo può essere 3-4 o 5-9 nel listino Hub (nel
+    // preventivo MrPreno un bambino di 8 anni paga 5-9 ma Scidoo lo mette in "2-6"):
+    // si prova entrambe le letture e si tiene quella che torna con la retta.
+    const calcola = (comeB59) => {
+      const b = r.bambiniFasce;
+      return calcolaPreventivo({
+        categoria, checkin: r.checkin, checkout: r.checkout, adulti: r.adulti,
+        b0_2: b.b0_2, b3_4: comeB59 ? 0 : b.b3_4, b5_9: b.b5_9 + (comeB59 ? b.b3_4 : 0), b10_17: b.b10_17,
+        animali: haAnimali, trattamento: r.trattamento, spiaggia: false, pacchettoServizi: !!r.pacchettoServizi,
+        kitBagno: 0, kitSingolo: 0, kitMatrimoniale: 0,
+      });
+    };
+    const rettaDi = p => somma(p.righe, /^(Adulti|Ragazzi 10-17|Bambini [0-9-]+) ×|^Pacchetto/);
+    let prev = calcola(false);
+    if (!prev.disponibile) return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + prev.motivo };
+    let fasciaRiletta = false;
+    if (r.bambiniFasce.b3_4 > 0 && Math.abs(rettaDi(prev) - rettaScidoo) > tol) {
+      const prevB = calcola(true);
+      if (prevB.disponibile && Math.abs(rettaDi(prevB) - rettaScidoo) <= tol) {
+        prev = prevB; fasciaRiletta = true;
+        r.bambiniFasce.b5_9 += r.bambiniFasce.b3_4; r.bambiniFasce.b3_4 = 0; // la scheda parte con le fasce giuste
+      }
+    }
     const nAnim = stim ? (stim.nAnimali || 1) : (haAnimali ? 1 : 0);
     const hub = {
-      retta: somma(prev.righe, /^(Adulti|Ragazzi 10-17|Bambini [0-9-]+) ×|^Pacchetto/),
+      retta: rettaDi(prev),
       alloggio: somma(prev.righe, /^Alloggio ·/) + somma(prev.righe, /^Animali ·/) * nAnim,
       pulizia: somma(prev.righe, /^Pulizia finale/),
     };
@@ -4633,14 +4659,26 @@ function verificaContoConHub(r, jsonRiga) {
       alloggio: (libero ? libero.importo : 0) + (stim ? stim.importo : 0),
       pulizia: somma(nonAcconto.filter(x => !x.stimato), /pulizia finale/i),
     };
-    const tol = 2 + 0.2 * notti; // arrotondamento accettato per voce
     const nomi = { retta: 'Retta (pacchetto + persone)', alloggio: 'Alloggio + animali', pulizia: 'Pulizia finale' };
+    // Cause note delle differenze, dai preventivi MrPreno confrontati a mano:
+    // posto aggiuntivo (quinto ospite) e extra non separabili nell'addebito libero.
+    const settimane = Math.max(1, Math.ceil(notti / 7));
+    const listinoHub = (typeof listini !== 'undefined' && listini.villini) || {};
+    const posto = Number(listinoHub.postoAggiuntivo) || 0;
+    const suggerisci = (k, diff) => {
+      if (k === 'retta') {
+        if (posto && [1, 2].some(q => Math.abs(diff - posto * notti * q) <= tol)) return `probabile posto aggiuntivo (€ ${_numIt(posto)}/notte), non previsto nel preventivo Hub`;
+        if (/divano/i.test(String(jsonRiga.preparazione || '')) && Math.abs(diff - 15 * settimane) <= tol) return 'probabile divano letto (+€ 15/settimana nel pacchetto, ipotesi da confermare)';
+      }
+      if (k === 'alloggio' && diff > tol) return 'residuo probabile: extra non separabili nell\'addebito libero (es. noleggio bici)';
+      return '';
+    };
     const diffs = Object.keys(nomi)
-      .map(k => ({ voce: nomi[k], scidoo: _r2(scidoo[k]), hub: _r2(hub[k]), diff: _r2(scidoo[k] - hub[k]) }))
+      .map(k => ({ voce: nomi[k], scidoo: _r2(scidoo[k]), hub: _r2(hub[k]), diff: _r2(scidoo[k] - hub[k]), hint: suggerisci(k, scidoo[k] - hub[k]) }))
       .filter(d => Math.abs(d.diff) > tol);
     const msg = diffs.length
-      ? 'Verifica tariffe Hub: DIFFERENZE · ' + diffs.map(d => `${d.voce}: Scidoo € ${_numIt(d.scidoo)} / Hub € ${_numIt(d.hub)}`).join(' · ')
-      : 'Verifica tariffe Hub: OK';
+      ? 'Verifica tariffe Hub: DIFFERENZE · ' + diffs.map(d => `${d.voce}: Scidoo € ${_numIt(d.scidoo)} / Hub € ${_numIt(d.hub)}${d.hint ? ' (' + d.hint + ')' : ''}`).join(' · ')
+      : 'Verifica tariffe Hub: OK' + (fasciaRiletta ? ' (fascia bambini "2-6" di Scidoo letta come 5-9: torna col tariffario)' : '');
     return { eseguita: true, ok: !diffs.length, diffs, msg };
   } catch (e) { return { eseguita: false, ok: true, msg: 'Verifica tariffe Hub non eseguita: ' + e.message }; }
 }
