@@ -156,6 +156,14 @@
   .conto-row { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0;
     border-bottom: 1px solid var(--gray-100); font-size: 13.5px; color: var(--gray-700) }
   .conto-row:last-child { border-bottom: none }
+  .sg-nav { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; margin: 0 -2px; scrollbar-width: none }
+  .sg-nav::-webkit-scrollbar { display: none }
+  .sg-nav button { flex: 0 0 auto; border: 1px solid var(--gray-100); background: #fff; color: var(--green-700); font: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 999px; cursor: pointer }
+  .sg-sez { scroll-margin-top: 12px }
+  .sg-h { display: flex; justify-content: space-between; align-items: center; gap: 10px }
+  .sg-link { border: none; background: none; color: var(--green-700); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; white-space: nowrap }
+  .sg-sub { margin: 12px 0 2px; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray-500) }
+  .sg-giorno { margin: 10px 0 0; font-size: 13px; font-weight: 700 }
   .conto-row em { font-style: normal; color: var(--gray-500); font-size: 12px }
   .conto-tot { display: flex; justify-content: space-between; align-items: center;
     padding-top: 10px; margin-top: 8px; border-top: 1.5px solid var(--gray-200);
@@ -748,6 +756,7 @@ const SERVIZI = [
   { id: 'animazione',   icon: 'ANIMAZIONE',   title: 'Animazione',           foto: 'img/animazione.jpg' },
   { id: 'info',         icon: 'INFO',         title: 'Info utili',           foto: 'img/info.jpg' },
   { id: 'shop',         icon: 'BAG',         title: 'Shop',                 foto: 'img/home.jpg' },
+  { id: 'soggiorno',    icon: 'BOOK',         title: 'Il mio soggiorno',     foto: 'img/home.jpg' },
   { id: 'manutenzione', icon: 'WRENCH',      title: 'Segnala un guasto',    foto: 'img/assistenza.jpg' },
 ];
 const FOTO_HOME = 'img/home.jpg';
@@ -894,6 +903,7 @@ function sottotitoloServizio(id) {
     const attive = (CFG.navetta_corse || []).filter(c => c.data === oggiData() && c.stato === 'in_attesa' || c.stato === 'accettata').length;
     return attive ? `${attive} richiest${attive === 1 ? 'a' : 'e'} in corso` : 'Prenota il rientro dalla spiaggia';
   }
+  if (id === 'soggiorno') return 'Conto, spiaggia, ordini e corse';
   if (id === 'manutenzione') return 'Qualcosa non funziona nel tuo alloggio?';
   if (id === 'shop') return 'Ordina e ritira in struttura';
   if (id === 'ristorazione') {
@@ -1413,6 +1423,7 @@ function renderHome() {
 
 function apriServizio(id) {
   if ((preArrivo() && SOLO_DOPO_ARRIVO.includes(id)) || dopoPartenza()) return;
+  if (id === 'soggiorno') return apriSoggiorno();
   _servizioAperto = id;
   _infoSub = null;
   const s = SERVIZI.find(x => x.id === id) || {};
@@ -1436,51 +1447,103 @@ function fmtDataItEstesa(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
 }
-function apriPrenotazioneInfo() {
-  _servizioAperto = 'prenotazione';
-  _infoSub = null;
-  $('#home-view').style.display = 'none';
-  $('#service-view').style.display = 'block';
-  $('#titolo').textContent = 'I tuoi dati';
-  $('#sottotitolo').textContent = 'Prenotazione e conto';
-  impostaBanner('info');
-  hydrateIcons($('#service-view'));
-  window.scrollTo(0, 0);
-  renderPrenotazioneInfo();
+// ── Il mio soggiorno: tutti gli eventi dell'ospite, a sezioni ──────────────
+const _ordSogg = { ordini: null, pasti: null };
+function apriSoggiorno() {
+  _ordSogg.ordini = null; _ordSogg.pasti = null;
+  apriVista('soggiorno', t('Il mio soggiorno'), t('Tutto quello che riguarda la tua vacanza'), 'info', renderSoggiorno);
 }
-function renderPrenotazioneInfo() {
-  const p = CFG.prenotazione || {};
-  const c = CFG.conto || { voci: [], totale: 0, pagato: 0, da_pagare: 0 };
-  const riga = r => `<div class="conto-row"><span>${esc(r.label || '—')}${r.acconto ? ' <em>(acconto)</em>' : ''}${r.pagato ? ' <em>· pagato</em>' : ''}</span><span>€ ${Math.abs(r.importo || 0).toFixed(2)}</span></div>`;
+function sgEur(n) { return (Number(n) || 0).toLocaleString(LOCALE[LANG], { style: 'currency', currency: 'EUR' }); }
+function sgSez(id, titolo, corpo, azione) {
+  return `<div class="card sg-sez" id="sg-${id}"><div class="sg-h"><h2>${esc(titolo)}</h2>${azione || ''}</div>${corpo}</div>`;
+}
+function sgRiga(sx, dx, sotto) {
+  return `<div class="conto-row"><span>${sx}${sotto ? `<em style="display:block">${sotto}</em>` : ''}</span><span>${dx || ''}</span></div>`;
+}
+function sgBtn(txt, fn) { return `<button type="button" class="sg-link" onclick="${fn}">${esc(t(txt))}</button>`; }
+function renderSoggiorno() {
+  const p = CFG.prenotazione || {}, c = CFG.conto || { voci: [], totale: 0, pagato: 0, da_pagare: 0 }, sp = CFG.spiaggia || {};
+  const oggi = oggiData(), notti = (p.checkin && p.checkout) ? Math.round((new Date(p.checkout + 'T12:00:00') - new Date(p.checkin + 'T12:00:00')) / 86400000) : null;
+  const sezioni = [];
+  // 1. Prenotazione
+  sezioni.push(['pren', t('Prenotazione'), sgSez('pren', t('La tua prenotazione'), `
+    <div class="info-kv"><span>${esc(t('Alloggio'))}</span><strong>${esc(p.alloggio_nome || '—')}</strong></div>
+    <div class="info-kv"><span>${esc(t('Arrivo'))}</span><strong>${esc(fmtDataLunga(p.checkin))}</strong></div>
+    <div class="info-kv"><span>${esc(t('Partenza'))}</span><strong>${esc(fmtDataLunga(p.checkout))}</strong></div>
+    ${notti ? `<div class="info-kv"><span>${esc(t('Notti'))}</span><strong>${notti}</strong></div>` : ''}
+    <div class="info-kv"><span>${esc(t('Persone'))}</span><strong>${p.persone_totali || '—'}</strong></div>`)]);
+  // 2. Conto: voci del soggiorno + spese in struttura raggruppate per giorno
   const isBici = r => /^bici\b/i.test(r.label || '');
-  const vBici = c.voci.filter(isBici), vAltre = c.voci.filter(r => !isBici(r));
-  const righeHtml = vAltre.length ? vAltre.map(riga).join('')
-    : (vBici.length ? '' : '<p class="hint">Il conto non è ancora disponibile.</p>');
-  const attive = CFG.bici_attive || [];
-  const fmtOra = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); };
-  const stimaTot = attive.reduce((n, b) => n + (b.pagata ? 0 : (b.costo_stimato || 0)), 0);
-  const biciHtml = (attive.length || vBici.length) ? `<div class="card"><h2>Noleggio bici</h2>
-      ${attive.length ? `<div style="margin-top:6px"><div class="hint" style="margin-bottom:4px">In corso adesso</div>${attive.map(b => `<div class="bici-live"><span>Bici N° ${esc(b.numero)}<em>ritirata il ${esc(fmtOra(b.ritiro))}</em></span><strong>${b.pagata ? 'già pagata' : (b.costo_stimato != null ? '≈ € ' + b.costo_stimato.toFixed(2) : '—')}</strong></div>`).join('')}
-        ${stimaTot > 0 ? `<p class="hint" style="margin-top:6px">Importo indicativo fino ad ora: il totale esatto viene aggiunto al conto alla riconsegna.</p>` : ''}</div>` : ''}
-      ${vBici.length ? `<div style="margin-top:10px"><div class="hint" style="margin-bottom:4px">Noleggi conclusi</div>${vBici.map(riga).join('')}</div>` : ''}
-    </div>` : '';
+  const voci = c.voci || [], vSogg = voci.filter(r => !r.data && !isBici(r)), vSpese = voci.filter(r => r.data), vBici = voci.filter(r => !r.data && isBici(r));
+  const riga = r => sgRiga(esc(r.label || '—') + (r.acconto ? ` <em>(${esc(t('acconto'))})</em>` : '') + (r.pagato ? ` <em>· ${esc(t('pagato'))}</em>` : ''), sgEur(Math.abs(r.importo || 0)));
+  const giorni = {}; vSpese.forEach(r => (giorni[r.data] = giorni[r.data] || []).push(r));
+  const spese = Object.keys(giorni).sort().map(g => `<div class="sg-giorno">${esc(fmtDataLunga(g))}</div>` +
+    giorni[g].map(r => sgRiga(esc(r.label), sgEur(r.importo), r.punto && r.punto !== r.label ? esc(r.punto) : '')).join('')).join('');
   const saldato = (c.da_pagare || 0) <= 0.004;
-  $('#service-content').innerHTML = `
-    <div class="card">
-      <h2>La tua prenotazione</h2>
-      <div class="info-kv"><span>Alloggio</span><strong>${esc(p.alloggio_nome || '—')}</strong></div>
-      <div class="info-kv"><span>Check-in</span><strong>${fmtDataItEstesa(p.checkin)}</strong></div>
-      <div class="info-kv"><span>Check-out</span><strong>${fmtDataItEstesa(p.checkout)}</strong></div>
-      <div class="info-kv"><span>Persone</span><strong>${p.persone_totali || '—'}</strong></div>
-    </div>
-    ${biciHtml}
-    <div class="card">
-      <h2>Il tuo conto</h2>
-      <div class="conto-list" style="margin-top:6px">${righeHtml}</div>
-      ${c.voci.length ? `<div class="conto-tot"><span>Totale soggiorno</span><strong>€ ${c.totale.toFixed(2)}</strong></div>
-      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${saldato ? 'Saldato' : 'Da pagare'}</span><strong>${saldato ? 'Nessun residuo' : '€ ' + c.da_pagare.toFixed(2)}</strong></div>` : ''}
-    </div>`;
+  sezioni.push(['conto', t('Conto'), sgSez('conto', t('Il tuo conto'), `
+    ${vSogg.length ? `<div class="sg-sub">${esc(t('Soggiorno'))}</div>${vSogg.map(riga).join('')}` : ''}
+    ${spese ? `<div class="sg-sub">${esc(t('Spese in struttura'))}</div>${spese}` : ''}
+    ${!voci.length ? `<p class="hint">${esc(t('Il conto non è ancora disponibile.'))}</p>` : `
+      <div class="conto-tot"><span>${esc(t('Totale soggiorno'))}</span><strong>${sgEur(c.totale)}</strong></div>
+      <div class="conto-tot esito ${saldato ? 'ok' : 'warn'}"><span>${esc(saldato ? t('Saldato') : t('Da pagare'))}</span><strong>${saldato ? esc(t('Nessun residuo')) : sgEur(c.da_pagare)}</strong></div>`}`)]);
+  // 3. Spiaggia
+  sezioni.push(['spiaggia', t('Spiaggia'), sgSez('spiaggia', t('La tua spiaggia'), sp.ombrellone ? `
+    <div class="info-kv"><span>${esc(t('Ombrellone'))}</span><strong>${esc(sp.ombrellone)}</strong></div>
+    ${sp.spiaggia_nome ? `<div class="info-kv"><span>${esc(t('Spiaggia'))}</span><strong>${esc(sp.spiaggia_nome)}</strong></div>` : ''}
+    <div class="info-kv"><span>${esc(t('Dal'))}</span><strong>${esc(fmtDataLunga(sp.dal || p.checkin))}</strong></div>
+    <div class="info-kv"><span>${esc(t('Fino al'))}</span><strong>${esc(fmtDataLunga(sp.al || p.checkout))}</strong></div>` : `<p class="hint">${esc(t('L\'ombrellone non è ancora stato assegnato. Chiedi alla reception.'))}</p>`,
+    sp.ombrellone ? sgBtn('Apri il tagliandino', 'apriTicketSpiaggia()') : '')]);
+  // 4. Navetta: attuali e passate
+  const corse = CFG.navetta_corse || [], attive = corse.filter(x => x.data >= oggi && (x.stato === 'in_attesa' || x.stato === 'accettata')), passate = corse.filter(x => !attive.includes(x));
+  const rigaCorsa = x => sgRiga(`${esc(fmtDataLunga(x.data))} · ${esc(x.orario || '')}`, `<span class="stato-badge ${statoInfo(x.stato).cls}">${esc(t(statoInfo(x.stato).label))}</span>`,
+    esc([x.spiaggia_nome, x.autista_nome, x.persone ? `${x.persone} ${x.persone === 1 ? t('persona') : t('persone')}` : ''].filter(Boolean).join(' · ')));
+  sezioni.push(['navetta', t('Navetta'), sgSez('navetta', t('Navetta'), `
+    ${attive.length ? `<div class="sg-sub">${esc(t('In programma'))}</div>${attive.map(rigaCorsa).join('')}` : ''}
+    ${passate.length ? `<div class="sg-sub">${esc(t('Passate'))}</div>${passate.map(rigaCorsa).join('')}` : ''}
+    ${!corse.length ? `<p class="hint">${esc(t('Nessuna corsa prenotata.'))}</p>` : ''}`,
+    sgBtn('Prenota una corsa', "apriServizio('navetta')"))]);
+  // 5. Ordini shop e 6. Pasti: caricati dopo
+  if (CFG.shop_attivo) sezioni.push(['shop', t('Ordini shop'), sgSez('shop', t('Ordini shop'), `<p class="hint">${esc(t('Carico i tuoi ordini…'))}</p>`, sgBtn('Apri lo shop', "apriServizio('shop')"))]);
+  if (CFG.ristorazione) sezioni.push(['pasti', t('Pasti'), sgSez('pasti', t('Pasti ordinati'), `<p class="hint">${esc(t('Carico i tuoi pasti…'))}</p>`, sgBtn('Ordina i pasti', "apriServizio('ristorazione')"))]);
+  // 7. Bici
+  const bAtt = CFG.bici_attive || [];
+  if (bAtt.length || vBici.length) {
+    const fmtOra = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString(LOCALE[LANG], { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString(LOCALE[LANG], { hour: '2-digit', minute: '2-digit' }); };
+    sezioni.push(['bici', t('Bici'), sgSez('bici', t('Noleggio bici'), `
+      ${bAtt.length ? `<div class="sg-sub">${esc(t('In corso adesso'))}</div>${bAtt.map(b => sgRiga(`${esc(t('Bici N°'))} ${esc(b.numero)}`, b.pagata ? esc(t('pagata')) : sgEur(b.costo_stimato), esc(t('ritirata il')) + ' ' + esc(fmtOra(b.ritiro)))).join('')}` : ''}
+      ${vBici.length ? `<div class="sg-sub">${esc(t('Noleggi conclusi'))}</div>${vBici.map(riga).join('')}` : ''}`)]);
+  }
+  $('#service-content').innerHTML = `<div class="sg-nav">${sezioni.map(s => `<button type="button" onclick="document.getElementById('sg-${s[0]}').scrollIntoView({behavior:'smooth',block:'start'})">${esc(s[1])}</button>`).join('')}</div>` + sezioni.map(s => s[2]).join('');
+  hydrateIcons($('#service-content'));
+  if (CFG.shop_attivo) sgCaricaShop();
+  if (CFG.ristorazione) sgCaricaPasti();
 }
+async function sgCaricaShop() {
+  let d; try { d = await chiama({ azione: 'shop_ordini' }, { ms: 20000, tentativi: 2 }); } catch (e) { d = null; }
+  const el = document.getElementById('sg-shop'); if (!el || _servizioAperto !== 'soggiorno') return;
+  const h = el.querySelector('.sg-h').outerHTML;
+  if (!d || !d.ok) { el.innerHTML = h + `<p class="hint">${esc(t('Non riesco a caricare gli ordini ora.'))}</p>`; traduciDom(el); return; }
+  SHO.ordini = d.ordini; SHO.orari = d.ritiro_orari || []; SHO.t = Date.now();
+  const card = o => sgRiga(`${esc(new Date(o.creato_il).toLocaleDateString(LOCALE[LANG], { day: '2-digit', month: '2-digit' }))} · ${esc(o.righe.map(r => r.quantita + ' × ' + r.titolo).join(', '))}`,
+    `<b>${shEur(o.totale)}</b>`, esc(t(SH_STATO[o.stato] || o.stato)) + ' · ' + esc((o.pagamento || {}).stato === 'pagato' ? t('Pagato') : t('Da pagare')));
+  const att = d.ordini.filter(o => o.stato === 'nuovo' || o.stato === 'pronto'), resto = d.ordini.filter(o => !att.includes(o));
+  el.innerHTML = h + (!d.ordini.length ? `<p class="hint">${esc(t('Non hai ancora fatto ordini.'))}</p>` :
+    (att.length ? `<div class="sg-sub">${esc(t('In corso'))}</div>${att.map(card).join('')}` : '') + (resto.length ? `<div class="sg-sub">${esc(t('Conclusi'))}</div>${resto.map(card).join('')}` : ''));
+  traduciDom(el);
+}
+async function sgCaricaPasti() {
+  let d; try { d = await ristoDati(); } catch (e) { d = null; }
+  const el = document.getElementById('sg-pasti'); if (!el || _servizioAperto !== 'soggiorno') return;
+  const h = el.querySelector('.sg-h').outerHTML, ord = (d && d.ok && d.ordini) || {}, chiavi = Object.keys(ord).sort();
+  if (!d || !d.ok) { el.innerHTML = h + `<p class="hint">${esc(t('Non riesco a caricare i pasti ora.'))}</p>`; traduciDom(el); return; }
+  el.innerHTML = h + (chiavi.length ? chiavi.map(k => { const [g, tipo] = k.split('_'), o = ord[k];
+    return sgRiga(`${esc(fmtDataLunga(g))} · ${esc(tipo === 'pranzo' ? t('Pranzo') : (tipo === 'cena' ? t('Cena') : t('Pasto')))}`, '',
+      esc((o.piatti || []).map(x => x.quantita + ' × ' + (x.piatto || '')).join(', ')));
+  }).join('') : `<p class="hint">${esc(t('Nessun pasto ordinato.'))}</p>`);
+  traduciDom(el);
+}
+
+function apriPrenotazioneInfo() { apriSoggiorno(); }
 
 function handleBack() {
   if (_servizioAperto === 'shop' && SH && SH.vista !== 'catalogo') { shIndietro(); return; }

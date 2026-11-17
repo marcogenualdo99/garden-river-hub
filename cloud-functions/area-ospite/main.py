@@ -756,7 +756,8 @@ def _spese_conti(db, pren_id, p):
                     continue
                 if imp:
                     voci.append((ts, {'label': _s(x.get('desc'), 160) or _s(x.get('punto'), 60) or 'Spesa',
-                                      'importo': imp, 'pagato': False, 'acconto': False}))
+                                      'importo': imp, 'pagato': False, 'acconto': False,
+                                      'data': ts[:10], 'punto': _s(x.get('punto'), 60)}))
         voci.sort(key=lambda v: v[0])
         return [v for _, v in voci]
     except Exception as e:
