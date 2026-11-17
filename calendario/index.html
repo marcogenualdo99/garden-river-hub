@@ -1083,7 +1083,7 @@
       </div>
 
       <div class="pren-panel" data-panel="conto">
-        <div class="conto-head"><label class="f-label" style="margin:0">Conto</label><button type="button" class="stato-btn" id="btn-aggiorna-preventivo" onclick="aggiornaPreventivoDaListino()" title="Ricalcola le voci del listino con le tariffe Hub attuali, senza toccare caparre e tassa di soggiorno">Aggiorna preventivo</button></div>
+        <div class="conto-head"><label class="f-label" style="margin:0">Conto</label><button type="button" class="stato-btn" id="btn-aggiorna-preventivo" onclick="aggiornaPreventivoDaListino()" title="Prenotazione importata: riporta il conto alle voci dell'ultima importazione. Prenotazione inserita a mano: ricalcola dal listino Hub">Aggiorna preventivo</button></div>
         <div class="prev-box" id="conto-box">
           <div id="conto-list-inline"></div>
           <div class="conto-row-inline conto-row-add" onclick="aggiungiVoceConto()">
@@ -5601,6 +5601,8 @@ function costruisciDatiImportRiga(r) {
     preventivo_stimato: null,
     note,
     conto: { righe: righeConto, totale: calcolaSaldoConto(righeConto).totale },
+    // copia del conto come arriva dall'import: serve al pulsante "Aggiorna preventivo" per riportarlo a quello
+    conto_import: { righe: righeConto.map(x => ({ ...x })), totale: calcolaSaldoConto(righeConto).totale, fonte: sorgenteImportSelezionata, il: new Date().toISOString() },
     ospiti: [],
     agenzia_id: r.agenziaId,
     ...(r.daConfermare ? { confermata: false } : {}),
@@ -5625,8 +5627,10 @@ function contoAggiornabileDaImport(r) {
   const doppio = !/^bk\//.test(String(p.agenzia_id || '')) &&
     righe.some(x => x.label.startsWith('Alloggio ·')) &&
     righe.some(x => x.manuale && !x.acconto && !PREFISSI_RIGHE_LISTINO.some(pre => x.label.startsWith(pre)));
-  if (!doppio || righe.some(x => x.fiscalizzato)) return null;
-  return { p, vecchia: null, doppio: true };
+  if (doppio && !righe.some(x => x.fiscalizzato)) return { p, vecchia: null, doppio: true };
+  // conto già a posto ma senza copia dell'import: si salva solo la copia (il conto non cambia)
+  // così il pulsante "Aggiorna preventivo" della scheda può riportare il conto all'importazione
+  return p.conto_import ? null : { p, vecchia: null, soloSalva: true };
 }
 function righeContoAggiornate(r, p, vecchia) {
   const nuove = righeContoImport(r);
@@ -5645,7 +5649,7 @@ function chiediAggiornaContiImportati() {
   if (!daAggiornare.length) return;
   apriModaleConferma(
     `Aggiornare il conto di ${daAggiornare.length} prenotazioni?`,
-    `La riga unica "Soggiorno (agenzia)" di queste prenotazioni viene sostituita dalle voci di Scidoo (retta, addebiti, sconto, animali, caparre). Le altre righe del conto (tassa di soggiorno, voci manuali) restano.<br><br>${daAggiornare.map(r => esc(r.cliente)).join(', ')}`,
+    `Riga unica o voci doppie: il conto viene sostituito dalle voci dell'importazione (retta, addebiti, sconto, animali, caparre). Conto già corretto: non cambia, si registra solo la copia dell'import per il pulsante «Aggiorna preventivo». Tassa di soggiorno e voci manuali restano.<br><br>${daAggiornare.map(r => esc(r.cliente)).join(', ')}`,
     aggiornaContiImportati, 'Aggiorna i conti', false
   );
 }
@@ -5656,8 +5660,13 @@ async function aggiornaContiImportati() {
     const c = contoAggiornabileDaImport(r);
     if (!c) continue;
     try {
-      const righe = righeContoAggiornate(r, c.p, c.vecchia);
-      await updateDoc(doc(db, 'prenotazioni', c.p.id), { conto: { righe, totale: calcolaSaldoConto(righe).totale }, updatedAt: new Date().toISOString() });
+      const righe = c.soloSalva ? null : righeContoAggiornate(r, c.p, c.vecchia);
+      const righeImport = righeContoImport(r);
+      await updateDoc(doc(db, 'prenotazioni', c.p.id), {
+        ...(c.soloSalva ? {} : { conto: { righe, totale: calcolaSaldoConto(righe).totale } }),
+        conto_import: { righe: righeImport, totale: calcolaSaldoConto(righeImport).totale, fonte: sorgenteImportSelezionata, il: new Date().toISOString() },
+        updatedAt: new Date().toISOString(),
+      });
       r.stato = 'aggiornata';
       ok++;
     } catch (e) { console.error('Errore aggiornamento conto importato:', r, e); falliti++; }
@@ -5688,7 +5697,7 @@ function renderRisultatiImportazione() {
   const aggiornabili = esistenti.filter(r => contoAggiornabileDaImport(r));
   const aggiornate = _importRighe.filter(r => r.stato === 'aggiornata');
   const aggiornaHtml = aggiornabili.length
-    ? `<div style="margin:-6px 0 12px"><button type="button" class="listino-save-btn" onclick="chiediAggiornaContiImportati()">Aggiorna il conto di ${aggiornabili.length} prenotazion${aggiornabili.length === 1 ? 'e già presente' : 'i già presenti'} (riga unica o voci doppie → voci di Scidoo)</button></div>`
+    ? `<div style="margin:-6px 0 12px"><button type="button" class="listino-save-btn" onclick="chiediAggiornaContiImportati()">Aggiorna il conto di ${aggiornabili.length} prenotazion${aggiornabili.length === 1 ? 'e già presente' : 'i già presenti'} (riga unica, voci doppie o import da registrare)</button></div>`
     : '';
   const summaryHtml = aggiornaHtml + `<div class="import-summary">
     <span style="color:var(--green-700)">● ${nuove.length} nuove</span>
@@ -5711,7 +5720,7 @@ function renderRisultatiImportazione() {
     if (r.checkin && r.checkout) metaParts.push(`${esc(fmtDataIt(r.checkin))} → ${esc(fmtDataIt(r.checkout))}`);
     metaParts.push(esc(r.alloggioNome || r.tipoAlloggio || ''));
     if (r.erroreMsg) metaParts.push(esc(r.erroreMsg));
-    if (r.stato === 'esistente' && contoAggiornabileDaImport(r)) metaParts.push(`<span style="font-weight:700">${contoAggiornabileDaImport(r).doppio ? 'Conto con voci doppie: ripristinabile' : 'Conto ancora a riga unica: aggiornabile'}</span>`);
+    if (r.stato === 'esistente' && contoAggiornabileDaImport(r)) metaParts.push(`<span style="font-weight:700">${contoAggiornabileDaImport(r).soloSalva ? 'Import da registrare (il conto non cambia)' : contoAggiornabileDaImport(r).doppio ? 'Conto con voci doppie: ripristinabile' : 'Conto ancora a riga unica: aggiornabile'}</span>`);
     if (r.verifica && (r.stato === 'nuova' || r.stato === 'da_assegnare' || r.stato === 'esistente' || r.stato === 'aggiornata')) {
       const col = !r.verifica.eseguita ? 'var(--gray-500)' : r.verifica.ok ? 'var(--green-700)' : 'var(--red)';
       metaParts.push(`<span style="color:${col};font-weight:700">${esc(r.verifica.msg)}</span>`);
@@ -6277,11 +6286,13 @@ async function ricaricaContoDaPreventivo() {
   aggiornaRiepilogoPrenotazione();
   scheduleAutosave();
 }
-// Ricalcola le voci del listino con le tariffe Hub attuali. Restano sempre le
-// caparre/acconti incassati e la tassa di soggiorno; le voci aggiunte a mano
-// restano tranne che su un conto importato da Scidoo/MrPreno, che viene
-// sostituito per intero dal preventivo Hub (conferma esplicita).
+// "Aggiorna preventivo": su una prenotazione importata (Scidoo/MrPreno) riporta il
+// conto alle voci dell'ultima importazione (retta, addebiti, sconto, caparre), NON ai
+// listini Hub; restano la tassa di soggiorno e le voci/incassi aggiunti dopo. Sulle
+// prenotazioni inserite a mano ricalcola invece le voci dal listino Hub.
 async function aggiornaPreventivoDaListino() {
+  const pren = editingId ? prenotazioni.find(x => x.id === editingId) : null;
+  if (pren && pren.agenzia_id) return riportaContoAllImport(pren);
   const risultato = calcolaPreventivo(leggiDatiPreventivoDaForm());
   if (!risultato.disponibile) { showToast(risultato.motivo || 'Preventivo non disponibile'); return; }
   if (contoCorrente.some(r => r.fiscalizzato && !(r.label || '').startsWith('Tassa di soggiorno'))) {
@@ -6306,6 +6317,32 @@ async function aggiornaPreventivoDaListino() {
   aggiornaRiepilogoPrenotazione();
   scheduleAutosave();
   showToast('Preventivo aggiornato con le tariffe Hub');
+}
+async function riportaContoAllImport(pren) {
+  const imp = pren.conto_import && pren.conto_import.righe;
+  if (!imp || !imp.length) {
+    showToast('Di questa prenotazione manca l\'import salvato: da Importa arrivi carica di nuovo i file e premi "Aggiorna il conto"');
+    return;
+  }
+  if (contoCorrente.some(r => r.fiscalizzato && !(r.label || '').startsWith('Tassa di soggiorno'))) {
+    showToast('Il conto ha voci già fiscalizzate: non si può riportare all\'import');
+    return;
+  }
+  const ok = await confermaAsync('Aggiornare il preventivo dall\'importazione?', 'Il conto torna alle voci dell\'ultima importazione (retta, addebiti, sconto, caparre). Restano la tassa di soggiorno e le voci o gli incassi aggiunti dopo.');
+  if (!ok) return;
+  const pagatoPerLabel = {};
+  contoCorrente.forEach(r => { if (!r.acconto) pagatoPerLabel[r.label] = r.pagato; });
+  const etichette = new Set(imp.map(x => x.label));
+  const tassa = contoCorrente.filter(r => !r.acconto && (r.label || '').startsWith('Tassa di soggiorno'));
+  const mantenute = contoCorrente.filter(r => !etichette.has(r.label) && !tassa.includes(r) && !PREFISSI_RIGHE_LISTINO.some(pre => (r.label || '').startsWith(pre)));
+  const nuove = imp.map(x => ({ ...x, pagato: x.acconto ? true : !!pagatoPerLabel[x.label] }));
+  contoCorrente = [...nuove, ...mantenute, ...tassa];
+  contoModificatoManualmente = true; // un conto importato resta staccato dal listino
+  aggiornaVociContoConosciute(contoCorrente);
+  renderContoInline();
+  aggiornaRiepilogoPrenotazione();
+  scheduleAutosave();
+  showToast('Preventivo riportato all\'importazione');
 }
 function raccogliConto() {
   return { righe: contoCorrente, totale: calcolaSaldoConto(contoCorrente).totale };
