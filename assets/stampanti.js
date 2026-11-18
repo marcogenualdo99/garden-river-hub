@@ -127,13 +127,77 @@
     return p.tipo === 'sunmi' ? inviaSunmi(p, xml) : inviaEpson(p, xml);
   }
 
+  // Ultima stampante scelta a mano per servizio, su questo dispositivo.
+  function ultimaScelta(servizio) { try { return localStorage.getItem('gr_stampante_scelta_' + servizio) || ''; } catch (e) { return ''; } }
+  function ricordaScelta(servizio, id) { try { localStorage.setItem('gr_stampante_scelta_' + servizio, id); } catch (e) { /* ok */ } }
+
+  // Finestra "Su quale stampante?": risolve con la stampante scelta o null se annullata.
+  function sceglieStampante(servizio, candidate) {
+    return new Promise(function (resolve) {
+      var pre = ultimaScelta(servizio);
+      if (!candidate.some(function (p) { return p.id === pre; })) {
+        var assoc = per(servizio);
+        pre = assoc ? assoc.id : candidate[0].id;
+      }
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#fff;color:#1c1c1c;border-radius:14px;max-width:360px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)';
+      var h = document.createElement('div');
+      h.style.cssText = 'font-weight:700;font-size:16px;margin-bottom:10px';
+      h.textContent = 'Su quale stampante?';
+      box.appendChild(h);
+      var scelta = pre;
+      var righe = [];
+      candidate.forEach(function (p) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.style.cssText = 'display:block;width:100%;text-align:left;padding:11px 12px;margin-bottom:8px;border-radius:10px;border:2px solid #d9d9d9;background:#fff;font:inherit;cursor:pointer';
+        b.innerHTML = '<div style="font-weight:600"></div><div style="font-size:12px;color:#777"></div>';
+        b.firstChild.textContent = p.nome || 'Stampante';
+        var t = (p.tipo === 'sunmi' ? 'Sunmi' : 'Epson') + ' · ' + (p.ip || '');
+        b.lastChild.textContent = t;
+        b.onclick = function () { scelta = p.id; evidenzia(); };
+        righe.push({ id: p.id, b: b });
+        box.appendChild(b);
+      });
+      function evidenzia() { righe.forEach(function (r) { r.b.style.borderColor = r.id === scelta ? '#2f7d32' : '#d9d9d9'; }); }
+      evidenzia();
+      var az = document.createElement('div');
+      az.style.cssText = 'display:flex;gap:8px;margin-top:6px';
+      var ann = document.createElement('button');
+      ann.type = 'button'; ann.textContent = 'Annulla';
+      ann.style.cssText = 'flex:1;padding:11px;border-radius:10px;border:1px solid #ccc;background:#f4f4f4;font:inherit;cursor:pointer';
+      var ok = document.createElement('button');
+      ok.type = 'button'; ok.textContent = 'Stampa';
+      ok.style.cssText = 'flex:1;padding:11px;border-radius:10px;border:0;background:#2f7d32;color:#fff;font:inherit;font-weight:700;cursor:pointer';
+      function chiudi(r) { document.body.removeChild(ov); resolve(r); }
+      ann.onclick = function () { chiudi(null); };
+      ok.onclick = function () { var p = candidate.filter(function (x) { return x.id === scelta; })[0] || null; chiudi(p); };
+      ov.onclick = function (e) { if (e.target === ov) chiudi(null); };
+      az.appendChild(ann); az.appendChild(ok); box.appendChild(az); ov.appendChild(box);
+      document.body.appendChild(ov);
+    });
+  }
+
   // Invia per servizio: sceglie la stampante associata (o quella del dispositivo).
-  async function invia(servizio, xml) {
+  // Con opts.scegli (stampe manuali) e piu' stampanti attive chiede su quale stampare.
+  async function invia(servizio, xml, opts) {
     // Se l'elenco non e' ancora arrivato da Firestore (e non c'e' cache) attendi un attimo
     if (!elenco.length && primaLettura) {
       await Promise.race([primaLettura, new Promise(function (r) { setTimeout(r, 2500); })]);
     }
     var p = per(servizio) || (elenco.length ? null : legacy());
+    if (opts && opts.scegli) {
+      var attive = elenco.filter(function (x) { return x.attiva !== false; })
+        .sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
+      if (attive.length > 1) {
+        var scelta = await sceglieStampante(servizio, attive);
+        if (!scelta) { var r = esito(false, ''); r.annullata = true; return r; }
+        ricordaScelta(servizio, scelta.id);
+        p = scelta;
+      }
+    }
     if (!p) return esito(false, 'Nessuna stampante associata al servizio "' + servizio + '". Configurala da Hub > Impostazioni > Stampanti.');
     return inviaA(p, xml);
   }

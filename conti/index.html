@@ -2047,7 +2047,7 @@ function escXmlConti(s) {
 
 async function _inviaEposConti(xml) {
   // La stampante associata al servizio "conti" la decide il modulo condiviso (assets/stampanti.js)
-  return GRStampanti.invia('conti', xml);
+  return GRStampanti.invia('conti', xml, { scegli: true });
 }
 GRStampanti.avvia();
 
@@ -2116,8 +2116,8 @@ async function stampaContoTermica() {
   righe.push('<text>&#10;&#10;</text>');
   righe.push('<cut type="feed"/>');
 
-  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
-  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  const { ok, err, annullata } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok && !annullata) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 async function stampaRiepilogoTermica() {
@@ -2156,8 +2156,8 @@ async function stampaRiepilogoTermica() {
   righe.push('<text>&#10;&#10;</text>');
   righe.push('<cut type="feed"/>');
 
-  const { ok, err } = await _inviaEposConti(_buildEposConti(righe));
-  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  const { ok, err, annullata } = await _inviaEposConti(_buildEposConti(righe));
+  if (!ok && !annullata) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
 }
 
 // ── NAVIGAZIONE ───────────────────────────────────────────────────────────────

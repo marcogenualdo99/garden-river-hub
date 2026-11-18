@@ -2879,8 +2879,8 @@ async function stampaReportTermica() {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), 'local_printer');
-  const { ok, err } = await inviaEpos(null, xml);
-  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  const rr = await inviaEpos(null, xml, { manuale: true });
+  if (!rr.ok && !rr.annullata) alert(`Errore stampa: ${rr.err || 'stampante non raggiungibile'}`);
 }
 
 function apriReportFamiglie() {
@@ -3234,8 +3234,8 @@ ${comandi.join('\n')}
 }
 
 // Invio comande: la stampante e il canale li decide il modulo condiviso (assets/stampanti.js)
-async function inviaEpos(ip, xml) {
-  return GRStampanti.invia('comande', xml);
+async function inviaEpos(ip, xml, opts) {
+  return GRStampanti.invia('comande', xml, opts && opts.manuale ? { scegli: true } : null);
 }
 
 function escXml(s) {
@@ -3398,8 +3398,9 @@ async function stampaComanda(ord, opts) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
-  const { ok, err } = await inviaEpos(null, xml);
-  if (!ok && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  const rr = await inviaEpos(null, xml, opts);
+  const { ok, err } = rr;
+  if (!ok && !rr.annullata && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
   return { ok, err };
 }
 
@@ -3479,8 +3480,9 @@ async function stampaComandaGruppo(tavolo, ordsGroup, opts) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
-  const { ok, err } = await inviaEpos(null, xml);
-  if (!ok && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  const rr = await inviaEpos(null, xml, opts);
+  const { ok, err } = rr;
+  if (!ok && !rr.annullata && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
   return { ok, err };
 }
 
@@ -3515,14 +3517,14 @@ async function sbloccaOrarioModal(famId) {
 function stampaComandaById(id) {
   const ord = _kdsOrdiniMap[id];
   if (!ord) { alert('Ordine non trovato. ID: ' + id); return; }
-  stampaComanda(ord).catch(e => alert('Errore JS: ' + e.message));
+  stampaComanda(ord, { manuale: true }).catch(e => alert('Errore JS: ' + e.message));
 }
 
 function stampaComandaGruppoById(tavolo, ordIdsCsv) {
   const ids = ordIdsCsv.split(',').filter(Boolean);
   const ords = ids.map(id => _kdsOrdiniMap[id]).filter(Boolean);
   if (!ords.length) { alert('Ordini non trovati per il tavolo ' + tavolo); return; }
-  stampaComandaGruppo(tavolo, ords).catch(e => alert('Errore JS: ' + e.message));
+  stampaComandaGruppo(tavolo, ords, { manuale: true }).catch(e => alert('Errore JS: ' + e.message));
 }
 
 

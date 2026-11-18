@@ -464,7 +464,8 @@ function xmlOrdineShop(o, logo) {
 
 async function stampaOrdineShopManuale(id) {
   const o = ORDINI.find(x => x.id === id); if (!o) return;
-  const e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop')));
+  const e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop')), { scegli: true });
+  if (e.annullata) return;
   showToast(e.ok ? 'Ordine stampato' : 'Errore stampa: ' + (e.err || 'stampante non raggiungibile'));
 }
 
