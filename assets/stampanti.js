@@ -91,40 +91,51 @@
 
   async function inviaEpson(p, xml) {
     var url = 'https://' + p.ip + '/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000';
+    var ac = new AbortController();
+    var tm = setTimeout(function () { ac.abort(); }, 12000);
     try {
       var r = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
         body: xml,
+        signal: ac.signal,
       });
+      clearTimeout(tm);
       if (!r.ok) return esito(false, 'HTTP ' + r.status);
       var text = await r.text();
       var code = (text.match(/code="([^"]*)"/) || [])[1] || '';
       return esito(text.indexOf('success="true"') !== -1, code);
     } catch (e) {
-      return esito(false, 'stampante non raggiungibile (' + p.ip + ')');
+      clearTimeout(tm);
+      return esito(false, ac.signal.aborted ? 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + '): controlla che sia accesa e sulla stessa rete'
+                                            : 'stampante non raggiungibile (' + p.ip + ')');
     }
   }
 
   async function inviaSunmi(p, xml) {
+    var ac = new AbortController();
+    var tm = setTimeout(function () { ac.abort(); }, 20000);
     try {
       var r = await fetch(PROXY + '/sunmi?ip=' + encodeURIComponent(p.ip), {
         method: 'POST',
         headers: { 'Content-Type': 'text/xml; charset=utf-8' },
         body: xml,
+        signal: ac.signal,
       });
+      clearTimeout(tm);
       var text = await r.text();
       if (!r.ok) return esito(false, 'Proxy stampante: ' + (text || 'HTTP ' + r.status));
       return esito(text.indexOf('success="true"') !== -1, '');
     } catch (e) {
-      return esito(false, 'proxy stampante non raggiungibile su questo dispositivo (avvia il proxy e apri ' + PROXY + ' una volta)');
+      clearTimeout(tm);
+      return esito(false, ac.signal.aborted ? 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + ')' : 'proxy stampante non raggiungibile su questo dispositivo (avvia il proxy e apri ' + PROXY + ' una volta)');
     }
   }
 
   // Invia direttamente a una stampante precisa.
   function inviaA(p, xml) {
     if (!p || !p.ip) return Promise.resolve(esito(false, 'IP della stampante non impostato'));
-    return p.tipo === 'sunmi' ? inviaSunmi(p, xml) : inviaEpson(p, xml);
+    return (p.tipo === 'sunmi' ? inviaSunmi(p, xml) : inviaEpson(p, xml)).then(function (r) { r.stampante = p.nome || p.ip; return r; });
   }
 
   // Ultima stampante scelta a mano per servizio, su questo dispositivo.

@@ -3398,8 +3398,10 @@ async function stampaComanda(ord, opts) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  if (opts && opts.manuale) showToast('Invio alla stampante…');
   const rr = await inviaEpos(null, xml, opts);
   const { ok, err } = rr;
+  if (ok && opts && opts.manuale) showToast('Comanda inviata a ' + (rr.stampante || 'stampante'));
   if (!ok && !rr.annullata && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
   return { ok, err };
 }
@@ -3480,8 +3482,10 @@ async function stampaComandaGruppo(tavolo, ordsGroup, opts) {
   righe.push('<cut type="feed"/>');
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
+  if (opts && opts.manuale) showToast('Invio alla stampante…');
   const rr = await inviaEpos(null, xml, opts);
   const { ok, err } = rr;
+  if (ok && opts && opts.manuale) showToast('Comanda inviata a ' + (rr.stampante || 'stampante'));
   if (!ok && !rr.annullata && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
   return { ok, err };
 }
