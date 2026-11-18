@@ -671,11 +671,8 @@ input[type="date"].finput{font-size:13px}
       <div id="printer-status-label" style="font-size:15px;font-weight:700;margin-bottom:12px">Stampante termica</div>
       <div id="printer-test-result" style="font-size:13px;font-weight:600;min-height:20px;margin-bottom:12px;text-align:center"></div>
       <button onclick="testStampante()" style="width:100%;height:44px;border:2px solid var(--green-700);background:#fff;color:var(--green-700);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Stampa di prova</button>
-      <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:700;cursor:pointer">
-        <input type="checkbox" id="auto-stampa-check" onchange="toggleAutoStampa(this.checked)" style="width:20px;height:20px">
-        Stampa automatica delle nuove comande
-      </label>
-      <div style="font-size:12px;color:var(--gray-500);margin-top:6px;line-height:1.5">Attivala su un solo dispositivo (quello vicino alla stampante), con questa pagina aperta. Ogni comanda nuova o modificata dagli ospiti esce da sola.</div>
+      <div style="font-size:13px;color:var(--gray-600);margin-top:16px;line-height:1.5">Stampe automatiche delle comande: si impostano dalla Hub, in Impostazioni &rsaquo; Stampanti &rsaquo; Stampe automatiche. I pulsanti di stampa manuale restano sempre disponibili.</div>
+      <div id="auto-stampa-orari" style="font-size:13px;font-weight:700;margin-top:8px"></div>
       <div id="auto-stampa-stato" style="font-size:13px;font-weight:600;min-height:18px;margin-top:6px"></div>
     </div>
 
@@ -3406,7 +3403,7 @@ async function stampaComanda(ord, opts) {
 // sommati sullo scontrino, con la scomposizione per famiglia stampata sotto ogni
 // piatto (es. "2 Rossi · 4 Blu · 2 Verdi") così in cucina resta chiaro chi ha
 // ordinato cosa pur avendo un solo scontrino invece di uno per famiglia.
-async function stampaComandaGruppo(tavolo, ordsGroup) {
+async function stampaComandaGruppo(tavolo, ordsGroup, opts) {
   const dishMap = {}; // "cat|piatto" -> { piatto, cat, qty, parts:[{famNome, qty}] }
   ordsGroup.forEach(ord => {
     estraiPiattiPerStampa(ord).forEach(p => {
@@ -3431,7 +3428,7 @@ async function stampaComandaGruppo(tavolo, ordsGroup) {
 
   const righe = [];
 
-  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(cucinaPasto.toUpperCase())}</text><text>&#10;</text>`);
+  righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(String((ordsGroup[0] || {}).tipo || cucinaPasto).toUpperCase())}</text><text>&#10;</text>`);
   righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
   righe.push('<text>&#10;</text>');
 
@@ -3477,7 +3474,8 @@ async function stampaComandaGruppo(tavolo, ordsGroup) {
 
   const xml = buildEposXml(righe.filter(Boolean), localStorage.getItem('epson_printer_dev') || 'local_printer');
   const { ok, err } = await inviaEpos(null, xml);
-  if (!ok) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  if (!ok && !(opts && opts.silent)) alert(`Errore stampa: ${err || 'stampante non raggiungibile'}`);
+  return { ok, err };
 }
 
 async function sbloccaOrario(famId) {
@@ -3522,92 +3520,104 @@ function stampaComandaGruppoById(tavolo, ordIdsCsv) {
 }
 
 
-// ── STAMPA AUTOMATICA COMANDE ────────────────────────────────────────────────
-// Con l'interruttore acceso, ogni comanda nuova o ri-salvata (campo `timestamp`
-// aggiornato) esce da sola sulla stampante del servizio "comande".
-// Funziona solo con questa pagina aperta sul dispositivo. Evita doppioni con una
-// chiave ordine+timestamp ricordata sul dispositivo; tentativi ripetuti se la
-// stampante non risponde. Attivala su UN solo dispositivo.
-const AUTO_KEY = 'risto_auto_stampa';
-const AUTO_STAMPATE_KEY = 'risto_auto_stampate';
-const AUTO_DA_KEY = 'risto_auto_da';
-let _autoUnsub = null;
-let _autoCoda = Promise.resolve();
-const _autoTentativi = {};
+// ── STAMPE PROGRAMMATE DELLE COMANDE ────────────────────────────────────────
+// Orari e attivazione si impostano dalla Hub (Impostazioni > Stampanti > Stampe
+// automatiche). All'ora impostata (o entro 90 minuti, se la pagina era chiusa) questo
+// dispositivo stampa TUTTE le comande del giorno per quel pasto, con lo stesso formato
+// dei pulsanti manuali (tavoli condivisi in una comanda unica). L'anti-doppione e'
+// su Firestore (stampe_auto): chi prenota per primo stampa. Serve la pagina aperta.
+const _autoStato = {};          // chiave -> { s: 'in_corso'|'ok'|'altro'|'ko', n, prossimo }
+const _autoOrdStampati = new Set();   // gruppi gia' stampati in questa sessione (no doppioni nei tentativi)
 
-function autoAttiva() { return localStorage.getItem(AUTO_KEY) === '1'; }
-function _autoStampate() { try { return JSON.parse(localStorage.getItem(AUTO_STAMPATE_KEY) || '[]'); } catch { return []; } }
-function _autoSegna(chiave) {
-  const a = _autoStampate(); if (!a.includes(chiave)) a.push(chiave);
-  try { localStorage.setItem(AUTO_STAMPATE_KEY, JSON.stringify(a.slice(-300))); } catch {}
-}
-function _autoStato(msg, errore) {
+function _autoMsg(msg, errore) {
   const el = document.getElementById('auto-stampa-stato');
   if (!el) return;
   el.textContent = msg || '';
   el.style.color = errore ? '#ef4444' : '#16a34a';
 }
 
-function toggleAutoStampa(on) {
-  localStorage.setItem(AUTO_KEY, on ? '1' : '0');
-  if (on) localStorage.setItem(AUTO_DA_KEY, new Date().toISOString());
-  avviaAutoStampa();
+function aggiornaOrariAuto() {
+  const el = document.getElementById('auto-stampa-orari');
+  if (!el || !window.GRStampanti) return;
+  const c = GRStampanti.autoCfg().comande;
+  const parti = [];
+  if (c.pranzo.attivo) parti.push('pranzo ' + c.pranzo.ora);
+  if (c.cena.attivo) parti.push('cena ' + c.cena.ora);
+  el.textContent = parti.length ? 'Stampa programmata: ' + parti.join(' · ') : 'Nessuna stampa programmata';
 }
 
-function avviaAutoStampa() {
-  if (_autoUnsub) { _autoUnsub(); _autoUnsub = null; }
-  const chk = document.getElementById('auto-stampa-check');
-  if (chk) chk.checked = autoAttiva();
-  if (!autoAttiva()) { _autoStato(''); return; }
-  const { db, collection, query, where, onSnapshot } = window._fb;
-  // Parti dall'ultimo ordine gia' visto se e' recente (max 15 min: dopo un ricaricamento
-  // non si perde nulla), altrimenti da adesso: niente stampe di ordini vecchi.
-  const quindici = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  const salvato = localStorage.getItem(AUTO_DA_KEY) || '';
-  const da = salvato > quindici ? salvato : new Date().toISOString();
-  _autoStato('Stampa automatica attiva');
-  _autoUnsub = onSnapshot(
-    query(collection(db, 'ordini_ristorazione'), where('timestamp', '>', da)),
-    snap => {
-      snap.docChanges().forEach(ch => {
-        if (ch.type === 'removed') return;
-        const ord = { id: ch.doc.id, ...ch.doc.data() };
-        if (!ord.timestamp || !estraiPiattiPerStampa(ord).length) return;
-        const chiave = ord.id + '|' + ord.timestamp;
-        if (_autoStampate().includes(chiave)) return;
-        _autoCoda = _autoCoda.then(() => _autoStampaOrdine(ord, chiave)).catch(e => console.error('Stampa automatica:', e));
-      });
-    },
-    err => { console.error('Stampa automatica snapshot:', err); _autoStato('Errore di lettura ordini', true); }
-  );
+async function _stampaComandeGiorno(pasto, data) {
+  for (let i = 0; i < 20 && !famiglieDocs.length; i++) await new Promise(r => setTimeout(r, 500));
+  const { db, collection, query, where, getDocsFromServer } = window._fb;
+  const snap = await getDocsFromServer(query(collection(db, 'ordini_ristorazione'), where('data', '==', data), where('tipo', '==', pasto)));
+  const famMap = {}; famiglieDocs.forEach(f => { famMap[f.id] = f; });
+  const oggi2 = isoToday(0);
+  const ordini = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => {
+    const f = famMap[o.famiglia_id];
+    if (!f) return false;                              // famiglia eliminata
+    if (f.checkout && f.checkout < oggi2) return false;  // gia' partita
+    return estraiPiattiPerStampa(o).length > 0;
+  });
+  ordini.sort((a, b) => String(a.famiglia_nome || '').localeCompare(String(b.famiglia_nome || ''), 'it'));
+  const perTavolo = {}, unita = [];
+  ordini.forEach(o => {
+    const tav = (famMap[o.famiglia_id] || {}).tavolo;
+    if (tav) (perTavolo[tav] = perTavolo[tav] || []).push(o); else unita.push({ tavolo: null, ords: [o] });
+  });
+  Object.entries(perTavolo).forEach(([tav, ords]) => unita.push({ tavolo: ords.length > 1 ? tav : null, ords }));
+  let n = 0;
+  for (const u of unita) {
+    const chiave = u.ords.map(o => o.id + '|' + (o.timestamp || '')).join(',');
+    if (_autoOrdStampati.has(chiave)) { n += u.ords.length; continue; }
+    const r = u.tavolo ? await stampaComandaGruppo(u.tavolo, u.ords, { silent: true })
+                       : await stampaComanda(u.ords[0], { silent: true });
+    if (!r.ok) return { ok: false, err: r.err, n };
+    _autoOrdStampati.add(chiave); n += u.ords.length;
+  }
+  return { ok: true, n };
 }
 
-async function _autoStampaOrdine(ord, chiave) {
-  if (_autoStampate().includes(chiave)) return;
-  let esito;
-  try { esito = await stampaComanda(ord, { silent: true }); }
-  catch (e) { esito = { ok: false, err: e.message }; }
-  if (esito && esito.ok) {
-    _autoSegna(chiave);
-    try { localStorage.setItem(AUTO_DA_KEY, ord.timestamp); } catch {}
+async function controllaStampeProgrammate() {
+  if (!window._fbReady || !window.GRStampanti) return;
+  const cfg = GRStampanti.autoCfg().comande;
+  const adesso = new Date().getHours() * 60 + new Date().getMinutes();
+  const oggi = isoToday(0);
+  for (const pasto of ['pranzo', 'cena']) {
+    const c = cfg[pasto];
+    if (!c || !c.attivo) continue;
+    const [h, m] = c.ora.split(':').map(Number);
+    const t = h * 60 + m;
+    if (adesso < t || adesso > t + 90) continue;
+    const chiave = `comande_${oggi}_${pasto}`;
+    const st = _autoStato[chiave];
+    if (st && (st.s === 'ok' || st.s === 'in_corso' || st.s === 'altro')) continue;
+    if (st && st.s === 'ko' && (st.n >= 5 || Date.now() < st.prossimo)) continue;
+    const prima = (st && st.n) || 0;
+    _autoStato[chiave] = { s: 'in_corso', n: prima };
+    if (!(await GRStampanti.rivendica(chiave))) { _autoStato[chiave] = { s: 'altro' }; continue; }
+    let esito;
+    try { esito = await _stampaComandeGiorno(pasto, oggi); } catch (e) { esito = { ok: false, err: e.message }; }
+    await GRStampanti.concludi(chiave, esito.ok, esito.err);
     const ora = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    _autoStato(`Ultima stampata: ${ord.famiglia_nome || 'comanda'} (${ora})`);
-    return;
+    if (esito.ok) {
+      _autoStato[chiave] = { s: 'ok' };
+      _autoMsg(`Comande ${pasto} stampate alle ${ora} (${esito.n})`);
+    } else {
+      const n = prima + 1;
+      _autoStato[chiave] = { s: 'ko', n, prossimo: Date.now() + 60000 };
+      _autoMsg(`Stampa comande ${pasto} non riuscita (${esito.err || 'errore'})${n < 5 ? ', riprovo tra poco' : ''}`, true);
+      if (n >= 5) showToast(`Comande ${pasto} NON stampate: controlla la stampante e stampa a mano`);
+    }
   }
-  const n = (_autoTentativi[chiave] = (_autoTentativi[chiave] || 0) + 1);
-  if (n < 5) {
-    _autoStato(`Stampa non riuscita (${(esito && esito.err) || 'errore'}), riprovo… (${n}/5)`, true);
-    await new Promise(r => setTimeout(r, 15000));
-    return _autoStampaOrdine(ord, chiave);
-  }
-  _autoStato(`Comanda di ${ord.famiglia_nome || '?'} NON stampata: ${(esito && esito.err) || 'errore'}. Stampala dalla scheda Cucina.`, true);
-  showToast('Comanda non stampata: controlla la stampante');
 }
 
 window.addEventListener('stampanti-aggiornate', aggiornaStatoStampante);
 GRStampanti.avvia();
-window.addEventListener('firebase-ready', avviaAutoStampa);
-if (window._fbReady) avviaAutoStampa();
+GRStampanti.avviaAuto();
+window.addEventListener('stampa-auto-aggiornata', aggiornaOrariAuto);
+aggiornaOrariAuto();
+setInterval(controllaStampeProgrammate, 20000);
+setTimeout(controllaStampeProgrammate, 4000);
 </script>
 
 

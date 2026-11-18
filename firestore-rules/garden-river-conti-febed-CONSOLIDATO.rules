@@ -107,6 +107,20 @@ service cloud.firestore {
       allow read: if staff();
       allow write: if admin();
     }
+    // Prenotazioni delle stampe automatiche (comande programmate, ordini shop): chi
+    // crea il documento per primo stampa. Non si puo' sovrascrivere una stampa
+    // riuscita ('ok') ne' una in corso di un altro dispositivo; si puo' riprendere
+    // solo se fallita o scaduta. Cosi' due dispositivi non stampano lo stesso lavoro.
+    match /stampe_auto/{id} {
+      allow read: if staff();
+      allow create: if staff();
+      allow update: if staff() && (
+        resource.data.stato == 'fallita'
+        || (resource.data.stato == 'in_corso'
+            && (resource.data.da == request.resource.data.da
+                || request.time > resource.data.scadenza)));
+      allow delete: if admin();
+    }
     match /listini/{id} {
       allow read, write: if staff();
     }

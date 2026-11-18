@@ -22,6 +22,7 @@
   var SERVIZI = [
     { id: 'conti',   nome: 'Conti pensioni (conto e riepilogo)', modulo: 'conti' },
     { id: 'comande', nome: 'Comande ristorazione',               modulo: 'ristorazione' },
+    { id: 'shop',    nome: 'Ordini shop',                        modulo: 'shop' },
   ];
   var TIPI = [
     { id: 'epson', nome: 'Epson (ePOS, diretta in rete)' },
@@ -176,10 +177,93 @@
     await fb.deleteDoc(fb.doc(fb.db, 'stampanti', id));
   }
 
+
+  // ── Stampe automatiche ─────────────────────────────────────────────────────
+  // Configurazione unica (Hub > Impostazioni > Stampanti > Stampe automatiche) in
+  // Firestore impostazioni/stampa_automatica:
+  //   comande: { pranzo: {attivo, ora:'11:30'}, cena: {attivo, ora:'18:00'} }
+  //   shop:    { attiva, attivo_dal: ISO }   (stampa all'arrivo dell'ordine)
+  // Le stampe partono dal primo dispositivo che ha aperta la pagina giusta
+  // (Ristorazione o Shop); "rivendica" evita che due dispositivi stampino la stessa cosa.
+  var AUTO_DEFAULT = {
+    comande: { pranzo: { attivo: false, ora: '11:30' }, cena: { attivo: false, ora: '18:00' } },
+    shop: { attiva: false, attivo_dal: '' },
+  };
+  var autoCfg = JSON.parse(JSON.stringify(AUTO_DEFAULT));
+  var autoAvviato = false;
+  try {
+    var _c = JSON.parse(localStorage.getItem('gr_stampa_auto_cfg') || 'null');
+    if (_c) autoCfg = unisciCfg(_c);
+  } catch (e) { /* ok */ }
+
+  function unisciCfg(c) {
+    c = c || {};
+    var cm = c.comande || {}, d = AUTO_DEFAULT;
+    function fascia(k) { var x = cm[k] || {}; return { attivo: x.attivo === true, ora: /^\d{1,2}:\d{2}$/.test(x.ora || '') ? x.ora : d.comande[k].ora }; }
+    var sh = c.shop || {};
+    return { comande: { pranzo: fascia('pranzo'), cena: fascia('cena') },
+             shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' } };
+  }
+
+  function avviaAuto() {
+    if (autoAvviato) return;
+    autoAvviato = true;
+    attendiFirebase().then(function () {
+      var fb = window._fb;
+      fb.onSnapshot(fb.doc(fb.db, 'impostazioni', 'stampa_automatica'), function (snap) {
+        autoCfg = unisciCfg(snap.exists() ? snap.data() : null);
+        try { localStorage.setItem('gr_stampa_auto_cfg', JSON.stringify(autoCfg)); } catch (e) { /* ok */ }
+        window.dispatchEvent(new Event('stampa-auto-aggiornata'));
+      }, function (err) { console.error('Errore lettura stampa automatica:', err); });
+    });
+  }
+
+  async function salvaAuto(cfg) {
+    var fb = window._fb;
+    var nuovo = unisciCfg(cfg);
+    // "attivo_dal": da quando si stampano gli ordini shop (niente ordini vecchi)
+    if (nuovo.shop.attiva && !autoCfg.shop.attiva) nuovo.shop.attivo_dal = new Date().toISOString();
+    else if (nuovo.shop.attiva) nuovo.shop.attivo_dal = autoCfg.shop.attivo_dal || new Date().toISOString();
+    await fb.setDoc(fb.doc(fb.db, 'impostazioni', 'stampa_automatica'), nuovo);
+  }
+
+  function idDispositivo() {
+    var id = localStorage.getItem('gr_device_id');
+    if (!id) { id = 'd_' + Math.random().toString(36).slice(2, 10); try { localStorage.setItem('gr_device_id', id); } catch (e) { /* ok */ } }
+    return id;
+  }
+
+  // Prenota una stampa (es. 'comande_2026-11-18_pranzo' o 'shop_<idOrdine>'). Vero se
+  // questo dispositivo puo' stamparla; falso se l'ha gia' fatta/la sta facendo un altro.
+  // La regola Firestore consente di riprenderla solo se fallita o scaduta.
+  async function rivendica(chiave) {
+    var fb = window._fb;
+    try {
+      await fb.setDoc(fb.doc(fb.db, 'stampe_auto', chiave), {
+        stato: 'in_corso', da: idDispositivo(),
+        scadenza: new Date(Date.now() + 5 * 60 * 1000), ts: new Date().toISOString(),
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+
+  async function concludi(chiave, ok, err) {
+    var fb = window._fb;
+    try {
+      await fb.setDoc(fb.doc(fb.db, 'stampe_auto', chiave), {
+        stato: ok ? 'ok' : 'fallita', da: idDispositivo(),
+        scadenza: new Date(Date.now() + 5 * 60 * 1000),
+        ts: new Date().toISOString(), err: String(err || '').slice(0, 200),
+      });
+    } catch (e) { console.error('stampe_auto concludi:', e); }
+  }
+
   window.GRStampanti = {
     SERVIZI: SERVIZI, TIPI: TIPI,
     avvia: avvia, lista: lista, per: per,
     invia: invia, inviaA: inviaA, prova: prova, proxyAttivo: proxyAttivo,
     salva: salva, elimina: elimina,
+    avviaAuto: avviaAuto, autoCfg: function () { return autoCfg; }, salvaAuto: salvaAuto,
+    rivendica: rivendica, concludi: concludi, idDispositivo: idDispositivo,
   };
 })();

@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
 <script src="../assets/icons.js?v=1794700100"></script>
+<script src="../assets/stampanti.js?v=1"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shop">
@@ -423,8 +424,78 @@ setTimeout(hideLoading, 12000);
 function setSync(s) { const d = $('#sync-dot'); if (d) d.style.background = ({ live: '#4ADE80', error: '#F87171' })[s] || '#60A5FA'; }
 let _pronti = { c: false, p: false, o: false };
 function pronto(k) { _pronti[k] = true; if (_pronti.c && _pronti.p && _pronti.o) { _dataReady = true; hideLoading(); } }
+// ── STAMPA AUTOMATICA ORDINI ───────────────────────────────────────────
+// Attivazione dalla Hub (Impostazioni > Stampanti > Stampe automatiche). Ogni ordine
+// confermato (stato "nuovo": a contanti subito, con carta dopo il pagamento) esce sulla
+// stampante associata al servizio "Ordini shop". Anti-doppione su Firestore (stampe_auto):
+// se piu' dispositivi hanno questa pagina aperta, stampa solo il primo. Serve la pagina aperta;
+// se era chiusa, al riavvio stampa gli ordini confermati (ultime 48 ore) non ancora stampati.
+const _shopFatti = new Set();
+const _shopTent = {};
+let _shopCoda = Promise.resolve();
+const _xmlE = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const _eurS = n => '€' + (Number(n) || 0).toFixed(2).replace('.', ',');
+
+function xmlOrdineShop(o) {
+  const W = 42, NL = '<text>&#10;</text>';
+  const t = (txt, attr) => `<text ${attr || ''}>${_xmlE(txt)}</text>${NL}`;
+  const riga = (sx, dx) => { const sp = Math.max(1, W - sx.length - dx.length); return t((sx.length + dx.length >= W ? sx.slice(0, W - dx.length - 1) : sx) + ' '.repeat(sp) + dx, 'font="font_a" height="1" width="1"'); };
+  const pag = o.pagamento || {};
+  const metodo = pag.metodo === 'paypal' ? 'Carta (PayPal)' : pag.metodo === 'contanti' ? 'Contanti alla consegna' : 'In struttura';
+  const quando = o.consegna_data ? o.consegna_data.split('-').reverse().slice(0, 2).join('/') + (o.consegna_fascia ? ' ' + o.consegna_fascia : '') : (o.consegna_fascia || '');
+  const adesso = new Date().toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const r = [];
+  r.push(`<text font="font_a" align="center" height="2" width="2">ORDINE SHOP</text><text font="font_a" height="1" width="1" align="center">&#10;</text>`);
+  r.push(t(adesso, 'align="center"'));
+  r.push(NL);
+  r.push(t((o.ospite_nome || 'Ospite') + (o.alloggio ? ' · ' + o.alloggio : ''), 'font="font_a" em="true" height="1" width="1" align="left"'));
+  if (o.ospite_tel) r.push(t('Tel: ' + o.ospite_tel, 'font="font_b"'));
+  r.push(t((o.modalita === 'consegna' ? 'CONSEGNA IN ALLOGGIO' : 'RITIRO IN STRUTTURA') + (quando ? ' · ' + quando : ''), 'font="font_a" em="true"'));
+  r.push(NL);
+  (o.righe || []).forEach(x => r.push(riga(`${x.quantita} x ${x.titolo}`, _eurS(x.importo))));
+  r.push(t('='.repeat(W), ''));
+  r.push(riga('TOTALE', _eurS(o.totale)).replace('<text font="font_a" height="1" width="1">', '<text font="font_a" em="true" height="1" width="1">'));
+  r.push(t(metodo + ' · ' + (pag.stato === 'pagato' ? 'PAGATO' : 'DA PAGARE'), 'font="font_a" em="true"'));
+  if (o.note) { r.push(NL); r.push(t('Nota ospite: ' + o.note, 'font="font_a" height="1" width="1"')); }
+  r.push('<text>&#10;&#10;</text>', '<cut type="feed"/>');
+  return `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">${r.join('\n')}</epos-print></s:Body></s:Envelope>`;
+}
+
+async function stampaOrdineShopManuale(id) {
+  const o = ORDINI.find(x => x.id === id); if (!o) return;
+  const e = await GRStampanti.invia('shop', xmlOrdineShop(o));
+  showToast(e.ok ? 'Ordine stampato' : 'Errore stampa: ' + (e.err || 'stampante non raggiungibile'));
+}
+
+async function _stampaShopOrdine(o) {
+  const chiave = 'shop_' + o.id;
+  if (_shopFatti.has(chiave)) return;
+  if (!(await GRStampanti.rivendica(chiave))) { _shopFatti.add(chiave); return; }   // gia' stampato (o in corso) altrove
+  let e;
+  try { e = await GRStampanti.invia('shop', xmlOrdineShop(o)); } catch (x) { e = { ok: false, err: x.message }; }
+  await GRStampanti.concludi(chiave, e.ok, e.err);
+  if (e.ok) { _shopFatti.add(chiave); showToast('Ordine di ' + (o.ospite_nome || 'ospite') + ' stampato'); return; }
+  const n = (_shopTent[chiave] = (_shopTent[chiave] || 0) + 1);
+  if (n < 5) { setTimeout(() => { _shopCoda = _shopCoda.then(() => _stampaShopOrdine(o)); }, 30000); }
+  else showToast('Ordine di ' + (o.ospite_nome || 'ospite') + ' NON stampato: ' + (e.err || 'errore') + '. Usa Stampa nella scheda ordine.');
+}
+
+function rivalutaStampaShop() {
+  if (!window.GRStampanti || !_ordiniPronti) return;
+  const cfg = GRStampanti.autoCfg().shop;
+  if (!cfg.attiva || !cfg.attivo_dal) return;
+  const da = Math.max(Date.parse(cfg.attivo_dal) || 0, Date.now() - 48 * 3600 * 1000);
+  ORDINI.forEach(o => {
+    if (o.stato !== 'nuovo' || _shopFatti.has('shop_' + o.id)) return;
+    if ((Date.parse(o.creato_il) || 0) < da) return;
+    _shopCoda = _shopCoda.then(() => _stampaShopOrdine(o)).catch(err => console.error('Stampa shop:', err));
+  });
+}
+window.addEventListener('stampa-auto-aggiornata', rivalutaStampaShop);
+
 async function startSync() {
   await waitForFirebase();
+  GRStampanti.avviaAuto();
   const { db, collection, doc, onSnapshot } = window._fb;
   const err = k => e => { console.error('Errore listener shop ' + k, e); setSync('error'); pronto(k[0] === 'c' ? 'c' : k[0] === 'p' ? 'p' : 'o'); };
   onSnapshot(collection(db, 'shop_categorie'), s => { CATS = s.docs.map(d => ({ id: d.id, ...d.data() })).sort(byOrdine); setSync('live'); pronto('c'); render(); }, err('categorie'));
@@ -432,7 +503,7 @@ async function startSync() {
   onSnapshot(collection(db, 'shop_ordini'), s => {
     const nuovi = _ordiniPronti ? s.docChanges().filter(c => c.type === 'added' && !c.doc.metadata.hasPendingWrites && !NASCOSTI.includes((c.doc.data() || {}).stato)).length : 0;
     ORDINI = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => !NASCOSTI.includes(o.stato)).sort((a, b) => String(b.creato_il || '').localeCompare(String(a.creato_il || '')));
-    _ordiniPronti = true; pronto('o'); render();
+    _ordiniPronti = true; pronto('o'); render(); rivalutaStampaShop();
     if (nuovi) showToast(nuovi === 1 ? 'Nuovo ordine dallo shop' : nuovi + ' nuovi ordini dallo shop');
   }, err('ordini'));
   onSnapshot(doc(db, 'impostazioni', 'shop'), s => { if (s.exists()) CFG = normalizzaCfg({ ...CFG, ...s.data() }); render(); }, e => console.error('Errore impostazioni shop', e));
@@ -483,6 +554,7 @@ function cardOrdine(o) {
   const btn = [];
   if (o.stato === 'nuovo') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','pronto')">Segna pronto</button>`);
   if (attivo) btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
+  if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="stampaOrdineShopManuale('${o.id}')">Stampa</button>`);
   if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="segnaPagato('${o.id}',${!pagato})">${pagato ? 'Segna da pagare' : 'Segna pagato'}</button>`);
   if (attivo) btn.push(`<button class="sh-btn d" onclick="annullaOrdine('${o.id}')">Annulla</button>`);
   const foto = o.modalita !== 'consegna' || o.stato === 'annullato' ? '' : o.foto_consegna
