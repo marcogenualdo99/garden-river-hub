@@ -138,17 +138,20 @@
     return inviaA(p, xml);
   }
 
-  function xmlProva(nome) {
+  function xmlProva(nome, logo) {
     return '<?xml version="1.0" encoding="utf-8"?>' +
       '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>' +
-      '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' +
+      '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">' + (logo || '') +
       '<text font="font_a" align="center" height="2" width="2">TEST OK</text><text>&#10;</text>' +
       '<text align="center" height="1" width="1">' + String(nome || '').replace(/[<&>]/g, '') + '</text><text>&#10;</text>' +
       '<text align="center">Garden River · accenti: è é à ù ò ì €</text><text>&#10;&#10;&#10;</text>' +
       '<cut type="feed"/></epos-print></s:Body></s:Envelope>';
   }
 
-  function prova(p) { return inviaA(p, xmlProva(p && p.nome)); }
+  async function prova(p) {
+    var logo = await logoPerStampa('prova');
+    return inviaA(p, xmlProva(p && p.nome, logo));
+  }
 
   // Controlla se il proxy locale e' attivo su questo dispositivo.
   async function proxyAttivo() {
@@ -188,6 +191,7 @@
   var AUTO_DEFAULT = {
     comande: { pranzo: { attivo: false, ora: '11:30' }, cena: { attivo: false, ora: '18:00' } },
     shop: { attiva: false, attivo_dal: '' },
+    aspetto: { logo: 'conti' },   // logo sulle stampe: 'conti' (tutto tranne le comande) | 'tutte' | 'mai'
   };
   var autoCfg = JSON.parse(JSON.stringify(AUTO_DEFAULT));
   var autoAvviato = false;
@@ -201,8 +205,10 @@
     var cm = c.comande || {}, d = AUTO_DEFAULT;
     function fascia(k) { var x = cm[k] || {}; return { attivo: x.attivo === true, ora: /^\d{1,2}:\d{2}$/.test(x.ora || '') ? x.ora : d.comande[k].ora }; }
     var sh = c.shop || {};
+    var lg = (c.aspetto || {}).logo;
     return { comande: { pranzo: fascia('pranzo'), cena: fascia('cena') },
-             shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' } };
+             shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' },
+             aspetto: { logo: lg === 'tutte' || lg === 'mai' ? lg : 'conti' } };
   }
 
   function avviaAuto() {
@@ -258,6 +264,52 @@
     } catch (e) { console.error('stampe_auto concludi:', e); }
   }
 
+
+  // ── Aspetto delle stampe: logo uguale su tutte le stampanti ─────────────────
+  // Il logo (logo-scontrini.png) e' convertito in bitmap 1 bit nel formato ePOS
+  // <image>: lo stampano uguale l'Epson (diretta) e la Sunmi (il proxy lo converte).
+  // tipo: 'conto' | 'riepilogo' | 'report' | 'shop' | 'prova' | 'comanda'
+  function logoPer(tipo) {
+    var m = autoCfg.aspetto.logo;
+    if (m === 'mai') return false;
+    if (m === 'tutte') return true;
+    return tipo !== 'comanda';
+  }
+
+  var logoCache = null;
+  function logoXml() {
+    if (logoCache !== null) return Promise.resolve(logoCache);
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var paperW = 576, logoW = 320;                       // carta 80mm a 203dpi
+          var scala = logoW / img.naturalWidth;
+          var logoH = Math.round(img.naturalHeight * scala);
+          var canvas = document.createElement('canvas');
+          canvas.width = paperW; canvas.height = logoH;
+          var ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, paperW, logoH);
+          ctx.drawImage(img, Math.round((paperW - logoW) / 2), 0, logoW, logoH);
+          var data = ctx.getImageData(0, 0, paperW, logoH).data;
+          var rowBytes = Math.ceil(paperW / 8), mono = new Uint8Array(rowBytes * logoH);
+          for (var y = 0; y < logoH; y++) for (var x = 0; x < paperW; x++) {
+            var i = (y * paperW + x) * 4;
+            if (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2] < 128) mono[y * rowBytes + (x >> 3)] |= (0x80 >> (x % 8));
+          }
+          var bin = ''; for (var k = 0; k < mono.length; k++) bin += String.fromCharCode(mono[k]);
+          logoCache = '<image width="' + paperW + '" height="' + logoH + '" color="color_1" mode="mono" hri="false">' + btoa(bin) + '</image><feed line="1"/>';
+        } catch (e) { logoCache = ''; }
+        resolve(logoCache);
+      };
+      img.onerror = function () { resolve(''); };   // senza logo si stampa comunque (non si memorizza: riprova al prossimo)
+      img.src = '/logo-scontrini.png';
+    });
+  }
+
+  // Logo da mettere in testa al biglietto, oppure '' se per quel tipo e' disattivato.
+  async function logoPerStampa(tipo) { return logoPer(tipo) ? await logoXml() : ''; }
+
   window.GRStampanti = {
     SERVIZI: SERVIZI, TIPI: TIPI,
     avvia: avvia, lista: lista, per: per,
@@ -265,5 +317,6 @@
     salva: salva, elimina: elimina,
     avviaAuto: avviaAuto, autoCfg: function () { return autoCfg; }, salvaAuto: salvaAuto,
     rivendica: rivendica, concludi: concludi, idDispositivo: idDispositivo,
+    logoPer: logoPer, logoXml: logoXml, logoPerStampa: logoPerStampa,
   };
 })();

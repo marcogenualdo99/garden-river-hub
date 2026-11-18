@@ -711,7 +711,14 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       </div>
       <div class="perm-module-title" style="margin-top:14px">Ordini shop</div>
       <label class="perm-row"><input type="checkbox" id="sa-shop-on"> Stampa ogni ordine appena arriva (quando è confermato)</label>
-      <button class="btn-primary" style="margin-top:12px" onclick="salvaStampaAuto()">Salva stampe automatiche</button>
+      <div class="perm-module-title" style="margin-top:14px">Aspetto delle stampe</div>
+      <select id="sa-logo" class="new-op-ruolo" style="width:100%;margin-top:6px">
+        <option value="conti">Logo su conti, riepiloghi, report e ordini shop (comande senza)</option>
+        <option value="tutte">Logo su tutte le stampe, comande comprese</option>
+        <option value="mai">Nessun logo</option>
+      </select>
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-top:4px">Vale per tutte le stampanti, Epson e Sunmi: l'aspetto è lo stesso.</div>
+      <button class="btn-primary" style="margin-top:12px" onclick="salvaStampaAuto()">Salva</button>
       <div id="sa-esito" style="font-size:13px;margin-top:8px;min-height:16px"></div>
     </div>
   </div>
@@ -2754,6 +2761,7 @@ function renderStampaAuto() {
   set('sa-pranzo-on', c.comande.pranzo.attivo); set('sa-pranzo-ora', c.comande.pranzo.ora.padStart(5, '0'));
   set('sa-cena-on', c.comande.cena.attivo);     set('sa-cena-ora', c.comande.cena.ora.padStart(5, '0'));
   set('sa-shop-on', c.shop.attiva);
+  set('sa-logo', c.aspetto.logo);
 }
 window.addEventListener('stampa-auto-aggiornata', () => { if (document.getElementById('sec-settings').classList.contains('active')) renderStampaAuto(); });
 
@@ -2766,9 +2774,10 @@ async function salvaStampaAuto() {
     await GRStampanti.salvaAuto({
       comande: { pranzo: { attivo: g('sa-pranzo-on').checked, ora: orap }, cena: { attivo: g('sa-cena-on').checked, ora: oraC } },
       shop: { attiva: g('sa-shop-on').checked },
+      aspetto: { logo: g('sa-logo').value },
     });
     out.style.color = 'var(--green-700,#15803d)'; out.textContent = 'Salvato. Hanno effetto subito sui dispositivi con la pagina aperta.';
-    showToast('Stampe automatiche salvate');
+    showToast('Impostazioni di stampa salvate');
   } catch (e) { console.error(e); out.style.color = 'var(--red,#dc2626)'; out.textContent = 'Errore di salvataggio: ' + (e.code || e.message); }
 }
 

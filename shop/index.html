@@ -436,7 +436,7 @@ let _shopCoda = Promise.resolve();
 const _xmlE = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 const _eurS = n => '€' + (Number(n) || 0).toFixed(2).replace('.', ',');
 
-function xmlOrdineShop(o) {
+function xmlOrdineShop(o, logo) {
   const W = 42, NL = '<text>&#10;</text>';
   const t = (txt, attr) => `<text ${attr || ''}>${_xmlE(txt)}</text>${NL}`;
   const riga = (sx, dx) => { const sp = Math.max(1, W - sx.length - dx.length); return t((sx.length + dx.length >= W ? sx.slice(0, W - dx.length - 1) : sx) + ' '.repeat(sp) + dx, 'font="font_a" height="1" width="1"'); };
@@ -445,6 +445,7 @@ function xmlOrdineShop(o) {
   const quando = o.consegna_data ? o.consegna_data.split('-').reverse().slice(0, 2).join('/') + (o.consegna_fascia ? ' ' + o.consegna_fascia : '') : (o.consegna_fascia || '');
   const adesso = new Date().toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const r = [];
+  if (logo) r.push(logo);
   r.push(`<text font="font_a" align="center" height="2" width="2">ORDINE SHOP</text><text font="font_a" height="1" width="1" align="center">&#10;</text>`);
   r.push(t(adesso, 'align="center"'));
   r.push(NL);
@@ -463,7 +464,7 @@ function xmlOrdineShop(o) {
 
 async function stampaOrdineShopManuale(id) {
   const o = ORDINI.find(x => x.id === id); if (!o) return;
-  const e = await GRStampanti.invia('shop', xmlOrdineShop(o));
+  const e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop')));
   showToast(e.ok ? 'Ordine stampato' : 'Errore stampa: ' + (e.err || 'stampante non raggiungibile'));
 }
 
@@ -472,7 +473,7 @@ async function _stampaShopOrdine(o) {
   if (_shopFatti.has(chiave)) return;
   if (!(await GRStampanti.rivendica(chiave))) { _shopFatti.add(chiave); return; }   // gia' stampato (o in corso) altrove
   let e;
-  try { e = await GRStampanti.invia('shop', xmlOrdineShop(o)); } catch (x) { e = { ok: false, err: x.message }; }
+  try { e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop'))); } catch (x) { e = { ok: false, err: x.message }; }
   await GRStampanti.concludi(chiave, e.ok, e.err);
   if (e.ok) { _shopFatti.add(chiave); showToast('Ordine di ' + (o.ospite_nome || 'ospite') + ' stampato'); return; }
   const n = (_shopTent[chiave] = (_shopTent[chiave] || 0) + 1);

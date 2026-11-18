@@ -2841,7 +2841,9 @@ async function stampaReportTermica() {
     ...Object.values(byPiatto).map(p => p.cat).filter((c, i, a) => a.indexOf(c) === i && !(typeof CAT_ORDER !== 'undefined' && CAT_ORDER.includes(c)))
   ];
 
+  const _logo = await GRStampanti.logoPerStampa('report');
   const righe = [];
+  if (_logo) righe.push(_logo);
   righe.push(`<text font="font_a" align="center" height="2" width="2">RESOCONTO ${escXml(pastoLabel)}</text><text>&#10;</text>`);
   righe.push(`<text font="font_a" align="center">Data: ${dataLabel}</text><text>&#10;</text>`);
   righe.push('<text>&#10;</text>');
@@ -3347,7 +3349,9 @@ async function stampaComanda(ord, opts) {
   const dataOrdine = ord.data ? new Date(ord.data + 'T12:00:00') : now;
   const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
+  const _logo = await GRStampanti.logoPerStampa('comanda');
   const righe = [];
+  if (_logo) righe.push(_logo);
 
   // Intestazione
   righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(String(ord.tipo || cucinaPasto).toUpperCase())}</text><text>&#10;</text>`);
@@ -3426,7 +3430,9 @@ async function stampaComandaGruppo(tavolo, ordsGroup, opts) {
   const dataOrdine = primoOrd.data ? new Date(primoOrd.data + 'T12:00:00') : now;
   const data = dataOrdine.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
 
+  const _logo = await GRStampanti.logoPerStampa('comanda');
   const righe = [];
+  if (_logo) righe.push(_logo);
 
   righe.push(`<text font="font_a" align="center" height="2" width="2">COMANDA ${escXml(String((ordsGroup[0] || {}).tipo || cucinaPasto).toUpperCase())}</text><text>&#10;</text>`);
   righe.push(`<text font="font_a" align="center" em="true">Data: ${data}  ${ora}</text><text>&#10;</text>`);
