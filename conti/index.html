@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
 <script src="../assets/icons.js?v=1794700100"></script>
+<script src="../assets/stampanti.js?v=1"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Conti Aperti">
@@ -2081,19 +2082,10 @@ function escXmlConti(s) {
 }
 
 async function _inviaEposConti(xml) {
-  const ip = localStorage.getItem('epson_printer_ip') || '192.168.1.5';
-  const endpoint = `https://${ip}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`;
-  try {
-    const r = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/xml; charset=utf-8', 'SOAPAction': '""' },
-      body: xml
-    });
-    if (!r.ok) return { ok: false, err: `HTTP ${r.status}` };
-    const text = await r.text();
-    return { ok: text.includes('success="true"'), err: (text.match(/code="([^"]*)"/) || [])[1] || '' };
-  } catch (e) { return { ok: false, err: e.message }; }
+  // La stampante associata al servizio "conti" la decide il modulo condiviso (assets/stampanti.js)
+  return GRStampanti.invia('conti', xml);
 }
+GRStampanti.avvia();
 
 function _buildEposConti(comandi) {
   return `<?xml version="1.0" encoding="utf-8"?>

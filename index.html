@@ -287,6 +287,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
 <meta name="mobile-web-app-capable" content="yes">
+<script src="assets/stampanti.js?v=1"></script>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -686,6 +687,14 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
         <option value="">— Seleziona operatore —</option>
       </select>
       <div id="permessi-form"></div>
+    </div>
+
+    <div class="card" id="stampanti-card">
+      <h3>Stampanti</h3>
+      <p class="subtitle">Elenco unico delle stampanti termiche. Ogni stampante è associata ai servizi che la usano: chi ha quel servizio sbloccato nei permessi stampa sulla stampante associata. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
+      <div id="stampanti-list"></div>
+      <div id="stampante-form"></div>
+      <button class="btn-primary" id="stampante-add-btn" onclick="apriFormStampante()">+ Aggiungi stampante</button>
     </div>
   </div>
 
@@ -2242,6 +2251,7 @@ function openSettings() {
   document.getElementById('sec-settings').classList.add('active');
   renderOperatoriList();
   renderPermessiSelect();
+  if (window.GRStampanti) { GRStampanti.avvia(); renderStampanti(); }
 }
 function closeSettings() {
   document.getElementById('sec-settings').classList.remove('active');
@@ -2611,6 +2621,110 @@ async function savePermessi(nome) {
   };
   try { await fsSetPermessi(nome, moduli, report, azioni); showToast('Permessi salvati per ' + nome); }
   catch(e) { showToast('Errore salvataggio permessi'); }
+}
+
+// ── STAMPANTI ─────────────────────────────────────────────────────────────
+let stampanteInModifica = null;   // null = nessun form aperto, {} = nuova, {id,...} = esistente
+
+window.addEventListener('stampanti-aggiornate', () => { if (typeof renderStampanti === 'function') renderStampanti(); });
+
+function renderStampanti() {
+  const box = document.getElementById('stampanti-list');
+  if (!box || !window.GRStampanti) return;
+  const elenco = GRStampanti.lista().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
+  if (!elenco.length) {
+    box.innerHTML = '<p class="perm-hint">Nessuna stampante configurata. Aggiungine una: finché l\'elenco è vuoto, Conti e Ristorazione usano l\'IP impostato sul singolo dispositivo.</p>';
+    return;
+  }
+  const nomeServizio = id => (GRStampanti.SERVIZI.find(x => x.id === id) || { nome: id }).nome;
+  const nomeTipo = id => (GRStampanti.TIPI.find(x => x.id === id) || { nome: id }).nome;
+  box.innerHTML = elenco.map(p => `
+    <div style="padding:12px 0;border-bottom:1px solid var(--gray-200,#e5e7eb)">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap">
+        <strong>${esc(p.nome || '(senza nome)')}</strong>
+        <span style="font-size:12px;color:var(--gray-500,#6b7280)">${p.attiva === false ? 'Disattivata' : 'Attiva'}</span>
+      </div>
+      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 8px">${esc(nomeTipo(p.tipo))} · ${esc(p.ip || 'IP mancante')}</div>
+      <div style="font-size:13px;margin-bottom:8px">${(p.servizi || []).length ? (p.servizi || []).map(s => esc(nomeServizio(s))).join(' · ') : '<em>Nessun servizio associato</em>'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="new-op-btn" onclick="provaStampante(${jsq(p.id)})">Stampa di prova</button>
+        <button class="new-op-btn" onclick="apriFormStampante(${jsq(p.id)})">Modifica</button>
+        <button class="new-op-btn" onclick="eliminaStampante(${jsq(p.id)})">Elimina</button>
+      </div>
+      <div id="stampante-esito-${esc(p.id)}" style="font-size:13px;margin-top:6px;min-height:16px"></div>
+    </div>`).join('');
+}
+
+function apriFormStampante(id) {
+  if (!window.GRStampanti) return;
+  const p = id ? GRStampanti.lista().find(x => x.id === id) : null;
+  stampanteInModifica = p ? { ...p } : {};
+  const form = document.getElementById('stampante-form');
+  const cur = stampanteInModifica;
+  const servizi = cur.servizi || [];
+  form.innerHTML = `
+    <div style="padding:12px 0;border-top:1px solid var(--gray-200,#e5e7eb);margin-top:8px">
+      <h4 style="margin:0 0 8px">${p ? 'Modifica stampante' : 'Nuova stampante'}</h4>
+      <input type="text" id="stp-nome" class="new-op-input" placeholder="Nome (es. Bar, Cucina, Reception)" value="${esc(cur.nome || '')}" style="width:100%;margin-bottom:8px">
+      <select id="stp-tipo" class="new-op-ruolo" style="width:100%;margin-bottom:8px">
+        ${GRStampanti.TIPI.map(t => `<option value="${t.id}" ${ (cur.tipo || 'epson') === t.id ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}
+      </select>
+      <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.ip || '')}" style="width:100%;margin-bottom:8px">
+      <div class="perm-module-title">Servizi che stampano qui</div>
+      ${GRStampanti.SERVIZI.map(sv => `<label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''}> ${esc(sv.nome)}</label>`).join('')}
+      <label class="perm-row"><input type="checkbox" id="stp-attiva" ${cur.attiva === false ? '' : 'checked'}> Stampante attiva</label>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn-primary" onclick="salvaFormStampante()">Salva</button>
+        <button class="new-op-btn" onclick="chiudiFormStampante()">Annulla</button>
+      </div>
+    </div>`;
+  document.getElementById('stampante-add-btn').style.display = 'none';
+  document.getElementById('stp-nome').focus();
+}
+
+function chiudiFormStampante() {
+  stampanteInModifica = null;
+  document.getElementById('stampante-form').innerHTML = '';
+  document.getElementById('stampante-add-btn').style.display = '';
+}
+
+async function salvaFormStampante() {
+  const nome = document.getElementById('stp-nome').value.trim();
+  const ip = document.getElementById('stp-ip').value.trim();
+  if (!nome) { showToast('Inserisci un nome'); return; }
+  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && !/^[a-z0-9.-]+$/i.test(ip)) { showToast('Inserisci un indirizzo IP valido'); return; }
+  const servizi = GRStampanti.SERVIZI.filter(sv => document.getElementById('stp-srv-' + sv.id).checked).map(sv => sv.id);
+  try {
+    await waitForFirebase();
+    await GRStampanti.salva({
+      id: stampanteInModifica && stampanteInModifica.id,
+      nome, ip, servizi,
+      tipo: document.getElementById('stp-tipo').value,
+      attiva: document.getElementById('stp-attiva').checked,
+    });
+    chiudiFormStampante();
+    showToast('Stampante salvata');
+  } catch (e) { console.error(e); showToast('Errore salvataggio stampante'); }
+}
+
+function eliminaStampante(id) {
+  const p = GRStampanti.lista().find(x => x.id === id);
+  if (!p) return;
+  showModal('Elimina stampante', `Eliminare "${p.nome}"? I servizi associati resteranno senza stampante.`, 'Elimina', 'var(--red)',
+    async () => {
+      try { await GRStampanti.elimina(id); showToast('Stampante eliminata'); }
+      catch (e) { console.error(e); showToast('Errore eliminazione'); }
+    });
+}
+
+async function provaStampante(id) {
+  const p = GRStampanti.lista().find(x => x.id === id);
+  const out = document.getElementById('stampante-esito-' + id);
+  if (!p || !out) return;
+  out.style.color = 'var(--gray-600,#4b5563)'; out.textContent = 'Invio in corso…';
+  const r = await GRStampanti.prova(p);
+  out.style.color = r.ok ? 'var(--green-700,#15803d)' : 'var(--red,#dc2626)';
+  out.textContent = r.ok ? 'Stampa di prova inviata.' : 'Errore: ' + (r.err || 'stampante non raggiungibile');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────

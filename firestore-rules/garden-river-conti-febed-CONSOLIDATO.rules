@@ -101,6 +101,12 @@ service cloud.firestore {
       allow read, create, update: if staff();
       allow delete: if false;
     }
+    // Stampanti termiche (Hub > Impostazioni > Stampanti). Le leggono tutte le
+    // app della suite (per sapere dove stampare); le configurano solo gli admin.
+    match /stampanti/{id} {
+      allow read: if staff();
+      allow write: if admin();
+    }
     match /listini/{id} {
       allow read, write: if staff();
     }
