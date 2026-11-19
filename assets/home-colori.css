@@ -1,14 +1,15 @@
 /* Solo nell'app Garden Hub del Sunmi V2 (html.nativa): card della home piu' grandi, nei colori del brand a famiglie. Il sito web non cambia. */
-html.nativa #module-list .module-grid {grid-auto-rows: 172px; gap: 12px;}
+html.nativa #module-list .module-grid {grid-auto-rows: 160px; gap: 12px;}
 @media (min-width: 768px) {
   html.nativa #module-list .module-grid {grid-auto-rows: 190px; gap: 16px;}
 }
-html.nativa #module-list .module-tile[data-mod] {background: var(--c, #0b5d49); border: 0; color: #fff; padding: 20px; border-radius: 26px; box-shadow: none;}
-html.nativa #module-list .module-tile[data-mod] .module-icon-chip {width: 58px; height: 58px; border-radius: 18px; background: rgba(255,255,255,.22); color: #fff; box-shadow: none;}
-html.nativa #module-list .module-tile[data-mod] .module-icon-chip svg {width: 30px; height: 30px;}
-html.nativa #module-list .module-tile[data-mod] .module-title {font-size: 19px; font-weight: 800; line-height: 1.15; color: #fff;}
-html.nativa #module-list .module-tile[data-mod] .module-sub {font-size: 13px; font-weight: 600; color: rgba(255,255,255,.88); margin-top: 5px;}
-html.nativa #module-list .module-tile[data-mod] .module-badge {background: #fff; color: var(--c, #0b5d49); font-size: 12px; padding: 4px 11px; top: 16px; right: 16px;}
+html.nativa #module-list .module-tile[data-mod] {background: var(--c, #0b5d49); border: 0; color: #fff; padding: 16px; border-radius: 24px; box-shadow: none;}
+html.nativa #module-list .module-tile[data-mod] .module-icon-chip {width: 46px; height: 46px; border-radius: 15px; background: rgba(255,255,255,.22); color: #fff; box-shadow: none;}
+html.nativa #module-list .module-tile[data-mod] .module-icon-chip svg {width: 24px; height: 24px;}
+html.nativa #module-list .module-tile[data-mod] .module-title {font-size: 15px; font-weight: 800; line-height: 1.15; color: #fff;}
+html.nativa #module-list .module-tile[data-mod] .module-sub {font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.88); margin-top: 3px;}
+html.nativa #module-list .module-tile[data-mod] .module-badge {font-size: 0; line-height: 0; padding: 0; min-width: 24px; height: 24px; border-radius: 12px; background: #DC2626; color: #fff; top: 10px; right: 10px; display: flex; align-items: center; justify-content: center;}
+html.nativa #module-list .module-tile[data-mod] .module-badge::after {content: attr(data-n); font-size: 13px; font-weight: 800; line-height: 1; color: #fff; padding: 0 6px;}
 html.nativa #module-list .module-tile[data-mod]:hover {border: 0; box-shadow: none;}
 html.nativa #module-list .module-tile[data-mod] .hero-ring circle {stroke: rgba(255,255,255,.3);}
 html.nativa #module-list .module-tile[data-mod] .hero-ring circle + circle {stroke: #fff;}
@@ -20,5 +21,6 @@ html.nativa #module-list .module-tile[data-mod="spiaggia"], html.nativa #module-
 html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-title, html.nativa #module-list .module-tile[data-mod="navetta"] .module-title, html.nativa #module-list .module-tile[data-mod="bici"] .module-title {color: #053328;}
 html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-sub, html.nativa #module-list .module-tile[data-mod="navetta"] .module-sub, html.nativa #module-list .module-tile[data-mod="bici"] .module-sub {color: #2E7463;}
 html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-icon-chip, html.nativa #module-list .module-tile[data-mod="navetta"] .module-icon-chip, html.nativa #module-list .module-tile[data-mod="bici"] .module-icon-chip {background: #fff; color: #095C48;}
-html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-badge, html.nativa #module-list .module-tile[data-mod="navetta"] .module-badge, html.nativa #module-list .module-tile[data-mod="bici"] .module-badge {background: #F2702A; color: #fff;}
-html.nativa #module-list .module-tile[data-mod="ristorazione"] .module-badge, html.nativa #module-list .module-tile[data-mod="shop"] .module-badge, html.nativa #module-list .module-tile[data-mod="mense"] .module-badge {color: #F2702A;}
+html.nativa #module-list .module-tile.size-medium .module-title, html.nativa #module-list .module-tile.size-large .module-title {font-size: 19px;}
+html.nativa #module-list .module-tile.size-medium .module-sub, html.nativa #module-list .module-tile.size-large .module-sub {font-size: 13px;}
+html.nativa #module-list .module-tile.size-medium .module-icon-chip, html.nativa #module-list .module-tile.size-large .module-icon-chip {width: 52px; height: 52px;}

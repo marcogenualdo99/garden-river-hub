@@ -12,3 +12,5 @@ html.nativa input, html.nativa select, html.nativa textarea {font-size: 16px;}
 html.nativa button, html.nativa .btn-primary, html.nativa .new-op-btn, html.nativa .tab {min-height: 40px;}
 html.nativa {-webkit-text-size-adjust: 100%;}
 html.nativa img {max-width: 100%; height: auto;}
+html.nativa .drawer {will-change: transform;}
+html.nativa .drawer-overlay {will-change: opacity;}

@@ -44,8 +44,13 @@ public class MainActivity extends Activity {
             @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
                 if (chooser != null) chooser.onReceiveValue(null);
                 chooser = cb;
-                try { startActivityForResult(p.createIntent(), REQ_FILE); }
-                catch (Exception e) { chooser = null; return false; }
+                boolean immagine = false;
+                for (String t : p.getAcceptTypes()) if (t != null && t.startsWith("image")) immagine = true;
+                try {
+                    if (immagine && p.isCaptureEnabled()) { scattaFoto(); return true; }
+                    startActivityForResult(p.createIntent(), REQ_FILE);
+                }
+                catch (Exception e) { chooser.onReceiveValue(null); chooser = null; return true; }
                 return true;
             }
             @Override public boolean onCreateWindow(WebView v, boolean dialog, boolean gesture, Message msg) {
@@ -79,7 +84,7 @@ public class MainActivity extends Activity {
     /** Il V2 ha una GPU debole: niente sfocature in tempo reale e menu laterale senza animazioni a cascata. */
     private static final String LEGGERA = "(function(){if(document.getElementById('gr-leggera'))return;var s=document.createElement('style');s.id='gr-leggera';"
         + "s.textContent='*,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;filter:none!important;"
-        + "transition:none!important;box-shadow:none!important;text-shadow:none!important;scroll-behavior:auto!important;will-change:auto!important}"
+        + "transition:none!important;box-shadow:none!important;text-shadow:none!important;scroll-behavior:auto!important;}"
         + ".drawer{transition:transform .16s ease-out!important}"
         + ".drawer-overlay{transition:opacity .1s linear!important}"
         + ".drawer .nav-group-header,.drawer .nav-item,.drawer .sidebar-brand>*,.drawer .sidebar-brand img{opacity:1!important;transform:none!important}';"
@@ -87,6 +92,22 @@ public class MainActivity extends Activity {
 
     /** Segna la pagina come "dentro l'app": gli stili solo-app della Hub (html.nativa) si attivano qui e non sul sito. */
     private static final String NATIVA = "try{document.documentElement.classList.add('nativa')}catch(e){}";
+
+    private java.io.File fotoFile;
+    private static final int REQ_FOTO = 12;
+
+    /** Scatto con la fotocamera di sistema; il file va in cache e torna alla pagina come se fosse scelto da un input. */
+    private void scattaFoto() throws Exception {
+        java.io.File dir = new java.io.File(getCacheDir(), "foto");
+        dir.mkdirs();
+        fotoFile = new java.io.File(dir, "scatto_" + System.currentTimeMillis() + ".jpg");
+        Uri out = Uri.parse("content://it.gardenriver.agente.foto/foto/" + fotoFile.getName());
+        Intent i = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+        i.putExtra(android.provider.MediaStore.EXTRA_OUTPUT, out);
+        i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        i.setClipData(android.content.ClipData.newRawUri("foto", out));
+        startActivityForResult(i, REQ_FOTO);
+    }
 
     private String hubUrl() { return getSharedPreferences("agente", 0).getString("hub_url", "https://gardenhub.it"); }
 
@@ -162,7 +183,11 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
-        if (req == REQ_FILE && chooser != null) {
+        if (req == REQ_FOTO && chooser != null) {
+            boolean ok = res == RESULT_OK && fotoFile != null && fotoFile.length() > 0;
+            chooser.onReceiveValue(ok ? new Uri[]{Uri.fromFile(fotoFile)} : null);
+            chooser = null;
+        } else if (req == REQ_FILE && chooser != null) {
             chooser.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(res, data));
             chooser = null;
         } else super.onActivityResult(req, res, data);
@@ -187,6 +212,17 @@ public class MainActivity extends Activity {
     @Override protected void onSaveInstanceState(Bundle b) { super.onSaveInstanceState(b); web.saveState(b); }
     @Override protected void onResume() { super.onResume(); web.onResume(); }
     @Override protected void onPause() { super.onPause(); web.onPause(); CookieManager.getInstance().flush(); }
+
+    /** Debug: stampa byte grezzi sulla stampante integrata (adb shell am broadcast -a it.gardenriver.agente.RAW --es hex ...). */
+    public static void stampaGrezzo(byte[] dati) throws Exception {
+        android.bluetooth.BluetoothAdapter ad = android.bluetooth.BluetoothAdapter.getDefaultAdapter();
+        android.bluetooth.BluetoothDevice dev = null;
+        for (android.bluetooth.BluetoothDevice d : ad.getBondedDevices()) if (BT_INTERNA.equals(d.getAddress())) { dev = d; break; }
+        if (dev == null) throw new Exception("stampante non trovata");
+        android.bluetooth.BluetoothSocket sk = dev.createRfcommSocketToServiceRecord(java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));
+        try { ad.cancelDiscovery(); sk.connect(); sk.getOutputStream().write(dati); sk.getOutputStream().flush(); Thread.sleep(300); }
+        finally { try { sk.close(); } catch (Exception e) { } }
+    }
 
     private static final String BT_INTERNA = "00:11:22:33:44:55";
 

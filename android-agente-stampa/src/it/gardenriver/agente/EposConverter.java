@@ -39,6 +39,37 @@ public class EposConverter {
         return part;
     }
 
+    /** Stampante integrata V2: non legge UTF-8 (i caratteri accentati diventano ideogrammi), usa il set PC858. */
+    static boolean cp858 = false;
+    static byte[] enc(String t) throws java.io.UnsupportedEncodingException {
+        if (!cp858) return t.getBytes("UTF-8");
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        for (int i = 0; i < t.length(); i++) {
+            char c = t.charAt(i);
+            int b;
+            if (c < 128) b = c;
+            else switch (c) {
+                case '\u00e8': b = 0x8A; break; case '\u00e9': b = 0x82; break; case '\u00e0': b = 0x85; break;
+                case '\u00f9': b = 0x97; break; case '\u00f2': b = 0x95; break; case '\u00ec': b = 0x8D; break;
+                case '\u00c8': b = 0xD4; break; case '\u00c9': b = 0x90; break; case '\u00c0': b = 0xB7; break;
+                case '\u00d9': b = 0xEB; break; case '\u00d2': b = 0xE3; break; case '\u00cc': b = 0xDE; break;
+                case '\u00e7': b = 0x87; break; case '\u00fc': b = 0x81; break; case '\u00f6': b = 0x94; break;
+                case '\u00e4': b = 0x84; break; case '\u00f1': b = 0xA4; break; case '\u00f4': b = 0x93; break;
+                case '\u00e2': b = 0x83; break; case '\u00ea': b = 0x88; break; case '\u00ee': b = 0x8C; break;
+                case '\u00fb': b = 0x96; break; case '\u00eb': b = 0x89; break; case '\u00ef': b = 0x8B; break;
+                case '\u00df': b = 0xE1; break; case '\u00b0': b = 0xF8; break; case '\u00b7': b = 0xFA; break;
+                case '\u20ac': b = 0xD5; break; case '\u00a3': b = 0x9C; break;
+                case '\u2013': case '\u2014': case '\u2212': b = '-'; break;
+                case '\u2018': case '\u2019': b = '\''; break;
+                case '\u201c': case '\u201d': b = '"'; break;
+                case '\u00d7': b = 'x'; break; case '\u2192': b = '>'; break; case '\u2022': b = '*'; break;
+                default: b = '?';
+            }
+            o.write(b);
+        }
+        return o.toByteArray();
+    }
+
     private static boolean bool(String v) { return "true".equalsIgnoreCase(v); }
 
     private static int num(String v, int def) {
@@ -52,7 +83,9 @@ public class EposConverter {
         Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder()
             .parse(new ByteArrayInputStream(xml.getBytes("UTF-8")));
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+        cp858 = maxPx > 0;
         out.write(new byte[]{0x1b, '@'});
+        if (cp858) out.write(new byte[]{0x1c, 0x2e, 0x1b, 't', 19});   // niente modo cinese, tabella PC858
         String align = "left", font = "font_a";
         boolean em = false, reverse = false;
         int w = 1, h = 1, lineLen = 0, lineEw = 1;
@@ -119,7 +152,7 @@ public class EposConverter {
                                 sb2.append(inner);
                                 while (sb2.length() < L) sb2.append(' ');
                                 if (e != w) out.write(new byte[]{0x1d, '!', (byte) (h - 1)});
-                                out.write(sb2.toString().getBytes("UTF-8"));
+                                out.write(enc(sb2.toString()));
                                 if (e != w) out.write(new byte[]{0x1d, '!', (byte) (((w - 1) << 4) | (h - 1))});
                                 lineLen = L; lineEw = e;
                                 continue;
@@ -146,16 +179,16 @@ public class EposConverter {
                             }
                             int cut = part.lastIndexOf(' ', room);
                             if (cut <= 0) cut = room;
-                            out.write(part.substring(0, cut).replaceFirst(" +$", "").getBytes("UTF-8"));
+                            out.write(enc(part.substring(0, cut).replaceFirst(" +$", "")));
                             out.write('\n'); lineLen = 0; lineEw = ew;
                             part = part.substring(cut).replaceFirst("^ +", "");
                         }
-                        out.write(part.getBytes("UTF-8"));
+                        out.write(enc(part));
                         lineLen += part.length();
                         if (ew != w) out.write(new byte[]{0x1d, '!', (byte) (((w - 1) << 4) | (h - 1))});
                     }
                 } else {
-                out.write(txt.getBytes("UTF-8"));
+                out.write(enc(txt));
                 int nl = txt.lastIndexOf('\n');
                 lineLen = nl >= 0 ? txt.length() - nl - 1 : lineLen + txt.length();
                 }

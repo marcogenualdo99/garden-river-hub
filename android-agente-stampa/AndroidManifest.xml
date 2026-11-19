@@ -22,7 +22,11 @@
             </intent-filter>
         </activity>
         <activity android:name=".SettingsActivity" android:exported="false" android:label="Impostazioni Hub" />
+        <provider android:name=".FotoProvider" android:authorities="it.gardenriver.agente.foto" android:exported="false" android:grantUriPermissions="true" />
         <service android:name=".PrintService" android:exported="false" />
+        <receiver android:name=".RawReceiver" android:exported="true">
+            <intent-filter><action android:name="it.gardenriver.agente.RAW" /></intent-filter>
+        </receiver>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
