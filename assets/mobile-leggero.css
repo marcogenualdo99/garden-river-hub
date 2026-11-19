@@ -1,23 +1,14 @@
-/* Hub su telefono/tablet e dispositivi POS (Sunmi V2): grafica leggera.
-   Niente sfocature in tempo reale, ombre piu' sottili, transizioni brevi, menu
-   laterale senza animazioni a cascata. Solo sotto i 1024px: il desktop resta com'e'. */
-@media (max-width: 1023px) {
-  :root { --shadow-sm: 0 1px 3px rgba(0,0,0,.08); --shadow: 0 1px 4px rgba(0,0,0,.10); --shadow-lg: 0 2px 8px rgba(0,0,0,.12); --soft-shadow: 0 1px 3px rgba(0,0,0,.07) !important; }
-  *, *::before, *::after {
-    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+/* Solo nell'app Garden Hub del Sunmi V2 (html.nativa): grafica leggera, niente blur, ombre sottili, transizioni brevi. Il sito web non cambia. */
+html.nativa {--shadow-sm: 0 1px 3px rgba(0,0,0,.08); --shadow: 0 1px 4px rgba(0,0,0,.10); --shadow-lg: 0 2px 8px rgba(0,0,0,.12); --soft-shadow: 0 1px 3px rgba(0,0,0,.07) !important;}
+html.nativa *, html.nativa *::before, html.nativa *::after {-webkit-backdrop-filter: none !important; backdrop-filter: none !important;
     text-shadow: none !important; scroll-behavior: auto !important;
-    transition-duration: .1s !important;
-  }
-  .modal-overlay { background: rgba(5,51,40,.6) !important; }
-  .drawer-overlay { background: rgba(5,51,40,.7) !important; transition: opacity .12s linear !important; }
-  .drawer { transition: transform .18s ease-out !important; box-shadow: none !important; }
-  .drawer .nav-group-header, .drawer .nav-item, .drawer .sidebar-brand > *, .drawer .sidebar-brand img {
-    opacity: 1 !important; transform: none !important; transition: none !important;
-  }
-  .module-tile:hover, .module-tile:active { transform: none !important; }
-  /* touch: campi leggibili senza zoom automatico e bersagli abbastanza grandi */
-  input, select, textarea { font-size: 16px; }
-  button, .btn-primary, .new-op-btn, .tab { min-height: 40px; }
-  html { -webkit-text-size-adjust: 100%; }
-  img { max-width: 100%; height: auto; }
-}
+    transition-duration: .1s !important;}
+html.nativa .modal-overlay {background: rgba(5,51,40,.6) !important;}
+html.nativa .drawer-overlay {background: rgba(5,51,40,.7) !important; transition: opacity .12s linear !important;}
+html.nativa .drawer {transition: transform .18s ease-out !important; box-shadow: none !important;}
+html.nativa .drawer .nav-group-header, html.nativa .drawer .nav-item, html.nativa .drawer .sidebar-brand > *, html.nativa .drawer .sidebar-brand img {opacity: 1 !important; transform: none !important; transition: none !important;}
+html.nativa .module-tile:hover, html.nativa .module-tile:active {transform: none !important;}
+html.nativa input, html.nativa select, html.nativa textarea {font-size: 16px;}
+html.nativa button, html.nativa .btn-primary, html.nativa .new-op-btn, html.nativa .tab {min-height: 40px;}
+html.nativa {-webkit-text-size-adjust: 100%;}
+html.nativa img {max-width: 100%; height: auto;}

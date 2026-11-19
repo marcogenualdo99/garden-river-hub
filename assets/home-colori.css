@@ -1,28 +1,24 @@
-/* Home: card dei moduli piu' grandi e ognuna con il suo colore, per riconoscerle a colpo d'occhio. */
-#module-list .module-grid { grid-auto-rows: 172px; gap: 12px; }
-@media (min-width: 768px) { #module-list .module-grid { grid-auto-rows: 190px; gap: 16px; } }
-#module-list .module-tile[data-mod] {
-  background: var(--c, #0b5d49); border: 0; color: #fff; padding: 20px; border-radius: 26px; box-shadow: none;
+/* Solo nell'app Garden Hub del Sunmi V2 (html.nativa): card della home piu' grandi, nei colori del brand a famiglie. Il sito web non cambia. */
+html.nativa #module-list .module-grid {grid-auto-rows: 172px; gap: 12px;}
+@media (min-width: 768px) {
+  html.nativa #module-list .module-grid {grid-auto-rows: 190px; gap: 16px;}
 }
-#module-list .module-tile[data-mod] .module-icon-chip { width: 58px; height: 58px; border-radius: 18px; background: rgba(255,255,255,.22); color: #fff; box-shadow: none; }
-#module-list .module-tile[data-mod] .module-icon-chip svg { width: 30px; height: 30px; }
-#module-list .module-tile[data-mod] .module-title { font-size: 19px; font-weight: 800; line-height: 1.15; color: #fff; }
-#module-list .module-tile[data-mod] .module-sub { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.88); margin-top: 5px; }
-#module-list .module-tile[data-mod] .module-badge { background: #fff; color: var(--c, #0b5d49); font-size: 12px; padding: 4px 11px; top: 16px; right: 16px; }
-#module-list .module-tile[data-mod]:hover { border: 0; box-shadow: none; }
-#module-list .module-tile[data-mod] .hero-ring circle { stroke: rgba(255,255,255,.3); }
-#module-list .module-tile[data-mod] .hero-ring circle + circle { stroke: #fff; }
-#module-list .module-tile[data-mod] .hero-ring text { fill: #fff; }
-/* Solo colori del brand, a famiglie: verde foresta = ospiti e front office, verde Garden = operativo,
-   arancio sole = ristoro e vendita, verde chiaro = spiaggia e spostamenti. */
-.module-tile[data-mod="calendario"], .module-tile[data-mod="conti"], .module-tile[data-mod="area-ospite"] { --c: #053328; }
-.module-tile[data-mod="alloggi"], .module-tile[data-mod="manutenzione"], .module-tile[data-mod="magazzino"] { --c: #095C48; }
-.module-tile[data-mod="ristorazione"], .module-tile[data-mod="shop"], .module-tile[data-mod="mense"] { --c: #F2702A; }
-#module-list .module-tile[data-mod="spiaggia"], #module-list .module-tile[data-mod="navetta"], #module-list .module-tile[data-mod="bici"] {
-  --c: #CEDEDA; color: #053328;
-}
-#module-list .module-tile[data-mod="spiaggia"] .module-title, #module-list .module-tile[data-mod="navetta"] .module-title, #module-list .module-tile[data-mod="bici"] .module-title { color: #053328; }
-#module-list .module-tile[data-mod="spiaggia"] .module-sub, #module-list .module-tile[data-mod="navetta"] .module-sub, #module-list .module-tile[data-mod="bici"] .module-sub { color: #2E7463; }
-#module-list .module-tile[data-mod="spiaggia"] .module-icon-chip, #module-list .module-tile[data-mod="navetta"] .module-icon-chip, #module-list .module-tile[data-mod="bici"] .module-icon-chip { background: #fff; color: #095C48; }
-#module-list .module-tile[data-mod="spiaggia"] .module-badge, #module-list .module-tile[data-mod="navetta"] .module-badge, #module-list .module-tile[data-mod="bici"] .module-badge { background: #F2702A; color: #fff; }
-#module-list .module-tile[data-mod="ristorazione"] .module-badge, #module-list .module-tile[data-mod="shop"] .module-badge, #module-list .module-tile[data-mod="mense"] .module-badge { color: #F2702A; }
+html.nativa #module-list .module-tile[data-mod] {background: var(--c, #0b5d49); border: 0; color: #fff; padding: 20px; border-radius: 26px; box-shadow: none;}
+html.nativa #module-list .module-tile[data-mod] .module-icon-chip {width: 58px; height: 58px; border-radius: 18px; background: rgba(255,255,255,.22); color: #fff; box-shadow: none;}
+html.nativa #module-list .module-tile[data-mod] .module-icon-chip svg {width: 30px; height: 30px;}
+html.nativa #module-list .module-tile[data-mod] .module-title {font-size: 19px; font-weight: 800; line-height: 1.15; color: #fff;}
+html.nativa #module-list .module-tile[data-mod] .module-sub {font-size: 13px; font-weight: 600; color: rgba(255,255,255,.88); margin-top: 5px;}
+html.nativa #module-list .module-tile[data-mod] .module-badge {background: #fff; color: var(--c, #0b5d49); font-size: 12px; padding: 4px 11px; top: 16px; right: 16px;}
+html.nativa #module-list .module-tile[data-mod]:hover {border: 0; box-shadow: none;}
+html.nativa #module-list .module-tile[data-mod] .hero-ring circle {stroke: rgba(255,255,255,.3);}
+html.nativa #module-list .module-tile[data-mod] .hero-ring circle + circle {stroke: #fff;}
+html.nativa #module-list .module-tile[data-mod] .hero-ring text {fill: #fff;}
+html.nativa .module-tile[data-mod="calendario"], html.nativa .module-tile[data-mod="conti"], html.nativa .module-tile[data-mod="area-ospite"] {--c: #053328;}
+html.nativa .module-tile[data-mod="alloggi"], html.nativa .module-tile[data-mod="manutenzione"], html.nativa .module-tile[data-mod="magazzino"] {--c: #095C48;}
+html.nativa .module-tile[data-mod="ristorazione"], html.nativa .module-tile[data-mod="shop"], html.nativa .module-tile[data-mod="mense"] {--c: #F2702A;}
+html.nativa #module-list .module-tile[data-mod="spiaggia"], html.nativa #module-list .module-tile[data-mod="navetta"], html.nativa #module-list .module-tile[data-mod="bici"] {--c: #CEDEDA; color: #053328;}
+html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-title, html.nativa #module-list .module-tile[data-mod="navetta"] .module-title, html.nativa #module-list .module-tile[data-mod="bici"] .module-title {color: #053328;}
+html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-sub, html.nativa #module-list .module-tile[data-mod="navetta"] .module-sub, html.nativa #module-list .module-tile[data-mod="bici"] .module-sub {color: #2E7463;}
+html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-icon-chip, html.nativa #module-list .module-tile[data-mod="navetta"] .module-icon-chip, html.nativa #module-list .module-tile[data-mod="bici"] .module-icon-chip {background: #fff; color: #095C48;}
+html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-badge, html.nativa #module-list .module-tile[data-mod="navetta"] .module-badge, html.nativa #module-list .module-tile[data-mod="bici"] .module-badge {background: #F2702A; color: #fff;}
+html.nativa #module-list .module-tile[data-mod="ristorazione"] .module-badge, html.nativa #module-list .module-tile[data-mod="shop"] .module-badge, html.nativa #module-list .module-tile[data-mod="mense"] .module-badge {color: #F2702A;}

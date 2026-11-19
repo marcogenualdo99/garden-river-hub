@@ -57,7 +57,8 @@ public class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 return esterno(r.getUrl());
             }
-            @Override public void onPageCommitVisible(WebView v, String url) { v.evaluateJavascript(LEGGERA, null); }
+            @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap f) { v.evaluateJavascript(NATIVA, null); }
+            @Override public void onPageCommitVisible(WebView v, String url) { v.evaluateJavascript(NATIVA, null); v.evaluateJavascript(LEGGERA, null); }
             @Override public void onPageFinished(WebView v, String url) { v.evaluateJavascript(LEGGERA, null); }
             @Override public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 if (r.isForMainFrame())
@@ -83,6 +84,9 @@ public class MainActivity extends Activity {
         + ".drawer-overlay{transition:opacity .1s linear!important}"
         + ".drawer .nav-group-header,.drawer .nav-item,.drawer .sidebar-brand>*,.drawer .sidebar-brand img{opacity:1!important;transform:none!important}';"
         + "(document.head||document.documentElement).appendChild(s);})()";
+
+    /** Segna la pagina come "dentro l'app": gli stili solo-app della Hub (html.nativa) si attivano qui e non sul sito. */
+    private static final String NATIVA = "try{document.documentElement.classList.add('nativa')}catch(e){}";
 
     private String hubUrl() { return getSharedPreferences("agente", 0).getString("hub_url", "https://gardenhub.it"); }
 
