@@ -14,9 +14,9 @@ html.nativa #module-list .module-tile[data-mod]:hover {border: 0; box-shadow: no
 html.nativa #module-list .module-tile[data-mod] .hero-ring circle {stroke: rgba(255,255,255,.3);}
 html.nativa #module-list .module-tile[data-mod] .hero-ring circle + circle {stroke: #fff;}
 html.nativa #module-list .module-tile[data-mod] .hero-ring text {fill: #fff;}
-html.nativa .module-tile[data-mod="calendario"], html.nativa .module-tile[data-mod="conti"], html.nativa .module-tile[data-mod="area-ospite"] {--c: #053328;}
-html.nativa .module-tile[data-mod="alloggi"], html.nativa .module-tile[data-mod="manutenzione"], html.nativa .module-tile[data-mod="magazzino"] {--c: #095C48;}
-html.nativa .module-tile[data-mod="ristorazione"], html.nativa .module-tile[data-mod="shop"], html.nativa .module-tile[data-mod="mense"] {--c: #F2702A;}
+html.nativa [data-mod="calendario"], html.nativa [data-mod="conti"], html.nativa [data-mod="area-ospite"] {--c: #053328;}
+html.nativa [data-mod="alloggi"], html.nativa [data-mod="manutenzione"], html.nativa [data-mod="magazzino"] {--c: #095C48;}
+html.nativa [data-mod="ristorazione"], html.nativa [data-mod="shop"], html.nativa [data-mod="mense"] {--c: #F2702A;}
 html.nativa #module-list .module-tile[data-mod="spiaggia"], html.nativa #module-list .module-tile[data-mod="navetta"], html.nativa #module-list .module-tile[data-mod="bici"] {--c: #CEDEDA; color: #053328;}
 html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-title, html.nativa #module-list .module-tile[data-mod="navetta"] .module-title, html.nativa #module-list .module-tile[data-mod="bici"] .module-title {color: #053328;}
 html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-sub, html.nativa #module-list .module-tile[data-mod="navetta"] .module-sub, html.nativa #module-list .module-tile[data-mod="bici"] .module-sub {color: #2E7463;}
@@ -24,3 +24,8 @@ html.nativa #module-list .module-tile[data-mod="spiaggia"] .module-icon-chip, ht
 html.nativa #module-list .module-tile.size-medium .module-title, html.nativa #module-list .module-tile.size-large .module-title {font-size: 19px;}
 html.nativa #module-list .module-tile.size-medium .module-sub, html.nativa #module-list .module-tile.size-large .module-sub {font-size: 13px;}
 html.nativa #module-list .module-tile.size-medium .module-icon-chip, html.nativa #module-list .module-tile.size-large .module-icon-chip {width: 52px; height: 52px;}
+/* Anteprima di riordino: stessi colori delle card vere */
+html.nativa .rp-tile[data-mod] {background: var(--c, #095C48); border: 0; color: #fff;}
+html.nativa .rp-tile[data-mod] .rp-ic {background: rgba(255,255,255,.22); color: #fff;}
+html.nativa .rp-tile[data-mod="spiaggia"], html.nativa .rp-tile[data-mod="navetta"], html.nativa .rp-tile[data-mod="bici"] {background: #CEDEDA; color: #053328;}
+html.nativa .rp-tile[data-mod="spiaggia"] .rp-ic, html.nativa .rp-tile[data-mod="navetta"] .rp-ic, html.nativa .rp-tile[data-mod="bici"] .rp-ic {background: #fff; color: #095C48;}
