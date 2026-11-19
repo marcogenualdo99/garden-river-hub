@@ -35,6 +35,8 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT", "android.permission.POST_NOTIFICATIONS"}, 2);
         else if (Build.VERSION.SDK_INT >= 31) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"}, 2);
         SharedPreferences sp = getSharedPreferences("agente", 0);
+        Intent ka = new Intent(this, KeepAliveService.class);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(ka); else startService(ka);
         if (sp.getBoolean("attivo", false) && sp.getString("token", "").length() > 0) avviaServizio();
 
         web = new WebView(this);
@@ -214,7 +216,8 @@ public class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle b) { super.onSaveInstanceState(b); web.saveState(b); }
     @Override protected void onResume() { super.onResume(); web.onResume(); }
-    @Override protected void onPause() { super.onPause(); web.onPause(); CookieManager.getInstance().flush(); }
+    // La pagina NON viene messa in pausa: con l'app in secondo piano continua a ricevere gli avvisi dei reparti
+    @Override protected void onPause() { super.onPause(); CookieManager.getInstance().flush(); }
 
     /** Debug: stampa byte grezzi sulla stampante integrata (adb shell am broadcast -a it.gardenriver.agente.RAW --es hex ...). */
     public static void stampaGrezzo(byte[] dati) throws Exception {
