@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
         web = new WebView(this);
         configura(web);
         // Dopo un aggiornamento dell'app svuota la cache web, cosi' la Hub nuova si vede subito
-        if (sp.getInt("cache_v", 0) != 4) { web.clearCache(true); sp.edit().putInt("cache_v", 4).apply(); }
+        if (sp.getInt("cache_v", 0) != 5) { web.clearCache(true); sp.edit().putInt("cache_v", 5).apply(); }
         web.addJavascriptInterface(new Ponte(), "GRNativo");
         web.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
                 catch (Exception e) { chooser.onReceiveValue(null); chooser = null; return true; }
                 return true;
             }
+            @Override public boolean onConsoleMessage(ConsoleMessage m) { android.util.Log.i("GRWeb", m.message()); return true; }
             @Override public boolean onCreateWindow(WebView v, boolean dialog, boolean gesture, Message msg) {
                 apriFiglia(msg);
                 return true;

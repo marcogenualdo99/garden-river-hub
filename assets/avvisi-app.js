@@ -7,6 +7,7 @@
   if (!window.GRNativo || !window.GRNativo.notifica) return;
   var NOMI = { manutenzione: 'Manutenzione', navetta: 'Navetta', pulizie: 'Pulizie', reception: 'Reception', ristorazione: 'Ristorazione', market: 'Market' };
   var visti = null;
+  function log(m) { try { console.log('[avvisi] ' + m); } catch (e) { /* ok */ } }
 
   function reparti() {
     try { var v = JSON.parse(localStorage.getItem('gr_notif_reparti') || 'null'); if (Array.isArray(v)) return v; } catch (e) { /* ok */ }
@@ -15,21 +16,24 @@
 
   function avvia() {
     var fb = window._fb;
-    if (!fb || !fb.onSnapshot || !fb.collection || !fb.db) return;
+    if (!fb || !fb.onSnapshot || !fb.collection || !fb.db) { log('Firebase non disponibile su questa pagina'); return; }
+    log('ascolto notifiche avviato, reparti: ' + reparti().join(','));
     try {
       fb.onSnapshot(fb.collection(fb.db, 'notifiche'), function (snap) {
         var primo = visti === null;
+        log('snapshot: ' + snap.size + ' doc, primo=' + primo);
         if (primo) visti = {};
         snap.docChanges().forEach(function (ch) {
           if (ch.type !== 'added' || visti[ch.doc.id]) return;
           visti[ch.doc.id] = 1;
+          if (!primo) log('nuovo avviso ' + JSON.stringify(ch.doc.data().reparti));
           if (primo) return;                       // gli avvisi gia' presenti non si ripetono
           var d = ch.doc.data(), mie = reparti();
           var rep = (d.reparti || []).filter(function (r) { return mie.indexOf(r) >= 0; });
           if (!rep.length) return;
           try { window.GRNativo.notifica((NOMI[rep[0]] || rep[0]) + (d.titolo ? ' · ' + d.titolo : ''), d.testo || ''); } catch (e) { /* ok */ }
         });
-      }, function () { /* senza permessi (non loggato): niente */ });
+      }, function (e) { log('errore ascolto: ' + (e && e.code)); });
     } catch (e) { /* ok */ }
   }
 
