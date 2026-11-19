@@ -46,26 +46,18 @@ public class EposConverter {
         ByteArrayOutputStream o = new ByteArrayOutputStream();
         for (int i = 0; i < t.length(); i++) {
             char c = t.charAt(i);
-            int b;
-            if (c < 128) b = c;
-            else switch (c) {
-                case '\u00e8': b = 0x8A; break; case '\u00e9': b = 0x82; break; case '\u00e0': b = 0x85; break;
-                case '\u00f9': b = 0x97; break; case '\u00f2': b = 0x95; break; case '\u00ec': b = 0x8D; break;
-                case '\u00c8': b = 0xD4; break; case '\u00c9': b = 0x90; break; case '\u00c0': b = 0xB7; break;
-                case '\u00d9': b = 0xEB; break; case '\u00d2': b = 0xE3; break; case '\u00cc': b = 0xDE; break;
-                case '\u00e7': b = 0x87; break; case '\u00fc': b = 0x81; break; case '\u00f6': b = 0x94; break;
-                case '\u00e4': b = 0x84; break; case '\u00f1': b = 0xA4; break; case '\u00f4': b = 0x93; break;
-                case '\u00e2': b = 0x83; break; case '\u00ea': b = 0x88; break; case '\u00ee': b = 0x8C; break;
-                case '\u00fb': b = 0x96; break; case '\u00eb': b = 0x89; break; case '\u00ef': b = 0x8B; break;
-                case '\u00df': b = 0xE1; break; case '\u00b0': b = 0xF8; break; case '\u00b7': b = 0xFA; break;
-                case '\u20ac': b = 0xD5; break; case '\u00a3': b = 0x9C; break;
-                case '\u2013': case '\u2014': case '\u2212': b = '-'; break;
-                case '\u2018': case '\u2019': b = '\''; break;
-                case '\u201c': case '\u201d': b = '"'; break;
-                case '\u00d7': b = 'x'; break; case '\u2192': b = '>'; break; case '\u2022': b = '*'; break;
-                default: b = '?';
+            switch (c) {
+                case '\u2013': case '\u2014': case '\u2212': o.write('-'); continue;
+                case '\u2018': case '\u2019': o.write('\''); continue;
+                case '\u201c': case '\u201d': o.write('"'); continue;
+                case '\u00d7': o.write('x'); continue;
+                case '\u2192': o.write('>'); continue;
+                case '\u2022': o.write('*'); continue;
+                default:
             }
-            o.write(b);
+            if (c < 128) { o.write(c); continue; }
+            byte[] x = String.valueOf(c).getBytes("windows-1252");
+            o.write(x.length == 1 ? x[0] : (byte) '?');
         }
         return o.toByteArray();
     }
@@ -85,7 +77,7 @@ public class EposConverter {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         cp858 = maxPx > 0;
         out.write(new byte[]{0x1b, '@'});
-        if (cp858) out.write(new byte[]{0x1c, 0x2e, 0x1b, 't', 19});   // niente modo cinese, tabella PC858
+        if (cp858) out.write(new byte[]{0x1c, 0x2e, 0x1b, 't', 16});   // niente modo cinese, tabella WPC1252 (ha l'euro)
         String align = "left", font = "font_a";
         boolean em = false, reverse = false;
         int w = 1, h = 1, lineLen = 0, lineEw = 1;
@@ -117,8 +109,10 @@ public class EposConverter {
                     align = el.getAttribute("align");
                     out.write(new byte[]{0x1b, 'a', (byte) (align.equals("center") ? 1 : align.equals("right") ? 2 : 0)});
                 }
-                if (el.hasAttribute("font") && !el.getAttribute("font").equals(font)) {
-                    font = el.getAttribute("font");
+                String fAttr = el.hasAttribute("font") ? el.getAttribute("font") : null;
+                if (maxPx > 0 && "font_b".equals(fAttr)) fAttr = "font_a";   // il carattere piccolo su 58mm e' illeggibile
+                if (fAttr != null && !fAttr.equals(font)) {
+                    font = fAttr;
                     out.write(new byte[]{0x1b, 'M', (byte) (font.equals("font_b") ? 1 : 0)});
                 }
                 if (el.hasAttribute("em") && bool(el.getAttribute("em")) != em) {

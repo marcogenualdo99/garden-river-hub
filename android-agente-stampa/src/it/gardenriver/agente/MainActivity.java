@@ -271,7 +271,7 @@ public class MainActivity extends Activity {
                     if (ip.equals("interna")) {
                         // Stampante integrata V2 (58mm, niente taglierina): dispositivo Bluetooth virtuale, ESC/POS grezzo
                         byte[] dati = EposConverter.converti(xml, 32, 42, 384);
-                        byte[] coda = new byte[]{'\n', '\n', '\n'};
+                        byte[] coda = new byte[]{'\n', '\n', '\n', '\n', '\n', '\n'};   // spazio per lo strappo
                         java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
                         bo.write(dati); bo.write(coda);
                         inviaInterna(bo.toByteArray());
