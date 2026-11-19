@@ -450,7 +450,10 @@ function xmlOrdineShop(o, logo) {
   r.push(`<text font="font_a" align="center" height="2" width="2">ORDINE SHOP</text><text font="font_a" height="1" width="1" align="center">&#10;</text>`);
   r.push(t(adesso, 'align="center"'));
   r.push(NL);
-  r.push(t((o.ospite_nome || 'Ospite') + (o.alloggio ? ' · ' + o.alloggio : ''), 'font="font_a" em="true" height="1" width="1" align="left"'));
+  // Nome dell'ospite in grande, su banda nera (come nella comanda)
+  const _in = ' ' + String(o.ospite_nome || 'Ospite').substring(0, 19) + ' ', _lp = Math.max(0, Math.floor((21 - _in.length) / 2)), _rp = Math.max(0, 21 - _in.length - _lp);
+  r.push(`<text reverse="true" font="font_a" height="2" width="2">${_xmlE(' '.repeat(_lp) + _in + ' '.repeat(_rp))}</text><text reverse="false" font="font_a" height="1" width="1" align="left">&#10;</text>`);
+  if (o.alloggio) r.push(t(o.alloggio, 'font="font_a" em="true" height="1" width="1" align="left"'));
   if (o.ospite_tel) r.push(t('Tel: ' + o.ospite_tel, 'font="font_b"'));
   r.push(t((o.modalita === 'consegna' ? 'CONSEGNA IN ALLOGGIO' : 'RITIRO IN STRUTTURA') + (quando ? ' · ' + quando : ''), 'font="font_a" em="true"'));
   r.push(NL);
