@@ -220,7 +220,7 @@ public class MainActivity extends Activity {
         for (android.bluetooth.BluetoothDevice d : ad.getBondedDevices()) if (BT_INTERNA.equals(d.getAddress())) { dev = d; break; }
         if (dev == null) throw new Exception("stampante non trovata");
         android.bluetooth.BluetoothSocket sk = dev.createRfcommSocketToServiceRecord(java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));
-        try { ad.cancelDiscovery(); sk.connect(); sk.getOutputStream().write(dati); sk.getOutputStream().flush(); Thread.sleep(300); }
+        try { ad.cancelDiscovery(); sk.connect(); sk.getOutputStream().write(dati); sk.getOutputStream().flush(); Thread.sleep(Math.min(8000, 600 + dati.length / 6)); }
         finally { try { sk.close(); } catch (Exception e) { } }
     }
 
@@ -241,7 +241,7 @@ public class MainActivity extends Activity {
             sk.connect();
             OutputStream o = sk.getOutputStream();
             o.write(dati); o.flush();
-            Thread.sleep(300);
+            Thread.sleep(Math.min(8000, 600 + dati.length / 6));
         } finally { try { sk.close(); } catch (Exception e) { } }
     }
 

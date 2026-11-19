@@ -108,6 +108,11 @@ public class EposConverter {
                             for (int i = 0; i < cols - lineLen; i++) out.write(' ');
                     }
                 }
+                if (reverse && hasRev && !bool(el.getAttribute("reverse")) && txt.startsWith("\n")) {
+                    // La stampante integrata applica il nero (reverse) alla riga quando la riga viene chiusa:
+                    // l'a capo va mandato PRIMA di spegnere l'inverso, altrimenti la banda esce bianca.
+                    out.write('\n'); txt = txt.substring(1); lineLen = 0; lineEw = w;
+                }
                 if (el.hasAttribute("align") && !el.getAttribute("align").equals(align)) {
                     align = el.getAttribute("align");
                     out.write(new byte[]{0x1b, 'a', (byte) (align.equals("center") ? 1 : align.equals("right") ? 2 : 0)});
