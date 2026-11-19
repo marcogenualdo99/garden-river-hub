@@ -41,8 +41,8 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         configura(web);
-        // Dopo un aggiornamento dell'app svuota la cache web, cosi' la Hub nuova si vede subito
-        if (sp.getInt("cache_v", 0) != 5) { web.clearCache(true); sp.edit().putInt("cache_v", 5).apply(); }
+        // Svuota la cache web all'avvio dell'app
+        web.clearCache(true);   // a ogni avvio: le pagine nuove della Hub si vedono subito, senza aspettare la cache di 10 minuti
         web.addJavascriptInterface(new Ponte(), "GRNativo");
         web.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
