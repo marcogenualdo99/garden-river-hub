@@ -561,13 +561,15 @@ function cardOrdine(o) {
   // Fasi a step: prima "Segna pronto", poi (solo da pronto) "Consegnato"
   if (o.stato === 'nuovo') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','pronto')">Segna pronto</button>`);
   if (o.stato === 'pronto') btn.push(`<button class="sh-btn p" onclick="statoOrdine('${o.id}','consegnato')">Consegnato</button>`);
+  // Foto della consegna: subito sotto "Consegnato" (qualunque modalita'), finche' non c'e' gia' una foto
+  if (o.stato === 'pronto' && !o.foto_consegna) btn.push(`<button class="sh-btn" style="flex-basis:100%" onclick="fotoConsegna('${o.id}')">Aggiungi foto della consegna</button>`);
   if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="stampaOrdineShopManuale('${o.id}')">Stampa</button>`);
   if (o.stato !== 'annullato') btn.push(`<button class="sh-btn" onclick="segnaPagato('${o.id}',${!pagato})">${pagato ? 'Segna da pagare' : 'Segna pagato'}</button>`);
   if (attivo) btn.push(`<button class="sh-btn d" onclick="annullaOrdine('${o.id}')">Annulla</button>`);
-  const foto = o.modalita !== 'consegna' || o.stato === 'annullato' ? '' : o.foto_consegna
+  const foto = o.stato === 'annullato' ? '' : o.foto_consegna
     ? `<div class="sh-fc"><img src="${o.foto_consegna}" alt="Foto della consegna" onclick="apriFotoConsegna('${o.id}')"><small>Foto della consegna${o.foto_consegna_il ? '<br>' + esc(fmtQuando(o.foto_consegna_il)) : ''}<br>L'ospite la vede nel suo ordine.</small>
         <button class="sh-btn" onclick="fotoConsegna('${o.id}')">Cambia</button><button class="sh-ic" aria-label="Rimuovi foto" onclick="togliFotoConsegna('${o.id}')">${ICONS.TRASH}</button></div>`
-    : (o.stato === 'pronto' ? `<button class="sh-btn" onclick="fotoConsegna('${o.id}')">Aggiungi foto della consegna</button>` : '');
+    : '';
   return `<div class="sh-ord ${o.stato}">
     <div class="sh-oh"><div><b>${esc(o.ospite_nome || 'Ospite')}${o.alloggio ? ' · ' + esc(o.alloggio) : ''}</b><small>${esc(fmtQuando(o.creato_il))}${o.ospite_tel ? ' · ' + esc(o.ospite_tel) : ''}</small></div>
       <span class="sh-pill ${st[1]}" style="margin:0">${st[0]}</span></div>
