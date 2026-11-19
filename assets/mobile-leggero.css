@@ -9,8 +9,12 @@ html.nativa .drawer {transition: transform .18s ease-out !important; box-shadow:
 html.nativa .drawer .nav-group-header, html.nativa .drawer .nav-item, html.nativa .drawer .sidebar-brand > *, html.nativa .drawer .sidebar-brand img {opacity: 1 !important; transform: none !important; transition: none !important;}
 html.nativa .module-tile:hover, html.nativa .module-tile:active {transform: none !important;}
 html.nativa input, html.nativa select, html.nativa textarea {font-size: 16px;}
-html.nativa button, html.nativa .btn-primary, html.nativa .new-op-btn, html.nativa .tab {min-height: 40px;}
+html.nativa .btn-primary, html.nativa .new-op-btn, html.nativa .tab {min-height: 40px;}
 html.nativa {-webkit-text-size-adjust: 100%;}
 html.nativa img {max-width: 100%; height: auto;}
 html.nativa .drawer {will-change: transform;}
 html.nativa .drawer-overlay {will-change: opacity;}
+/* Pulsanti tondi della comanda (MOD, stampa, + e -): restano cerchi e sono piu' grandi da toccare con il dito */
+html.nativa .kds-edit-btn {width: 46px; height: 46px; min-height: 0; padding: 0; border-radius: 50%; flex-shrink: 0; font-size: 13px;}
+html.nativa .kds-btn {width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 50%; flex-shrink: 0;}
+html.nativa .kds-edit-btn svg {width: 20px; height: 20px;}

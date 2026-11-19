@@ -111,8 +111,12 @@ body { font-family: var(--font); background: var(--white); color: var(--gray-900
 
 /* ══ NAV TABS ═══════════════════════════════════════════════════════════════ */
 .nav-wrap { background: var(--white); border-bottom: 1px solid var(--gray-100); }
-.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 10px 10px; gap: 5px; justify-content: center; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.nav-inner { display: flex; max-width: 750px; margin: 0 auto; padding: 6px 10px 10px; gap: 5px; justify-content: flex-start; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .nav-inner::-webkit-scrollbar { display: none; }
+/* centrate se ci stanno, altrimenti partono da sinistra (justify-content:center le tagliava) */
+.nav-inner .tab { flex-shrink: 0; white-space: nowrap; }
+.nav-inner .tab:first-child { margin-left: auto; }
+.nav-inner .tab:last-child { margin-right: auto; }
 .tab { padding: 8px 14px; border-radius: 24px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--gray-500); transition: all .15s; -webkit-tap-highlight-color: transparent; user-select: none; white-space: nowrap; flex-shrink: 0; }
 .tab.active { background: var(--orange); color: var(--white); }
 .tab:not(.active):active { background: var(--gray-100); color: var(--gray-700); }
@@ -259,7 +263,7 @@ main { max-width: 750px; margin: 0 auto; padding: 16px 14px 100px; }
 .section.active { display: block; }
 </style>
 <link rel="stylesheet" href="../assets/restyle.css?v=3">
-<link rel="stylesheet" href="../assets/mobile-leggero.css?v=3">
+<link rel="stylesheet" href="../assets/mobile-leggero.css?v=4">
 <script src="../assets/avvisi-app.js?v=2" defer></script>
 </head>
 <body>
