@@ -18,6 +18,27 @@ public class EposConverter {
         return i >= 0 ? t.substring(i + 1) : t;
     }
 
+    /** Riduce gli spazi fra colonne (nome ... prezzo) finche' la riga entra; false se non basta. */
+    static String stringi(String part, int target) {
+        while (part.length() > target) {
+            int best = -1, bestLen = 1, i = 0;
+            String core = part.replaceFirst("^ +", "");
+            int off = part.length() - core.length();
+            for (i = off; i < part.length(); ) {
+                if (part.charAt(i) == ' ') {
+                    int j = i; while (j < part.length() && part.charAt(j) == ' ') j++;
+                    if (j - i > bestLen && j < part.length()) { best = i; bestLen = j - i; }
+                    i = j;
+                } else i++;
+            }
+            if (best < 0) break;
+            int excess = part.length() - target;
+            int togli = Math.min(excess, bestLen - 1);
+            part = part.substring(0, best) + part.substring(best + togli);
+        }
+        return part;
+    }
+
     private static boolean bool(String v) { return "true".equalsIgnoreCase(v); }
 
     private static int num(String v, int def) {
@@ -34,7 +55,7 @@ public class EposConverter {
         out.write(new byte[]{0x1b, '@'});
         String align = "left", font = "font_a";
         boolean em = false, reverse = false;
-        int w = 1, h = 1, lineLen = 0;
+        int w = 1, h = 1, lineLen = 0, lineEw = 1;
         NodeList all = doc.getElementsByTagName("*");
         for (int k = 0; k < all.getLength(); k++) {
             Element el = (Element) all.item(k);
@@ -43,9 +64,16 @@ public class EposConverter {
                 String txt = el.getTextContent().replace("\r", "");
                 boolean hasRev = el.hasAttribute("reverse");
                 if (reverse && hasRev && !bool(el.getAttribute("reverse")) && txt.startsWith("\n")) {
-                    int cols = (font.equals("font_b") ? colsB : colsA) / w;
-                    if (lineLen > 0 && lineLen < cols)
-                        for (int i = 0; i < cols - lineLen; i++) out.write(' ');
+                    int fc = font.equals("font_b") ? colsB : colsA;
+                    if (maxPx > 0) {
+                        // spazi alla larghezza corrente per coprire il resto della riga (misurato in colonne 1x)
+                        int resto = fc - lineLen * lineEw;
+                        for (int i = 0; i < resto / w; i++) out.write(' ');
+                    } else {
+                        int cols = fc / w;
+                        if (lineLen > 0 && lineLen < cols)
+                            for (int i = 0; i < cols - lineLen; i++) out.write(' ');
+                    }
                 }
                 if (el.hasAttribute("align") && !el.getAttribute("align").equals(align)) {
                     align = el.getAttribute("align");
@@ -68,13 +96,73 @@ public class EposConverter {
                     h = Math.max(1, Math.min(8, el.hasAttribute("height") ? num(el.getAttribute("height"), h) : h));
                     out.write(new byte[]{0x1d, '!', (byte) (((w - 1) << 4) | (h - 1))});
                 }
+                if (maxPx > 0) {
+                    // Carta stretta (58mm): niente righe spezzate a meta' parola.
+                    // Se una riga a doppia larghezza non entra, prova a larghezza normale; poi va a capo sugli spazi.
+                    int fcols = font.equals("font_b") ? colsB : colsA;
+                    String[] parti = txt.split("\n", -1);
+                    for (int pi = 0; pi < parti.length; pi++) {
+                        if (pi > 0) { out.write('\n'); lineLen = 0; lineEw = w; }
+                        String part = parti[pi];
+                        if (reverse && lineLen == 0 && part.trim().length() > 0) {
+                            // Banda nera: la Hub la riempie per 80mm. La rifaccio a larghezza piena della carta 58mm.
+                            String core = part.trim();
+                            int lead = part.length() - part.replaceFirst("^ +", "").length();
+                            int e = w;
+                            if (core.length() + 2 > fcols / e && e > 1) e = 1;
+                            int L = fcols / e;
+                            if (core.length() + 2 <= L) {
+                                String inner = " " + core + " ";
+                                int lp = lead >= 2 ? (L - inner.length()) / 2 : 0;
+                                StringBuilder sb2 = new StringBuilder();
+                                for (int i = 0; i < lp; i++) sb2.append(' ');
+                                sb2.append(inner);
+                                while (sb2.length() < L) sb2.append(' ');
+                                if (e != w) out.write(new byte[]{0x1d, '!', (byte) (h - 1)});
+                                out.write(sb2.toString().getBytes("UTF-8"));
+                                if (e != w) out.write(new byte[]{0x1d, '!', (byte) (((w - 1) << 4) | (h - 1))});
+                                lineLen = L; lineEw = e;
+                                continue;
+                            }
+                        }
+                        int ew = w, lim = fcols / ew;
+                        if (!reverse) {
+                            // riga di soli simboli uguali (=====, -----): taglia alla larghezza della carta
+                            if (part.length() > fcols && part.matches("(.)\\1+")) part = part.substring(0, fcols / (lineLen == 0 ? ew : 1));
+                            else if (lineLen + part.length() > lim) { String sq = stringi(part, lim - lineLen); if (lineLen + sq.length() <= lim) part = sq; }
+                        }
+                        if (ew > 1 && lineLen + part.length() > lim) {
+                            ew = 1; lim = fcols;
+                            if (!reverse) part = stringi(part, lim - lineLen);
+                            out.write(new byte[]{0x1d, '!', (byte) (h - 1)});
+                        }
+                        if (lineLen == 0) lineEw = ew;
+                        while (lineLen + part.length() > lim) {
+                            int room = lim - lineLen;
+                            if (room <= 0) {
+                                out.write('\n'); lineLen = 0; lineEw = ew;
+                                part = part.replaceFirst("^ +", "");
+                                continue;
+                            }
+                            int cut = part.lastIndexOf(' ', room);
+                            if (cut <= 0) cut = room;
+                            out.write(part.substring(0, cut).replaceFirst(" +$", "").getBytes("UTF-8"));
+                            out.write('\n'); lineLen = 0; lineEw = ew;
+                            part = part.substring(cut).replaceFirst("^ +", "");
+                        }
+                        out.write(part.getBytes("UTF-8"));
+                        lineLen += part.length();
+                        if (ew != w) out.write(new byte[]{0x1d, '!', (byte) (((w - 1) << 4) | (h - 1))});
+                    }
+                } else {
                 out.write(txt.getBytes("UTF-8"));
                 int nl = txt.lastIndexOf('\n');
                 lineLen = nl >= 0 ? txt.length() - nl - 1 : lineLen + txt.length();
+                }
             } else if (t.equals("feed")) {
                 int n = Math.max(1, num(el.getAttribute("line"), 1));
                 for (int i = 0; i < n; i++) out.write('\n');
-                lineLen = 0;
+                lineLen = 0; lineEw = w;
             } else if (t.equals("image")) {
                 int iw = num(el.getAttribute("width"), 0), ih = num(el.getAttribute("height"), 0);
                 byte[] data = Base64.decode(el.getTextContent().trim(), Base64.DEFAULT);

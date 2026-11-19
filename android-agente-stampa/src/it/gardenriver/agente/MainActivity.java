@@ -56,6 +56,8 @@ public class MainActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 return esterno(r.getUrl());
             }
+            @Override public void onPageCommitVisible(WebView v, String url) { v.evaluateJavascript(LEGGERA, null); }
+            @Override public void onPageFinished(WebView v, String url) { v.evaluateJavascript(LEGGERA, null); }
             @Override public void onReceivedError(WebView v, WebResourceRequest r, WebResourceError e) {
                 if (r.isForMainFrame())
                     v.loadData("<html><body style='font-family:sans-serif;padding:24px'><h2>Nessuna connessione</h2>"
@@ -71,6 +73,15 @@ public class MainActivity extends Activity {
         setContentView(web);
         if (b != null) web.restoreState(b); else web.loadUrl(hubUrl());
     }
+
+    /** Il V2 ha una GPU debole: niente sfocature in tempo reale e menu laterale senza animazioni a cascata. */
+    private static final String LEGGERA = "(function(){if(document.getElementById('gr-leggera'))return;var s=document.createElement('style');s.id='gr-leggera';"
+        + "s.textContent='*,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;filter:none!important;"
+        + "transition:none!important;box-shadow:none!important;text-shadow:none!important;scroll-behavior:auto!important;will-change:auto!important}"
+        + ".drawer{transition:transform .16s ease-out!important}"
+        + ".drawer-overlay{transition:opacity .1s linear!important}"
+        + ".drawer .nav-group-header,.drawer .nav-item,.drawer .sidebar-brand>*,.drawer .sidebar-brand img{opacity:1!important;transform:none!important}';"
+        + "(document.head||document.documentElement).appendChild(s);})()";
 
     private String hubUrl() { return getSharedPreferences("agente", 0).getString("hub_url", "https://gardenhub.it"); }
 
