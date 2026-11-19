@@ -107,6 +107,13 @@ service cloud.firestore {
       allow read: if staff();
       allow write: if admin();
     }
+    // Coda di stampa per dispositivi senza proxy locale: gli operatori accodano,
+    // legge/aggiorna l'esito chi l'ha creata; l'agente (Cloud Function) usa l'Admin SDK.
+    match /coda_stampa/{id} {
+      allow read: if staff();
+      allow create: if staff() && request.resource.data.stato == 'in_coda';
+      allow update, delete: if false;
+    }
     // Prenotazioni delle stampe automatiche (comande programmate, ordini shop): chi
     // crea il documento per primo stampa. Non si puo' sovrascrivere una stampa
     // riuscita ('ok') ne' una in corso di un altro dispositivo; si puo' riprendere

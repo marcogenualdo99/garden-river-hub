@@ -27,6 +27,7 @@
   var TIPI = [
     { id: 'epson', nome: 'Epson (ePOS, diretta in rete)' },
     { id: 'sunmi', nome: 'Sunmi / ESC-POS (tramite proxy locale)' },
+    { id: 'interna', nome: 'Sunmi V2 integrata (solo dall\'app Garden Hub sul V2)' },
   ];
   var PROXY = 'https://localhost:8765';
   var CACHE_KEY = 'gr_stampanti_cache';
@@ -112,7 +113,30 @@
     }
   }
 
+  // Dentro l'app Garden Hub del Sunmi (WebView) la stampa e' diretta, senza proxy ne' coda.
+  var nativoCb = {};
+  window.__grNativoRis = function (id, ok, err) {
+    var f = nativoCb[id];
+    if (f) { delete nativoCb[id]; f(ok ? esito(true, '') : esito(false, err)); }
+  };
+  function inviaNativo(p, xml) {
+    return new Promise(function (resolve) {
+      var id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      var tm = setTimeout(function () { delete nativoCb[id]; resolve(esito(false, 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + ')')); }, 15000);
+      nativoCb[id] = function (r) { clearTimeout(tm); resolve(r); };
+      try { window.GRNativo.stampa(id, p.ip, xml); }
+      catch (e) { clearTimeout(tm); delete nativoCb[id]; resolve(esito(false, 'app nativa non disponibile')); }
+    });
+  }
+
+  // Stampante integrata del V2: esiste solo dentro l'app Garden Hub installata sul V2.
+  function inviaInterna(p, xml) {
+    if (window.GRNativo && window.GRNativo.stampa) return inviaNativo(p, xml);
+    return Promise.resolve(esito(false, 'la stampante integrata si usa solo dall\'app Garden Hub sul Sunmi V2'));
+  }
+
   async function inviaSunmi(p, xml) {
+    if (window.GRNativo && window.GRNativo.stampa) return inviaNativo(p, xml);
     var ac = new AbortController();
     var tm = setTimeout(function () { ac.abort(); }, 20000);
     try {
@@ -128,14 +152,42 @@
       return esito(text.indexOf('success="true"') !== -1, '');
     } catch (e) {
       clearTimeout(tm);
-      return esito(false, ac.signal.aborted ? 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + ')' : 'proxy stampante non raggiungibile su questo dispositivo (avvia il proxy e apri ' + PROXY + ' una volta)');
+      if (ac.signal.aborted) return esito(false, 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + ')');
+      // Nessun proxy su questo dispositivo (iPad/iPhone...): passa dalla coda, la stampa l'agente di sede
+      return inviaCoda(p, xml);
+    }
+  }
+
+  // Canale "coda": il lavoro va su Firestore `coda_stampa`, lo stampa l'app Agente Stampa
+  // (Sunmi di sede) tramite la Cloud Function stampa-agente. Attende l'esito (max 30 s).
+  async function inviaCoda(p, xml) {
+    var fb = window._fb;
+    var errNoProxy = 'proxy stampante non raggiungibile su questo dispositivo e agente di stampa non risponde';
+    try {
+      var id = 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      var ref = fb.doc(fb.db, 'coda_stampa', id);
+      await fb.setDoc(ref, { stato: 'in_coda', ip: p.ip, xml: xml, stampante: p.nome || p.ip, creato_ts: Date.now() / 1000 });
+      return await new Promise(function (resolve) {
+        var unsub = null, fatto = false;
+        function fine(r) { if (fatto) return; fatto = true; clearTimeout(tm); if (unsub) unsub(); resolve(r); }
+        var tm = setTimeout(function () { fine(esito(false, errNoProxy)); }, 30000);
+        unsub = fb.onSnapshot(ref, function (snap) {
+          var d = snap.exists() ? snap.data() : null;
+          if (!d) return;
+          if (d.stato === 'ok') fine(esito(true, ''));
+          else if (d.stato === 'fallita') fine(esito(false, d.errore || 'stampa fallita'));
+          else if (d.stato === 'scaduta') fine(esito(false, errNoProxy));
+        }, function () { fine(esito(false, errNoProxy)); });
+      });
+    } catch (e) {
+      return esito(false, errNoProxy);
     }
   }
 
   // Invia direttamente a una stampante precisa.
   function inviaA(p, xml) {
     if (!p || !p.ip) return Promise.resolve(esito(false, 'IP della stampante non impostato'));
-    return (p.tipo === 'sunmi' ? inviaSunmi(p, xml) : inviaEpson(p, xml)).then(function (r) { r.stampante = p.nome || p.ip; return r; });
+    return (p.tipo === 'interna' ? inviaInterna(p, xml) : p.tipo === 'sunmi' ? inviaSunmi(p, xml) : inviaEpson(p, xml)).then(function (r) { r.stampante = p.nome || p.ip; return r; });
   }
 
   // Ultima stampante scelta a mano per servizio, su questo dispositivo.
@@ -166,7 +218,7 @@
         b.style.cssText = 'display:block;width:100%;text-align:left;padding:11px 12px;margin-bottom:8px;border-radius:10px;border:2px solid #d9d9d9;background:#fff;font:inherit;cursor:pointer';
         b.innerHTML = '<div style="font-weight:600"></div><div style="font-size:12px;color:#777"></div>';
         b.firstChild.textContent = p.nome || 'Stampante';
-        var t = (p.tipo === 'sunmi' ? 'Sunmi' : 'Epson') + ' · ' + (p.ip || '');
+        var t = (p.tipo === 'interna' ? 'Sunmi V2 integrata' : (p.tipo === 'sunmi' ? 'Sunmi' : 'Epson') + ' · ' + (p.ip || ''));
         b.lastChild.textContent = t;
         b.onclick = function () { scelta = p.id; evidenzia(); };
         righe.push({ id: p.id, b: b });
@@ -230,6 +282,7 @@
 
   // Controlla se il proxy locale e' attivo su questo dispositivo.
   async function proxyAttivo() {
+    if (window.GRNativo) return true;
     try { var r = await fetch(PROXY + '/', { method: 'GET' }); return r.ok; } catch (e) { return false; }
   }
 
@@ -241,7 +294,7 @@
     var id = p.id || nuovoId();
     var dati = {
       nome: String(p.nome || '').trim(),
-      tipo: p.tipo === 'sunmi' ? 'sunmi' : 'epson',
+      tipo: p.tipo === 'sunmi' || p.tipo === 'interna' ? p.tipo : 'epson',
       ip: String(p.ip || '').trim(),
       servizi: (p.servizi || []).filter(function (s) { return SERVIZI.some(function (x) { return x.id === s; }); }),
       attiva: p.attiva !== false,

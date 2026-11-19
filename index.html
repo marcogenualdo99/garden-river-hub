@@ -287,7 +287,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="assets/stampanti.js?v=2"></script>
+<script src="assets/stampanti.js?v=5"></script>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -2669,7 +2669,7 @@ function renderStampanti() {
         <strong>${esc(p.nome || '(senza nome)')}</strong>
         <span style="font-size:12px;color:var(--gray-500,#6b7280)">${p.attiva === false ? 'Disattivata' : 'Attiva'}</span>
       </div>
-      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 8px">${esc(nomeTipo(p.tipo))} · ${esc(p.ip || 'IP mancante')}</div>
+      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 8px">${esc(nomeTipo(p.tipo))}${p.tipo === 'interna' ? '' : ' · ' + esc(p.ip || 'IP mancante')}</div>
       <div style="font-size:13px;margin-bottom:8px">${(p.servizi || []).length ? (p.servizi || []).map(s => esc(nomeServizio(s))).join(' · ') : '<em>Nessun servizio associato</em>'}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="new-op-btn" onclick="provaStampante(${jsq(p.id)})">Stampa di prova</button>
@@ -2691,10 +2691,10 @@ function apriFormStampante(id) {
     <div style="padding:12px 0;border-top:1px solid var(--gray-200,#e5e7eb);margin-top:8px">
       <h4 style="margin:0 0 8px">${p ? 'Modifica stampante' : 'Nuova stampante'}</h4>
       <input type="text" id="stp-nome" class="new-op-input" placeholder="Nome (es. Bar, Cucina, Reception)" value="${esc(cur.nome || '')}" style="width:100%;margin-bottom:8px">
-      <select id="stp-tipo" class="new-op-ruolo" style="width:100%;margin-bottom:8px">
+      <select id="stp-tipo" class="new-op-ruolo" style="width:100%;margin-bottom:8px" onchange="document.getElementById('stp-ip').style.display = this.value === 'interna' ? 'none' : ''">
         ${GRStampanti.TIPI.map(t => `<option value="${t.id}" ${ (cur.tipo || 'epson') === t.id ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}
       </select>
-      <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.ip || '')}" style="width:100%;margin-bottom:8px">
+      <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.tipo === 'interna' ? '' : (cur.ip || ''))}" style="width:100%;margin-bottom:8px;${cur.tipo === 'interna' ? 'display:none' : ''}">
       <div class="perm-module-title">Servizi che stampano qui</div>
       ${GRStampanti.SERVIZI.map(sv => `<label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''}> ${esc(sv.nome)}</label>`).join('')}
       <label class="perm-row"><input type="checkbox" id="stp-attiva" ${cur.attiva === false ? '' : 'checked'}> Stampante attiva</label>
@@ -2715,9 +2715,10 @@ function chiudiFormStampante() {
 
 async function salvaFormStampante() {
   const nome = document.getElementById('stp-nome').value.trim();
-  const ip = document.getElementById('stp-ip').value.trim();
+  const tipoSel = document.getElementById('stp-tipo').value;
+  const ip = tipoSel === 'interna' ? 'interna' : document.getElementById('stp-ip').value.trim();
   if (!nome) { showToast('Inserisci un nome'); return; }
-  if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && !/^[a-z0-9.-]+$/i.test(ip)) { showToast('Inserisci un indirizzo IP valido'); return; }
+  if (tipoSel !== 'interna' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && !/^[a-z0-9.-]+$/i.test(ip)) { showToast('Inserisci un indirizzo IP valido'); return; }
   const servizi = GRStampanti.SERVIZI.filter(sv => document.getElementById('stp-srv-' + sv.id).checked).map(sv => sv.id);
   try {
     await waitForFirebase();
