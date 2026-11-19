@@ -32,7 +32,8 @@ public class MainActivity extends Activity {
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if (Build.VERSION.SDK_INT >= 31) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"}, 2);
+        if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT", "android.permission.POST_NOTIFICATIONS"}, 2);
+        else if (Build.VERSION.SDK_INT >= 31) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"}, 2);
         SharedPreferences sp = getSharedPreferences("agente", 0);
         if (sp.getBoolean("attivo", false) && sp.getString("token", "").length() > 0) avviaServizio();
 
@@ -206,6 +207,19 @@ public class MainActivity extends Activity {
 
     /** Ponte JavaScript: la Hub stampa direttamente sulla stampante di rete, senza proxy. */
     public class Ponte {
+        /** Notifica Android per un avviso di reparto (stessi eventi di Telegram). */
+        @JavascriptInterface public void notifica(String titolo, String testo) {
+            android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (Build.VERSION.SDK_INT >= 26)
+                nm.createNotificationChannel(new android.app.NotificationChannel("avvisi", "Avvisi reparti", android.app.NotificationManager.IMPORTANCE_HIGH));
+            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(MainActivity.this, 0, new Intent(MainActivity.this, MainActivity.class),
+                Build.VERSION.SDK_INT >= 23 ? android.app.PendingIntent.FLAG_IMMUTABLE : 0);
+            android.app.Notification.Builder nb = Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(MainActivity.this, "avvisi") : new android.app.Notification.Builder(MainActivity.this);
+            nb.setContentTitle(titolo).setContentText(testo).setStyle(new android.app.Notification.BigTextStyle().bigText(testo))
+              .setSmallIcon(android.R.drawable.ic_popup_reminder).setContentIntent(pi).setAutoCancel(true)
+              .setDefaults(android.app.Notification.DEFAULT_ALL).setPriority(android.app.Notification.PRIORITY_HIGH);
+            nm.notify((int) (System.currentTimeMillis() & 0x7fffffff), nb.build());
+        }
         @JavascriptInterface public String versione() { return "1.1"; }
         @JavascriptInterface public void impostazioni() {
             runOnUiThread(new Runnable() { public void run() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } });

@@ -55,3 +55,6 @@ Scheduler → job HTTP POST, fuso **Europe/Rome**, URL della funzione, header `C
 `{"evento":"promemoria_ticket","_cron_token":"<CRON_TOKEN>"}` (idem con gli altri, `risto_domani` incluso; per `risto_riepilogo` aggiungi `"pasto":"pranzo"` o `"cena"`, un job ciascuno).
 
 Prova senza inviare nulla: aggiungi `"dry_run":true` al corpo, la risposta contiene l'anteprima. Per rimandare il riepilogo già inviato oggi: `"forza":true`.
+
+## 7. Notifiche nell'app Garden Hub (V2)
+Ogni messaggio inviato ai gruppi viene copiato in Firestore `notifiche` (reparti, titolo, testo, ts; solo ultime 24 h). L'app sul V2 le legge e mostra una notifica Android per i reparti scelti in Hub > campana > "Notifiche su questo dispositivo". Serve la regola `notifiche` (lettura staff, scrittura solo Admin SDK) e il redeploy di `telegram-bot`.

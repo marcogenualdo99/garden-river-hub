@@ -106,10 +106,31 @@ def _scrivi_canale(reparto, chat_id, titolo='', autista=''):
     _doc().set({'canali': {reparto: valore if chat_id else firestore.DELETE_FIELD}}, merge=True)
 
 
+def _notifica_app(reparti, testo):
+    """Copia dell'avviso per l'app Garden Hub (V2): doc in `notifiche`, letto dai client con
+    gli stessi reparti di Telegram. Si tengono solo le ultime 24 ore. Mai bloccante."""
+    try:
+        db = firestore.client()
+        adesso = datetime.now(timezone.utc)
+        pulito = html.unescape(re.sub(r'<[^>]+>', '', testo or '')).strip()
+        righe = [r.strip() for r in pulito.split('\n') if r.strip()]
+        db.collection('notifiche').add({
+            'reparti': [r for r in reparti if r],
+            'titolo': righe[0][:120] if righe else '',
+            'testo': '\n'.join(righe[1:])[:400] if len(righe) > 1 else (righe[0][:400] if righe else ''),
+            'ts': adesso,
+        })
+        for vecchia in db.collection('notifiche').where('ts', '<', adesso - timedelta(hours=24)).limit(50).stream():
+            vecchia.reference.delete()
+    except Exception as ex:
+        print(f'Copia notifica per app fallita: {ex}')
+
+
 def _invia(reparti, testo, primo_disponibile=False, tastiera=None):
     """Manda `testo` (HTML) ai gruppi indicati (chiavi dei canali). Con
     primo_disponibile ci si ferma al primo gruppo collegato (es. gruppo
     dell'autista, altrimenti gruppo navetta generico). Ritorna i messaggi partiti."""
+    _notifica_app(list(reparti), testo)
     if not BOT_TOKEN:
         print('TELEGRAM_BOT_TOKEN non configurato')
         return 0

@@ -107,6 +107,11 @@ service cloud.firestore {
       allow read: if staff();
       allow write: if admin();
     }
+    // Copia degli avvisi Telegram per l'app Garden Hub: scrive solo la Cloud Function.
+    match /notifiche/{id} {
+      allow read: if staff();
+      allow write: if false;
+    }
     // Coda di stampa per dispositivi senza proxy locale: gli operatori accodano,
     // legge/aggiorna l'esito chi l'ha creata; l'agente (Cloud Function) usa l'Admin SDK.
     match /coda_stampa/{id} {

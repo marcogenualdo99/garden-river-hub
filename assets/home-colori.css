@@ -13,15 +13,16 @@
 #module-list .module-tile[data-mod] .hero-ring circle { stroke: rgba(255,255,255,.3); }
 #module-list .module-tile[data-mod] .hero-ring circle + circle { stroke: #fff; }
 #module-list .module-tile[data-mod] .hero-ring text { fill: #fff; }
-.module-tile[data-mod="alloggi"]      { --c: #0e7490; }
-.module-tile[data-mod="ristorazione"] { --c: #ea580c; }
-.module-tile[data-mod="spiaggia"]     { --c: #0284c7; }
-.module-tile[data-mod="navetta"]      { --c: #4f46e5; }
-.module-tile[data-mod="area-ospite"]  { --c: #db2777; }
-.module-tile[data-mod="manutenzione"] { --c: #b45309; }
-.module-tile[data-mod="mense"]        { --c: #4d7c0f; }
-.module-tile[data-mod="calendario"]   { --c: #0b5d49; }
-.module-tile[data-mod="magazzino"]    { --c: #7c3aed; }
-.module-tile[data-mod="conti"]        { --c: #1d4ed8; }
-.module-tile[data-mod="bici"]         { --c: #dc2626; }
-.module-tile[data-mod="shop"]         { --c: #a21caf; }
+/* Solo colori del brand, a famiglie: verde foresta = ospiti e front office, verde Garden = operativo,
+   arancio sole = ristoro e vendita, verde chiaro = spiaggia e spostamenti. */
+.module-tile[data-mod="calendario"], .module-tile[data-mod="conti"], .module-tile[data-mod="area-ospite"] { --c: #053328; }
+.module-tile[data-mod="alloggi"], .module-tile[data-mod="manutenzione"], .module-tile[data-mod="magazzino"] { --c: #095C48; }
+.module-tile[data-mod="ristorazione"], .module-tile[data-mod="shop"], .module-tile[data-mod="mense"] { --c: #F2702A; }
+#module-list .module-tile[data-mod="spiaggia"], #module-list .module-tile[data-mod="navetta"], #module-list .module-tile[data-mod="bici"] {
+  --c: #CEDEDA; color: #053328;
+}
+#module-list .module-tile[data-mod="spiaggia"] .module-title, #module-list .module-tile[data-mod="navetta"] .module-title, #module-list .module-tile[data-mod="bici"] .module-title { color: #053328; }
+#module-list .module-tile[data-mod="spiaggia"] .module-sub, #module-list .module-tile[data-mod="navetta"] .module-sub, #module-list .module-tile[data-mod="bici"] .module-sub { color: #2E7463; }
+#module-list .module-tile[data-mod="spiaggia"] .module-icon-chip, #module-list .module-tile[data-mod="navetta"] .module-icon-chip, #module-list .module-tile[data-mod="bici"] .module-icon-chip { background: #fff; color: #095C48; }
+#module-list .module-tile[data-mod="spiaggia"] .module-badge, #module-list .module-tile[data-mod="navetta"] .module-badge, #module-list .module-tile[data-mod="bici"] .module-badge { background: #F2702A; color: #fff; }
+#module-list .module-tile[data-mod="ristorazione"] .module-badge, #module-list .module-tile[data-mod="shop"] .module-badge, #module-list .module-tile[data-mod="mense"] .module-badge { color: #F2702A; }

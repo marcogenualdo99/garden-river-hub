@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css?v=1794338668">
 <link rel="stylesheet" href="assets/mobile-leggero.css?v=1">
-<link rel="stylesheet" href="assets/home-colori.css?v=1">
+<link rel="stylesheet" href="assets/home-colori.css?v=2">
 <style>
 /* ══ SCONTRINO LIBERO — scontrino fiscale svincolato da prenotazioni/conti ══ */
 .sl-riga { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--gray-100); }
@@ -733,6 +733,14 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     </div>
 
     <div class="card">
+      <h3>Su questo dispositivo</h3>
+      <p class="subtitle">Scegli i reparti di cui vuoi ricevere l'avviso su questo dispositivo (sul Sunmi V2 arriva come notifica Android). Sono gli stessi reparti dei gruppi Telegram.</p>
+      <div id="notif-reparti"></div>
+      <div class="perm-module-title" style="margin-top:14px">Ultimi avvisi</div>
+      <div id="notif-recenti" style="font-size:14px"></div>
+    </div>
+
+    <div class="card">
       <h3>Notifiche su Telegram</h3>
       <p class="subtitle">Tutti gli avvisi (ordini di ristorazione, ticket di manutenzione, pulizie, navetta, check-in) arrivano nei gruppi Telegram di reparto. Per riceverli entra nel gruppo del tuo reparto.</p>
       <button id="btn-test-notif" onclick="inviaNotificaTestHub()" style="width:100%;height:44px;margin-top:8px;background:#fff;color:var(--green-700);border:2px solid var(--green-700);border-radius:var(--radius-xl);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Invia notifica di test</button>
@@ -1209,6 +1217,7 @@ function waitForFirebaseMagazzino() {
 function giorniA(d) { return Math.ceil((new Date(d) - new Date(new Date().toDateString())) / 86400000); }
 
 async function startHomeStatsSync() {
+  avviaNotificheApp();
   // 'prodotti' è nello stesso progetto Firebase di tutto il resto, ma la home
   // usa comunque la connessione dedicata _fbMagazzino (blocco <script> a parte
   // in cima al file) per non riscrivere la logica di sync qui sotto.
@@ -2290,6 +2299,66 @@ function closeSettings() {
 function openNotifiche() {
   document.getElementById('sec-home').classList.remove('active');
   document.getElementById('sec-notifiche').classList.add('active');
+  renderNotificheApp();
+}
+
+// Avvisi dell'app: stessi reparti ed eventi di Telegram (la CF telegram-bot li copia in `notifiche`).
+const NOTIF_REPARTI = [
+  { id: 'manutenzione', nome: 'Manutenzione' }, { id: 'navetta', nome: 'Navetta' }, { id: 'pulizie', nome: 'Pulizie' },
+  { id: 'reception', nome: 'Reception' }, { id: 'ristorazione', nome: 'Ristorazione' }, { id: 'market', nome: 'Market' },
+];
+function repartiNotifiche() {
+  try { const v = JSON.parse(localStorage.getItem('gr_notif_reparti') || 'null'); if (Array.isArray(v)) return v; } catch (e) { /* ok */ }
+  return NOTIF_REPARTI.map(r => r.id);
+}
+function salvaRepartiNotifiche() {
+  const v = NOTIF_REPARTI.filter(r => document.getElementById('nr-' + r.id).checked).map(r => r.id);
+  try { localStorage.setItem('gr_notif_reparti', JSON.stringify(v)); } catch (e) { /* ok */ }
+}
+let _notifVisti = null, _notifRecenti = [], _notifAvviate = false;
+function nomeReparto(id) { return (NOTIF_REPARTI.find(r => r.id === id) || { nome: id }).nome; }
+function renderNotificheApp() {
+  const mie = repartiNotifiche();
+  const box = document.getElementById('notif-reparti');
+  if (box) box.innerHTML = NOTIF_REPARTI.map(r =>
+    `<label class="perm-row"><input type="checkbox" id="nr-${r.id}" ${mie.includes(r.id) ? 'checked' : ''} onchange="salvaRepartiNotifiche(); renderNotificheApp()"> ${r.nome}</label>`).join('');
+  const rec = document.getElementById('notif-recenti');
+  if (!rec) return;
+  const lista = _notifRecenti.filter(n => (n.reparti || []).some(r => mie.includes(r)))
+    .sort((a, b) => (b.ts && b.ts.seconds || 0) - (a.ts && a.ts.seconds || 0)).slice(0, 15);
+  rec.innerHTML = lista.length ? lista.map(n => {
+    const ora = n.ts && n.ts.seconds ? new Date(n.ts.seconds * 1000).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '';
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--gray-100)"><div style="font-size:12px;font-weight:700;color:var(--green-700)">${escHtml((n.reparti || []).map(nomeReparto).join(' · '))} · ${ora}</div><div style="font-weight:600">${escHtml(n.titolo || '')}</div>${n.testo && n.testo !== n.titolo ? `<div style="color:var(--gray-600)">${escHtml(n.testo)}</div>` : ''}</div>`;
+  }).join('') : '<p class="perm-hint">Nessun avviso nelle ultime 24 ore.</p>';
+}
+async function avviaNotificheApp() {
+  if (_notifAvviate) return;
+  _notifAvviate = true;
+  try {
+    await waitForFirebase();
+    const fb = window._fb;
+    fb.onSnapshot(fb.collection(fb.db, 'notifiche'), snap => {
+      const primo = _notifVisti === null;
+      if (primo) _notifVisti = new Set();
+      snap.docChanges().forEach(ch => {
+        if (ch.type !== 'added' || _notifVisti.has(ch.doc.id)) return;
+        _notifVisti.add(ch.doc.id);
+        const d = Object.assign({ id: ch.doc.id }, ch.doc.data());
+        _notifRecenti.push(d);
+        if (!primo) mostraAvvisoApp(d);
+      });
+      if (document.getElementById('sec-notifiche').classList.contains('active')) renderNotificheApp();
+    }, err => console.warn('Notifiche app:', err && err.code));
+  } catch (e) { _notifAvviate = false; }
+}
+function mostraAvvisoApp(d) {
+  const mie = repartiNotifiche();
+  const rep = (d.reparti || []).filter(r => mie.includes(r));
+  if (!rep.length) return;
+  const titolo = nomeReparto(rep[0]) + (d.titolo ? ' · ' + d.titolo : '');
+  const testo = d.testo || '';
+  if (window.GRNativo && window.GRNativo.notifica) { try { window.GRNativo.notifica(titolo, testo); } catch (e) { /* ok */ } }
+  else if (rep[0] !== 'manutenzione') showNotifBanner(titolo);
 }
 function closeNotifiche() {
   document.getElementById('sec-notifiche').classList.remove('active');
