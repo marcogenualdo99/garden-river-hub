@@ -7,7 +7,8 @@
 <link rel="apple-touch-icon" href="logo-hub-app.jpg">
 <link rel="icon" type="image/png" href="logo-hub-app.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 <script>try{if(window.GRNativo)document.documentElement.classList.add('nativa')}catch(e){}</script>
 <link rel="stylesheet" href="assets/theme.css?v=1794338668">
 <link rel="stylesheet" href="assets/mobile-leggero.css?v=4">
@@ -1558,6 +1559,7 @@ function doLogout() {
   showModal('Cambio operatore', 'Vuoi uscire da ' + (currentOperatore || '') + '?', 'Esci', 'var(--red)', () => {
     currentOperatore = null; currentRuolo = null;
     homeLayoutOrder = null; homeSizes = {};
+    try { localStorage.removeItem(HOME_CACHE_KEY); } catch(e) {}
     if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
     sessionStorage.removeItem('gr_session');
     sessionStorage.removeItem('gr_permessi');
@@ -2147,6 +2149,35 @@ let _homeRenderPending = false;
 // Ridisegni raggruppati: con ~10 ascoltatori Firestore la home riceveva una
 // raffica di snapshot e si ricostruiva a ogni singolo dato (pesante sul V2).
 // Il primo ridisegno e' immediato, quelli ravvicinati si fondono in uno.
+// Cache dell'ultimo stato della home (permessi propri, ordine/dimensioni card,
+// numeri dei badge): al ritorno da un modulo la prima schermata nasce gia'
+// completa e non "salta" quando arrivano i dati da Firestore.
+const HOME_CACHE_KEY = 'gr_home_cache_v1';
+let _homeCacheTimer = 0;
+function leggiCacheHome(nome) {
+  try {
+    const c = JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || 'null');
+    if (!c || c.nome !== nome) return;
+    if (c.permessi) permessi[nome] = c.permessi;
+    homeLayoutOrder = c.order || null;
+    homeSizes = c.sizes || {};
+    if (c.stats && Date.now() - (c.ts || 0) < 3600000) Object.assign(homeStats, c.stats);
+  } catch (e) { /* senza cache si parte vuoti come prima */ }
+}
+function salvaCacheHome() {
+  if (_homeCacheTimer || !currentOperatore) return;
+  _homeCacheTimer = setTimeout(() => {
+    _homeCacheTimer = 0;
+    if (!currentOperatore) return;
+    try {
+      localStorage.setItem(HOME_CACHE_KEY, JSON.stringify({
+        nome: currentOperatore, ts: Date.now(),
+        permessi: permessi[currentOperatore] || null,
+        order: homeLayoutOrder, sizes: homeSizes, stats: homeStats,
+      }));
+    } catch (e) { /* ok */ }
+  }, 1500);
+}
 let _homeTimer = 0, _homeLast = 0;
 function renderHome() {
   if (_homeTimer) return;
@@ -2155,6 +2186,7 @@ function renderHome() {
   _homeTimer = setTimeout(() => { _homeTimer = 0; _homeLast = Date.now(); renderHomeNow(); }, attesa);
 }
 function renderHomeNow() {
+  salvaCacheHome();
   // Se l'operatore sta scrivendo nella ricerca ospiti, ci fermiamo qui:
   // aggiorniamo solo i numeri della card (updateReportPresentiStats) e
   // rimandiamo il resto (striscia KPI, barra "oggi", elenco moduli) a quando
@@ -2915,6 +2947,7 @@ async function start() {
       if (parsed && parsed.nome) {
         currentOperatore = parsed.nome;
         currentRuolo = parsed.ruolo;
+        leggiCacheHome(currentOperatore);
         applyHeader();
         renderHome();
         syncHomeLayout(currentOperatore);
