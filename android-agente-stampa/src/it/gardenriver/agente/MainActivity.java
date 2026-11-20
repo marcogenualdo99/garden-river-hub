@@ -35,6 +35,15 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT", "android.permission.POST_NOTIFICATIONS"}, 2);
         else if (Build.VERSION.SDK_INT >= 31) requestPermissions(new String[]{"android.permission.BLUETOOTH_CONNECT"}, 2);
         SharedPreferences sp = getSharedPreferences("agente", 0);
+        // Per ricevere gli avvisi anche con l'app chiusa e lo schermo spento serve escluderla dal risparmio energetico (una volta sola)
+        if (Build.VERSION.SDK_INT >= 23 && !sp.getBoolean("batt_chiesta", false)) {
+            sp.edit().putBoolean("batt_chiesta", true).apply();
+            try {
+                android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+                if (!pm.isIgnoringBatteryOptimizations(getPackageName()))
+                    startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) { }
+        }
         Intent ka = new Intent(this, KeepAliveService.class);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(ka); else startService(ka);
         if (sp.getBoolean("attivo", false) && sp.getString("token", "").length() > 0) avviaServizio();
@@ -96,8 +105,8 @@ public class MainActivity extends Activity {
     private static final String LEGGERA = "(function(){if(document.getElementById('gr-leggera'))return;var s=document.createElement('style');s.id='gr-leggera';"
         + "s.textContent='*,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;filter:none!important;"
         + "transition:none!important;box-shadow:none!important;text-shadow:none!important;scroll-behavior:auto!important;}"
-        + ".drawer{transition:transform .16s ease-out!important}"
-        + ".drawer-overlay{transition:opacity .1s linear!important}"
+        + ".drawer,.rs-side{transition:transform .16s ease-out!important}"
+        + ".drawer-overlay,.rs-overlay{transition:opacity .1s linear!important}"
         + ".drawer .nav-group-header,.drawer .nav-item,.drawer .sidebar-brand>*,.drawer .sidebar-brand img{opacity:1!important;transform:none!important}';"
         + "(document.head||document.documentElement).appendChild(s);})()";
 
@@ -259,20 +268,24 @@ public class MainActivity extends Activity {
 
     /** Ponte JavaScript: la Hub stampa direttamente sulla stampante di rete, senza proxy. */
     public class Ponte {
-        /** Notifica Android per un avviso di reparto (stessi eventi di Telegram). */
+        /** Notifica Android per un avviso di reparto (stessi eventi di Telegram). Se il servizio nativo riceve già gli avvisi, la pagina non li ripete. */
         @JavascriptInterface public void notifica(String titolo, String testo) {
-            android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            if (Build.VERSION.SDK_INT >= 26)
-                nm.createNotificationChannel(new android.app.NotificationChannel("avvisi", "Avvisi reparti", android.app.NotificationManager.IMPORTANCE_HIGH));
-            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(MainActivity.this, 0, new Intent(MainActivity.this, MainActivity.class),
-                Build.VERSION.SDK_INT >= 23 ? android.app.PendingIntent.FLAG_IMMUTABLE : 0);
-            android.app.Notification.Builder nb = Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(MainActivity.this, "avvisi") : new android.app.Notification.Builder(MainActivity.this);
-            nb.setContentTitle(titolo).setContentText(testo).setStyle(new android.app.Notification.BigTextStyle().bigText(testo))
-              .setSmallIcon(android.R.drawable.ic_popup_reminder).setContentIntent(pi).setAutoCancel(true)
-              .setDefaults(android.app.Notification.DEFAULT_ALL).setPriority(android.app.Notification.PRIORITY_HIGH);
-            nm.notify((int) (System.currentTimeMillis() & 0x7fffffff), nb.build());
+            if (Avvisi.feedAttivo(MainActivity.this)) return;
+            Avvisi.mostra(MainActivity.this, titolo, testo, (int) (System.currentTimeMillis() & 0x7fffffff));
         }
-        @JavascriptInterface public String versione() { return "1.1"; }
+        /** La Hub passa la chiave del feed avvisi (la dà la CF a un operatore loggato): il servizio nativo comincia a riceverli anche con l'app chiusa. */
+        @JavascriptInterface public void impostaFeed(String url, String key) {
+            if (url == null || key == null || key.length() < 8 || !url.startsWith("https://")) return;
+            getSharedPreferences("agente", 0).edit().putString("feed_url", url).putString("feed_key", key).apply();
+            Intent ka = new Intent(MainActivity.this, KeepAliveService.class);
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(ka); else startService(ka);
+        }
+        @JavascriptInterface public boolean feedPronto() { return getSharedPreferences("agente", 0).getString("feed_key", "").length() > 0; }
+        /** Reparti scelti dall'operatore (JSON array): il servizio nativo mostra solo gli avvisi di questi. */
+        @JavascriptInterface public void impostaReparti(String json) {
+            try { new org.json.JSONArray(json); getSharedPreferences("agente", 0).edit().putString("reparti", json).apply(); } catch (Exception e) { }
+        }
+        @JavascriptInterface public String versione() { return "1.2"; }
         @JavascriptInterface public void impostazioni() {
             runOnUiThread(new Runnable() { public void run() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } });
         }

@@ -14,7 +14,25 @@
     return Object.keys(NOMI);
   }
 
+  // Con app chiusa gli avvisi li gestisce il servizio nativo dell'app (feed dalla CF telegram-bot).
+  // Qui gli si passano i reparti scelti e, la prima volta, la chiave del feed (la dà la CF a un operatore loggato).
+  var BOT = 'https://telegram-bot-113994721180.europe-west1.run.app';
+  function provisiona() {
+    var N = window.GRNativo;
+    try { if (N.impostaReparti) N.impostaReparti(JSON.stringify(reparti())); } catch (e) { /* ok */ }
+    try {
+      if (!N.impostaFeed || (N.feedPronto && N.feedPronto())) return;
+      if (typeof window.fetchStaff !== 'function') { log('fetchStaff non disponibile: feed non configurato'); return; }
+      window.fetchStaff(BOT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ evento: 'feed_chiave' }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && d.ok && d.key) { N.impostaFeed(BOT, d.key); log('feed avvisi configurato'); } else log('feed non configurato: ' + (d && d.errore)); })
+        .catch(function () { /* riproverà alla prossima pagina */ });
+    } catch (e) { /* ok */ }
+  }
+
   function avvia() {
+    setTimeout(provisiona, 1500);
+    if (typeof window.mostraAvvisoApp === 'function') return;   // la home della Hub ha già il suo ascolto
     var fb = window._fb;
     if (!fb || !fb.onSnapshot || !fb.collection || !fb.db) { log('Firebase non disponibile su questa pagina'); return; }
     log('ascolto notifiche avviato, reparti: ' + reparti().join(','));

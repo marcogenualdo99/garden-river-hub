@@ -434,6 +434,42 @@ def _evento(data):
     return None
 
 
+# ── Feed avvisi per l'app Android (anche con l'app chiusa) ─────────────────
+# L'app Garden Hub (Sunmi V2) ha un servizio nativo che ogni ~20 secondi chiede qui i nuovi avvisi
+# (copie dei messaggi Telegram, collezione `notifiche`) e li mostra come notifiche Android, senza
+# bisogno che la pagina sia aperta. Autenticazione: chiave APP_FEED_KEY (variabile d'ambiente della CF),
+# che l'app riceve da sola dopo il login di un operatore ('feed_chiave', riservato allo staff).
+
+def _feed_autorizzato(request):
+    chiave = os.environ.get('APP_FEED_KEY', '').strip()
+    inviata = request.headers.get('X-App-Key', '')
+    return bool(chiave and inviata and hmac.compare_digest(inviata, chiave))
+
+
+def _feed_notifiche(data):
+    db = firestore.client()
+    adesso = datetime.now(timezone.utc)
+    adesso_ms = int(adesso.timestamp() * 1000)
+    try:
+        since_ms = int(data.get('since') or 0)
+    except (TypeError, ValueError):
+        since_ms = 0
+    if since_ms <= 0:                      # primo contatto: nessun arretrato, si parte da adesso
+        return {'now': adesso_ms, 'items': []}
+    since = datetime.fromtimestamp(since_ms / 1000.0, tz=timezone.utc)
+    items = []
+    try:
+        for d in db.collection('notifiche').where('ts', '>', since).order_by('ts').limit(30).stream():
+            x = d.to_dict() or {}
+            ts = x.get('ts')
+            items.append({'id': d.id, 'reparti': [str(r) for r in (x.get('reparti') or [])][:8],
+                          'titolo': str(x.get('titolo') or '')[:120], 'testo': str(x.get('testo') or '')[:400],
+                          'ts': int(ts.timestamp() * 1000) if ts else adesso_ms})
+    except Exception as ex:
+        print(f'Feed notifiche non riuscito: {ex}')
+    return {'now': adesso_ms, 'items': items}
+
+
 # ── Prenotazioni tavolo ────────────────────────────────────────────────────
 
 def _testo_prenotazione(data):
@@ -925,8 +961,19 @@ def telegram_bot(request):
             res = _riepilogo_mattina(dry, bool(data.get('forza')))
         return _json(origin, {'ok': True, **res})
 
+    if data.get('evento') == 'feed_notifiche':
+        if not _feed_autorizzato(request):
+            return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+        return _json(origin, {'ok': True, **_feed_notifiche(data)})
+
     if not _autorizzato(request):
         return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 401)
+
+    if data.get('evento') == 'feed_chiave':   # l'app la riceve da sola dopo il login di un operatore
+        chiave = os.environ.get('APP_FEED_KEY', '').strip()
+        if not chiave:
+            return _json(origin, {'ok': False, 'errore': 'non_configurata'}, 503)
+        return _json(origin, {'ok': True, 'key': chiave})
 
     inviati = _evento(data)
     if inviati is None:

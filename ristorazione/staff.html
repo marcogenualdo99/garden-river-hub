@@ -427,7 +427,8 @@ body.vista-sala main{padding:0;max-width:none}
 #oggi-body{position:absolute;inset:0}
 .sala-wrap{position:absolute;inset:0}
 .sala-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.sala-stage.scroll{display:block;overflow:auto;-webkit-overflow-scrolling:touch}
+.sala-stage.scroll{display:block;overflow:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.sala-stage.scroll::-webkit-scrollbar{display:none}
 .sala-stage.scroll .pianta-box{margin:60px auto}
 .hud{position:absolute;z-index:20}
 .sala-bar{position:absolute;top:12px;left:12px;z-index:30;display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:18px;box-shadow:0 6px 24px rgba(5,51,40,.13);padding:12px 14px;max-width:330px}
@@ -454,6 +455,7 @@ body.vista-sala main{padding:0;max-width:none}
 .sala-fab b{background:var(--orange);color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
 .sala-drawer{position:absolute;top:0;right:0;bottom:0;width:330px;max-width:92vw;background:#F4F6F3;border-left:1px solid var(--gray-200);box-shadow:-10px 0 30px rgba(5,51,40,.12);overflow-y:auto;padding:58px 12px 80px;display:flex;flex-direction:column;gap:12px;z-index:35;transform:translateX(105%);transition:transform .22s ease;visibility:hidden}
 .sala-drawer.open{transform:none;visibility:visible}
+.sala-drawer .sala-azioni-m{margin-right:44px}
 .sala-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:none;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);font-size:15px;cursor:pointer;color:var(--gray-700)}
 @media(min-width:900px){
   .sala-wrap.panel-open .sala-stage{right:330px}
@@ -464,7 +466,23 @@ body.vista-sala main{padding:0;max-width:none}
   .sala-x{display:none}
 }
 @media(max-width:899px){.sala-wrap.panel-open .hud-br,.sala-wrap.panel-open .hud-tr,.sala-wrap.panel-open .hud-bc{visibility:hidden}}
-@media(max-width:767px){.sala-bar{max-width:calc(100% - 24px)}.hud-bc{left:12px;transform:none;max-width:calc(100% - 150px);overflow-x:auto}.hud-bc .seg-btn{padding:0 12px;font-size:12px}.hud-tr{top:auto;bottom:70px;right:12px}}
+@media(max-width:767px){
+  /* Telefono / Sunmi V2: barra in alto a tutta larghezza, pianta nello spazio libero tra barra e comandi in basso */
+  .sala-bar{top:0;left:0;right:0;max-width:none;border-radius:0 0 18px 18px;padding:8px 12px;gap:6px}
+  .sala-bar-l{flex-wrap:nowrap;justify-content:space-between}
+  .oggi-date{font-size:15px;white-space:nowrap}
+  .oggi-seg{width:150px}
+  .sala-stats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.sala-stats::-webkit-scrollbar{display:none}
+  .sala-stat{flex:0 0 auto}
+  .sala-stage{top:92px;bottom:64px}
+  .hud-top{top:98px}
+  .hud-bc{left:12px;transform:none;max-width:calc(100% - 140px);overflow-x:auto}.hud-bc .seg-btn{padding:0 12px;font-size:12px}.hud-bc .sala-n{display:none}
+  .hud-tr{display:none}
+  .sala-azioni-m{display:flex!important}
+  .sala-fab{height:44px;padding:0 16px}
+}
+.sala-azioni-m{display:none;gap:8px;flex-wrap:wrap;padding-bottom:2px}
+.sala-azioni-m .sala-btn{flex:1}
 .pianta-head{display:none}
 .pianta-azioni{display:flex;gap:8px}
 .sala-rooms{margin:0;flex:1;min-width:240px;max-width:420px}
@@ -476,8 +494,9 @@ body.vista-sala main{padding:0;max-width:none}
 .sala-btn:active{opacity:.8}
 /* tela della pianta: 1000x640 logici, scalati con --s */
 .pianta-wrap{overflow:auto;border-radius:14px;-webkit-overflow-scrolling:touch}
-.pianta-box{--s:1;width:calc(1000px * var(--s));height:calc(640px * var(--s))}
-.pianta{position:relative;width:1000px;height:640px;transform:scale(var(--s));transform-origin:0 0;background:transparent;box-sizing:border-box;overflow:visible}
+.pianta-box{--s:1;--bx:0;--by:0;--bw:1000;--bh:640;width:calc(var(--bw) * 1px * var(--s));height:calc(var(--bh) * 1px * var(--s))}
+.pianta-box:not(.edit){overflow:hidden}
+.pianta{position:relative;width:1000px;height:640px;transform:scale(var(--s)) translate(calc(var(--bx) * -1px), calc(var(--by) * -1px));transform-origin:0 0;background:transparent;box-sizing:border-box;overflow:visible}
 .pianta.edit{outline:2px dashed var(--gray-300);outline-offset:-1px;background-color:rgba(255,255,255,.7);background-image:radial-gradient(circle,var(--gray-300) 1.2px,transparent 1.6px);background-size:20px 20px;touch-action:none}
 .pz{position:absolute;box-sizing:border-box;font-family:var(--font);margin:0}
 .pz-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;pointer-events:none;overflow:visible}
@@ -622,8 +641,8 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
 @media(max-width:700px){body.monitor .kds-toolbar{flex-wrap:wrap}}
 </style>
 <link rel="stylesheet" href="../assets/restyle.css?v=3">
-<link rel="stylesheet" href="../assets/mobile-leggero.css?v=4">
-<script src="../assets/avvisi-app.js?v=2" defer></script>
+<link rel="stylesheet" href="../assets/mobile-leggero.css?v=5">
+<script src="../assets/avvisi-app.js?v=3" defer></script>
 <script src="../assets/menu-anim.js?v=1" defer></script>
 </head>
 <body>
@@ -1109,7 +1128,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
     <label class="sp-chk"><input type="checkbox" id="sp-pens" checked> Includi le pensioni <small>(prenotazioni degli ospiti in pensione e quanti non hanno prenotato). Se lo togli, solo i clienti liberi.</small></label>
     <div class="mbtns" style="margin-top:16px">
       <button class="mcancel" onclick="chiudiStampaPren()">Annulla</button>
-      <button class="msave" style="background:#fff;color:var(--orange);border:2px solid var(--orange)" onclick="eseguiStampaPren('a4')">A4 / PDF</button>
+      <button class="msave" style="background:#fff;color:var(--orange);border:2px solid var(--orange)" id="sp-a4" onclick="eseguiStampaPren('a4')">A4 / PDF</button>
       <button class="msave" onclick="eseguiStampaPren('termica')">Termica</button>
     </div>
   </div>
@@ -1950,6 +1969,7 @@ function prRiepilogo(data, servizi, conPensioni) {
 }
 
 function apriStampaPren() {
+  const a4 = document.getElementById('sp-a4'); if (a4) a4.style.display = window.GRNativo ? 'none' : '';   // nell'app non c'è la stampa A4
   const attivi = TURNI.servizi.filter(s => s.attivo);
   document.getElementById('sp-data').value = prData;
   document.getElementById('sp-data').min = isoToday(0); document.getElementById('sp-data').max = prGiorniLista().slice(-1)[0];
@@ -2253,6 +2273,17 @@ function htmlPianta(ordini, presenti, pannello, badge) {
                     : `<button class="${cls}" style="${stile}" onclick="salaTavolo('${e.id}')">${inner}</button>`;
   }).join('');
 
+  // In servizio la tela si ritaglia sui tavoli (niente spazio vuoto): la pianta si vede più grande, soprattutto su telefono
+  let bb = { x: 0, y: 0, w: SALA_W, h: SALA_H };
+  if (!salaEdit && room.el.length) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    room.el.forEach(e => {
+      const cx = e.x + e.w / 2, cy = e.y + e.h / 2, q = ((Math.round(e.rot) % 180) + 180) % 180;
+      const rx = q === 0 ? e.w / 2 : q === 90 ? e.h / 2 : Math.hypot(e.w, e.h) / 2, ry = q === 0 ? e.h / 2 : q === 90 ? e.w / 2 : Math.hypot(e.w, e.h) / 2;
+      x0 = Math.min(x0, cx - rx); x1 = Math.max(x1, cx + rx); y0 = Math.min(y0, cy - ry); y1 = Math.max(y1, cy + ry);
+    });
+    bb = { x: Math.round(x0 - 30), y: Math.round(y0 - 30), w: Math.round(x1 - x0 + 60), h: Math.round(y1 - y0 + 60) };
+  }
   const modBtn = salaEdit
     ? `<button class="sala-btn ghost" onclick="salaAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salvaPianta()">Salva pianta</button>`
     : `<button class="sala-btn ghost" onclick="salaUnisciInizia()">Unisci tavoli</button>` + (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
@@ -2264,25 +2295,27 @@ function htmlPianta(ordini, presenti, pannello, badge) {
     ? `<div class="hud hud-top sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
   const btnPannello = `<button class="hud hud-br sala-fab" onclick="salaPannello()">${salaEdit ? 'Strumenti' : 'Famiglie'}${(!salaEdit && badge) ? `<b>${badge}</b>` : ''}</button>`;
   return `<div class="sala-wrap${salaPannelloAperto ? ' panel-open' : ''}${salaEdit ? ' edit' : ''}">
-    <div class="sala-stage" id="pianta-wrap"><div class="pianta-box" id="pianta-box"><div class="pianta${salaEdit ? ' edit' : ''}" id="pianta">${els}</div></div></div>
+    <div class="sala-stage" id="pianta-wrap"><div class="pianta-box${salaEdit ? ' edit' : ''}" id="pianta-box"><div class="pianta${salaEdit ? ' edit' : ''}" id="pianta" data-bx="${bb.x}" data-by="${bb.y}" data-bw="${bb.w}" data-bh="${bb.h}">${els}</div></div></div>
     ${modBtn ? `<div class="hud hud-tr">${modBtn}</div>` : ''}
     <div class="hud hud-bc"><div class="seg-row sala-rooms">${tabs}</div></div>
     ${banner}${legenda}${btnPannello}
-    <aside class="sala-drawer${salaPannelloAperto ? ' open' : ''}"><button class="sala-x" onclick="salaPannello()" aria-label="Chiudi">✕</button>${pannello}</aside>
+    <aside class="sala-drawer${salaPannelloAperto ? ' open' : ''}"><button class="sala-x" onclick="salaPannello()" aria-label="Chiudi">✕</button>${modBtn ? `<div class="sala-azioni-m">${modBtn}</div>` : ''}${pannello}</aside>
   </div>`;
 }
 
 // Adatta la tela alla larghezza (e all'altezza) disponibile
 function adattaPianta() {
-  const wrap = document.getElementById('pianta-wrap'), box = document.getElementById('pianta-box');
-  if (!wrap || !box) return;
+  const wrap = document.getElementById('pianta-wrap'), box = document.getElementById('pianta-box'), pian = document.getElementById('pianta');
+  if (!wrap || !box || !pian) return;
+  const bx = +pian.dataset.bx || 0, by = +pian.dataset.by || 0, bw = +pian.dataset.bw || SALA_W, bh = +pian.dataset.bh || SALA_H;
   const L = wrap.clientWidth || 800, A = wrap.clientHeight || 500;
-  // La pianta riempie tutto lo spazio (si adatta senza tagliare); sotto 0.5 si scorre
-  let s = Math.min((L - 24) / SALA_W, (A - 24) / SALA_H, 2.2);
-  s = Math.max(0.5, s);
+  // La pianta riempie tutto lo spazio (si adatta senza tagliare); su telefono sotto 0.34 si scorre
+  let s = Math.min((L - 16) / bw, (A - 16) / bh, 2.2);
+  s = Math.max(L < 600 ? 0.34 : 0.5, s);
   _salaScale = s;
   box.style.setProperty('--s', s);
-  wrap.classList.toggle('scroll', s * SALA_W > L || s * SALA_H > A);
+  ['bx', 'by', 'bw', 'bh'].forEach((k, i) => box.style.setProperty('--' + k, [bx, by, bw, bh][i]));
+  wrap.classList.toggle('scroll', s * bw > L || s * bh > A);
 }
 window.addEventListener('resize', adattaPianta);
 

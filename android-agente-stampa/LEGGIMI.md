@@ -19,3 +19,11 @@ serve per gli aggiornamenti dell'app).
 - L'app apre la Hub a schermo intero e stampa direttamente sulle stampanti Sunmi (niente proxy).
 - Impostazioni: tieni premuto il tasto Indietro.
 - L'agente di coda (stampe da iPad/iPhone) parte solo se in Impostazioni e' stato salvato un token: senza token non gira nulla in background.
+
+## Avvisi con app chiusa (v1.2)
+- Il servizio `KeepAliveService` chiede ogni ~20 secondi alla funzione `telegram-bot` i nuovi avvisi (evento `feed_notifiche`, collezione `notifiche`) e li mostra come notifiche Android, anche con l'app chiusa o lo schermo spento. Parte da solo all'accensione e si riavvia se l'app viene tolta dalle recenti.
+- **Una volta sola**: nella funzione `telegram-bot` impostare la variabile d'ambiente `APP_FEED_KEY` (testo casuale lungo) e ridistribuirla. L'app la riceve da sola alla prima pagina della Hub aperta da un operatore loggato (`feed_chiave`) e non va scritta a mano.
+- Reparti: quelli scelti nella Hub (Notifiche) vengono passati al servizio (`GRNativo.impostaReparti`).
+- Impostazioni (tieni premuto Indietro): stato degli avvisi, escludi dal risparmio energetico, "Richiedi di nuovo la chiave avvisi".
+- Finché il servizio riceve gli avvisi, la pagina non ripete la notifica (`Avvisi.feedAttivo`); senza chiave resta il vecchio ascolto dalla pagina.
+- Limite: se l'utente forza l'arresto dell'app dalle impostazioni di Android, nulla gira finché non viene riaperta (senza servizi Google non c'è altro modo).

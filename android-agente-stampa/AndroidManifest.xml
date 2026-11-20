@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="it.gardenriver.agente"
-    android:versionCode="1" android:versionName="1.0">
+    android:versionCode="2" android:versionName="1.2">
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="33" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -23,7 +26,7 @@
         </activity>
         <activity android:name=".SettingsActivity" android:exported="false" android:label="Impostazioni Hub" />
         <provider android:name=".FotoProvider" android:authorities="it.gardenriver.agente.foto" android:exported="false" android:grantUriPermissions="true" />
-        <service android:name=".KeepAliveService" android:exported="false" />
+        <service android:name=".KeepAliveService" android:exported="false" android:stopWithTask="false" />
         <service android:name=".PrintService" android:exported="false" />
         <receiver android:name=".RawReceiver" android:exported="true">
             <intent-filter><action android:name="it.gardenriver.agente.RAW" /></intent-filter>

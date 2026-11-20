@@ -16,7 +16,8 @@ public class SettingsActivity extends Activity {
     private final Handler h = new Handler();
     private final Runnable giro = new Runnable() {
         @Override public void run() {
-            stato.setText(getSharedPreferences("agente", 0).getString("stato", "Fermo"));
+            SharedPreferences q = getSharedPreferences("agente", 0);
+            stato.setText(q.getString("stato", "Fermo") + "\n" + q.getString("feed_stato", "Avvisi: non ancora avviati"));
             h.postDelayed(this, 2000);
         }
     };
@@ -68,6 +69,19 @@ public class SettingsActivity extends Activity {
             sp.edit().putString("stato", "Fermo").apply();
         }});
         l.addView(ferma);
+        Button batt = new Button(this); batt.setText("Avvisi con app chiusa: escludi dal risparmio energetico");
+        batt.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            try {
+                if (Build.VERSION.SDK_INT >= 23) startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, android.net.Uri.parse("package:" + getPackageName())));
+            } catch (Exception e) { startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
+        }});
+        l.addView(batt);
+        Button rich = new Button(this); rich.setText("Richiedi di nuovo la chiave avvisi");
+        rich.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+            sp.edit().remove("feed_key").remove("feed_since").remove("feed_ids").apply();   // la Hub la ripassa alla prossima pagina aperta
+            Toast.makeText(SettingsActivity.this, "Apri una pagina della Hub per riconfigurare gli avvisi", Toast.LENGTH_LONG).show();
+        }});
+        l.addView(rich);
         stato = new TextView(this); stato.setTextSize(16); stato.setPadding(0, 24, 0, 0);
         l.addView(stato);
         ScrollView sv = new ScrollView(this); sv.addView(l);

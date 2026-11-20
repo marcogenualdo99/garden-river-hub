@@ -18,3 +18,11 @@ html.nativa .drawer-overlay {will-change: opacity;}
 html.nativa .kds-edit-btn {width: 46px; height: 46px; min-height: 0; padding: 0; border-radius: 50%; flex-shrink: 0; font-size: 13px;}
 html.nativa .kds-btn {width: 44px; height: 44px; min-height: 0; padding: 0; border-radius: 50%; flex-shrink: 0;}
 html.nativa .kds-edit-btn svg {width: 20px; height: 20px;}
+
+/* Ristorazione: menu laterale proprio (rs-side) e Sala a schermo intero, leggeri per il V2 */
+html.nativa .rs-side {transition: transform .16s ease-out !important; box-shadow: none !important; will-change: transform;}
+html.nativa .rs-overlay {background: rgba(5,51,40,.7) !important; transition: opacity .1s linear !important;}
+html.nativa .sala-drawer {transition: transform .14s ease-out !important; box-shadow: none !important;}
+html.nativa .sala-bar, html.nativa .hud-bc, html.nativa .hud-tr {background: #fff !important; box-shadow: 0 1px 4px rgba(0,0,0,.18) !important;}
+html.nativa .sala-fab {box-shadow: 0 1px 5px rgba(0,0,0,.3) !important;}
+html.nativa .pz.tavolo {box-shadow: none !important;}

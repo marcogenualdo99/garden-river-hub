@@ -300,6 +300,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 }
 </style>
 <script src="assets/icons.js?v=1794700100"></script>
+<script src="assets/avvisi-app.js?v=3" defer></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
@@ -2322,6 +2323,7 @@ function repartiNotifiche() {
 function salvaRepartiNotifiche() {
   const v = NOTIF_REPARTI.filter(r => document.getElementById('nr-' + r.id).checked).map(r => r.id);
   try { localStorage.setItem('gr_notif_reparti', JSON.stringify(v)); } catch (e) { /* ok */ }
+  try { if (window.GRNativo && window.GRNativo.impostaReparti) window.GRNativo.impostaReparti(JSON.stringify(v)); } catch (e) { /* ok */ }
 }
 let _notifVisti = null, _notifRecenti = [], _notifAvviate = false;
 function nomeReparto(id) { return (NOTIF_REPARTI.find(r => r.id === id) || { nome: id }).nome; }
