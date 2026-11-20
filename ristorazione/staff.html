@@ -85,7 +85,9 @@
 .tab-btn.active::after{content:'';position:absolute;bottom:0;left:12px;right:12px;height:2.5px;background:var(--green-700);border-radius:2px}
 
 /* ── MAIN ── */
-main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
+main{max-width:none;margin:0;padding:18px 20px 80px}
+#sec-menu,#sec-ospiti,#sec-impostazioni{max-width:980px;margin:0 auto}
+#sec-cucina>.kds-toolbar>.date-nav,#sec-cucina>.kds-toolbar>.kds-seg{max-width:460px;margin-left:auto;margin-right:auto}
 .sec{display:none}
 .sec.active{display:block}
 
@@ -138,13 +140,6 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 
 /* ── KDS GRID ── */
 #cucina-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;align-items:start}
-@media(min-width:900px){
-  /* Il rail di navigazione (78px) occupa la sinistra: la sezione a tutta larghezza
-     parte dopo di lui, non sotto. Il centro dello spazio utile e' 50vw + 39px. */
-  #sec-cucina{margin-left:calc(50% - 50vw + 39px + 14px);margin-right:calc(50% - 50vw + 39px + 14px)}
-  #cucina-body{grid-template-columns:repeat(3,1fr)}
-  #cucina-date-nav,#sec-cucina>.seg-row{padding-left:calc((100vw - 800px) / 2 - 39px + 14px);padding-right:calc((100vw - 800px) / 2 - 39px + 14px)}
-}
 
 /* ── KDS CARD ── */
 .kds-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s}
@@ -353,6 +348,42 @@ input[type="date"].finput{font-size:13px}
 /* ── CHECK SVG ── */
 .check-svg{width:12px;height:12px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
 
+
+/* ── MENU LATERALE DI RISTORAZIONE (proprio, non quello della Hub) ── */
+.rs-shell{display:flex;align-items:flex-start;min-height:100vh}
+.rs-side{position:fixed;top:0;left:0;bottom:0;width:232px;background:#FBFCF9;border-right:1px solid var(--gray-100);display:flex;flex-direction:column;padding:20px 14px calc(16px + env(safe-area-inset-bottom));z-index:150;overflow-y:auto}
+.rs-main{flex:1;min-width:0;margin-left:232px}
+.rs-brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px;margin-bottom:10px;border-bottom:1px solid var(--gray-100)}
+.rs-brand img{width:34px;height:34px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.rs-brand-t{font-size:16px;font-weight:800;color:var(--gray-900);line-height:1.1}
+.rs-brand-s{font-size:11px;color:var(--gray-500);font-weight:600;margin-top:2px}
+.rs-nav{display:flex;flex-direction:column;gap:4px}
+.rs-item{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border:none;border-radius:14px;background:none;color:var(--gray-600,#4B5563);font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent}
+.rs-item svg{width:20px;height:20px;flex-shrink:0}
+.rs-item:hover{background:var(--gray-50);color:var(--gray-900)}
+.rs-item.active{background:var(--green-700);color:#fff;font-weight:800;box-shadow:0 4px 14px rgba(9,92,72,.25)}
+.rs-sep{height:1px;background:var(--gray-100);margin:10px 8px}
+.rs-spacer{flex:1;min-height:16px}
+.rs-user{display:flex;align-items:center;gap:10px;padding:10px 8px;margin-bottom:8px}
+.rs-user .sync-dot{margin-left:auto}
+.rs-home{display:flex;align-items:center;justify-content:center;gap:8px;height:46px;border-radius:14px;background:var(--gray-100);color:var(--gray-900);font-size:14px;font-weight:800;text-decoration:none}
+.rs-home svg{width:18px;height:18px}
+.rs-home:active{opacity:.8}
+.rs-top{display:none}
+.rs-overlay{position:fixed;inset:0;background:rgba(5,51,40,.55);z-index:900;opacity:0;pointer-events:none;transition:opacity .2s}
+.rs-overlay.open{opacity:1;pointer-events:auto}
+body.drawer-open{overflow:hidden}
+@media(max-width:767px){
+  .rs-side{transform:translateX(-100%);transition:transform .25s ease;z-index:901;width:80%;max-width:290px}
+  .rs-side.open{transform:none}
+  .rs-main{margin-left:0}
+  .rs-top{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid var(--gray-100);padding:calc(8px + env(safe-area-inset-top)) 14px 8px}
+  .rs-top-title{font-size:17px;font-weight:800}
+  .rs-burger{width:40px;height:40px;border:none;border-radius:12px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--gray-900)}
+  .rs-burger svg{width:20px;height:20px}
+  main{padding:14px 12px 80px}
+}
+
 /* ── OGGI (cruscotto del servizio) ── */
 .oggi-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .oggi-date{font-size:18px;font-weight:800;color:var(--gray-900)}
@@ -387,67 +418,119 @@ input[type="date"].finput{font-size:13px}
 .kds-clock,.kds-count,.kds-exit{display:none}
 .kds-tool-btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:none;border-radius:var(--radius-xl);background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent}
 .kds-tool-btn:active{opacity:.85}
-@media(min-width:900px){.kds-seg{max-width:772px;margin-left:auto;margin-right:auto}}
 
 
-/* ── SALA: pianta tavoli ── */
-.oggi-det{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;padding:0 16px}
-.oggi-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-size:13px;font-weight:800;color:var(--gray-900)}
-.oggi-det>summary::-webkit-details-marker{display:none}
-.oggi-det>summary span{font-size:12px;font-weight:700;color:var(--gray-500)}
-.oggi-det[open]>summary{border-bottom:1px solid var(--gray-100)}
-.oggi-det .oggi-card{box-shadow:none;padding:10px 0;margin:0}
-.oggi-det .oggi-cols{gap:0}
-.sala-card{padding:14px}
-.sala-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.sala-rooms{margin:0;flex:1;min-width:240px;max-width:460px}
+/* ── SALA: vista principale a schermo intero (la pianta è lo sfondo, i comandi galleggiano) ── */
+body.vista-sala main{padding:0;max-width:none}
+#sec-sala{position:relative;height:100vh;height:100dvh;overflow:hidden;background:#F3F5F1}
+@media(max-width:767px){#sec-sala{height:calc(100dvh - 58px)}}
+#oggi-body{position:absolute;inset:0}
+.sala-wrap{position:absolute;inset:0}
+.sala-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.sala-stage.scroll{display:block;overflow:auto;-webkit-overflow-scrolling:touch}
+.sala-stage.scroll .pianta-box{margin:60px auto}
+.hud{position:absolute;z-index:20}
+.sala-bar{position:absolute;top:12px;left:12px;z-index:30;display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:18px;box-shadow:0 6px 24px rgba(5,51,40,.13);padding:12px 14px;max-width:330px}
+.sala-bar-l{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.oggi-date{font-size:17px;font-weight:800;color:var(--gray-900)}
+.oggi-seg{width:170px;margin:0}
+.oggi-seg .seg-btn{height:32px;font-size:12px}
+.sala-stats{display:flex;gap:6px;flex-wrap:wrap}
+.sala-stat{display:inline-flex;align-items:baseline;gap:5px;padding:4px 10px;border-radius:999px;background:var(--gray-100);font-size:11px;font-weight:700;color:var(--gray-600,#4B5563)}
+.sala-stat b{font-size:13px;color:var(--gray-900)}
+.sala-stat.warn{background:#FFFBEB;color:#B45309}.sala-stat.warn b{color:#B45309}
+.hud-tr{top:12px;right:12px;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:18px;box-shadow:0 6px 24px rgba(5,51,40,.13);padding:8px}
+.hud-bc{left:50%;bottom:12px;transform:translateX(-50%);background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:999px;box-shadow:0 6px 24px rgba(5,51,40,.13);padding:5px}
+.hud-bc .sala-rooms{margin:0;min-width:0;width:auto;display:flex;background:none;padding:0}
+.hud-bc .seg-btn{padding:0 18px;white-space:nowrap;height:40px}
+.sala-legenda.sala-legenda-p{display:none;background:none;box-shadow:none;padding:4px 2px}
+.hud-bl.sala-legenda{display:none}
+@media(min-width:1300px){.hud-bl.sala-legenda{display:flex}}
+@media(max-width:1299px){.sala-legenda.sala-legenda-p{display:flex}}
+.hud-top{top:12px;left:50%;transform:translateX(-50%);z-index:40}
+.hud-bl{left:12px;bottom:12px}
+.hud-br{right:12px;bottom:12px}
+.sala-fab{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 20px;border:none;border-radius:999px;background:var(--green-700);color:#fff;font-size:14px;font-weight:800;box-shadow:0 8px 24px rgba(9,92,72,.35);cursor:pointer;font-family:var(--font)}
+.sala-fab b{background:var(--orange);color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.sala-drawer{position:absolute;top:0;right:0;bottom:0;width:330px;max-width:92vw;background:#F4F6F3;border-left:1px solid var(--gray-200);box-shadow:-10px 0 30px rgba(5,51,40,.12);overflow-y:auto;padding:58px 12px 80px;display:flex;flex-direction:column;gap:12px;z-index:35;transform:translateX(105%);transition:transform .22s ease;visibility:hidden}
+.sala-drawer.open{transform:none;visibility:visible}
+.sala-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:none;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);font-size:15px;cursor:pointer;color:var(--gray-700)}
+@media(min-width:900px){
+  .sala-wrap.panel-open .sala-stage{right:330px}
+  .sala-wrap.panel-open .hud-tr{right:342px}
+  .sala-wrap.panel-open .hud-bc{left:calc(50% - 165px)}
+  .sala-wrap.panel-open .hud-br{right:342px}
+  .sala-drawer{padding-top:14px}
+  .sala-x{display:none}
+}
+@media(max-width:899px){.sala-wrap.panel-open .hud-br,.sala-wrap.panel-open .hud-tr,.sala-wrap.panel-open .hud-bc{visibility:hidden}}
+@media(max-width:767px){.sala-bar{max-width:calc(100% - 24px)}.hud-bc{left:12px;transform:none;max-width:calc(100% - 150px);overflow-x:auto}.hud-bc .seg-btn{padding:0 12px;font-size:12px}.hud-tr{top:auto;bottom:70px;right:12px}}
+.pianta-head{display:none}
+.pianta-azioni{display:flex;gap:8px}
+.sala-rooms{margin:0;flex:1;min-width:240px;max-width:420px}
 .sala-n{font-weight:600;opacity:.6;font-size:11px;margin-left:4px}
 .sala-btn{height:38px;padding:0 14px;border:none;border-radius:var(--radius-xl);background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
 .sala-btn.ghost{background:var(--gray-100);color:var(--gray-700)}
-.sala-btn.danger{background:#FEE2E2;color:#B91C1C;width:100%}
+.sala-btn.accent{background:var(--orange)}
+.sala-btn.danger{background:#FEE2E2;color:#B91C1C}
 .sala-btn:active{opacity:.8}
-.sala-canvas{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:84px;gap:8px;position:relative}
-.sala-canvas.edit{background:var(--gray-50);border-radius:var(--radius);padding:8px;touch-action:none}
-.sala-cell{border:1.5px dashed var(--gray-200);border-radius:12px}
-.tav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:4px 6px;border:2px solid var(--gray-200);background:#fff;color:var(--gray-900);font-family:var(--font);cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:center;overflow:hidden}
-.tav.forma-quadrato,.tav.forma-lungo{border-radius:14px}
-.tav.forma-tondo{border-radius:999px}
-.tav-nome{font-size:15px;font-weight:800;line-height:1.1}
-.tav-fam{font-size:11px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tav-info{font-size:10px;font-weight:700;color:var(--gray-500)}
+/* tela della pianta: 1000x640 logici, scalati con --s */
+.pianta-wrap{overflow:auto;border-radius:14px;-webkit-overflow-scrolling:touch}
+.pianta-box{--s:1;width:calc(1000px * var(--s));height:calc(640px * var(--s))}
+.pianta{position:relative;width:1000px;height:640px;transform:scale(var(--s));transform-origin:0 0;background:transparent;box-sizing:border-box;overflow:visible}
+.pianta.edit{outline:2px dashed var(--gray-300);outline-offset:-1px;background-color:rgba(255,255,255,.7);background-image:radial-gradient(circle,var(--gray-300) 1.2px,transparent 1.6px);background-size:20px 20px;touch-action:none}
+.pz{position:absolute;box-sizing:border-box;font-family:var(--font);margin:0}
+.pz-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;pointer-events:none;overflow:visible}
+.pianta.edit .pz{cursor:grab;user-select:none;touch-action:none}
+.pz.sel{outline:3px solid var(--orange);outline-offset:4px;z-index:5}
+.pz.muro{background:#6B7280;border-radius:4px}
+.pz.zona{background:rgba(9,92,72,.06);border:2px dashed var(--green-200,#BBF7D0);border-radius:16px;color:var(--green-700);font-size:20px;font-weight:800;opacity:1}
+.pz.testo{color:var(--gray-700);font-size:22px;font-weight:800;background:none}
+.pz.tavolo{border:3px solid var(--gray-200);background:#fff;color:var(--gray-900);cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.pz.tavolo.forma-tondo{border-radius:50%}
+.pz.tavolo.forma-quadrato,.pz.tavolo.forma-rettangolo{border-radius:16px}
+.tav-nome{font-size:26px;font-weight:800;line-height:1}
+.tav-fam{font-size:17px;font-weight:700;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.1}
+.tav-info{font-size:15px;font-weight:700;color:var(--gray-500)}
 .tav-info.over{color:#B91C1C}
-.tav.stato-atteso{background:#FFFBEB;border-color:#FCD34D}
-.tav.stato-ordinato{background:var(--green-50);border-color:var(--green-200,#BBF7D0)}
-.tav.stato-servizio{background:#F59E0B;border-color:#F59E0B;color:#fff}
-.tav.stato-servizio .tav-info{color:rgba(255,255,255,.85)}
-.tav.stato-servito{background:var(--green-700);border-color:var(--green-700);color:#fff}
-.tav.stato-servito .tav-info{color:rgba(255,255,255,.8)}
-.tav.target{box-shadow:0 0 0 3px var(--orange)}
-.sala-canvas.edit .tav{cursor:grab;touch-action:none;user-select:none;z-index:2}
-.tav.dragging{opacity:.85;z-index:10;box-shadow:var(--shadow-lg);cursor:grabbing}
-.sala-legenda{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;font-weight:700;color:var(--gray-500)}
+.sed{position:absolute;width:16px;height:16px;border-radius:5px;background:var(--gray-200);pointer-events:none}
+.sed.occ{background:var(--green-700)}
+.pz.tavolo.stato-atteso{background:#FFFBEB;border-color:#FCD34D}
+.pz.tavolo.stato-ordinato{background:#DCFCE7;border-color:#4ADE80}
+.pz.tavolo.stato-servizio{background:#F59E0B;border-color:#F59E0B;color:#fff}
+.pz.tavolo.stato-servizio .tav-info,.pz.tavolo.stato-servito .tav-info{color:rgba(255,255,255,.85)}
+.pz.tavolo.stato-servito{background:var(--green-700);border-color:var(--green-700);color:#fff}
+.pz.tavolo.target{box-shadow:0 0 0 4px var(--orange)}
+.h{position:absolute;width:calc(30px / var(--s));height:calc(30px / var(--s));min-width:22px;min-height:22px;border-radius:50%;background:var(--orange);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:6;touch-action:none}
+.h-resize{right:calc(-15px / var(--s));bottom:calc(-15px / var(--s));cursor:nwse-resize}
+.h-rot{left:50%;top:calc(-44px / var(--s));margin-left:calc(-15px / var(--s));cursor:grab}
+.sala-legenda{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;font-weight:700;color:var(--gray-600,#4B5563);background:rgba(255,255,255,.9);border-radius:999px;padding:8px 14px;box-shadow:0 4px 16px rgba(5,51,40,.1)}
 .sala-legenda span{display:inline-flex;align-items:center;gap:6px}
 .lg{width:12px;height:12px;border-radius:4px;border:2px solid var(--gray-200);display:inline-block}
-.lg.stato-atteso{background:#FFFBEB;border-color:#FCD34D}.lg.stato-ordinato{background:var(--green-50);border-color:#BBF7D0}.lg.stato-servizio{background:#F59E0B;border-color:#F59E0B}.lg.stato-servito{background:var(--green-700);border-color:var(--green-700)}
-.sala-senza{margin-top:14px;border-top:1px solid var(--gray-100);padding-top:12px}
-.sala-senza-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px;display:flex;gap:8px}
+.lg.stato-atteso{background:#FFFBEB;border-color:#FCD34D}.lg.stato-ordinato{background:#DCFCE7;border-color:#4ADE80}.lg.stato-servizio{background:#F59E0B;border-color:#F59E0B}.lg.stato-servito{background:var(--green-700);border-color:var(--green-700)}
+.sp-sez{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:12px 14px}
+.sp-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px;display:flex;justify-content:space-between}
+.sp-det{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:0 14px}
+.sp-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;padding:12px 0;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500)}
+.sp-det>summary::-webkit-details-marker{display:none}
+.sp-det[open]>summary{border-bottom:1px solid var(--gray-100)}
+.sp-det>.oggi-row:last-child,.sp-det>.oggi-empty:last-child{padding-bottom:12px}
 .sala-chips{display:flex;flex-wrap:wrap;gap:8px}
-.sala-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:12px;background:#fff;font-size:13px;font-weight:700;color:var(--gray-900);cursor:pointer;font-family:var(--font)}
+.sala-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border:1.5px solid var(--gray-200);border-radius:12px;background:#fff;font-size:12.5px;font-weight:700;color:var(--gray-900);cursor:pointer;font-family:var(--font)}
 .sala-chip span{font-size:11px;color:var(--gray-500)}
 .sala-chip em{font-style:normal;font-size:10px;color:#B45309}
 .sala-chip.sel{border-color:var(--orange);background:#FFF3EA}
-.sala-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFF3EA;border-radius:12px;padding:10px 14px;margin-top:12px;font-size:13px;color:var(--gray-900)}
+.sala-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFF3EA;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--gray-900)}
 .sala-banner button{border:none;background:none;color:var(--orange);font-weight:800;cursor:pointer;font-family:var(--font)}
-.sala-edit-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}
-.sala-dim{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gray-600,#4B5563)}
-.sala-dim button{width:30px;height:30px;border:none;border-radius:50%;background:var(--gray-100);font-size:16px;font-weight:800;cursor:pointer}
-.sala-edit-hint{font-size:12px;color:var(--gray-500);margin-bottom:10px}
-.sala-edit-foot{display:flex;gap:8px;margin-bottom:12px}
-.sala-edit-foot button{flex:1;height:46px;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)}
-@media(max-width:520px){.sala-canvas{grid-auto-rows:70px;gap:6px}.tav-nome{font-size:13px}}
-
+.ins-add{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ins-add .sala-btn{height:42px;font-size:12px}
+.ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.ins-f{display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500)}
+.ins-f .minput{height:40px;margin:0;font-size:14px}
+.ins-az{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 body.monitor{background:#0f1117;overflow:hidden}
-body.monitor .nav-zone,body.monitor .top-bar,body.monitor .page-head,body.monitor #tab-bar{display:none!important}
+body.monitor .rs-side,body.monitor .rs-top,body.monitor .rs-overlay{display:none!important}
+body.monitor .rs-main{margin-left:0}
 body.monitor #sec-cucina{position:fixed;inset:0;z-index:500;background:#0f1117;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0;padding:0 18px calc(28px + env(safe-area-inset-bottom));color:#f0f0f0}
 body.monitor .kds-toolbar{position:sticky;top:0;z-index:5;background:#0f1117;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:calc(12px + env(safe-area-inset-top)) 0 12px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
 body.monitor #cucina-date-nav{padding:0}
@@ -496,182 +579,54 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div>
 </div>
 
-<div class="app-shell">
+<div class="rs-shell">
 
-<!-- ══ NAVIGAZIONE — sidebar (desktop), rail a icone (tablet), drawer (mobile) ══
-     Stessa struttura a tre livelli di Hub/Calendario/Bici (v. ristorazione/theme.css),
-     stesse icone (assets/icons.js). ══ -->
-<div class="nav-zone">
-<aside class="sidebar" id="sidebar">
-  <div class="sidebar-brand">
+<!-- ══ MENU LATERALE DI RISTORAZIONE — tutto suo, separato da quello della Hub.
+     "Torna alla Home" riporta alla Hub. Su telefono si apre dal pulsante in alto. ══ -->
+<div class="rs-overlay" id="rs-overlay" onclick="toggleDrawer(false)"></div>
+<aside class="rs-side" id="rs-side">
+  <div class="rs-brand">
     <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
-    <div>
-      <div class="sidebar-brand-title">Garden River</div>
-      <div class="sidebar-brand-sub">Ristorazione</div>
-    </div>
+    <div><div class="rs-brand-t">Ristorazione</div><div class="rs-brand-s">Garden River</div></div>
   </div>
-
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
-      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
-    </div>
+  <nav class="rs-nav" id="rs-nav">
+    <button class="rs-item active" data-tab="sala"   onclick="switchTab('sala')"><span data-icon="RISTORAZIONE"></span>Sala</button>
+    <button class="rs-item"        data-tab="cucina" onclick="switchTab('cucina')"><span data-icon="UTENSILS"></span>Cucina</button>
+    <button class="rs-item"        data-tab="menu"   onclick="switchTab('menu')"><span data-icon="BOOK"></span>Menu</button>
+    <button class="rs-item"        data-tab="ospiti" onclick="switchTab('ospiti')"><span data-icon="USER"></span>Ospiti</button>
+    <div class="rs-sep"></div>
+    <button class="rs-item"        data-tab="impostazioni" onclick="switchTab('impostazioni')"><span data-icon="SETTINGS"></span>Impostazioni</button>
+  </nav>
+  <div class="rs-spacer"></div>
+  <div class="rs-user">
+    <div class="avatar" id="hdr-avatar"></div>
+    <div style="min-width:0"><div class="hname" id="hdr-name"></div><div class="hrole" id="hdr-role"></div></div>
+    <span class="sync-dot" id="sync-dot" title="Sincronizzazione"></span>
   </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
-      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
-      <a class="nav-item active" href="staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
-      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
-      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
-      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
-      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
-    </div>
-  </div>
-
-  <div class="sidebar-spacer"></div>
-  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
+  <a class="rs-home" href="../"><span data-icon="BACK"></span>Torna alla Home</a>
 </aside>
 
-<aside class="rail" id="rail">
-  <a class="rail-item" href="../"><span data-icon="HOME"></span><span>Home</span></a>
-  <a class="rail-item" href="../calendario/"><span data-icon="CALENDAR"></span><span>Cal.</span></a>
-  <a class="rail-item" href="../alloggi/"><span data-icon="ALLOGGI"></span><span>Pulizie</span></a>
-  <a class="rail-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span><span>Magaz.</span></a>
-  <a class="rail-item" href="../conti/"><span data-icon="CONTI"></span><span>Conti</span></a>
-  <a class="rail-item active" href="staff.html"><span data-icon="RISTORAZIONE"></span><span>Rist.</span></a>
-  <a class="rail-item" href="../bici/"><span data-icon="BICI"></span><span>Bici</span></a>
-  <a class="rail-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span><span>Spiag.</span></a>
-  <a class="rail-item" href="../navetta/"><span data-icon="NAVETTA"></span><span>Navetta</span></a>
-  <a class="rail-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span><span>Manut.</span></a>
-  <a class="rail-item" href="../mense/"><span data-icon="MENSE"></span><span>Mense</span></a>
-  <div class="rail-spacer"></div>
-  <a class="rail-item" onclick="doLogout()"><span data-icon="LOGOUT"></span><span>Esci</span></a>
-</aside>
-</div>
-
-<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
-<div class="drawer" id="drawer">
-  <div class="sidebar-brand">
-    <img src="../logo-hub-app.jpg" alt="Garden Hub" onerror="this.style.display='none'">
-    <div>
-      <div class="sidebar-brand-title">Garden River</div>
-      <div class="sidebar-brand-sub">Ristorazione</div>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Menu</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../"><span data-icon="HOME"></span>Home</a>
-      <a class="nav-item" href="../calendario/"><span data-icon="CALENDAR"></span>Calendario</a>
-      <a class="nav-item" href="../alloggi/"><span data-icon="ALLOGGI"></span>Pulizie</a>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Ristorazione</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../magazzino/"><span data-icon="MAGAZZINO"></span>Magazzino</a>
-      <a class="nav-item" href="../conti/"><span data-icon="CONTI"></span>Conti</a>
-      <a class="nav-item active" href="staff.html"><span data-icon="RISTORAZIONE"></span>Ristorazione</a>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Servizi</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../bici/"><span data-icon="BICI"></span>Bici</a>
-      <a class="nav-item" href="../spiaggia/"><span data-icon="SPIAGGIA"></span>Spiaggia</a>
-      <a class="nav-item" href="../navetta/"><span data-icon="NAVETTA"></span>Navetta</a>
-      <a class="nav-item" href="../manutenzione/"><span data-icon="MANUTENZIONE"></span>Manutenzione</a>
-      <a class="nav-item" href="../area-ospite/gestione.html"><span data-icon="ANIMAZIONE"></span>Area ospite</a>
-    </div>
-  </div>
-  <div class="nav-group">
-    <button type="button" class="nav-group-header" onclick="toggleNavGroup(this)"><span>Scuole</span><span data-icon="CHEVRON"></span></button>
-    <div class="nav-group-items">
-      <a class="nav-item" href="../mense/"><span data-icon="MENSE"></span>Mense</a>
-    </div>
-  </div>
-  <div class="sidebar-spacer"></div>
-  <a class="nav-item nav-item-exit" onclick="doLogout()"><span data-icon="LOGOUT"></span>Esci</a>
-</div>
-
-<div class="main-col">
-
-<!-- TOP BAR PRINCIPALE -->
-<div class="top-bar" id="top-bar-main">
-  <div class="header-inner">
-    <div class="header-left">
-      <button class="hamburger" onclick="toggleDrawer(true)" title="Menu" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
-      <div class="avatar" id="hdr-avatar"></div>
-      <div>
-        <div class="hname" id="hdr-name"></div>
-        <div class="hrole" id="hdr-role"></div>
-      </div>
-    </div>
-    <div class="hbtns">
-      <span class="sync-dot" id="sync-dot"></span>
-      <button class="hbtn icon" onclick="location.reload()" title="Aggiorna">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      </button>
-      <button class="hbtn icon" onclick="openSettings()" title="Impostazioni">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- TOP BAR IMPOSTAZIONI -->
-<div class="top-bar" id="top-bar-settings">
-  <div class="header-inner">
-    <div class="settings-header">
-      <button class="back-btn" onclick="closeSettings()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      </button>
-      <div>
-        <div class="stitle">Impostazioni Ristorante</div>
-        <div class="ssub">Stampanti, categorie del menu e menu bambini</div>
-      </div>
-    </div>
-  </div>
+<div class="rs-main">
+<div class="rs-top">
+  <button class="rs-burger" onclick="toggleDrawer(true)" aria-label="Apri il menu"><span data-icon="HAMBURGER"></span></button>
+  <div class="rs-top-title" id="rs-top-title">Sala</div>
+  <button class="rs-burger" onclick="location.reload()" aria-label="Aggiorna"><span data-icon="REFRESH"></span></button>
 </div>
 
 <!-- ══ MAIN ══ -->
 <main id="main-view">
 
-  <div class="page-head">
-    <div class="page-eyebrow"><span data-icon="RISTORAZIONE"></span><span>Ristorazione</span></div>
-    <div class="page-head-title" id="ph-title">Sala</div>
-  </div>
-  <div class="tab-bar" id="tab-bar">
-    <button class="tab-btn active" data-tab="sala"   onclick="switchTab('sala')">Sala</button>
-    <button class="tab-btn"        data-tab="cucina" onclick="switchTab('cucina')">Cucina</button>
-    <button class="tab-btn"        data-tab="menu"   onclick="switchTab('menu')">Menu</button>
-    <button class="tab-btn"        data-tab="ospiti" onclick="switchTab('ospiti')">Ospiti</button>
-  </div>
-
-  <!-- SALA (cruscotto del servizio + pianta dei tavoli) -->
+  <!-- SALA (vista principale: pianta dei tavoli) -->
   <div class="sec active" id="sec-sala">
-    <div class="oggi-top">
-      <div class="oggi-date" id="oggi-date"></div>
-      <div class="seg-row oggi-seg">
-        <button class="seg-btn active" id="seg-pranzo-o" onclick="setOggiPasto('pranzo')">Pranzo</button>
-        <button class="seg-btn"        id="seg-cena-o"   onclick="setOggiPasto('cena')">Cena</button>
+    <div class="sala-bar">
+      <div class="sala-bar-l">
+        <div class="oggi-date" id="oggi-date"></div>
+        <div class="seg-row oggi-seg">
+          <button class="seg-btn active" id="seg-pranzo-o" onclick="setOggiPasto('pranzo')">Pranzo</button>
+          <button class="seg-btn"        id="seg-cena-o"   onclick="setOggiPasto('cena')">Cena</button>
+        </div>
       </div>
+      <div class="sala-stats" id="sala-stats"></div>
     </div>
     <div id="oggi-body"><div class="empty-state">Caricamento...</div></div>
   </div>
@@ -795,12 +750,8 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div><!-- /settings-cols -->
   </div>
 
-</main>
-
-<!-- SETTINGS VIEW -->
-<div id="settings-view" class="hidden">
-  <main>
-
+  <!-- IMPOSTAZIONI -->
+  <div class="sec" id="sec-impostazioni">
   <div class="settings-row2">
     <div class="add-fam-card" style="margin-top:0">
       <h3>Stampante termica</h3>
@@ -835,11 +786,13 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
       <button onclick="salvaMenuBambini()" style="width:100%;height:44px;margin-top:12px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva menu bambini</button>
     </div>
   </div><!-- /settings-row2 -->
-  </main>
-</div>
+  </div>
 
-</div><!-- /main-col -->
-</div><!-- /app-shell -->
+</main>
+
+</div><!-- /rs-main -->
+
+</div><!-- /rs-shell -->
 
 <!-- MODAL AGGIUNGI PIATTO -->
 <div id="modal" class="hidden">
@@ -1045,13 +998,9 @@ const HUB_URL = '../';
 hydrateIcons(); // sidebar / rail / drawer già nel DOM: inietta le icone subito (assets/icons.js)
 
 // ── NAVIGAZIONE — stessa logica di Hub/Calendario/Bici ──────────────────────
-function toggleNavGroup(btn) {
-  btn.classList.toggle('collapsed');
-  btn.nextElementSibling.classList.toggle('collapsed');
-}
 function toggleDrawer(open) {
-  document.getElementById('drawer').classList.toggle('open', open);
-  document.getElementById('drawer-overlay').classList.toggle('open', open);
+  document.getElementById('rs-side').classList.toggle('open', open);
+  document.getElementById('rs-overlay').classList.toggle('open', open);
   document.body.classList.toggle('drawer-open', open);
 }
 // Ordine delle categorie del menu: DEFAULT nel codice, versione operativa su
@@ -1080,6 +1029,7 @@ function menuItemsBambini() {
 
 // ── STATO ───────────────────────────────────────────────────────────────────
 let currentTab      = 'sala';
+document.addEventListener('DOMContentLoaded', () => document.body.classList.add('vista-sala'));
 let cucinaVista     = 'comande';   // 'comande' | 'totali'
 let oggiPasto       = new Date().getHours() < 14 ? 'pranzo' : 'cena';
 let unsubOggi       = null;
@@ -1160,19 +1110,27 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
-const TAB_TITOLI = { sala:'Sala', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti' };
+const TAB_TITOLI = { sala:'Sala', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', impostazioni:'Impostazioni' };
 function switchTab(tab) {
   if (tab === 'report') { tab = 'cucina'; setCucinaVista('totali'); }  // vecchio nome della scheda
   if (!TAB_TITOLI[tab]) tab = 'sala';
   currentTab = tab;
-  document.querySelectorAll('#tab-bar .tab-btn').forEach(b => {
+  document.querySelectorAll('#rs-nav .rs-item').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
+  toggleDrawer(false);
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
-  document.getElementById('ph-title').textContent = TAB_TITOLI[tab];
+  document.getElementById('rs-top-title').textContent = TAB_TITOLI[tab];
+  document.body.classList.toggle('vista-sala', tab === 'sala');
   if (tab === 'sala') renderOggi();
   if (tab === 'ospiti') renderFamiglie();
+  if (tab === 'impostazioni') {
+    catMenuDraft = null; renderCategorieMenu();
+    bambiniMenuDraft = null; renderMenuBambini();
+    const r = document.getElementById('printer-test-result'); if (r) r.textContent = '';
+    aggiornaStatoStampante();
+  }
   // Rimuovi print-area se esiste
   const pa = document.getElementById('print-area');
   if (pa) pa.remove();
@@ -1218,7 +1176,7 @@ function calcolaPastiGiorno(targetDate, pasto, ordini, ordiniAltro) {
       if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
     }
     return true;
-  });
+  }).filter(f => !(f.trattamento === 'MP' && haOrdine(ordiniAltro, f) && !haOrdine(ordini, f))); // MP che mangia solo l'altro pasto: non è atteso qui
   const senzaOrdine = attese.filter(f => {
     const haCorrente = haOrdine(ordini, f);
     if (f.trattamento === 'MP') return !haCorrente && !haOrdine(ordiniAltro, f); // MP: basta uno dei due pasti
@@ -1420,7 +1378,7 @@ function setOggiPasto(p) {
 
 function renderOggi() {
   const el = document.getElementById('oggi-body');
-  if (!el) return;
+  if (!el || _drag) return;
   const oggi = isoToday(0);
   if (oggiData && oggiData !== oggi) { startOggi(); return; } // pagina rimasta aperta oltre la mezzanotte
   document.getElementById('oggi-date').textContent = fmtDataLunga(oggi);
@@ -1431,12 +1389,10 @@ function renderOggi() {
   const altri  = tutti.filter(o => o.tipo !== oggiPasto);
   const { attese, senzaOrdine, recuperi } = calcolaPastiGiorno(oggi, oggiPasto, ordini, altri);
   const famMap = {}; famiglieDocs.forEach(f => { famMap[f.id] = f; });
-
   const presenti = attese.concat(ordini.map(o => famMap[o.famiglia_id]).filter(f => f && !attese.includes(f)));
   const ordinatiQui = attese.filter(f => ordini.some(o => o.famiglia_id === f.id));
   const somma = lista => lista.reduce((s, f) => s + ospitiFamiglia(f), 0);
-  const copertiConfermati = somma(ordinatiQui);
-  const copertiAttesi = copertiConfermati + somma(senzaOrdine);
+  const copertiAttesi = somma(ordinatiQui) + somma(senzaOrdine);
 
   // Avanzamento servizio
   let totPiatti = 0, totServiti = 0, daServire = 0;
@@ -1447,15 +1403,14 @@ function renderOggi() {
     items.forEach(p => { totPiatti += p.qty; totServiti += fatto ? p.qty : Math.min(Number(serv[p.mid] || 0), p.qty); });
     if (items.length && !fatto) daServire++;
   });
-  const perc = totPiatti ? Math.round(totServiti / totPiatti * 100) : 0;
-  const pastoLbl = oggiPasto === 'pranzo' ? 'pranzo' : 'cena';
 
-  const tiles = `<div class="oggi-tiles">
-    <div class="oggi-tile"><div class="oggi-tile-num">${copertiAttesi}</div><div class="oggi-tile-lbl">Coperti attesi</div><div class="oggi-tile-sub">${copertiConfermati} confermati</div></div>
-    <div class="oggi-tile${senzaOrdine.length ? ' warn' : ''}"><div class="oggi-tile-num">${ordinatiQui.length}</div><div class="oggi-tile-lbl">Ordini ricevuti</div><div class="oggi-tile-sub">${senzaOrdine.length ? senzaOrdine.length + ' mancanti' : 'tutti ordinati'}</div></div>
-    <div class="oggi-tile"><div class="oggi-tile-num">${totServiti}<span style="font-size:16px;color:var(--gray-400)">/${totPiatti}</span></div><div class="oggi-tile-lbl">Piatti serviti</div><div class="oggi-progress"><span style="width:${perc}%"></span></div></div>
-    <div class="oggi-tile${daServire ? ' warn' : ''}"><div class="oggi-tile-num">${daServire}</div><div class="oggi-tile-lbl">Comande da servire</div><div class="oggi-tile-sub">${ordini.length} totali</div></div>
-  </div>`;
+  // Barra sottile in alto: numeri piccoli, la sala è il protagonista
+  const chip = (n, lbl, warn) => `<span class="sala-stat${warn ? ' warn' : ''}"><b>${n}</b>${lbl}</span>`;
+  document.getElementById('sala-stats').innerHTML =
+      chip(copertiAttesi, 'coperti')
+    + chip(`${ordinatiQui.length}/${attese.length}`, 'ordini', senzaOrdine.length > 0)
+    + chip(`${totServiti}/${totPiatti}`, 'piatti serviti')
+    + chip(daServire, 'da servire', daServire > 0);
 
   // Note e allergie di chi mangia in questo pasto (allergie in cima)
   const note = [];
@@ -1466,63 +1421,71 @@ function renderOggi() {
     note.push({ f, testo: testi.join(' · '), allergia: testi.some(notaDelicata) });
   });
   note.sort((a, b) => (b.allergia - a.allergia) || String(a.f.nome).localeCompare(String(b.f.nome), 'it'));
-  const noteHtml = `<div class="oggi-card"><h3><span>Note e allergie · ${pastoLbl}</span><span>${note.length}</span></h3>${
-    note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('')
-         : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</div>`;
 
-  // Arrivi e partenze di oggi
   const ORA = { mattina: 'dalla colazione', dopo_pranzo: 'dalla cena', sera: 'nessun pasto oggi' };
   const arrivi = famiglieDocs.filter(f => f.checkin === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
   const partenze = famiglieDocs.filter(f => f.checkout === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
-  const riga = (f, extra) => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti${f.trattamento ? ' · ' + esc(f.trattamento) : ''}</div></div>${extra ? `<span class="oggi-tag">${extra}</span>` : ''}</div>`;
-  const movHtml = `<div class="oggi-cols">
-    <div class="oggi-card"><h3><span>Arrivi oggi</span><span>${arrivi.length}</span></h3>${arrivi.length ? arrivi.map(f => riga(f, ORA[f.ora_arrivo] || '')).join('') : '<div class="oggi-empty">Nessun arrivo.</div>'}</div>
-    <div class="oggi-card"><h3><span>Partenze oggi</span><span>${partenze.length}</span></h3>${partenze.length ? partenze.map(f => riga(f, '')).join('') : '<div class="oggi-empty">Nessuna partenza.</div>'}</div>
-  </div>`;
 
-  const dettagli = `<details class="oggi-det"><summary>Note e allergie <span>${note.length}</span></summary>${noteHtml}</details>
-    <details class="oggi-det"><summary>Arrivi e partenze <span>${arrivi.length} / ${partenze.length}</span></summary>${movHtml}</details>`;
-  el.innerHTML = tiles
-    + htmlSala(ordini, presenti)
-    + htmlAlertRecuperi(recuperi, oggi, oggiPasto)
-    + htmlAlertSenzaOrdine(senzaOrdine, oggi, oggiPasto)
-    + dettagli;
+  const chipFam = (f, extra) => `<button class="sala-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">${esc(f.nome)} <span>${esc(extra || f.unita || '')}</span></button>`;
+  const panel = `
+    ${recuperi.length ? `<div class="sp-sez"><div class="sp-t">Recuperi pasti <span>${recuperi.length}</span></div><div class="sala-chips">${recuperi.map(f => chipFam(f, f.ora_arrivo === 'dopo_pranzo' ? 'colaz.+pranzo' : 'tutti i pasti')).join('')}</div></div>` : ''}
+    <div class="sp-sez"><div class="sp-t">Senza ordine <span>${senzaOrdine.length}</span></div>${senzaOrdine.length ? `<div class="sala-chips">${senzaOrdine.map(f => chipFam(f)).join('')}</div>` : '<div class="oggi-empty">Tutti hanno ordinato.</div>'}</div>
+    <details class="sp-det"${note.length ? ' open' : ''}><summary>Note e allergie <span>${note.length}</span></summary>${
+      note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('') : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</details>
+    <details class="sp-det"><summary>Arrivi e partenze <span>${arrivi.length} / ${partenze.length}</span></summary>
+      ${arrivi.map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Arrivo · Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti</div></div>${ORA[f.ora_arrivo] ? `<span class="oggi-tag">${ORA[f.ora_arrivo]}</span>` : ''}</div>`).join('')}
+      ${partenze.map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Partenza · Alloggio ${esc(f.unita || '—')}</div></div></div>`).join('')}
+      ${(arrivi.length + partenze.length) ? '' : '<div class="oggi-empty">Nessun movimento oggi.</div>'}</details>`;
+
+  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
+  const nSenzaTavolo = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim())).length;
+  const pannello = salaEdit ? htmlStrumenti() : htmlSenzaTavolo(presenti) + panel + `<div class="sala-legenda sala-legenda-p">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
+  el.innerHTML = htmlPianta(ordini, presenti, pannello, nSenzaTavolo + senzaOrdine.length);
+  adattaPianta();
   if (typeof hydrateIcons === 'function') hydrateIcons(el);
 }
 
-// ── SALA: pianta dei tavoli ─────────────────────────────────────────────────
-// Le sale e i tavoli stanno in un solo documento: impostazioni/ristorazione_sala
-// ({sale:[{id,nome,cols,rows,tavoli:[{id,nome,posti,x,y,forma}]}]}); le regole
-// di `impostazioni/{id}` valgono già, nessuna regola nuova. L'assegnazione resta
-// il campo `tavolo` della famiglia (testo = nome del tavolo), lo stesso che
-// raggruppa le comande in Cucina: qui diventa un tavolo vero invece di testo libero.
+// ── SALA: pianta libera ─────────────────────────────────────────────────────
+// Ogni sala è una tela di 1000×640 con elementi posizionati liberamente:
+// tavoli (tondi, quadrati, rettangolari, con sedie), muri, zone e testi. Tutto
+// sta in un solo documento: impostazioni/ristorazione_sala — le regole di
+// `impostazioni/{id}` valgono già, nessuna regola nuova. L'assegnazione resta il
+// campo `tavolo` della famiglia (testo = nome del tavolo), lo stesso che
+// raggruppa le comande in Cucina.
 const SALA_DOC = 'ristorazione_sala';
+const SALA_W = 1000, SALA_H = 640, SALA_SNAP = 10;
+const SALA_FORME = { tondo: 'Tondo', quadrato: 'Quadrato', rettangolo: 'Rettangolare' };
 function salaDefault() {
-  const mk = (id, nome, pre) => ({
-    id, nome, cols: 5, rows: 3,
-    tavoli: Array.from({ length: 15 }, (_, i) => ({ id: pre + (i + 1), nome: pre + (i + 1), posti: 4, x: i % 5, y: Math.floor(i / 5), forma: 'quadrato' }))
-  });
+  const mk = (id, nome, pre) => ({ id, nome, el: Array.from({ length: 15 }, (_, i) => ({
+    id: pre + (i + 1), tipo: 'tavolo', nome: pre + (i + 1), posti: 4, forma: 'quadrato', w: 110, h: 110, rot: 0,
+    x: 110 + (i % 5) * 170, y: 70 + Math.floor(i / 5) * 190 })) });
   return { sale: [mk('interna', 'Sala interna', 'I'), mk('esterna', 'Sala esterna', 'E')] };
 }
 let SALA = salaDefault();
-let salaIdx = 0, salaEdit = false, salaDraft = null;
+let salaIdx = 0, salaEdit = false, salaDraft = null, salaSel = null, _salaScale = 1;
+let salaPannelloAperto = false;
 let assegnaFam = null;         // famiglia in attesa di un tavolo ("tocca un tavolo")
 let tavoloAperto = null;       // tavolo aperto nel foglio di dettaglio
 let _salaDati = {}, _salaPresenti = [], _salaOrdini = [];
-const SALA_FORME = { quadrato: 'Quadrato', tondo: 'Tondo', lungo: 'Lungo (2 posti griglia)' };
 
+function salaClean(e) {
+  const out = { id: String(e.id || 'e' + Math.random().toString(36).slice(2, 8)).replace(/[^A-Za-z0-9_]/g, '_'),
+    tipo: ['tavolo', 'muro', 'zona', 'testo'].includes(e.tipo) ? e.tipo : 'tavolo',
+    x: Number(e.x) || 0, y: Number(e.y) || 0, w: Math.max(10, Number(e.w) || 100), h: Math.max(10, Number(e.h) || 100), rot: Number(e.rot) || 0 };
+  if (out.tipo === 'tavolo') { out.nome = String(e.nome || ''); out.posti = Math.max(1, Math.min(30, Number(e.posti) || 4)); out.forma = SALA_FORME[e.forma] ? e.forma : 'quadrato'; }
+  if (out.tipo === 'zona' || out.tipo === 'testo') out.testo = String(e.testo || '');
+  return out;
+}
 function salaNormalizza(raw) {
   if (!raw || !Array.isArray(raw.sale) || !raw.sale.length) return null;
-  const sale = raw.sale.map((s, i) => ({
-    id: String(s.id || 'sala' + i), nome: String(s.nome || 'Sala ' + (i + 1)),
-    cols: Math.min(12, Math.max(3, Number(s.cols) || 5)), rows: Math.min(12, Math.max(3, Number(s.rows) || 5)),
-    tavoli: (Array.isArray(s.tavoli) ? s.tavoli : []).map((t, j) => ({
-      id: String(t.id || 't' + i + '_' + j).replace(/[^A-Za-z0-9_]/g, '_'), nome: String(t.nome || ''),
-      posti: Math.max(1, Number(t.posti) || 4), x: Math.max(0, Number(t.x) || 0), y: Math.max(0, Number(t.y) || 0),
-      forma: SALA_FORME[t.forma] ? t.forma : 'quadrato'
-    }))
-  }));
-  return { sale };
+  return { sale: raw.sale.map((s, i) => {
+    let el = Array.isArray(s.el) ? s.el : null;
+    if (!el && Array.isArray(s.tavoli)) {   // vecchia pianta a griglia → coordinate libere
+      el = s.tavoli.map(t => ({ ...t, tipo: 'tavolo', forma: t.forma === 'lungo' ? 'rettangolo' : t.forma,
+        x: 60 + (t.x || 0) * 170, y: 60 + (t.y || 0) * 170, w: t.forma === 'lungo' ? 170 : 100, h: 100 }));
+    }
+    return { id: String(s.id || 'sala' + i), nome: String(s.nome || 'Sala ' + (i + 1)), el: (el || []).map(salaClean) };
+  }) };
 }
 
 function loadSala() {
@@ -1537,7 +1500,7 @@ function loadSala() {
   } catch (e) { console.error(e); }
 }
 
-function salaTavoliTutti() { const out = []; SALA.sale.forEach(s => s.tavoli.forEach(t => out.push({ t, s }))); return out; }
+function salaTavoliTutti() { const out = []; SALA.sale.forEach(s => s.el.forEach(t => { if (t.tipo === 'tavolo') out.push({ t, s }); })); return out; }
 function aggiornaDatalistTavoli() {
   const dl = document.getElementById('tavoli-datalist');
   if (dl) dl.innerHTML = salaTavoliTutti().map(x => `<option value="${esc(x.t.nome)}">${esc(x.s.nome)}</option>`).join('');
@@ -1576,72 +1539,108 @@ function statoFamiglia(f, ordini) {
   return serv > 0 ? `In servizio ${serv}/${tot}` : 'Ordinato';
 }
 
-function htmlSala(ordini, presenti) {
+// Sedie attorno al tavolo (posizioni nel riquadro del tavolo, prima della rotazione)
+function sedieTavolo(t) {
+  const n = Math.min(t.posti, 16), S = 16, g = 5, out = [];
+  if (t.forma === 'tondo') {
+    for (let i = 0; i < n; i++) {
+      const a = (2 * Math.PI * i) / n - Math.PI / 2;
+      out.push([t.w / 2 + (t.w / 2 + g + S / 2) * Math.cos(a) - S / 2, t.h / 2 + (t.h / 2 + g + S / 2) * Math.sin(a) - S / 2]);
+    }
+    return out;
+  }
+  const lati = (t.w >= t.h * 1.4) ? ['t', 'b'] : (t.h >= t.w * 1.4) ? ['l', 'r'] : ['t', 'r', 'b', 'l'];
+  const cnt = lati.map(() => 0);
+  for (let i = 0; i < n; i++) cnt[i % lati.length]++;
+  lati.forEach((l, k) => {
+    const c = cnt[k], len = (l === 't' || l === 'b') ? t.w : t.h;
+    for (let j = 0; j < c; j++) {
+      const p = (j + 0.5) * len / c - S / 2;
+      out.push(l === 't' ? [p, -g - S] : l === 'b' ? [p, t.h + g] : l === 'l' ? [-g - S, p] : [t.w + g, p]);
+    }
+  });
+  return out;
+}
+
+function htmlPianta(ordini, presenti, pannello, badge) {
   _salaOrdini = ordini; _salaPresenti = presenti;
   const dati = datiTavoli(ordini, presenti);
   _salaDati = dati;
   const S = salaEdit ? salaDraft : SALA;
   if (salaIdx >= S.sale.length) salaIdx = 0;
   const room = S.sale[salaIdx];
-  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
 
   const tabs = S.sale.map((s, i) => {
-    const occ = s.tavoli.filter(t => dati[t.nome]).length;
-    return `<button class="seg-btn${i === salaIdx ? ' active' : ''}" onclick="salaScegli(${i})">${esc(s.nome)} <span class="sala-n">${salaEdit ? s.tavoli.length : occ + '/' + s.tavoli.length}</span></button>`;
+    const tav = s.el.filter(e => e.tipo === 'tavolo');
+    const occ = tav.filter(t => dati[t.nome]).length;
+    return `<button class="seg-btn${i === salaIdx ? ' active' : ''}" onclick="salaScegli(${i})">${esc(s.nome)} <span class="sala-n">${salaEdit ? tav.length : occ + '/' + tav.length}</span></button>`;
   }).join('');
 
-  const nomeFam = f => String(f.nome || '').trim();
-  const cellaTav = t => {
-    const m = dati[t.nome];
-    const w = t.forma === 'lungo' ? 2 : 1;
-    const pos = `grid-column:${t.x + 1} / span ${w};grid-row:${t.y + 1}`;
-    if (salaEdit) {
-      return `<div class="tav forma-${t.forma}" data-edit="1" data-id="${t.id}" style="${pos}"><span class="tav-nome">${esc(t.nome)}</span><span class="tav-info">${t.posti} posti</span></div>`;
-    }
-    const stato = m ? m.stato : 'libero';
-    const nomi = m ? (m.fams.length > 1 ? nomeFam(m.fams[0]) + ' +' + (m.fams.length - 1) : nomeFam(m.fams[0])) : '';
-    const over = m && m.coperti > t.posti;
-    const info = m ? `<span class="tav-fam">${esc(nomi)}</span><span class="tav-info${over ? ' over' : ''}">${m.coperti}/${t.posti} coperti</span>` : `<span class="tav-info">${t.posti} posti</span>`;
-    return `<button class="tav forma-${t.forma} stato-${stato}${assegnaFam ? ' target' : ''}" style="${pos}" onclick="salaTavolo('${t.id}')"><span class="tav-nome">${esc(t.nome)}</span>${info}</button>`;
-  };
+  const els = room.el.map(e => {
+    const stile = `left:${e.x}px;top:${e.y}px;width:${e.w}px;height:${e.h}px;transform:rotate(${e.rot}deg)`;
+    const contro = `transform:rotate(${-e.rot}deg)`;
+    const sel = salaEdit && salaSel === e.id;
+    const handles = sel ? '<i class="h h-rot"></i><i class="h h-resize"></i>' : '';
+    const ed = salaEdit ? ` data-id="${e.id}"` : '';
+    if (e.tipo === 'muro') return `<div class="pz muro${sel ? ' sel' : ''}"${ed} style="${stile}">${handles}</div>`;
+    if (e.tipo === 'zona') return `<div class="pz zona${sel ? ' sel' : ''}"${ed} style="${stile}"><span class="pz-in" style="${contro}">${esc(e.testo)}</span>${handles}</div>`;
+    if (e.tipo === 'testo') return `<div class="pz testo${sel ? ' sel' : ''}"${ed} style="${stile}"><span class="pz-in" style="${contro}">${esc(e.testo)}</span>${handles}</div>`;
+    // tavolo
+    const m = dati[e.nome];
+    const stato = (!salaEdit && m) ? m.stato : 'libero';
+    const occ = (!salaEdit && m) ? m.coperti : 0;
+    const sedie = sedieTavolo(e).map((p, i) => `<i class="sed${i < occ ? ' occ' : ''}" style="left:${p[0]}px;top:${p[1]}px"></i>`).join('');
+    const nomi = m ? (m.fams.length > 1 ? String(m.fams[0].nome || '').trim() + ' +' + (m.fams.length - 1) : String(m.fams[0].nome || '').trim()) : '';
+    const over = m && m.coperti > e.posti;
+    const info = salaEdit ? `${e.posti} posti` : (m ? `${m.coperti}/${e.posti}` : `${e.posti} posti`);
+    const cls = `pz tavolo forma-${e.forma} stato-${stato}${sel ? ' sel' : ''}${(!salaEdit && assegnaFam) ? ' target' : ''}`;
+    const inner = `${sedie}<span class="pz-in" style="${contro}"><span class="tav-nome">${esc(e.nome)}</span>${nomi ? `<span class="tav-fam">${esc(nomi)}</span>` : ''}<span class="tav-info${over ? ' over' : ''}">${info}</span></span>${handles}`;
+    return salaEdit ? `<div class="${cls}"${ed} style="${stile}">${inner}</div>`
+                    : `<button class="${cls}" style="${stile}" onclick="salaTavolo('${e.id}')">${inner}</button>`;
+  }).join('');
 
-  let celle = '';
-  if (salaEdit) for (let y = 0; y < room.rows; y++) for (let x = 0; x < room.cols; x++) celle += `<div class="sala-cell" style="grid-column:${x + 1};grid-row:${y + 1}"></div>`;
-  const canvas = `<div class="sala-canvas${salaEdit ? ' edit' : ''}" style="--cols:${room.cols};--rows:${room.rows}">${celle}${room.tavoli.map(cellaTav).join('')}</div>`;
-
-  let barra = '';
-  if (salaEdit) {
-    barra = `<div class="sala-edit-bar">
-      <input class="finput" style="max-width:200px;height:40px" value="${esc(room.nome)}" onchange="salaRinomina(this.value)" aria-label="Nome sala">
-      <button class="sala-btn" onclick="salaAggiungi()">+ Tavolo</button>
-      <span class="sala-dim">Colonne <button onclick="salaDim('cols',-1)">−</button><b>${room.cols}</b><button onclick="salaDim('cols',1)">+</button></span>
-      <span class="sala-dim">Righe <button onclick="salaDim('rows',-1)">−</button><b>${room.rows}</b><button onclick="salaDim('rows',1)">+</button></span>
-    </div>
-    <div class="sala-edit-hint">Trascina i tavoli per spostarli, toccane uno per cambiare nome, posti e forma.</div>
-    <div class="sala-edit-foot"><button class="mcancel" onclick="salaAnnulla()">Annulla</button><button class="msave" onclick="salvaPianta()">Salva pianta</button></div>`;
-  }
-
-  const legenda = salaEdit ? '' : `<div class="sala-legenda">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
-
-  let senza = '';
-  if (!salaEdit) {
-    const lista = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim()));
-    const banner = assegnaFam
-      ? `<div class="sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
-    senza = banner + `<div class="sala-senza"><div class="sala-senza-t">Senza tavolo <span>${lista.length}</span></div>${
-      lista.length ? `<div class="sala-chips">${lista.map(f => `<button class="sala-chip${assegnaFam === f.id ? ' sel' : ''}" onclick="salaPrendi('${f.id}')">${esc(f.nome)} <span>${ospitiFamiglia(f)}</span>${f.tavolo ? '<em>' + esc(f.tavolo) + ' non in pianta</em>' : ''}</button>`).join('')}</div>`
-                   : '<div class="oggi-empty">Tutte le famiglie hanno un tavolo.</div>'}</div>`;
-  }
-
-  const modBtn = (!salaEdit && isAdminSess()) ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '';
-  return `<div class="oggi-card sala-card">
-    <div class="sala-head"><div class="seg-row sala-rooms">${tabs}</div>${modBtn}</div>
-    ${barra}${canvas}${legenda}${senza}
+  const modBtn = salaEdit
+    ? `<button class="sala-btn ghost" onclick="salaAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salvaPianta()">Salva pianta</button>`
+    : (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
+  const legRiga = ['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('');
+  const legenda = salaEdit ? '' : `<div class="hud hud-bl sala-legenda">${legRiga}</div>`;
+  const banner = (!salaEdit && assegnaFam)
+    ? `<div class="hud hud-top sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
+  const btnPannello = `<button class="hud hud-br sala-fab" onclick="salaPannello()">${salaEdit ? 'Strumenti' : 'Famiglie'}${(!salaEdit && badge) ? `<b>${badge}</b>` : ''}</button>`;
+  return `<div class="sala-wrap${salaPannelloAperto ? ' panel-open' : ''}${salaEdit ? ' edit' : ''}">
+    <div class="sala-stage" id="pianta-wrap"><div class="pianta-box" id="pianta-box"><div class="pianta${salaEdit ? ' edit' : ''}" id="pianta">${els}</div></div></div>
+    ${modBtn ? `<div class="hud hud-tr">${modBtn}</div>` : ''}
+    <div class="hud hud-bc"><div class="seg-row sala-rooms">${tabs}</div></div>
+    ${banner}${legenda}${btnPannello}
+    <aside class="sala-drawer${salaPannelloAperto ? ' open' : ''}"><button class="sala-x" onclick="salaPannello()" aria-label="Chiudi">✕</button>${pannello}</aside>
   </div>`;
 }
 
-function salaScegli(i) { salaIdx = i; renderOggi(); }
-function salaPrendi(famId) { assegnaFam = (assegnaFam === famId) ? null : famId; renderOggi(); }
+// Adatta la tela alla larghezza (e all'altezza) disponibile
+function adattaPianta() {
+  const wrap = document.getElementById('pianta-wrap'), box = document.getElementById('pianta-box');
+  if (!wrap || !box) return;
+  const L = wrap.clientWidth || 800, A = wrap.clientHeight || 500;
+  // La pianta riempie tutto lo spazio (si adatta senza tagliare); sotto 0.5 si scorre
+  let s = Math.min((L - 24) / SALA_W, (A - 24) / SALA_H, 2.2);
+  s = Math.max(0.5, s);
+  _salaScale = s;
+  box.style.setProperty('--s', s);
+  wrap.classList.toggle('scroll', s * SALA_W > L || s * SALA_H > A);
+}
+window.addEventListener('resize', adattaPianta);
+
+function htmlSenzaTavolo(presenti) {
+  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
+  const lista = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim()));
+  return `<div class="sp-sez"><div class="sp-t">Senza tavolo <span>${lista.length}</span></div>${
+    lista.length ? `<div class="sala-chips">${lista.map(f => `<button class="sala-chip${assegnaFam === f.id ? ' sel' : ''}" onclick="salaPrendi('${f.id}')">${esc(f.nome)} <span>${ospitiFamiglia(f)}</span>${f.tavolo ? '<em>' + esc(f.tavolo) + ' non in pianta</em>' : ''}</button>`).join('')}</div><div class="oggi-empty">Tocca una famiglia, poi il tavolo.</div>`
+                : '<div class="oggi-empty">Tutte le famiglie hanno un tavolo.</div>'}</div>`;
+}
+
+function salaScegli(i) { salaIdx = i; salaSel = null; renderOggi(); }
+function salaPrendi(famId) { assegnaFam = (assegnaFam === famId) ? null : famId; if (assegnaFam) salaPannelloAperto = false; renderOggi(); }
+function salaPannello() { salaPannelloAperto = !salaPannelloAperto; renderOggi(); }
 
 function salaTavolo(id) {
   const x = salaTavoliTutti().find(y => y.t.id === id);
@@ -1688,125 +1687,155 @@ function assegnaDaSheet() {
 }
 
 // ── EDITOR PIANTA (solo admin) ──────────────────────────────────────────────
-function salaModifica() { salaDraft = JSON.parse(JSON.stringify(SALA)); salaEdit = true; assegnaFam = null; renderOggi(); }
-function salaAnnulla() { salaEdit = false; salaDraft = null; renderOggi(); }
-function salaRinomina(v) { const n = String(v).trim(); if (n) salaDraft.sale[salaIdx].nome = n; renderOggi(); }
+function salaModifica() { salaDraft = JSON.parse(JSON.stringify(SALA)); salaEdit = true; salaSel = null; assegnaFam = null; salaPannelloAperto = true; renderOggi(); }
+function salaAnnulla() { salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = false; renderOggi(); }
+function salaRoom() { return salaDraft.sale[salaIdx]; }
+function salaElSel() { return salaEdit && salaSel ? salaRoom().el.find(e => e.id === salaSel) : null; }
+const quanta = v => Math.round(v / SALA_SNAP) * SALA_SNAP;
 
-function salaLibera(room, x, y, w, ignoraId) {
-  if (x < 0 || y < 0 || x + w > room.cols || y >= room.rows) return false;
-  return !room.tavoli.some(t => t.id !== ignoraId && t.y === y && (t.forma === 'lungo' ? 2 : 1) > 0 && x < t.x + (t.forma === 'lungo' ? 2 : 1) && t.x < x + w);
-}
 function salaNomeLibero() {
-  const usati = new Set(); salaDraft.sale.forEach(s => s.tavoli.forEach(t => usati.add(t.nome)));
-  let n = 1; while (usati.has('T' + n)) n++;
+  const usati = new Set(); salaDraft.sale.forEach(s => s.el.forEach(t => { if (t.tipo === 'tavolo') usati.add(t.nome.toLowerCase()); }));
+  let n = 1; while (usati.has('t' + n)) n++;
   return 'T' + n;
 }
-function salaAggiungi() {
-  const room = salaDraft.sale[salaIdx];
-  for (let y = 0; y < room.rows; y++) for (let x = 0; x < room.cols; x++) {
-    if (salaLibera(room, x, y, 1, null)) {
-      const nome = salaNomeLibero();
-      room.tavoli.push({ id: 'n' + Date.now().toString(36) + Math.floor(Math.random() * 1000), nome, posti: 4, x, y, forma: 'quadrato' });
-      renderOggi(); return;
-    }
-  }
-  showToast('Pianta piena: aggiungi righe o colonne');
+function salaNuovo(tipo, forma) {
+  const room = salaRoom();
+  const base = { tavolo: { w: forma === 'rettangolo' ? 190 : 110, h: 110 }, muro: { w: 260, h: 12 }, zona: { w: 300, h: 180 }, testo: { w: 180, h: 40 } }[tipo];
+  const off = (room.el.length % 8) * 20;
+  const e = { id: 'e' + Date.now().toString(36) + Math.floor(Math.random() * 1000), tipo, rot: 0, ...base,
+    x: quanta((SALA_W - base.w) / 2 + off), y: quanta((SALA_H - base.h) / 2 + off) };
+  if (tipo === 'tavolo') { e.nome = salaNomeLibero(); e.posti = 4; e.forma = forma || 'quadrato'; }
+  if (tipo === 'zona') e.testo = 'Zona';
+  if (tipo === 'testo') e.testo = 'Testo';
+  room.el.push(e); salaSel = e.id; renderOggi();
 }
-function salaDim(campo, delta) {
-  const room = salaDraft.sale[salaIdx];
-  const v = room[campo] + delta;
-  if (v < 3 || v > 12) return;
-  if (delta < 0 && room.tavoli.some(t => campo === 'cols' ? (t.x + (t.forma === 'lungo' ? 2 : 1) > v) : (t.y + 1 > v))) { showToast('Sposta prima i tavoli che finirebbero fuori'); return; }
-  room[campo] = v; renderOggi();
+function salaDuplica() {
+  const e = salaElSel(); if (!e) return;
+  const c = JSON.parse(JSON.stringify(e));
+  c.id = 'e' + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  c.x = Math.min(SALA_W - 20, e.x + 30); c.y = Math.min(SALA_H - 20, e.y + 30);
+  if (c.tipo === 'tavolo') c.nome = salaNomeLibero();
+  salaRoom().el.push(c); salaSel = c.id; renderOggi();
+}
+function salaElimina() {
+  const e = salaElSel(); if (!e) return;
+  if (e.tipo === 'tavolo' && !confirm(`Eliminare il tavolo "${e.nome}"? Le famiglie assegnate resteranno senza tavolo.`)) return;
+  salaRoom().el = salaRoom().el.filter(x => x.id !== e.id); salaSel = null; renderOggi();
+}
+function salaRuota(d) { const e = salaElSel(); if (!e) return; e.rot = ((Math.round(e.rot) + d) % 360 + 360) % 360; renderOggi(); }
+function salaProp(k, v) {
+  const e = salaElSel(); if (!e) return;
+  if (k === 'nome') {
+    const nome = String(v).trim();
+    if (!nome) { showToast('Il tavolo ha bisogno di un nome'); renderOggi(); return; }
+    if (salaDraft.sale.some(s => s.el.some(x => x.tipo === 'tavolo' && x.id !== e.id && x.nome.toLowerCase() === nome.toLowerCase()))) { showToast('Esiste già un tavolo con questo nome'); renderOggi(); return; }
+    e.nome = nome;
+  } else if (k === 'posti') e.posti = Math.max(1, Math.min(30, parseInt(v) || 1));
+  else if (k === 'forma') { e.forma = v; if (v !== 'rettangolo') e.h = e.w; else if (e.w === e.h) e.w = Math.round(e.h * 1.7 / 10) * 10; }
+  else if (k === 'testo') e.testo = String(v);
+  else if (k === 'w' || k === 'h') { e[k] = Math.max(10, Math.min(900, quanta(parseInt(v) || 10))); if (e.tipo === 'tavolo' && e.forma !== 'rettangolo') { e.w = e.h = e[k]; } }
+  else if (k === 'rot') e.rot = ((parseInt(v) || 0) % 360 + 360) % 360;
+  renderOggi();
 }
 
-// Trascinamento dei tavoli (mouse e dito): un tocco senza spostamento apre il dettaglio.
+function htmlStrumenti() {
+  const e = salaElSel();
+  const btn = (lbl, tipo, forma) => `<button class="sala-btn ghost" onclick="salaNuovo('${tipo}'${forma ? ",'" + forma + "'" : ''})">${lbl}</button>`;
+  let insp = '<div class="oggi-empty">Tocca un elemento della pianta per modificarlo.</div>';
+  if (e) {
+    const campo = (lbl, k, val, tipo) => `<label class="ins-f"><span>${lbl}</span><input class="minput" type="${tipo || 'text'}" value="${esc(String(val))}" onchange="salaProp('${k}',this.value)"></label>`;
+    insp = `<div class="ins-grid">
+      ${e.tipo === 'tavolo' ? campo('Nome', 'nome', e.nome) + campo('Posti', 'posti', e.posti, 'number')
+        + `<label class="ins-f"><span>Forma</span><select class="mselect" style="margin:0" onchange="salaProp('forma',this.value)">${Object.entries(SALA_FORME).map(([k, v]) => `<option value="${k}"${k === e.forma ? ' selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
+      ${(e.tipo === 'zona' || e.tipo === 'testo') ? campo('Testo', 'testo', e.testo) : ''}
+      ${campo(e.tipo === 'muro' ? 'Lunghezza' : 'Larghezza', 'w', e.w, 'number')}
+      ${(e.tipo === 'tavolo' && e.forma !== 'rettangolo') ? '' : campo(e.tipo === 'muro' ? 'Spessore' : 'Altezza', 'h', e.h, 'number')}
+      ${campo('Rotazione °', 'rot', Math.round(e.rot), 'number')}
+    </div>
+    <div class="ins-az"><button class="sala-btn ghost" onclick="salaRuota(-15)">↺ 15°</button><button class="sala-btn ghost" onclick="salaRuota(15)">↻ 15°</button><button class="sala-btn ghost" onclick="salaDuplica()">Duplica</button><button class="sala-btn danger" onclick="salaElimina()">Elimina</button></div>`;
+  }
+  return `<div class="sp-sez"><div class="sp-t">Aggiungi</div><div class="ins-add">${btn('Tavolo tondo', 'tavolo', 'tondo')}${btn('Tavolo quadrato', 'tavolo', 'quadrato')}${btn('Tavolo rettangolare', 'tavolo', 'rettangolo')}${btn('Muro', 'muro')}${btn('Zona', 'zona')}${btn('Testo', 'testo')}</div></div>
+    <div class="sp-sez"><div class="sp-t">Elemento selezionato</div>${insp}</div>
+    <div class="oggi-empty">Trascina per spostare, usa i pallini per ridimensionare e ruotare. La rinomina di un tavolo aggiorna anche le famiglie assegnate.</div>`;
+}
+
+// Trascinamento, ridimensionamento e rotazione (mouse e dito)
 let _drag = null;
 document.addEventListener('pointerdown', e => {
   if (!salaEdit) return;
-  const tav = e.target.closest && e.target.closest('.tav[data-edit="1"]');
-  if (!tav) return;
-  const canvas = tav.closest('.sala-canvas'); const room = salaDraft.sale[salaIdx];
-  const t = room.tavoli.find(x => x.id === tav.dataset.id); if (!t) return;
-  _drag = { tav, rect: canvas.getBoundingClientRect(), room, t, sx: e.clientX, sy: e.clientY, moved: false };
-  try { tav.setPointerCapture(e.pointerId); } catch (err) {}
+  const pian = e.target.closest && e.target.closest('#pianta');
+  if (!pian) return;
+  const pz = e.target.closest('.pz[data-id]');
+  if (!pz) { if (salaSel) { salaSel = null; renderOggi(); } return; }
+  const el = salaRoom().el.find(x => x.id === pz.dataset.id); if (!el) return;
+  const mode = e.target.closest('.h-rot') ? 'rot' : e.target.closest('.h-resize') ? 'res' : 'move';
+  if (salaSel !== el.id) { document.querySelectorAll('.pz.sel').forEach(n => n.classList.remove('sel')); pz.classList.add('sel'); salaSel = el.id; }
+  _drag = { mode, pz, el, sx: e.clientX, sy: e.clientY, o: { x: el.x, y: el.y, w: el.w, h: el.h, rot: el.rot }, moved: false };
+  try { pz.setPointerCapture(e.pointerId); } catch (err) {}
   e.preventDefault();
 });
 document.addEventListener('pointermove', e => {
   if (!_drag) return;
-  const dx = e.clientX - _drag.sx, dy = e.clientY - _drag.sy;
-  if (!_drag.moved && Math.hypot(dx, dy) < 6) return;
-  _drag.moved = true; _drag.tav.classList.add('dragging');
-  _drag.tav.style.transform = `translate(${dx}px,${dy}px)`;
+  const d = _drag, s = _salaScale;
+  const dx = (e.clientX - d.sx), dy = (e.clientY - d.sy);
+  if (!d.moved && Math.hypot(dx, dy) < 4) return;
+  d.moved = true;
+  const o = d.o, el = d.el;
+  if (d.mode === 'move') {
+    el.x = Math.max(-o.w / 2, Math.min(SALA_W - o.w / 2, quanta(o.x + dx / s)));
+    el.y = Math.max(-o.h / 2, Math.min(SALA_H - o.h / 2, quanta(o.y + dy / s)));
+  } else if (d.mode === 'res') {
+    const r = o.rot * Math.PI / 180, c = Math.cos(r), sn = Math.sin(r);
+    const lx = (dx * c + dy * sn) / s, ly = (-dx * sn + dy * c) / s;
+    let w = Math.max(20, quanta(o.w + lx)), h = Math.max(10, quanta(o.h + ly));
+    if (el.tipo === 'tavolo' && el.forma !== 'rettangolo') { w = h = Math.max(w, h); }
+    if (el.tipo === 'muro') h = o.h;
+    // l'angolo in alto a sinistra resta fermo anche con il tavolo ruotato
+    const R = (px, py) => [px * c - py * sn, px * sn + py * c];
+    const cx0 = o.x + o.w / 2, cy0 = o.y + o.h / 2;
+    const tl = R(-o.w / 2, -o.h / 2), nw = R(w / 2, h / 2);
+    const cx = cx0 + tl[0] + nw[0], cy = cy0 + tl[1] + nw[1];
+    el.w = w; el.h = h; el.x = Math.round(cx - w / 2); el.y = Math.round(cy - h / 2);
+  } else {
+    const b = d.pz.getBoundingClientRect();
+    const ang = Math.atan2(e.clientY - (b.top + b.height / 2), e.clientX - (b.left + b.width / 2)) * 180 / Math.PI + 90;
+    el.rot = (Math.round(ang / 15) * 15 + 360) % 360;
+  }
+  const st = d.pz.style;
+  st.left = el.x + 'px'; st.top = el.y + 'px'; st.width = el.w + 'px'; st.height = el.h + 'px'; st.transform = `rotate(${el.rot}deg)`;
 });
-document.addEventListener('pointerup', e => {
-  if (!_drag) return;
-  const d = _drag; _drag = null;
-  if (!d.moved) { apriEditorTavolo(d.t.id); return; }
-  const cw = d.rect.width / d.room.cols, ch = d.rect.height / d.room.rows;
-  const nx = Math.round(d.t.x + (e.clientX - d.sx) / cw), ny = Math.round(d.t.y + (e.clientY - d.sy) / ch);
-  if (salaLibera(d.room, nx, ny, d.t.forma === 'lungo' ? 2 : 1, d.t.id)) { d.t.x = nx; d.t.y = ny; }
-  renderOggi();
+document.addEventListener('pointerup', () => { if (!_drag) return; _drag = null; renderOggi(); });
+document.addEventListener('pointercancel', () => { if (!_drag) return; const d = _drag; _drag = null; Object.assign(d.el, d.o); renderOggi(); });
+document.addEventListener('keydown', e => {
+  if (!salaEdit || !salaSel) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test((e.target.tagName || ''))) return;
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); salaElimina(); }
 });
-document.addEventListener('pointercancel', () => { if (_drag) { _drag = null; renderOggi(); } });
-
-function apriEditorTavolo(id) {
-  const t = salaDraft.sale[salaIdx].tavoli.find(x => x.id === id); if (!t) return;
-  tavoloAperto = id;
-  document.getElementById('mt-title').textContent = 'Modifica tavolo';
-  document.getElementById('mt-sub').textContent = salaDraft.sale[salaIdx].nome;
-  document.getElementById('mt-body').innerHTML = `
-    <div class="mlabel">Nome</div><input class="minput" id="mt-nome" type="text" value="${esc(t.nome)}">
-    <div class="mlabel">Posti</div><input class="minput" id="mt-posti" type="number" min="1" max="30" value="${t.posti}">
-    <div class="mlabel">Forma</div><select class="mselect" id="mt-forma" style="margin-bottom:12px">${Object.entries(SALA_FORME).map(([k, v]) => `<option value="${k}"${k === t.forma ? ' selected' : ''}>${v}</option>`).join('')}</select>
-    <button class="sala-btn danger" onclick="eliminaTavoloDraft()">Elimina tavolo</button>`;
-  document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Annulla</button><button class="msave" onclick="applicaEditorTavolo()">Applica</button>';
-  document.getElementById('modal-tavolo').classList.remove('hidden');
-}
-function applicaEditorTavolo() {
-  const room = salaDraft.sale[salaIdx];
-  const t = room.tavoli.find(x => x.id === tavoloAperto); if (!t) return chiudiTavolo();
-  const nome = document.getElementById('mt-nome').value.trim();
-  const posti = Math.max(1, parseInt(document.getElementById('mt-posti').value) || 1);
-  const forma = document.getElementById('mt-forma').value;
-  if (!nome) { showToast('Inserisci il nome del tavolo'); return; }
-  if (salaDraft.sale.some(s => s.tavoli.some(x => x.id !== t.id && x.nome.toLowerCase() === nome.toLowerCase()))) { showToast('Esiste già un tavolo con questo nome'); return; }
-  const w = forma === 'lungo' ? 2 : 1;
-  if (!salaLibera(room, t.x, t.y, w, t.id)) { showToast('Non c\'è spazio per questa forma: sposta il tavolo'); return; }
-  t.nome = nome; t.posti = posti; t.forma = forma;
-  chiudiTavolo(); renderOggi();
-}
-function eliminaTavoloDraft() {
-  const room = salaDraft.sale[salaIdx];
-  const t = room.tavoli.find(x => x.id === tavoloAperto); if (!t) return;
-  if (!confirm(`Eliminare il tavolo "${t.nome}"? Le famiglie assegnate resteranno senza tavolo.`)) return;
-  room.tavoli = room.tavoli.filter(x => x.id !== t.id);
-  chiudiTavolo(); renderOggi();
-}
 
 async function salvaPianta() {
   const nomi = new Set();
-  for (const s of salaDraft.sale) for (const t of s.tavoli) {
+  for (const s of salaDraft.sale) for (const t of s.el) if (t.tipo === 'tavolo') {
     const k = t.nome.trim().toLowerCase();
     if (!k) { showToast('Un tavolo non ha il nome'); return; }
     if (nomi.has(k)) { showToast(`Nome duplicato: ${t.nome}`); return; }
     nomi.add(k);
   }
   // Tavoli rinominati: le famiglie già assegnate seguono il nuovo nome.
-  const vecchi = {}; SALA.sale.forEach(s => s.tavoli.forEach(t => { vecchi[t.id] = t.nome; }));
+  const vecchi = {}; SALA.sale.forEach(s => s.el.forEach(t => { if (t.tipo === 'tavolo') vecchi[t.id] = t.nome; }));
   const ren = {};
-  salaDraft.sale.forEach(s => s.tavoli.forEach(t => { if (vecchi[t.id] && vecchi[t.id] !== t.nome) ren[vecchi[t.id]] = t.nome; }));
+  salaDraft.sale.forEach(s => s.el.forEach(t => { if (t.tipo === 'tavolo' && vecchi[t.id] && vecchi[t.id] !== t.nome) ren[vecchi[t.id]] = t.nome; }));
   const { db, doc, setDoc, writeBatch } = window._fb;
   try {
-    await setDoc(doc(db, 'impostazioni', SALA_DOC), { sale: salaDraft.sale });
+    const pulita = { versione: 2, sale: salaDraft.sale.map(s => ({ id: s.id, nome: s.nome, el: s.el.map(salaClean) })) };
+    await setDoc(doc(db, 'impostazioni', SALA_DOC), pulita);
     const daAgg = famiglieDocs.filter(f => ren[String(f.tavolo || '')]);
     if (daAgg.length) {
       const batch = writeBatch(db);
       daAgg.forEach(f => batch.set(doc(db, 'famiglie_ristorazione', f.id), { tavolo: ren[String(f.tavolo)] }, { merge: true }));
       await batch.commit();
     }
-    SALA = JSON.parse(JSON.stringify(salaDraft));
-    salaEdit = false; salaDraft = null;
+    SALA = salaNormalizza(pulita);
+    salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = false;
     aggiornaDatalistTavoli();
     showToast('Pianta salvata');
   } catch (e) { showToast('Errore salvataggio pianta'); console.error(e); }
@@ -3216,28 +3245,6 @@ function mostraQR(nome, codice) {
 function generaCodice() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
-}
-
-// ── SETTINGS ──────────────────────────────────────────────────────────────────
-function openSettings() {
-  document.getElementById('main-view').classList.add('hidden');
-  document.getElementById('settings-view').classList.remove('hidden');
-  document.getElementById('top-bar-main').style.display = 'none';
-  document.getElementById('top-bar-settings').style.display = 'block';
-  renderFamiglie();
-  catMenuDraft = null;
-  renderCategorieMenu();
-  bambiniMenuDraft = null;
-  renderMenuBambini();
-  document.getElementById('printer-test-result').textContent = '';
-  aggiornaStatoStampante();
-}
-
-function closeSettings() {
-  document.getElementById('main-view').classList.remove('hidden');
-  document.getElementById('settings-view').classList.add('hidden');
-  document.getElementById('top-bar-main').style.display = '';
-  document.getElementById('top-bar-settings').style.display = 'none';
 }
 
 // ── AUTH / SESSION ────────────────────────────────────────────────────────────
