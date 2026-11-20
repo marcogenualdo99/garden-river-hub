@@ -16,7 +16,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch }
+  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch, deleteField }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -34,7 +34,7 @@
   const db   = getFirestore(app);
   const auth = getAuth(app);
 
-  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch };
+  window._fb = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, getDocsFromServer, onSnapshot, updateDoc, query, where, arrayUnion, writeBatch, deleteField };
 
   function ready() {
     if (window._fbReady) return;
@@ -86,7 +86,7 @@
 
 /* ── MAIN ── */
 main{max-width:none;margin:0;padding:18px 20px 80px}
-#sec-menu,#sec-ospiti,#sec-impostazioni{max-width:980px;margin:0 auto}
+#sec-menu,#sec-ospiti,#sec-impostazioni,#sec-prenotazioni{max-width:980px;margin:0 auto}
 #sec-cucina>.kds-toolbar>.date-nav,#sec-cucina>.kds-toolbar>.kds-seg{max-width:460px;margin-left:auto;margin-right:auto}
 .sec{display:none}
 .sec.active{display:block}
@@ -532,6 +532,66 @@ body.vista-sala main{padding:0;max-width:none}
 .ins-f{display:flex;flex-direction:column;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500)}
 .ins-f .minput{height:40px;margin:0;font-size:14px}
 .ins-az{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── PRENOTAZIONI ── */
+.pr-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.pr-title{font-size:22px;font-weight:800;color:var(--gray-900)}
+.pr-strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;margin-bottom:6px;scrollbar-width:none}
+.pr-strip::-webkit-scrollbar{display:none}
+.pr-pill{flex:0 0 auto;width:54px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border:1.5px solid var(--gray-200);border-radius:16px;background:#fff;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.pr-pill.active{background:var(--green-700);border-color:var(--green-700);color:#fff}
+.pr-g{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500)}
+.pr-n{font-size:19px;font-weight:800;line-height:1.1;color:var(--gray-900)}
+.pr-c{font-size:11px;font-weight:800;color:var(--gray-400,#9CA3AF)}
+.pr-c.on{color:var(--green-700)}
+.pr-pill.active .pr-g,.pr-pill.active .pr-n,.pr-pill.active .pr-c,.pr-pill.active .pr-c.on{color:#fff}
+.pr-day{font-size:15px;font-weight:800;color:var(--gray-900);margin:6px 0 12px}
+.pr-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:14px}
+.pr-card.pr-off{opacity:.6}
+.pr-card-h{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.pr-card-h b{font-size:16px}
+.pr-card-h span{flex:1;font-size:12px;color:var(--gray-500);font-weight:600}
+.pr-turno{border-top:1px solid var(--gray-100);padding:10px 0 4px}
+.pr-ora{display:flex;align-items:baseline;gap:10px;font-size:15px;font-weight:800;color:var(--green-700);margin-bottom:6px}
+.pr-ora span{font-size:12px;font-weight:700;color:var(--gray-500)}
+.pr-row{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;border:1.5px solid var(--gray-100);border-radius:14px;background:var(--gray-50);cursor:pointer;text-align:left;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.pr-row:active{background:var(--gray-100)}
+.pr-nome{flex:1;min-width:0;font-size:14px;font-weight:800;color:var(--gray-900);display:flex;flex-direction:column;gap:2px}
+.pr-nome em{font-style:normal;font-size:11px;font-weight:600;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-pers{font-size:18px;font-weight:800;color:var(--green-700);white-space:nowrap}
+.pr-pers small{font-size:11px;font-weight:700;color:var(--gray-500)}
+.pr-tav{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--green-50);color:var(--green-700);white-space:nowrap}
+.pr-tav.vuoto{background:#FFFBEB;color:#B45309}
+.pr-senza{border-top:1px solid var(--gray-100);margin-top:6px;padding-top:4px}
+.pr-senza>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;padding:8px 0;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500)}
+.pr-senza>summary::-webkit-details-marker{display:none}
+.tn-serv{border:1.5px solid var(--gray-100);border-radius:14px;padding:12px;margin-bottom:12px}
+.tn-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.tn-on{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gray-600,#4B5563)}
+.tn-row{display:flex;gap:8px;margin-bottom:8px}
+.tn-row .minput{margin:0;flex:1}
+
+
+.pr-head-az{display:flex;gap:8px}
+.pr-head-az .sala-btn{display:inline-flex;align-items:center;gap:6px}
+.pr-head-az svg{width:16px;height:16px}
+.pr-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 12px}
+.pr-bar .pr-day{margin:0}
+.pr-seg{width:240px;margin:0}
+.pr-sum{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;font-size:13px;color:var(--gray-500);font-weight:600}
+.pr-sum b{font-size:22px;color:var(--gray-900)}
+.pr-vuoto{background:#fff;border-radius:var(--radius-lg);padding:28px 16px;text-align:center;color:var(--gray-500);font-size:14px;font-weight:600;box-shadow:var(--shadow-sm)}
+.pr-turno{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:12px 14px 6px;margin-bottom:12px;border-top:0}
+.pr-nome .pr-tag{align-self:flex-start;margin:2px 0 0}
+.pr-tag{font-style:normal;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;background:#EEF2FF;color:#4F46E5;border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:middle}
+.pr-print{width:34px;height:34px;border:none;border-radius:10px;background:var(--gray-100);color:var(--gray-600,#4B5563);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.pr-print svg{width:16px;height:16px}
+.pr-row{cursor:pointer}
+.pr-tav{min-width:34px;text-align:center}
+.sp-chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;font-weight:700;color:var(--gray-900);line-height:1.4}
+.sp-chk small{display:block;font-weight:500;color:var(--gray-500);margin-top:2px}
+.sp-chk input{margin-top:4px;width:18px;height:18px}
+
 body.monitor{background:#0f1117;overflow:hidden}
 body.monitor .rs-side,body.monitor .rs-top,body.monitor .rs-overlay{display:none!important}
 body.monitor .rs-main{margin-left:0}
@@ -595,6 +655,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div>
   <nav class="rs-nav" id="rs-nav">
     <button class="rs-item active" data-tab="sala"   onclick="switchTab('sala')"><span data-icon="RISTORAZIONE"></span>Sala</button>
+    <button class="rs-item"        data-tab="prenotazioni" onclick="switchTab('prenotazioni')"><span data-icon="CALENDAR"></span>Prenotazioni</button>
     <button class="rs-item"        data-tab="cucina" onclick="switchTab('cucina')"><span data-icon="UTENSILS"></span>Cucina</button>
     <button class="rs-item"        data-tab="menu"   onclick="switchTab('menu')"><span data-icon="BOOK"></span>Menu</button>
     <button class="rs-item"        data-tab="ospiti" onclick="switchTab('ospiti')"><span data-icon="USER"></span>Ospiti</button>
@@ -633,6 +694,13 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
       <div class="sala-stats" id="sala-stats"></div>
     </div>
     <div id="oggi-body"><div class="empty-state">Caricamento...</div></div>
+  </div>
+
+  <!-- PRENOTAZIONI -->
+  <div class="sec" id="sec-prenotazioni">
+    <div class="pr-head"><div class="pr-title">Prenotazioni</div><div class="pr-head-az"><button class="sala-btn ghost" onclick="apriStampaPren()"><span data-icon="PRINT"></span>Stampa</button><button class="sala-btn" onclick="apriPren('',prData,prServ)">+ Nuova</button></div></div>
+    <div class="pr-strip" id="pr-strip"></div>
+    <div id="pr-body"></div>
   </div>
 
   <!-- CUCINA -->
@@ -757,6 +825,12 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   <!-- IMPOSTAZIONI -->
   <div class="sec" id="sec-impostazioni">
   <div class="settings-row2">
+    <div class="add-fam-card" style="margin-top:0">
+      <h3>Orari e turni</h3>
+      <div style="font-size:12px;color:var(--gray-500);margin-bottom:12px;line-height:1.5">Turni di pranzo e cena per le prenotazioni del ristorante. Gli orari si possono cambiare in qualsiasi momento: le prenotazioni già fatte restano.</div>
+      <div id="turni-settings"></div>
+    </div>
+
     <div class="add-fam-card" style="margin-top:0">
       <h3>Stampante termica</h3>
       <div style="font-size:13px;color:var(--gray-600);margin-bottom:10px;line-height:1.5">Le stampanti si gestiscono dalla Hub, in Impostazioni &rsaquo; Stampanti. Le comande escono sulla stampante associata al servizio &laquo;Comande ristorazione&raquo;.</div>
@@ -982,6 +1056,65 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div>
 </div>
 
+<!-- MODAL PRENOTAZIONE -->
+<div id="modal-pren" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:92vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title" id="mp-title">Nuova prenotazione</div>
+    <input type="hidden" id="mp-tipo" value="fam">
+    <div id="mp-tipo-riga" class="seg-row" style="margin-bottom:14px">
+      <button class="seg-btn active" id="mp-t-fam" onclick="prTipo('fam')">Ospite in pensione</button>
+      <button class="seg-btn" id="mp-t-lib" onclick="prTipo('libera')">Cliente libero</button>
+    </div>
+    <div id="mp-blocco-fam">
+      <div class="mlabel">Famiglia</div>
+      <select class="mselect" id="mp-fam" onchange="prFamCambiata()" style="margin-bottom:12px"></select>
+    </div>
+    <div id="mp-blocco-lib">
+      <div class="mlabel">Nome</div>
+      <input class="minput" id="mp-nome" type="text" placeholder="Nome e cognome">
+      <div class="mlabel">Telefono (facoltativo)</div>
+      <input class="minput" id="mp-tel" type="tel" placeholder="Telefono">
+    </div>
+    <div class="mlabel">Data</div>
+    <input class="minput" id="mp-data" type="date" style="font-size:14px">
+    <div class="mlabel">Servizio</div>
+    <select class="mselect" id="mp-pasto" onchange="prAggiornaTurni()" style="margin-bottom:12px"></select>
+    <div class="mlabel">Turno</div>
+    <select class="mselect" id="mp-turno" style="margin-bottom:12px"></select>
+    <div class="mlabel">Persone <span id="mp-max" style="text-transform:none;letter-spacing:0;font-weight:600"></span></div>
+    <input class="minput" id="mp-persone" type="number" min="1" max="60">
+    <div class="mlabel">Tavolo (facoltativo)</div>
+    <select class="mselect" id="mp-tavolo" style="margin-bottom:12px"></select>
+    <div class="mlabel">Note</div>
+    <textarea class="minput" id="mp-note" rows="2" placeholder="es. seggiolone, festeggiamento…" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
+    <div class="mbtns">
+      <button class="mcancel" onclick="chiudiPren()">Annulla</button>
+      <button class="msave" onclick="salvaPren()">Salva</button>
+    </div>
+    <div id="mp-azioni-edit" style="display:none;margin-top:10px;gap:8px">
+      <button class="sala-btn ghost" style="flex:1" onclick="stampaPrenDaModale()">Stampa</button>
+      <button class="sala-btn danger" style="flex:1" onclick="eliminaPren()">Elimina</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STAMPA PRENOTAZIONI -->
+<div id="modal-stampa-pren" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box">
+    <div class="modal-title">Stampa riepilogo</div>
+    <div class="mlabel">Giorno</div>
+    <input class="minput" id="sp-data" type="date" style="font-size:14px">
+    <div class="mlabel">Servizio</div>
+    <select class="mselect" id="sp-serv" style="margin-bottom:12px"></select>
+    <label class="sp-chk"><input type="checkbox" id="sp-pens" checked> Includi le pensioni <small>(prenotazioni degli ospiti in pensione e quanti non hanno prenotato). Se lo togli, solo i clienti liberi.</small></label>
+    <div class="mbtns" style="margin-top:16px">
+      <button class="mcancel" onclick="chiudiStampaPren()">Annulla</button>
+      <button class="msave" style="background:#fff;color:var(--orange);border:2px solid var(--orange)" onclick="eseguiStampaPren('a4')">A4 / PDF</button>
+      <button class="msave" onclick="eseguiStampaPren('termica')">Termica</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL TAVOLO (dettaglio in servizio / editor in modifica pianta) -->
 <div id="modal-tavolo" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
   <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
@@ -1111,11 +1244,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   startOggi();
   loadSala();
   loadUnioni();
+  loadTurni();
+  loadPrenLibere();
   avviaDaUrl();
 });
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
-const TAB_TITOLI = { sala:'Sala', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', impostazioni:'Impostazioni' };
+const TAB_TITOLI = { sala:'Sala', prenotazioni:'Prenotazioni', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', impostazioni:'Impostazioni' };
 function switchTab(tab) {
   if (tab === 'report') { tab = 'cucina'; setCucinaVista('totali'); }  // vecchio nome della scheda
   if (!TAB_TITOLI[tab]) tab = 'sala';
@@ -1130,11 +1265,13 @@ function switchTab(tab) {
   document.body.classList.toggle('vista-sala', tab === 'sala');
   if (tab === 'sala') renderOggi();
   if (tab === 'ospiti') renderFamiglie();
+  if (tab === 'prenotazioni') renderPrenotazioni();
   if (tab === 'impostazioni') {
     catMenuDraft = null; renderCategorieMenu();
     bambiniMenuDraft = null; renderMenuBambini();
     const r = document.getElementById('printer-test-result'); if (r) r.textContent = '';
     aggiornaStatoStampante();
+    turniDraft = null; renderTurniSettings();
   }
   // Rimuovi print-area se esiste
   const pa = document.getElementById('print-area');
@@ -1173,15 +1310,7 @@ function calcolaPastiGiorno(targetDate, pasto, ordini, ordiniAltro) {
     return false;
   }).filter(f => !haOrdine(ordini, f));
 
-  const attese = famiglieDocs.filter(f => {
-    if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
-    if (f.checkout && f.checkout <= targetDate) return false; // partono oggi o già partite
-    if (f.checkin === targetDate) {
-      if (f.ora_arrivo === 'dopo_pranzo' && pasto === 'pranzo') return false;
-      if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
-    }
-    return true;
-  }).filter(f => !(f.trattamento === 'MP' && haOrdine(ordiniAltro, f) && !haOrdine(ordini, f))); // MP che mangia solo l'altro pasto: non è atteso qui
+  const attese = famiglieAttesePasto(targetDate, pasto).filter(f => !(f.trattamento === 'MP' && haOrdine(ordiniAltro, f) && !haOrdine(ordini, f))); // MP che mangia solo l'altro pasto: non è atteso qui
   const senzaOrdine = attese.filter(f => {
     const haCorrente = haOrdine(ordini, f);
     if (f.trattamento === 'MP') return !haCorrente && !haOrdine(ordiniAltro, f); // MP: basta uno dei due pasti
@@ -1434,6 +1563,7 @@ function renderOggi() {
   const chipFam = (f, extra) => `<button class="sala-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">${esc(f.nome)} <span>${esc(extra || f.unita || '')}</span></button>`;
   const panel = `
     ${recuperi.length ? `<div class="sp-sez"><div class="sp-t">Recuperi pasti <span>${recuperi.length}</span></div><div class="sala-chips">${recuperi.map(f => chipFam(f, f.ora_arrivo === 'dopo_pranzo' ? 'colaz.+pranzo' : 'tutti i pasti')).join('')}</div></div>` : ''}
+    ${htmlPrenotazioniOggi()}
     <div class="sp-sez"><div class="sp-t">Senza ordine <span>${senzaOrdine.length}</span></div>${senzaOrdine.length ? `<div class="sala-chips">${senzaOrdine.map(f => chipFam(f)).join('')}</div>` : '<div class="oggi-empty">Tutti hanno ordinato.</div>'}</div>
     <details class="sp-det"${note.length ? ' open' : ''}><summary>Note e allergie <span>${note.length}</span></summary>${
       note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('') : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</details>
@@ -1448,6 +1578,443 @@ function renderOggi() {
   el.innerHTML = htmlPianta(ordini, presenti, pannello, nSenzaTavolo + senzaOrdine.length);
   adattaPianta();
   if (typeof hydrateIcons === 'function') hydrateIcons(el);
+}
+
+// ── PRENOTAZIONI DEL RISTORANTE ─────────────────────────────────────────────
+// Ogni prenotazione appartiene a una famiglia (anagrafica) e può riguardare solo
+// una parte del gruppo (campo `persone`). Stanno dentro il documento della famiglia
+// in `famiglie_ristorazione/{id}.prenotazioni.{idPren}` = {data, pasto, turno, persone,
+// tavolo, note}: nessuna collezione nuova e nessuna regola nuova, e l'Area ospite potrà
+// scrivere lo stesso campo (Cloud Function) quando verrà collegata.
+// Orari e turni si impostano da Impostazioni (doc impostazioni/ristorazione_turni).
+const TURNI_DEFAULT = { giorni: 15, servizi: [
+  { id: 'pranzo', nome: 'Pranzo', attivo: true, turni: ['12:30', '13:30'] },
+  { id: 'cena',   nome: 'Cena',   attivo: true, turni: ['19:30', '21:00'] }
+] };
+let TURNI = JSON.parse(JSON.stringify(TURNI_DEFAULT));
+let turniDraft = null;
+let prData = isoToday(0);
+let prEdit = null;               // { famId, id } della prenotazione in modifica (null = nuova)
+
+function turniNormalizza(d) {
+  const out = JSON.parse(JSON.stringify(TURNI_DEFAULT));
+  if (!d) return out;
+  out.giorni = Math.min(60, Math.max(1, parseInt(d.giorni) || 15));
+  (Array.isArray(d.servizi) ? d.servizi : []).forEach(s => {
+    const t = out.servizi.find(x => x.id === s.id); if (!t) return;
+    t.attivo = s.attivo !== false;
+    if (Array.isArray(s.turni)) t.turni = s.turni.map(String).filter(x => /^\d{1,2}:\d{2}$/.test(x)).sort();
+  });
+  return out;
+}
+function loadTurni() {
+  const { db, doc, onSnapshot } = window._fb;
+  try {
+    onSnapshot(doc(db, 'impostazioni', 'ristorazione_turni'), snap => {
+      TURNI = turniNormalizza(snap.exists() ? snap.data() : null);
+      if (currentTab === 'prenotazioni') renderPrenotazioni();
+      if (currentTab === 'impostazioni' && !turniDraft) renderTurniSettings();
+      if (currentTab === 'sala') renderOggi();
+    }, err => console.error('Turni snapshot:', err));
+  } catch (e) { console.error(e); }
+}
+
+// ── Impostazioni: orari e turni ──
+function renderTurniSettings() {
+  const el = document.getElementById('turni-settings'); if (!el) return;
+  if (!turniDraft) turniDraft = JSON.parse(JSON.stringify(TURNI));
+  el.innerHTML = `<div class="ins-f" style="margin-bottom:12px"><span>Giorni di prenotazione visibili</span><input class="minput" type="number" min="1" max="60" value="${turniDraft.giorni}" style="max-width:120px" onchange="turniGiorni(this.value)"></div>`
+    + turniDraft.servizi.map(s => `<div class="tn-serv">
+      <div class="tn-head"><b>${esc(s.nome)}</b><label class="tn-on"><input type="checkbox" ${s.attivo ? 'checked' : ''} onchange="turniAttivo('${s.id}',this.checked)"> Attivo</label></div>
+      <div class="tn-list">${s.turni.map((o, i) => `<div class="tn-row"><input class="minput" type="time" value="${esc(o)}" onchange="turnoSet('${s.id}',${i},this.value)"><button class="sala-btn danger" onclick="turnoDel('${s.id}',${i})" aria-label="Elimina turno">✕</button></div>`).join('') || '<div class="oggi-empty">Nessun turno: le prenotazioni useranno un orario libero.</div>'}</div>
+      <button class="sala-btn ghost" onclick="turnoAdd('${s.id}')">+ Aggiungi turno</button>
+    </div>`).join('')
+    + `<button onclick="salvaTurni()" style="width:100%;height:44px;margin-top:6px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva orari e turni</button>`;
+}
+function turniGiorni(v) { turniDraft.giorni = Math.min(60, Math.max(1, parseInt(v) || 15)); }
+function turniAttivo(sid, v) { turniDraft.servizi.find(s => s.id === sid).attivo = !!v; }
+function turnoSet(sid, i, v) { const s = turniDraft.servizi.find(x => x.id === sid); if (v) s.turni[i] = v; }
+function turnoDel(sid, i) { turniDraft.servizi.find(s => s.id === sid).turni.splice(i, 1); renderTurniSettings(); }
+function turnoAdd(sid) { const s = turniDraft.servizi.find(x => x.id === sid); s.turni.push(sid === 'pranzo' ? '12:00' : '20:00'); renderTurniSettings(); }
+async function salvaTurni() {
+  const d = turniNormalizza(turniDraft);
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db, 'impostazioni', 'ristorazione_turni'), d);
+    TURNI = d; turniDraft = null;
+    showToast('Orari e turni salvati');
+  } catch (e) { showToast('Errore salvataggio'); console.error(e); }
+  renderTurniSettings();
+}
+
+// ── Prenotazioni: dati ──
+// Due fonti, unite in un'unica lista:
+//  · famiglie_ristorazione/{id}.prenotazioni.{idPren}  → ospiti in pensione (legate all'anagrafica)
+//  · impostazioni/ristorazione_pren_libere.pren.{id}   → prenotazioni LIBERE, senza anagrafica
+//    (clienti esterni, ospiti senza pensione, telefonate): {nome, tel, data, pasto, turno, persone, tavolo, note}
+let PREN_LIBERE = {};
+let _prVisteInit = false;
+const _prViste = new Set();
+const BOT_URL = 'https://telegram-bot-113994721180.europe-west1.run.app';
+
+function loadPrenLibere() {
+  const { db, doc, onSnapshot } = window._fb;
+  try {
+    onSnapshot(doc(db, 'impostazioni', 'ristorazione_pren_libere'), snap => {
+      PREN_LIBERE = (snap.exists() && snap.data().pren) || {};
+      prControllaNuove();
+      if (currentTab === 'prenotazioni') renderPrenotazioni();
+      if (currentTab === 'sala') renderOggi();
+    }, err => console.error('Pren libere snapshot:', err));
+  } catch (e) { console.error(e); }
+}
+
+function tuttePrenotazioni() {
+  const out = [];
+  famiglieDocs.forEach(f => {
+    const m = f.prenotazioni;
+    if (!m || typeof m !== 'object') return;
+    Object.entries(m).forEach(([id, p]) => {
+      if (p && p.data) out.push({ ...p, id, famId: f.id, fam: f, libera: false, nome: f.nome || '—', unita: f.unita || '', tel: f.tel || '', totale: ospitiFamiglia(f) });
+    });
+  });
+  Object.entries(PREN_LIBERE || {}).forEach(([id, p]) => {
+    if (p && p.data) out.push({ ...p, id, famId: '', fam: null, libera: true, nome: p.nome || 'Cliente', unita: p.alloggio || '', tel: p.tel || '', totale: null });
+  });
+  return out;
+}
+
+// Avviso in pagina quando arriva una prenotazione fatta dall'ospite (Area ospite)
+function prControllaNuove() {
+  const tutte = tuttePrenotazioni();
+  if (!_prVisteInit) { tutte.forEach(p => _prViste.add(p.id)); _prVisteInit = (famiglieDocs.length > 0 || Object.keys(PREN_LIBERE).length > 0); return; }
+  tutte.forEach(p => {
+    if (_prViste.has(p.id)) return;
+    _prViste.add(p.id);
+    if (p.origine === 'ospite') showToast(`Nuova prenotazione: ${p.nome} · ${fmtDataBreve(p.data)} ${p.turno || ''} · ${p.persone} pers.`);
+  });
+}
+
+function notificaPren(azione, p) {
+  try {
+    const sess = JSON.parse(sessionStorage.getItem('gr_session') || '{}');
+    if (typeof fetchStaff !== 'function') return;
+    fetchStaff(BOT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evento: 'prenotazione', azione, nome: p.nome, alloggio: p.unita || '', data: p.data, pasto: p.pasto, turno: p.turno || '',
+        persone: p.persone, tavolo: p.tavolo || '', note: p.note || '', origine: 'staff', libera: !!p.libera, operatore: sess.nome || 'Staff' }) }).catch(() => {});
+  } catch (e) { /* mai bloccante */ }
+}
+
+function prGiorniLista() { return Array.from({ length: TURNI.giorni }, (_, i) => isoToday(i)); }
+function famiglieAttesePasto(data, pasto) {   // in struttura quel giorno e con diritto a quel pasto
+  return famiglieDocs.filter(f => {
+    if (f.checkin && f.checkin > data) return false;
+    if (f.checkout && f.checkout <= data) return false;
+    if (f.checkin === data) {
+      if (f.ora_arrivo === 'dopo_pranzo' && pasto === 'pranzo') return false;
+      if (f.ora_arrivo === 'sera') return false;
+    }
+    return true;
+  });
+}
+const persLbl = n => n + (n === 1 ? ' persona' : ' persone');
+let prServ = new Date().getHours() < 15 ? 'pranzo' : 'cena';
+function prSetData(d) { prData = d; renderPrenotazioni(); }
+function prSetServ(s) { prServ = s; renderPrenotazioni(); }
+
+// ── Vista Prenotazioni (pulita: un giorno, un servizio alla volta) ──
+function renderPrenotazioni() {
+  const strip = document.getElementById('pr-strip'), body = document.getElementById('pr-body');
+  if (!strip || !body) return;
+  const giorni = prGiorniLista();
+  if (!giorni.includes(prData)) prData = giorni[0];
+  const attivi = TURNI.servizi.filter(s => s.attivo);
+  if (attivi.length && !attivi.some(s => s.id === prServ)) prServ = attivi[0].id;
+  const tutte = tuttePrenotazioni();
+  const GS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+  strip.innerHTML = giorni.map(d => {
+    const dt = new Date(d + 'T12:00:00');
+    const n = tutte.filter(p => p.data === d).reduce((s, p) => s + (Number(p.persone) || 0), 0);
+    return `<button class="pr-pill${d === prData ? ' active' : ''}" onclick="prSetData('${d}')"><span class="pr-g">${GS[dt.getDay()]}</span><span class="pr-n">${dt.getDate()}</span><span class="pr-c${n ? ' on' : ''}">${n || ''}</span></button>`;
+  }).join('');
+
+  const delGiorno = tutte.filter(p => p.data === prData);
+  const tabs = attivi.map(s => {
+    const n = delGiorno.filter(p => p.pasto === s.id).reduce((a, p) => a + (Number(p.persone) || 0), 0);
+    return `<button class="seg-btn${s.id === prServ ? ' active' : ''}" onclick="prSetServ('${s.id}')">${esc(s.nome)}${n ? ` <span class="sala-n">${n}</span>` : ''}</button>`;
+  }).join('');
+  const s = attivi.find(x => x.id === prServ);
+  let html = `<div class="pr-bar"><div class="pr-day">${fmtDataLunga(prData)}${prData === isoToday(0) ? ' · oggi' : ''}</div><div class="seg-row pr-seg">${tabs}</div></div>`;
+  if (!s) { body.innerHTML = html + '<div class="oggi-empty">Nessun servizio attivo: attivali da Impostazioni.</div>'; return; }
+
+  const ps = delGiorno.filter(p => p.pasto === s.id);
+  const persone = ps.reduce((a, p) => a + (Number(p.persone) || 0), 0);
+  const ore = Array.from(new Set(ps.map(p => p.turno || ''))).sort();
+  html += `<div class="pr-sum"><b>${persLbl(persone)}</b><span>${ps.length} prenotazion${ps.length === 1 ? 'e' : 'i'}</span></div>`;
+  if (!ps.length) html += `<div class="pr-vuoto">Nessuna prenotazione per ${esc(s.nome.toLowerCase())}.<br><small>Turni: ${s.turni.length ? s.turni.map(esc).join(' · ') : 'orario libero'}</small></div>`;
+  ore.forEach(o => {
+    const r = ps.filter(p => (p.turno || '') === o).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+    const pers = r.reduce((a, p) => a + (Number(p.persone) || 0), 0);
+    html += `<div class="pr-turno"><div class="pr-ora">${o ? esc(o) : 'Senza orario'}<span>${persLbl(pers)}</span></div>${r.map(p => `
+      <div class="pr-row" onclick="apriPren('${p.famId}','${p.data}','${p.pasto}','${p.id}')">
+        <div class="pr-nome">${esc(p.nome)}${p.libera ? '<i class="pr-tag">Libera</i>' : ''}
+          <em>${[p.unita ? 'Alloggio ' + esc(p.unita) : '', p.tel ? esc(p.tel) : '', p.note ? esc(p.note) : ''].filter(Boolean).join(' · ') || '&nbsp;'}</em></div>
+        <div class="pr-pers">${p.persone}${(p.totale && Number(p.persone) < p.totale) ? '<small>/' + p.totale + '</small>' : ''}</div>
+        <div class="pr-tav${p.tavolo ? '' : ' vuoto'}">${p.tavolo ? esc(p.tavolo) : '—'}</div>
+        <button class="pr-print" onclick="event.stopPropagation();stampaPrenSingola('${p.id}')" aria-label="Stampa" title="Stampa prenotazione"><span data-icon="PRINT"></span></button>
+      </div>`).join('')}</div>`;
+  });
+  const senza = famiglieAttesePasto(prData, s.id).filter(f => !ps.some(p => p.famId === f.id));
+  if (senza.length) html += `<details class="pr-senza"><summary>Pensioni senza prenotazione <span>${senza.length}</span></summary><div class="sala-chips">${senza.map(f => `<button class="sala-chip" onclick="apriPren('${f.id}','${prData}','${s.id}')">${esc(f.nome)} <span>${ospitiFamiglia(f)}</span></button>`).join('')}</div></details>`;
+  body.innerHTML = html;
+  if (typeof hydrateIcons === 'function') hydrateIcons(body);
+}
+
+// ── Modale prenotazione ──
+function prOpzioniTurno(pasto, corrente) {
+  const s = TURNI.servizi.find(x => x.id === pasto) || { turni: [] };
+  const ore = s.turni.slice(); if (corrente && !ore.includes(corrente)) ore.push(corrente);
+  ore.sort();
+  return ore.length ? ore.map(o => `<option value="${esc(o)}"${o === corrente ? ' selected' : ''}>${esc(o)}</option>`).join('')
+                    : '<option value="">Senza orario</option>';
+}
+function prAggiornaTurni() {
+  const pasto = document.getElementById('mp-pasto').value;
+  document.getElementById('mp-turno').innerHTML = prOpzioniTurno(pasto, '');
+}
+function prFamCambiata() {
+  const f = famiglieDocs.find(x => x.id === document.getElementById('mp-fam').value);
+  document.getElementById('mp-max').textContent = f ? `(famiglia di ${ospitiFamiglia(f)})` : '';
+  if (f && !prEdit) document.getElementById('mp-persone').value = ospitiFamiglia(f);
+}
+function prTipo(t) {   // 'fam' (in pensione, da anagrafica) oppure 'libera'
+  document.getElementById('mp-tipo').value = t;
+  setSeg('mp-t-fam', 'mp-t-lib', t === 'fam');
+  document.getElementById('mp-blocco-fam').style.display = t === 'fam' ? '' : 'none';
+  document.getElementById('mp-blocco-lib').style.display = t === 'libera' ? '' : 'none';
+  document.getElementById('mp-max').textContent = '';
+  if (t === 'fam') prFamCambiata();
+}
+function apriPren(famId, data, pasto, id) {
+  prEdit = id ? { famId, id, libera: !famId } : null;
+  const oggi = isoToday(0);
+  const fine = prGiorniLista().slice(-1)[0];
+  const fams = famiglieDocs.filter(f => (!f.checkout || f.checkout > oggi) && (!f.checkin || f.checkin <= fine))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+  if (famId && !fams.some(f => f.id === famId)) { const x = famiglieDocs.find(f => f.id === famId); if (x) fams.push(x); }
+  const p = id ? (famId ? (((famiglieDocs.find(f => f.id === famId) || {}).prenotazioni || {})[id] || {}) : (PREN_LIBERE[id] || {})) : {};
+  document.getElementById('mp-title').textContent = id ? 'Modifica prenotazione' : 'Nuova prenotazione';
+  const sel = document.getElementById('mp-fam');
+  sel.innerHTML = '<option value="">Scegli la famiglia…</option>' + fams.map(f => `<option value="${f.id}">${esc(f.nome)} · All. ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} osp.</option>`).join('');
+  sel.value = famId || '';
+  document.getElementById('mp-tipo-riga').style.display = id ? 'none' : '';   // il tipo non si cambia in modifica
+  document.getElementById('mp-nome').value = p.nome || '';
+  document.getElementById('mp-tel').value = p.tel || '';
+  document.getElementById('mp-data').value = data || oggi;
+  document.getElementById('mp-data').min = oggi; document.getElementById('mp-data').max = fine;
+  document.getElementById('mp-pasto').innerHTML = TURNI.servizi.filter(s => s.attivo || s.id === pasto).map(s => `<option value="${s.id}"${s.id === (pasto || p.pasto || prServ) ? ' selected' : ''}>${esc(s.nome)}</option>`).join('');
+  document.getElementById('mp-turno').innerHTML = prOpzioniTurno(document.getElementById('mp-pasto').value, p.turno || '');
+  document.getElementById('mp-persone').value = p.persone || '';
+  prTipo(id ? (famId ? 'fam' : 'libera') : (famId ? 'fam' : (prEditTipoUltimo || 'fam')));
+  if (!p.persone && famId) prFamCambiata();
+  const tav = (typeof salaTavoliTutti === 'function') ? salaTavoliTutti() : [];
+  const sceltaTav = p.tavolo || '';
+  document.getElementById('mp-tavolo').innerHTML = '<option value="">Da assegnare</option>' + tav.map(x => `<option value="${esc(x.t.nome)}"${x.t.nome === sceltaTav ? ' selected' : ''}>${esc(x.t.nome)} · ${esc(x.s.nome)}</option>`).join('')
+    + (sceltaTav && !tav.some(x => x.t.nome === sceltaTav) ? `<option value="${esc(sceltaTav)}" selected>${esc(sceltaTav)}</option>` : '');
+  document.getElementById('mp-note').value = p.note || '';
+  document.getElementById('mp-azioni-edit').style.display = id ? 'flex' : 'none';
+  document.getElementById('modal-pren').classList.remove('hidden');
+}
+let prEditTipoUltimo = 'fam';
+function chiudiPren() { document.getElementById('modal-pren').classList.add('hidden'); prEdit = null; }
+
+function prLeggiModale() {
+  const tipo = document.getElementById('mp-tipo').value;
+  return { tipo, famId: document.getElementById('mp-fam').value, nome: document.getElementById('mp-nome').value.trim(), tel: document.getElementById('mp-tel').value.trim(),
+    data: document.getElementById('mp-data').value, pasto: document.getElementById('mp-pasto').value, turno: document.getElementById('mp-turno').value,
+    persone: parseInt(document.getElementById('mp-persone').value) || 0, tavolo: document.getElementById('mp-tavolo').value, note: document.getElementById('mp-note').value.trim() };
+}
+
+async function scriviLibera(id, obj) {
+  const { db, doc, setDoc, updateDoc, deleteField } = window._fb;
+  const ref = doc(db, 'impostazioni', 'ristorazione_pren_libere');
+  const upd = { ['pren.' + id]: obj };
+  const soglia = isoToday(-7);
+  Object.entries(PREN_LIBERE).forEach(([k, v]) => { if (v && v.data && v.data < soglia) upd['pren.' + k] = deleteField(); });   // pulizia delle vecchie
+  try { await updateDoc(ref, upd); }
+  catch (e) { await setDoc(ref, { pren: { [id]: obj } }, { merge: true }); }
+}
+
+async function salvaPren() {
+  const v = prLeggiModale();
+  if (!v.data || !v.pasto) { showToast('Indica data e servizio'); return; }
+  if (v.persone < 1) { showToast('Indica quante persone'); return; }
+  const id = prEdit ? prEdit.id : 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  const base = { data: v.data, pasto: v.pasto, turno: v.turno, persone: v.persone, tavolo: v.tavolo, note: v.note };
+  const { db, doc, updateDoc } = window._fb;
+  let nuova = null;
+  try {
+    if (v.tipo === 'fam') {
+      const f = famiglieDocs.find(x => x.id === v.famId);
+      if (!f) { showToast('Scegli la famiglia'); return; }
+      const tot = ospitiFamiglia(f);
+      const altre = tuttePrenotazioni().filter(p => p.famId === v.famId && p.data === v.data && p.pasto === v.pasto && !(prEdit && p.id === prEdit.id))
+        .reduce((s, p) => s + (Number(p.persone) || 0), 0);
+      if (v.persone + altre > tot) { showToast(`Troppe persone: la famiglia è di ${tot}${altre ? ` e ne ha già prenotate ${altre}` : ''}`); return; }
+      const prima = prEdit ? (((f.prenotazioni || {})[id]) || {}) : {};
+      const obj = { ...base, origine: prima.origine || 'staff', aggiornata: new Date().toISOString() };
+      await updateDoc(doc(db, 'famiglie_ristorazione', v.famId), { ['prenotazioni.' + id]: obj });
+      nuova = { ...obj, nome: f.nome, unita: f.unita, libera: false };
+    } else {
+      if (!v.nome) { showToast('Indica il nome del cliente'); return; }
+      const prima = prEdit ? (PREN_LIBERE[id] || {}) : {};
+      const obj = { ...base, nome: v.nome, tel: v.tel, alloggio: prima.alloggio || '', origine: prima.origine || 'staff', aggiornata: new Date().toISOString() };
+      await scriviLibera(id, obj);
+      PREN_LIBERE[id] = obj;
+      nuova = { ...obj, unita: obj.alloggio, libera: true };
+    }
+    prEditTipoUltimo = v.tipo;
+    notificaPren(prEdit ? 'modificata' : 'nuova', nuova);
+    showToast(prEdit ? 'Prenotazione aggiornata' : 'Prenotazione salvata');
+    prData = v.data; prServ = v.pasto;
+    chiudiPren();
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  renderPrenotazioni();
+}
+async function eliminaPren() {
+  if (!prEdit || !confirm('Eliminare la prenotazione?')) return;
+  const { db, doc, updateDoc, deleteField } = window._fb;
+  const att = tuttePrenotazioni().find(p => p.id === prEdit.id);
+  try {
+    if (prEdit.libera) { await updateDoc(doc(db, 'impostazioni', 'ristorazione_pren_libere'), { ['pren.' + prEdit.id]: deleteField() }); delete PREN_LIBERE[prEdit.id]; }
+    else await updateDoc(doc(db, 'famiglie_ristorazione', prEdit.famId), { ['prenotazioni.' + prEdit.id]: deleteField() });
+    if (att) notificaPren('annullata', att);
+    showToast('Prenotazione eliminata');
+    chiudiPren();
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  renderPrenotazioni();
+}
+function stampaPrenDaModale() { if (prEdit) stampaPrenSingola(prEdit.id); }
+
+// ── STAMPA PRENOTAZIONI ─────────────────────────────────────────────────────
+// Singola: scontrino termico (stesso canale delle comande). Riepilogo del giorno: termica o A4,
+// per uno o entrambi i servizi, con o senza le pensioni (prenotazioni legate alle famiglie in
+// pensione + conteggio di chi è in pensione ma non ha prenotato).
+const NOME_PASTO = { pranzo: 'Pranzo', cena: 'Cena' };
+const fmtDataIt = iso => new Date(iso + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+const dxRiga = (sx, dx, w) => { sx = String(sx); dx = String(dx); const sp = Math.max(1, w - sx.length - dx.length); return sx.slice(0, Math.max(0, w - dx.length - 1)) + ' '.repeat(sp) + dx; };
+
+async function stampaPrenSingola(id) {
+  const p = tuttePrenotazioni().find(x => x.id === id);
+  if (!p) return;
+  const T = txt => `<text>${escXml(txt)}&#10;</text>`;
+  const logo = await GRStampanti.logoPerStampa('report');
+  const r = [];
+  if (logo) r.push(logo);
+  r.push('<text font="font_a" align="center" em="true" height="2" width="2">PRENOTAZIONE&#10;</text>');
+  r.push(`<text font="font_a" align="center">${escXml(fmtDataIt(p.data))}&#10;</text>`, '<text>&#10;</text>');
+  r.push(`<text font="font_a" align="center" em="true" height="2" width="2">${escXml((NOME_PASTO[p.pasto] || p.pasto).toUpperCase())}${p.turno ? ' ' + escXml(p.turno) : ''}&#10;</text>`, '<text>&#10;</text>');
+  r.push(`<text font="font_a" align="center" em="true" height="3" width="3">${p.persone} PERS.&#10;</text>`, '<text>&#10;</text>');
+  r.push(`<text font="font_a" em="true" height="2" width="1">${escXml(p.nome)}&#10;</text>`);
+  if (p.unita) r.push(T('Alloggio ' + p.unita));
+  if (p.tel) r.push(T('Tel. ' + p.tel));
+  r.push(T(p.libera ? 'Cliente libero' : 'Ospite in pensione'));
+  if (p.tavolo) r.push('<text>&#10;</text>', `<text font="font_a" em="true" height="2" width="2">TAVOLO ${escXml(p.tavolo)}&#10;</text>`);
+  if (p.note) r.push('<text>&#10;</text>', T('Note: ' + p.note));
+  r.push('<text>&#10;</text>', '<cut type="feed"/>');
+  const res = await inviaEpos(null, buildEposXml(r, 'local_printer'), { manuale: true });
+  if (!res.ok && !res.annullata) alert(`Errore stampa: ${res.err || 'stampante non raggiungibile'}`);
+}
+
+// Dati del riepilogo: [{servizio, righe per turno, totali, pensioniSenza}]
+function prRiepilogo(data, servizi, conPensioni) {
+  const tutte = tuttePrenotazioni().filter(p => p.data === data && (conPensioni || p.libera));
+  return servizi.map(sid => {
+    const nome = (TURNI.servizi.find(s => s.id === sid) || {}).nome || sid;
+    const ps = tutte.filter(p => p.pasto === sid);
+    const ore = Array.from(new Set(ps.map(p => p.turno || ''))).sort();
+    const turni = ore.map(o => {
+      const r = ps.filter(p => (p.turno || '') === o).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+      return { ora: o, righe: r, persone: r.reduce((s, p) => s + (Number(p.persone) || 0), 0) };
+    });
+    let pens = null;
+    if (conPensioni) {
+      const senza = famiglieAttesePasto(data, sid).filter(f => !tuttePrenotazioni().some(p => p.data === data && p.pasto === sid && p.famId === f.id));
+      pens = { famiglie: senza.length, coperti: senza.reduce((s, f) => s + ospitiFamiglia(f), 0) };
+    }
+    return { sid, nome, turni, persone: ps.reduce((s, p) => s + (Number(p.persone) || 0), 0), n: ps.length, pens };
+  });
+}
+
+function apriStampaPren() {
+  const attivi = TURNI.servizi.filter(s => s.attivo);
+  document.getElementById('sp-data').value = prData;
+  document.getElementById('sp-data').min = isoToday(0); document.getElementById('sp-data').max = prGiorniLista().slice(-1)[0];
+  document.getElementById('sp-serv').innerHTML = '<option value="tutti">Tutti i servizi</option>' + attivi.map(s => `<option value="${s.id}"${s.id === prServ ? ' selected' : ''}>${esc(s.nome)}</option>`).join('');
+  document.getElementById('modal-stampa-pren').classList.remove('hidden');
+}
+function chiudiStampaPren() { document.getElementById('modal-stampa-pren').classList.add('hidden'); }
+
+async function eseguiStampaPren(formato) {
+  const data = document.getElementById('sp-data').value || prData;
+  const sv = document.getElementById('sp-serv').value;
+  const conPens = document.getElementById('sp-pens').checked;
+  const servizi = sv === 'tutti' ? TURNI.servizi.filter(s => s.attivo).map(s => s.id) : [sv];
+  const rie = prRiepilogo(data, servizi, conPens);
+  chiudiStampaPren();
+  if (formato === 'a4') return stampaPrenA4(data, rie, conPens);
+  const W = 42, T = txt => `<text>${escXml(txt)}&#10;</text>`;
+  const banda = txt => `<text reverse="true" font="font_a" em="true">${escXml((' ' + txt).padEnd(W))}</text><text reverse="false">&#10;</text>`;
+  const logo = await GRStampanti.logoPerStampa('report');
+  const r = [];
+  if (logo) r.push(logo);
+  r.push('<text font="font_a" align="center" em="true" height="2" width="2">PRENOTAZIONI&#10;</text>');
+  r.push(`<text font="font_a" align="center">${escXml(fmtDataIt(data))}&#10;</text>`);
+  r.push(`<text font="font_a" align="center">${conPens ? 'Con pensioni' : 'Solo clienti liberi (senza pensioni)'}&#10;</text>`, '<text>&#10;</text>');
+  rie.forEach(s => {
+    r.push(banda(`${s.nome.toUpperCase()}  ·  ${s.persone} pers.`));
+    if (!s.turni.length) r.push(T('Nessuna prenotazione'));
+    s.turni.forEach(t => {
+      r.push(`<text font="font_a" em="true">${escXml(dxRiga(t.ora || 'Senza orario', t.persone + ' pers.', W))}&#10;</text>`);
+      t.righe.forEach(p => {
+        r.push(T(dxRiga('  ' + p.nome + (p.libera ? '' : ' (pens.)'), 'x' + p.persone, W)));
+        const sub = [p.unita ? 'All. ' + p.unita : '', p.tel || '', p.tavolo ? 'Tav. ' + p.tavolo : '', p.note || ''].filter(Boolean).join(' · ');
+        if (sub) r.push(`<text font="font_b">${escXml('    ' + sub)}&#10;</text>`);
+      });
+    });
+    if (s.pens) r.push('<text>&#10;</text>', T(`Pensione senza prenotazione: ${s.pens.famiglie} fam. · ${s.pens.coperti} coperti`));
+    r.push('<text>&#10;</text>');
+  });
+  r.push('<cut type="feed"/>');
+  const res = await inviaEpos(null, buildEposXml(r, 'local_printer'), { manuale: true });
+  if (!res.ok && !res.annullata) alert(`Errore stampa: ${res.err || 'stampante non raggiungibile'}`);
+}
+
+function stampaPrenA4(data, rie, conPens) {
+  const old = document.getElementById('print-area'); if (old) old.remove();
+  const el = document.createElement('div'); el.id = 'print-area';
+  el.innerHTML = `<div class="print-page">
+    <div class="print-header"><h1>Prenotazioni · ${esc(fmtDataIt(data))}</h1><p>${conPens ? 'Con pensioni' : 'Solo clienti liberi (senza pensioni)'}</p></div>
+    ${rie.map(s => `<div class="print-riepilogo"><h2>${esc(s.nome)} · ${s.persone} persone · ${s.n} prenotazioni</h2>
+      ${s.turni.length ? s.turni.map(t => `<div style="margin:8px 0 2px;font-weight:700;font-size:14px">${t.ora ? esc(t.ora) : 'Senza orario'} <span style="font-weight:400;color:#555">· ${persLbl(t.persone)}</span></div>
+        ${t.righe.map(p => `<div class="print-riepilogo-row"><span>${esc(p.nome)}${p.libera ? '' : ' (pensione)'}${p.unita ? ' · All. ' + esc(p.unita) : ''}${p.tel ? ' · ' + esc(p.tel) : ''}${p.tavolo ? ' · Tavolo ' + esc(p.tavolo) : ''}${p.note ? ' · ' + esc(p.note) : ''}</span><span>${p.persone}</span></div>`).join('')}`).join('') : '<div class="print-riepilogo-row"><span>Nessuna prenotazione</span><span></span></div>'}
+      ${s.pens ? `<div style="margin-top:8px;font-size:12px;color:#555">Pensione senza prenotazione: ${s.pens.famiglie} famiglie · ${s.pens.coperti} coperti</div>` : ''}
+    </div>`).join('')}</div>`;
+  document.body.appendChild(el);
+  window.print();
+}
+
+// Per la Sala: prenotazioni di oggi nel pasto selezionato (sola lettura)
+function htmlPrenotazioniOggi() {
+  const oggi = isoToday(0);
+  const s = TURNI.servizi.find(x => x.id === oggiPasto);
+  if (!s || !s.attivo) return '';
+  const ps = tuttePrenotazioni().filter(p => p.data === oggi && p.pasto === oggiPasto)
+    .sort((a, b) => String(a.turno).localeCompare(String(b.turno)) || String(a.nome).localeCompare(String(b.nome), 'it'));
+  const persone = ps.reduce((a, p) => a + (Number(p.persone) || 0), 0);
+  return `<div class="sp-sez"><div class="sp-t">Prenotazioni · ${esc(s.nome.toLowerCase())} <span>${ps.length ? persone + ' pers.' : ''}</span></div>${
+    ps.length ? ps.map(p => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(p.nome)}${p.libera ? ' <i class="pr-tag">Libera</i>' : ''}</div><div class="oggi-row-meta">${esc(p.turno || 'Senza orario')} · ${persLbl(Number(p.persone) || 0)}${p.tavolo ? ' · Tavolo ' + esc(p.tavolo) : ''}</div></div></div>`).join('')
+              : '<div class="oggi-empty">Nessuna prenotazione per questo servizio.</div>'}<button class="sala-btn ghost" style="margin-top:8px;width:100%" onclick="switchTab('prenotazioni')">Apri prenotazioni</button></div>`;
 }
 
 // ── SALA: pianta libera ─────────────────────────────────────────────────────
@@ -2996,6 +3563,7 @@ function startFamiglie() {
       famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
       renderFamiglie();
       if (typeof renderOggi === 'function') renderOggi();
+      if (typeof prControllaNuove === 'function') { prControllaNuove(); if (currentTab === 'prenotazioni') renderPrenotazioni(); }
       if (primaVolta) { primaVolta = false; resolve(); }
     }, (err) => {
       console.error('Famiglie snapshot:', err);

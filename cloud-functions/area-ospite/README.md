@@ -80,3 +80,11 @@ Senza le variabili resta attivo il fallback con link PayPal.Me (se compilato in 
 - Con la carta l'ordine nasce `in_attesa_pagamento` (nascosto a Hub e ospite, giacenza scalata). Solo `shop_paypal_cattura` riuscita lo porta a `nuovo`, lo segna `pagato` e manda UN messaggio Telegram (con metodo e stato). Se l'ospite annulla (`shop_annulla_attesa`) o dopo 30 minuti la giacenza torna disponibile (`abbandonato` / `scaduto`).
 - PayPal: intent AUTHORIZE → controllo circuito (solo Visa, Mastercard, Maestro, `SHOP_CARTE_OK`) e importo → capture; altrimenti void dell'autorizzazione.
 - Importo minimo carta: `impostazioni/shop.carta_min` (default 5 euro), controllato anche lato server.
+
+### Prenotazione tavolo (Ristorazione)
+- Azioni: `ristorazione_prenota_info` (giorni prenotabili, servizi e turni attivi, persone del gruppo, prenotazioni dell'ospite), `ristorazione_prenota`, `ristorazione_prenota_annulla`.
+- Dove si scrive: ospite in pensione → `famiglie_ristorazione/{id}.prenotazioni.{idPren}`; ospite senza pasti inclusi → `impostazioni/ristorazione_pren_libere.pren.{idPren}` (con `calendario_id`). Campi: `data, pasto, turno, persone, tavolo, note, origine:'ospite', aggiornata`.
+- Orari/turni/giorni: `impostazioni/ristorazione_turni` (li imposta lo staff in Ristorazione > Impostazioni; default pranzo 12:30/13:30, cena 19:30/21:00, 15 giorni).
+- Regole server: giorno tra oggi (o arrivo) e partenza entro `giorni`; turno valido e non a meno di 30 minuti; persone 1..ospiti del gruppo (sommando le prenotazioni dello stesso servizio); niente doppioni sullo stesso turno; massimo 12 prenotazioni future per ospite; si annullano solo le proprie e solo se il turno non è passato.
+- Ogni prenotazione/annullamento avvisa Telegram (gruppo Ristorazione) con l'evento `prenotazione` del bot; la CF `telegram-bot` copia l'avviso in `notifiche` per l'app.
+- Ridistribuire anche `telegram-bot` (nuovo evento) oltre ad `area-ospite`.

@@ -1590,6 +1590,191 @@ def _azione_ristorazione_ordina(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
 
 
+# ── Prenotazione tavolo (l'ospite prenota da solo) ──────────────────────────
+# Le prenotazioni di chi e' in pensione stanno sull'anagrafica (famiglie_ristorazione/{id}.prenotazioni.{idPren});
+# quelle di chi non ha pasti inclusi in impostazioni/ristorazione_pren_libere.pren.{idPren} con il
+# riferimento alla prenotazione del Calendario. Orari e turni: impostazioni/ristorazione_turni
+# (li modifica lo staff da Ristorazione > Impostazioni). Ogni nuova prenotazione avvisa il gruppo
+# Telegram Ristorazione (e l'app) con l'evento 'prenotazione' del bot.
+
+PREN_TURNI_DEFAULT = {'giorni': 15, 'servizi': [
+    {'id': 'pranzo', 'nome': 'Pranzo', 'attivo': True, 'turni': ['12:30', '13:30']},
+    {'id': 'cena', 'nome': 'Cena', 'attivo': True, 'turni': ['19:30', '21:00']}]}
+PREN_ANTICIPO_MIN = 30          # minuti: non si prenota un turno che sta per iniziare
+PREN_MAX_ATTIVE = 12            # prenotazioni future attive per ospite (anti-abuso)
+PREN_LIBERE_DOC = ('impostazioni', 'ristorazione_pren_libere')
+
+
+def _pren_turni(db):
+    import copy
+    out = copy.deepcopy(PREN_TURNI_DEFAULT)
+    try:
+        snap = db.collection('impostazioni').document('ristorazione_turni').get()
+        d = (snap.to_dict() or {}) if snap.exists else {}
+        try:
+            out['giorni'] = min(60, max(1, int(d.get('giorni') or 15)))
+        except (TypeError, ValueError):
+            pass
+        for sv in (d.get('servizi') or []):
+            t = next((x for x in out['servizi'] if x['id'] == _s(sv.get('id'), 10)), None)
+            if not t:
+                continue
+            t['attivo'] = sv.get('attivo') is not False
+            if isinstance(sv.get('turni'), list):
+                t['turni'] = sorted(x for x in (_s(o, 5) for o in sv['turni']) if re.match(r'^\d{1,2}:\d{2}$', x))
+    except Exception as e:
+        print(f'Lettura turni non riuscita: {e}')
+    return out
+
+
+def _pren_ospiti(p):
+    try:
+        return max(1, int(p.get('adulti') or 0) + int(p.get('bambini') or 0))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _pren_lista(db, pren_id, fam_id):
+    """Prenotazioni tavolo di questo ospite: [{id, data, pasto, turno, persone, note, dove}]."""
+    out = []
+    if fam_id:
+        snap = db.collection('famiglie_ristorazione').document(fam_id).get()
+        for k, v in ((snap.to_dict() or {}).get('prenotazioni') or {}).items() if snap.exists else []:
+            if isinstance(v, dict) and v.get('data'):
+                out.append((k, v, 'fam'))
+    lib = db.collection(PREN_LIBERE_DOC[0]).document(PREN_LIBERE_DOC[1]).get()
+    for k, v in ((lib.to_dict() or {}).get('pren') or {}).items() if lib.exists else []:
+        if isinstance(v, dict) and v.get('data') and _s(v.get('calendario_id'), 80) == pren_id:
+            out.append((k, v, 'lib'))
+    res = [{'id': k, 'data': _s(v.get('data'), 10), 'pasto': _s(v.get('pasto'), 10), 'turno': _s(v.get('turno'), 5),
+            'persone': int(v.get('persone') or 0), 'note': _s(v.get('note'), 200), 'dove': dove} for k, v, dove in out]
+    res.sort(key=lambda x: (x['data'], x['turno']))
+    return res
+
+
+def _pren_finestra(p, oggi, giorni):
+    """(primo, ultimo) giorno prenotabili: da oggi (o dall'arrivo) fino a giorni-1, mai oltre la partenza."""
+    primo = max(oggi, _s(p.get('checkin'), 10) or oggi)
+    ultimo = (datetime.strptime(oggi, '%Y-%m-%d') + timedelta(days=giorni - 1)).strftime('%Y-%m-%d')
+    out = _s(p.get('checkout'), 10)
+    if out and out < ultimo:
+        ultimo = out
+    return primo, ultimo
+
+
+def _pren_turno_scaduto(data, turno, ora):
+    """True se il turno e' gia' passato (o troppo vicino) rispetto ad adesso."""
+    oggi = ora.strftime('%Y-%m-%d')
+    if data < oggi:
+        return True
+    if data > oggi or not turno:
+        return False
+    try:
+        h, m = [int(x) for x in turno.split(':')]
+    except ValueError:
+        return False
+    return (h * 60 + m) - (ora.hour * 60 + ora.minute) < PREN_ANTICIPO_MIN
+
+
+def _azione_ristorazione_prenota_info(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    fam_id, _ = _risto_famiglia(db, pren_ref.id)
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    cfg = _pren_turni(db)
+    primo, ultimo = _pren_finestra(p, oggi, cfg['giorni'])
+    giorni, d = [], primo
+    while d <= ultimo:
+        giorni.append(d)
+        d = (datetime.strptime(d, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+    lista = [x for x in _pren_lista(db, pren_ref.id, fam_id) if x['data'] >= oggi]
+    return _json(origin, {'ok': True, 'oggi': oggi, 'ora': ora.strftime('%H:%M'), 'giorni': giorni,
+                          'servizi': [s for s in cfg['servizi'] if s['attivo']],
+                          'ospiti': _pren_ospiti(p), 'prenotazioni': lista})
+
+
+def _azione_ristorazione_prenota(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    fam_id, fam = _risto_famiglia(db, pren_ref.id)
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    cfg = _pren_turni(db)
+    giorno = _s(data.get('data'), 10)
+    pasto = _s(data.get('pasto'), 10)
+    turno = _s(data.get('turno'), 5)
+    sv = next((x for x in cfg['servizi'] if x['id'] == pasto and x['attivo']), None)
+    if not sv:
+        return _json(origin, {'ok': False, 'errore': 'servizio_non_valido'}, 400)
+    if sv['turni'] and turno not in sv['turni']:
+        return _json(origin, {'ok': False, 'errore': 'turno_non_valido'}, 400)
+    primo, ultimo = _pren_finestra(p, oggi, cfg['giorni'])
+    if not (primo <= giorno <= ultimo):
+        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+    if _pren_turno_scaduto(giorno, turno, ora):
+        return _json(origin, {'ok': False, 'errore': 'turno_passato'}, 409)
+    try:
+        persone = int(data.get('persone') or 0)
+    except (TypeError, ValueError):
+        persone = 0
+    totale = _pren_ospiti(p)
+    if persone < 1 or persone > totale:
+        return _json(origin, {'ok': False, 'errore': 'persone_non_valide'}, 400)
+    lista = _pren_lista(db, pren_ref.id, fam_id)
+    attive = [x for x in lista if x['data'] >= oggi]
+    if len(attive) >= PREN_MAX_ATTIVE:
+        return _json(origin, {'ok': False, 'errore': 'troppe_prenotazioni'}, 409)
+    stesso = [x for x in attive if x['data'] == giorno and x['pasto'] == pasto]
+    if any(x['turno'] == turno for x in stesso):
+        return _json(origin, {'ok': False, 'errore': 'gia_prenotato'}, 409)
+    if sum(x['persone'] for x in stesso) + persone > totale:
+        return _json(origin, {'ok': False, 'errore': 'persone_superate'}, 409)
+    nome = _s(p.get('nome'), 80) or (_s((fam or {}).get('nome'), 80) if fam else '')
+    alloggio = _s(p.get('alloggio_nome'), 40)
+    note = _s(data.get('note'), 200)
+    import uuid
+    pid = 'o' + uuid.uuid4().hex[:10]
+    adesso = _now_iso()
+    if fam_id:
+        db.collection('famiglie_ristorazione').document(fam_id).update({
+            f'prenotazioni.{pid}': {'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'tavolo': '', 'note': note,
+                                    'origine': 'ospite', 'aggiornata': adesso}})
+    else:
+        db.collection(PREN_LIBERE_DOC[0]).document(PREN_LIBERE_DOC[1]).set({'pren': {pid: {
+            'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'tavolo': '', 'note': note,
+            'nome': nome, 'alloggio': alloggio, 'tel': _s(p.get('tel'), 30), 'calendario_id': pren_ref.id,
+            'origine': 'ospite', 'aggiornata': adesso}}}, merge=True)
+    _risto_notifica({'evento': 'prenotazione', 'azione': 'nuova', 'origine': 'ospite', 'nome': nome, 'alloggio': alloggio,
+                     'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'note': note, 'libera': not fam_id,
+                     'tel': _s(p.get('tel'), 30)})
+    return _json(origin, {'ok': True, 'prenotazioni': [x for x in _pren_lista(db, pren_ref.id, fam_id) if x['data'] >= oggi]})
+
+
+def _azione_ristorazione_prenota_annulla(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    fam_id, _ = _risto_famiglia(db, pren_ref.id)
+    pid = _s(data.get('id'), 40)
+    ora = datetime.now(TZ_ROMA)
+    mia = next((x for x in _pren_lista(db, pren_ref.id, fam_id) if x['id'] == pid), None)   # solo le proprie prenotazioni
+    if not mia:
+        return _json(origin, {'ok': False, 'errore': 'non_trovata'}, 404)
+    if _pren_turno_scaduto(mia['data'], mia['turno'], ora):
+        return _json(origin, {'ok': False, 'errore': 'turno_passato'}, 409)
+    if mia['dove'] == 'fam':
+        db.collection('famiglie_ristorazione').document(fam_id).update({f'prenotazioni.{pid}': firestore.DELETE_FIELD})
+    else:
+        db.collection(PREN_LIBERE_DOC[0]).document(PREN_LIBERE_DOC[1]).update({f'pren.{pid}': firestore.DELETE_FIELD})
+    _risto_notifica({'evento': 'prenotazione', 'azione': 'annullata', 'origine': 'ospite', 'nome': _s(p.get('nome'), 80),
+                     'alloggio': _s(p.get('alloggio_nome'), 40), 'data': mia['data'], 'pasto': mia['pasto'], 'turno': mia['turno'],
+                     'persone': mia['persone'], 'note': mia['note'], 'libera': mia['dove'] != 'fam'})
+    return _json(origin, {'ok': True, 'prenotazioni': [x for x in _pren_lista(db, pren_ref.id, fam_id) if x['data'] >= ora.strftime('%Y-%m-%d')]})
+
+
 MANUT_CATEGORIE = ('Elettrico', 'Idraulico', 'Climatizzazione', 'Altro')
 MANUT_MAX_AL_GIORNO = 5          # segnalazioni per prenotazione al giorno (anti-abuso)
 
@@ -2204,6 +2389,9 @@ AZIONI = {
     'staff_riapri':            _azione_staff_riapri,
     'ristorazione_menu':       _azione_ristorazione_menu,
     'ristorazione_ordina':     _azione_ristorazione_ordina,
+    'ristorazione_prenota_info':    _azione_ristorazione_prenota_info,
+    'ristorazione_prenota':         _azione_ristorazione_prenota,
+    'ristorazione_prenota_annulla': _azione_ristorazione_prenota_annulla,
     'shop_catalogo':           _azione_shop_catalogo,
     'shop_prodotto':           _azione_shop_prodotto,
     'shop_ordina':             _azione_shop_ordina,

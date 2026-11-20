@@ -426,10 +426,47 @@ def _evento(data):
                               data.get('piatti') if isinstance(data.get('piatti'), list) else None, data.get('note'), data.get('unita'))
     if ev == 'shop_ordine':
         return _notifica_shop(data)
+    if ev == 'prenotazione':
+        return _invia(['ristorazione'], _testo_prenotazione(data))
     if ev == 'test':
         t = f"🔔 Notifica di test (richiesta da {_e(data.get('richiesto_da'), 40) or 'Staff'})"
         return _invia(list(_canali()), t)
     return None
+
+
+# ── Prenotazioni tavolo ────────────────────────────────────────────────────
+
+def _testo_prenotazione(data):
+    """Avviso al gruppo Ristorazione per una prenotazione tavolo nuova, modificata o annullata.
+    Arriva dallo staff (pagina Ristorazione) o dall'ospite (Area ospite)."""
+    azione = str(data.get('azione') or 'nuova')
+    da_ospite = data.get('origine') == 'ospite'
+    pasto = {'pranzo': 'Pranzo', 'cena': 'Cena'}.get(str(data.get('pasto') or ''), 'Pasto')
+    quando = _label_giorno(str(data.get('data') or ''))
+    persone = _e(data.get('persone'), 4)
+    turno = _e(data.get('turno'), 8)
+    if azione == 'annullata':
+        titolo = '❌ <b>Prenotazione tavolo ANNULLATA</b>' + (" dall'ospite" if da_ospite else '')
+    elif azione == 'modificata':
+        titolo = '✏️ <b>Prenotazione tavolo modificata</b>' + (" dall'ospite" if da_ospite else '')
+    else:
+        titolo = '🍽️ <b>Nuova prenotazione tavolo</b>' + (" dall'Area ospite" if da_ospite else '')
+    righe = [titolo]
+    chi = _e(data.get('nome'), 80) or 'Ospite'
+    alloggio = _e(data.get('alloggio'), 40)
+    righe.append(f"👤 <b>{chi}</b>" + (f" · {alloggio}" if alloggio else '') + (' · cliente libero' if data.get('libera') else ''))
+    righe.append(f"🕐 {pasto} di {quando}" + (f" · <b>{turno}</b>" if turno else '') + f" · <b>{persone} persone</b>")
+    if data.get('tavolo'):
+        righe.append(f"🪑 Tavolo {_e(data.get('tavolo'), 40)}")
+    tel = _e(data.get('tel') or data.get('telefono'), 40)
+    if tel:
+        righe.append(f"📞 {tel}")
+    note = _e(data.get('note'), 300)
+    if note:
+        righe.append(f"{'⚠️ <b>NOTE</b>:' if _nota_delicata(note) else '📝'} <i>{note}</i>")
+    if not da_ospite and data.get('operatore'):
+        righe.append(f"<i>da {_e(data.get('operatore'), 40)}</i>")
+    return '\n'.join(righe)
 
 
 # ── Ordini ristorazione ────────────────────────────────────────────────────

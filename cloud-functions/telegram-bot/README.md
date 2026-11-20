@@ -58,3 +58,6 @@ Prova senza inviare nulla: aggiungi `"dry_run":true` al corpo, la risposta conti
 
 ## 7. Notifiche nell'app Garden Hub (V2)
 Ogni messaggio inviato ai gruppi viene copiato in Firestore `notifiche` (reparti, titolo, testo, ts; solo ultime 24 h). L'app sul V2 le legge e mostra una notifica Android per i reparti scelti in Hub > campana > "Notifiche su questo dispositivo". Serve la regola `notifiche` (lettura staff, scrittura solo Admin SDK) e il redeploy di `telegram-bot`.
+
+### Evento `prenotazione` (prenotazioni tavolo)
+`{evento:'prenotazione', azione:'nuova'|'modificata'|'annullata', nome, alloggio, data, pasto, turno, persone, tavolo, note, tel, libera, origine:'staff'|'ospite', operatore}` → messaggio al gruppo Ristorazione (e copia in `notifiche` per l'app). Lo mandano la pagina Ristorazione dello staff e l'Area ospite.

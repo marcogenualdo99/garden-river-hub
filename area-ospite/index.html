@@ -454,6 +454,7 @@
   #rs-sheet h4 { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--green-700); margin: 10px 0 4px } #rs-sheet h4:first-child { margin-top: 0 }
   #rs-sheet .r { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 4px 0; border-bottom: 1px solid var(--gray-100) } #rs-sheet .r em { font-style: normal; font-size: 10.5px; font-weight: 800; color: #B45309 }
   #rs-sheet .n { font-size: 12px; color: var(--gray-500); margin-top: 6px }
+
   #rs-toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); background: var(--gray-900); color: #fff; padding: 11px 18px; border-radius: 999px; font: 700 13.5px var(--font); opacity: 0; pointer-events: none; transition: .25s; z-index: 400; max-width: 90vw; text-align: center }
   #rs-toast.show { opacity: 1; transform: translate(-50%, 0) }
 
@@ -2468,11 +2469,13 @@ function rsDisegna() {
   $('#service-content').innerHTML = `
     <a class="rs-carta" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">
       <span class="ic">${ICONS.BOOK}</span><span class="tx"><b>Menu alla carta</b><small>Sempre disponibile · tocca per sfogliarlo</small></span><span class="go">Apri ›</span></a>
+    ${ptCard()}
     <div id="rs-root">${giorni.map(g => `<section id="rs-day-${g}">${rsGiorno(g)}</section>`).join('')}</div>
     <div class="card rs-orari"><h2>Orari del ristorante</h2>
       <p><b>Colazione</b> 8:00 – 10:00 · <b>Pranzo</b> 13:00 – 14:30 · <b>Cena</b> 20:00 – 22:00</p>
       <p>Il lunedì sera è serata sushi. Per intolleranze, allergie o menù vegetariano/vegano contatta lo staff in anticipo.</p>
       <p>Puoi ordinare al massimo ${d.famiglia.max_ospiti} porzioni per categoria e pasto. Per cambiare il numero di ospiti contatta lo staff.</p></div>`;
+  ptInit();
 }
 function rsRidisegna(data) { const el = document.getElementById('rs-day-' + data); if (el) el.innerHTML = rsGiorno(data); }
 
@@ -2600,8 +2603,142 @@ async function rsInvia(data) {
   } catch (e) { rsChiudiConferma(); rsToast('Connessione assente, riprova'); }
 }
 
+
+// ── Prenota un tavolo ─────────────────────────────────────────────────────
+// Stesso percorso guidato della navetta (card, passi numerati, pulsanti grandi, riepilogo).
+// Azioni della Cloud Function: 'ristorazione_prenota_info', 'ristorazione_prenota',
+// 'ristorazione_prenota_annulla'. Orari e turni li decide lo staff dalla Hub.
+let PT = null, _ptAnnullaId = null, _ptInvio = false;
+function ptCard() { return '<div id="pt-wrap"></div>'; }
+async function ptInit() {
+  try {
+    const d = await chiama({ azione: 'ristorazione_prenota_info' });
+    if (d && d.ok) { PT = Object.assign({ sel: { data: '', pasto: '', turno: '', persone: null, note: '' }, aperto: false, tuttiGiorni: false }, PT || {}, d); }
+  } catch (e) {}
+  ptRender();
+}
+const ptGiornoBreve = iso => { if (!PT) return iso; const d = new Date(PT.oggi + 'T12:00:00'); d.setDate(d.getDate() + 1);
+  if (iso === PT.oggi) return t('Oggi'); if (iso === d.toISOString().slice(0, 10)) return t('Domani');
+  return new Date(iso + 'T12:00:00').toLocaleDateString(LOCALE[LANG], { weekday: 'short', day: 'numeric' }); };
+const ptNomeServ = id => { const s = PT && PT.servizi.find(x => x.id === id); return s ? t(s.nome) : id; };
+function ptTurniDisp() {
+  const sv = PT.servizi.find(x => x.id === PT.sel.pasto); if (!sv) return [];
+  return sv.turni.map(o => {
+    if (PT.sel.data !== PT.oggi) return { ora: o, ok: true };
+    const [h, m] = PT.ora.split(':').map(Number), [a, b] = o.split(':').map(Number);
+    return { ora: o, ok: a * 60 + b - (h * 60 + m) >= 30 };
+  });
+}
+const ptGia = () => (PT.prenotazioni || []).filter(p => p.data === PT.sel.data && p.pasto === PT.sel.pasto).reduce((s, p) => s + p.persone, 0);
+
+function ptRender() {
+  const wrap = document.getElementById('pt-wrap'); if (!wrap) return;
+  if (!PT || !PT.giorni || !PT.giorni.length || !PT.servizi.length) { wrap.innerHTML = ''; return; }   // prenotazioni non disponibili: la scheda non compare
+  const sel = PT.sel, mie = PT.prenotazioni || [];
+  const lista = mie.length ? `<div class="lista-titolo">${esc(t('Le tue prenotazioni'))}</div>` + mie.map(p => `
+    <div class="stato-card"><div class="riga"><div class="ora">${esc(p.turno || '—')}</div>
+      <div class="meta"><div class="quando">${esc(dataBreve(p.data))}</div><span class="stato-badge accettata">${esc(t('Prenotato'))}</span>
+        <div class="autista">${esc(ptNomeServ(p.pasto))} · ${esc(p.persone === 1 ? t('1 persona') : t('{n} persone', { n: p.persone }))}${p.note ? ' · ' + esc(p.note) : ''}</div></div></div>
+      ${_ptAnnullaId === p.id
+        ? `<div class="conferma-annulla"><p>${esc(t('Vuoi annullare questa prenotazione?'))}</p><div class="err" id="pt-annulla-err"></div>
+            <div class="row-btns"><button type="button" class="ann" onclick="ptChiediAnnulla(null)">${esc(t('No, la tengo'))}</button>
+            <button type="button" class="conf rosso" id="pt-annulla-conf" onclick="ptAnnulla('${p.id}')">${esc(t('Sì, annulla'))}</button></div></div>`
+        : `<div class="azioni-corsa"><button type="button" class="btn-annulla" onclick="ptChiediAnnulla('${p.id}')">${esc(t('Annulla la prenotazione'))}</button></div>`}
+    </div>`).join('') : '';
+
+  let form = `<div class="card" id="pt-form"><h2>${esc(t('Prenota un tavolo'))}</h2>
+    <p class="hint">${esc(t('Scegli il giorno, il turno e quante persone siete: lo staff ti aspetta al ristorante.'))}</p>`;
+  if (!PT.aperto) {
+    form += `<button type="button" class="submit" style="margin-top:16px" onclick="ptApri()">${esc(t('Prenota un tavolo'))}</button></div>`;
+    wrap.innerHTML = lista + form; return;
+  }
+  const mostra = PT.tuttiGiorni ? PT.giorni : PT.giorni.slice(0, 6);
+  form += `<div class="passo" style="margin-top:18px"><span class="n">1</span><h2>${esc(t('Quale giorno?'))}</h2></div>
+    <p class="guida">${esc(t('Tocca il giorno in cui vuoi venire.'))}</p>
+    <div class="slot-grid">${mostra.map(g => `<button type="button" class="slot-btn${g === sel.data ? ' selected' : ''}" onclick="ptSet('data','${g}')">${esc(ptGiornoBreve(g))}</button>`).join('')}
+      ${!PT.tuttiGiorni && PT.giorni.length > 6 ? `<button type="button" class="slot-btn" style="grid-column:1/-1" onclick="ptTutti()">${esc(t('Altri giorni'))}</button>` : ''}</div>`;
+  if (sel.data) {
+    form += `<div class="passo" style="margin-top:30px" id="pt-p2"><span class="n">2</span><h2>${esc(t('Pranzo o cena?'))}</h2></div>
+      <div class="sp-grid" style="margin-top:12px">${PT.servizi.map(sv => `<button type="button" class="sp-btn${sv.id === sel.pasto ? ' selected' : ''}" onclick="ptSet('pasto','${sv.id}')">${esc(t(sv.nome))}</button>`).join('')}</div>`;
+  }
+  if (sel.data && sel.pasto) {
+    const turni = ptTurniDisp();
+    form += `<div class="passo" style="margin-top:30px" id="pt-p3"><span class="n">3</span><h2>${esc(t('A che ora?'))}</h2></div>`
+      + (turni.length ? `<p class="guida">${esc(t('Tocca l\'orario in cui vuoi sederti a tavola.'))}</p>
+        <div class="slot-grid">${turni.map(o => `<button type="button" class="slot-btn${o.ora === sel.turno ? ' selected' : ''}" ${o.ok ? '' : 'disabled'} onclick="ptSet('turno','${o.ora}')">${esc(o.ora)}</button>`).join('')}</div>`
+        : `<p class="hint" style="margin-top:8px">${esc(t('Per questo servizio puoi indicare solo il numero di persone: ti diremo noi l\'orario.'))}</p>`);
+  }
+  const turniOk = sel.pasto && (PT.servizi.find(x => x.id === sel.pasto).turni.length === 0 || sel.turno);
+  if (sel.data && sel.pasto && turniOk) {
+    const max = Math.max(0, PT.ospiti - ptGia());
+    form += `<div class="passo" style="margin-top:30px" id="pt-p4"><span class="n">4</span><h2>${esc(t('Quante persone siete?'))}</h2></div>`
+      + (max >= 1 ? `<p class="guida">${esc(t('Tocca il numero di persone che vengono a tavola (compreso te). Il tuo gruppo è di {n}.', { n: PT.ospiti }))}${ptGia() ? ' ' + esc(t('Ne hai già prenotate {n} per questo servizio.', { n: ptGia() })) : ''}</p>
+        <div class="num-grid">${Array.from({ length: max }, (_, i) => i + 1).map(n => `<button type="button" class="num-btn${n === sel.persone ? ' selected' : ''}" onclick="ptSet('persone',${n})">${n}</button>`).join('')}</div>`
+        : `<p class="hint" style="margin-top:8px">${esc(t('Tutto il tuo gruppo ha già prenotato per questo servizio.'))}</p>`);
+    if (sel.persone && sel.persone <= max) {
+      form += `<div id="pt-conferma"><div class="passo" style="margin-top:30px"><span class="n">5</span><h2>${esc(t('Conferma'))}</h2></div>
+        <div class="riepilogo">
+          <div><span>${esc(t('Giorno'))}</span><b>${esc(ptGiornoBreve(sel.data))}</b></div>
+          <div><span>${esc(t('Servizio'))}</span><b>${esc(ptNomeServ(sel.pasto))}</b></div>
+          ${sel.turno ? `<div><span>${esc(t('Ora'))}</span><b>${esc(sel.turno)}</b></div>` : ''}
+          <div><span>${esc(t('Persone'))}</span><b>${sel.persone}</b></div></div>
+        <div class="field" style="margin-top:16px"><label>${esc(t('Note (facoltative)'))}</label>
+          <input type="text" id="pt-nota" maxlength="200" value="${esc(sel.note || '')}" placeholder="${esc(t('es. seggiolone, allergie'))}" oninput="PT.sel.note=this.value"></div>
+        <div class="errbox" id="pt-err"></div>
+        <button type="button" class="submit" id="pt-invia" onclick="ptInvia()">${esc(t('Conferma la prenotazione'))}</button></div>`;
+    }
+  }
+  form += `<button type="button" style="margin:14px auto 0;display:block;background:none;border:none;color:var(--gray-500);font-size:16px;font-weight:700;font-family:var(--font);cursor:pointer;padding:10px" onclick="ptChiudi()">${esc(t('Chiudi'))}</button></div>`;
+  wrap.innerHTML = lista + form;
+}
+function ptApri() { PT.aperto = true; PT.sel = { data: '', pasto: PT.servizi.length === 1 ? PT.servizi[0].id : '', turno: '', persone: null, note: '' }; ptRender(); vaiA('#pt-form'); }
+function ptChiudi() { PT.aperto = false; ptRender(); }
+function ptTutti() { PT.tuttiGiorni = true; ptRender(); }
+function ptSet(k, v) {
+  PT.sel[k] = v;
+  if (k === 'data' || k === 'pasto') { PT.sel.turno = ''; PT.sel.persone = null; }
+  if (k === 'turno') PT.sel.persone = null;
+  ptRender();
+  vaiA({ data: '#pt-p2', pasto: '#pt-p3', turno: '#pt-p4', persone: '#pt-conferma' }[k]);
+}
+function ptChiediAnnulla(id) { _ptAnnullaId = id; ptRender(); }
+async function ptInvia() {
+  if (_ptInvio) return;
+  const sel = PT.sel, btn = document.getElementById('pt-invia'), err = document.getElementById('pt-err');
+  _ptInvio = true; if (btn) { btn.disabled = true; btn.textContent = t('Invio in corso…'); }
+  const ERR = { gia_prenotato: 'Hai già una prenotazione per questo turno', persone_superate: 'Le persone superano quelle del tuo gruppo', turno_passato: 'Questo turno non è più prenotabile',
+                giorno_non_valido: 'Giorno non prenotabile', turno_non_valido: 'Turno non valido', servizio_non_valido: 'Servizio non disponibile', troppe_prenotazioni: 'Hai raggiunto il numero massimo di prenotazioni', persone_non_valide: 'Numero di persone non valido' };
+  try {
+    const r = await chiama({ azione: 'ristorazione_prenota', data: sel.data, pasto: sel.pasto, turno: sel.turno, persone: sel.persone, note: sel.note });
+    if (!r.ok) {
+      _ptInvio = false;
+      if (err) { err.textContent = t(ERR[r.errore] || 'Non sono riuscito a prenotare, riprova'); err.style.display = 'block'; }
+      if (btn) { btn.disabled = false; btn.textContent = t('Conferma la prenotazione'); }
+      if (r.errore === 'turno_passato' || r.errore === 'persone_superate' || r.errore === 'gia_prenotato') ptInit();
+      return;
+    }
+    _ptInvio = false; PT.prenotazioni = r.prenotazioni; PT.aperto = false; ptRender(); rsToast(t('Prenotazione inviata')); vaiA('#pt-wrap');
+  } catch (e) {
+    _ptInvio = false;
+    if (err) { err.textContent = t('Connessione assente, riprova'); err.style.display = 'block'; }
+    if (btn) { btn.disabled = false; btn.textContent = t('Conferma la prenotazione'); }
+  }
+}
+async function ptAnnulla(id) {
+  const btn = document.getElementById('pt-annulla-conf'), err = document.getElementById('pt-annulla-err');
+  if (btn) btn.disabled = true;
+  try {
+    const r = await chiama({ azione: 'ristorazione_prenota_annulla', id });
+    if (!r.ok) {
+      if (err) { err.textContent = t(r.errore === 'turno_passato' ? 'Questo turno non si può più annullare' : 'Non sono riuscito ad annullare, riprova'); err.style.display = 'block'; }
+      if (btn) btn.disabled = false; return;
+    }
+    _ptAnnullaId = null; PT.prenotazioni = r.prenotazioni; ptRender(); rsToast(t('Prenotazione annullata'));
+  } catch (e) { if (err) { err.textContent = t('Connessione assente, riprova'); err.style.display = 'block'; } if (btn) btn.disabled = false; }
+}
+
 function renderRistoranteLibero(panel) {
-  panel.innerHTML = `<div class="card"><h2>Il nostro ristorante</h2>
+  panel.innerHTML = ptCard() + `<div class="card"><h2>Il nostro ristorante</h2>
     <div class="info-body" style="margin-top:8px">
       <p>Il soggiorno non include i pasti, ma il ristorante è aperto anche a te: puoi mangiare alla carta quando vuoi, nei suoi orari.</p>
       <h3>Orari</h3>
@@ -2622,6 +2759,7 @@ function renderRistoranteLibero(panel) {
       <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
       <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a>
     </div>`;
+  ptInit();
 }
 
 // ── Navetta ───────────────────────────────────────────────────────────────
