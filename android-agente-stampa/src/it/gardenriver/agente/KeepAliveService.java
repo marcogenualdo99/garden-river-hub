@@ -112,7 +112,7 @@ public class KeepAliveService extends Service {
                 if (viste.length() > 1500) viste = viste.substring(0, 1500);
                 JSONArray rep = it.optJSONArray("reparti");
                 if (rep == null || !Avvisi.miInteressa(this, rep)) continue;
-                String titolo = Avvisi.nomeReparto(rep.optString(0)) + (it.optString("titolo").length() > 0 ? " · " + it.optString("titolo") : "");
+                String titolo = Avvisi.nomeReparto(Avvisi.repartoPerTitolo(this, rep)) + (it.optString("titolo").length() > 0 ? " · " + it.optString("titolo") : "");
                 Avvisi.mostra(this, titolo, it.optString("testo"), id.hashCode() & 0x7fffffff);
                 nuovi++;
             }

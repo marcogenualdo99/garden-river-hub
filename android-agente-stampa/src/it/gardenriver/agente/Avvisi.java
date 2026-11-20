@@ -17,7 +17,10 @@ public final class Avvisi {
     private static String ultimaChiave = "";
     private static long ultimaTs = 0;
 
+    /** Nome leggibile del reparto; i gruppi per autista ("navetta:nome") valgono come il reparto base. */
     public static String nomeReparto(String id) {
+        if (id == null) return "";
+        if (id.indexOf(':') > 0) id = id.substring(0, id.indexOf(':'));
         switch (id) {
             case "manutenzione": return "Manutenzione";
             case "navetta": return "Navetta";
@@ -29,6 +32,8 @@ public final class Avvisi {
         }
     }
 
+    private static String nomeBase(String id) { return id != null && id.indexOf(':') > 0 ? id.substring(0, id.indexOf(':')) : id; }
+
     /** Reparti scelti dall'operatore nella Hub (null = non ancora scelti: tutti). */
     public static boolean miInteressa(Context c, JSONArray repartiAvviso) {
         String s = c.getSharedPreferences("agente", 0).getString("reparti", null);
@@ -36,9 +41,25 @@ public final class Avvisi {
         try {
             JSONArray mie = new JSONArray(s);
             for (int i = 0; i < repartiAvviso.length(); i++)
-                for (int j = 0; j < mie.length(); j++) if (repartiAvviso.optString(i).equals(mie.optString(j))) return true;
+                for (int j = 0; j < mie.length(); j++) if (nomeBase(repartiAvviso.optString(i)).equals(mie.optString(j))) return true;
         } catch (Exception e) { return true; }
         return false;
+    }
+
+    /** Il primo reparto dell'avviso che interessa a questo operatore (altrimenti il primo dell'elenco). */
+    public static String repartoPerTitolo(Context c, JSONArray repartiAvviso) {
+        String s = c.getSharedPreferences("agente", 0).getString("reparti", null);
+        try {
+            if (s != null) {
+                JSONArray mie = new JSONArray(s);
+                for (int i = 0; i < repartiAvviso.length(); i++)
+                    for (int j = 0; j < mie.length(); j++) {
+                        String a = repartiAvviso.optString(i), b = mie.optString(j);
+                        if (a.equals(b) || (a.indexOf(':') > 0 && a.substring(0, a.indexOf(':')).equals(b))) return a;
+                    }
+            }
+        } catch (Exception e) { }
+        return repartiAvviso.length() > 0 ? repartiAvviso.optString(0) : "";
     }
 
     /** true se il servizio nativo sta ricevendo gli avvisi (ultimo controllo riuscito da meno di 2 minuti). */
