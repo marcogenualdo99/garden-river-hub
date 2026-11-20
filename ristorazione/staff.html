@@ -389,6 +389,63 @@ input[type="date"].finput{font-size:13px}
 .kds-tool-btn:active{opacity:.85}
 @media(min-width:900px){.kds-seg{max-width:772px;margin-left:auto;margin-right:auto}}
 
+
+/* ── SALA: pianta tavoli ── */
+.oggi-det{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);margin-bottom:10px;padding:0 16px}
+.oggi-det>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:14px 0;font-size:13px;font-weight:800;color:var(--gray-900)}
+.oggi-det>summary::-webkit-details-marker{display:none}
+.oggi-det>summary span{font-size:12px;font-weight:700;color:var(--gray-500)}
+.oggi-det[open]>summary{border-bottom:1px solid var(--gray-100)}
+.oggi-det .oggi-card{box-shadow:none;padding:10px 0;margin:0}
+.oggi-det .oggi-cols{gap:0}
+.sala-card{padding:14px}
+.sala-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.sala-rooms{margin:0;flex:1;min-width:240px;max-width:460px}
+.sala-n{font-weight:600;opacity:.6;font-size:11px;margin-left:4px}
+.sala-btn{height:38px;padding:0 14px;border:none;border-radius:var(--radius-xl);background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);white-space:nowrap;-webkit-tap-highlight-color:transparent}
+.sala-btn.ghost{background:var(--gray-100);color:var(--gray-700)}
+.sala-btn.danger{background:#FEE2E2;color:#B91C1C;width:100%}
+.sala-btn:active{opacity:.8}
+.sala-canvas{display:grid;grid-template-columns:repeat(var(--cols),minmax(0,1fr));grid-auto-rows:84px;gap:8px;position:relative}
+.sala-canvas.edit{background:var(--gray-50);border-radius:var(--radius);padding:8px;touch-action:none}
+.sala-cell{border:1.5px dashed var(--gray-200);border-radius:12px}
+.tav{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;padding:4px 6px;border:2px solid var(--gray-200);background:#fff;color:var(--gray-900);font-family:var(--font);cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:center;overflow:hidden}
+.tav.forma-quadrato,.tav.forma-lungo{border-radius:14px}
+.tav.forma-tondo{border-radius:999px}
+.tav-nome{font-size:15px;font-weight:800;line-height:1.1}
+.tav-fam{font-size:11px;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tav-info{font-size:10px;font-weight:700;color:var(--gray-500)}
+.tav-info.over{color:#B91C1C}
+.tav.stato-atteso{background:#FFFBEB;border-color:#FCD34D}
+.tav.stato-ordinato{background:var(--green-50);border-color:var(--green-200,#BBF7D0)}
+.tav.stato-servizio{background:#F59E0B;border-color:#F59E0B;color:#fff}
+.tav.stato-servizio .tav-info{color:rgba(255,255,255,.85)}
+.tav.stato-servito{background:var(--green-700);border-color:var(--green-700);color:#fff}
+.tav.stato-servito .tav-info{color:rgba(255,255,255,.8)}
+.tav.target{box-shadow:0 0 0 3px var(--orange)}
+.sala-canvas.edit .tav{cursor:grab;touch-action:none;user-select:none;z-index:2}
+.tav.dragging{opacity:.85;z-index:10;box-shadow:var(--shadow-lg);cursor:grabbing}
+.sala-legenda{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:11px;font-weight:700;color:var(--gray-500)}
+.sala-legenda span{display:inline-flex;align-items:center;gap:6px}
+.lg{width:12px;height:12px;border-radius:4px;border:2px solid var(--gray-200);display:inline-block}
+.lg.stato-atteso{background:#FFFBEB;border-color:#FCD34D}.lg.stato-ordinato{background:var(--green-50);border-color:#BBF7D0}.lg.stato-servizio{background:#F59E0B;border-color:#F59E0B}.lg.stato-servito{background:var(--green-700);border-color:var(--green-700)}
+.sala-senza{margin-top:14px;border-top:1px solid var(--gray-100);padding-top:12px}
+.sala-senza-t{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:8px;display:flex;gap:8px}
+.sala-chips{display:flex;flex-wrap:wrap;gap:8px}
+.sala-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:12px;background:#fff;font-size:13px;font-weight:700;color:var(--gray-900);cursor:pointer;font-family:var(--font)}
+.sala-chip span{font-size:11px;color:var(--gray-500)}
+.sala-chip em{font-style:normal;font-size:10px;color:#B45309}
+.sala-chip.sel{border-color:var(--orange);background:#FFF3EA}
+.sala-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFF3EA;border-radius:12px;padding:10px 14px;margin-top:12px;font-size:13px;color:var(--gray-900)}
+.sala-banner button{border:none;background:none;color:var(--orange);font-weight:800;cursor:pointer;font-family:var(--font)}
+.sala-edit-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}
+.sala-dim{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--gray-600,#4B5563)}
+.sala-dim button{width:30px;height:30px;border:none;border-radius:50%;background:var(--gray-100);font-size:16px;font-weight:800;cursor:pointer}
+.sala-edit-hint{font-size:12px;color:var(--gray-500);margin-bottom:10px}
+.sala-edit-foot{display:flex;gap:8px;margin-bottom:12px}
+.sala-edit-foot button{flex:1;height:46px;border:none;border-radius:var(--radius-xl);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)}
+@media(max-width:520px){.sala-canvas{grid-auto-rows:70px;gap:6px}.tav-nome{font-size:13px}}
+
 body.monitor{background:#0f1117;overflow:hidden}
 body.monitor .nav-zone,body.monitor .top-bar,body.monitor .page-head,body.monitor #tab-bar{display:none!important}
 body.monitor #sec-cucina{position:fixed;inset:0;z-index:500;background:#0f1117;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0;padding:0 18px calc(28px + env(safe-area-inset-bottom));color:#f0f0f0}
@@ -404,7 +461,7 @@ body.monitor .kds-clock{display:block;font-size:30px;font-weight:800;color:#fff;
 body.monitor .kds-count{display:block;font-size:13px;font-weight:700;color:#8a8fa8;white-space:nowrap}
 body.monitor .kds-count strong{color:#f59e0b;font-size:20px;margin-right:4px}
 body.monitor .kds-exit{display:inline-flex;background:#22263a;height:42px}
-body.monitor #kds-btn-monitor,body.monitor #cucina-context-title{display:none}
+body.monitor #kds-btn-monitor,body.monitor #cucina-context-title,body.monitor .kds-vista{display:none}
 body.monitor #cucina-body{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-top:14px}
 body.monitor .empty-state{color:#8a8fa8}
 body.monitor .kds-btn{width:46px;height:46px;font-size:22px}
@@ -598,18 +655,17 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
 
   <div class="page-head">
     <div class="page-eyebrow"><span data-icon="RISTORAZIONE"></span><span>Ristorazione</span></div>
-    <div class="page-head-title" id="ph-title">Oggi</div>
+    <div class="page-head-title" id="ph-title">Sala</div>
   </div>
   <div class="tab-bar" id="tab-bar">
-    <button class="tab-btn active" data-tab="oggi"   onclick="switchTab('oggi')">Oggi</button>
+    <button class="tab-btn active" data-tab="sala"   onclick="switchTab('sala')">Sala</button>
     <button class="tab-btn"        data-tab="cucina" onclick="switchTab('cucina')">Cucina</button>
     <button class="tab-btn"        data-tab="menu"   onclick="switchTab('menu')">Menu</button>
     <button class="tab-btn"        data-tab="ospiti" onclick="switchTab('ospiti')">Ospiti</button>
-    <button class="tab-btn"        data-tab="report" onclick="switchTab('report')">Report</button>
   </div>
 
-  <!-- OGGI (cruscotto del servizio) -->
-  <div class="sec active" id="sec-oggi">
+  <!-- SALA (cruscotto del servizio + pianta dei tavoli) -->
+  <div class="sec active" id="sec-sala">
     <div class="oggi-top">
       <div class="oggi-date" id="oggi-date"></div>
       <div class="seg-row oggi-seg">
@@ -618,28 +674,6 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
       </div>
     </div>
     <div id="oggi-body"><div class="empty-state">Caricamento...</div></div>
-  </div>
-
-  <!-- REPORT -->
-  <div class="sec" id="sec-report">
-    <div class="date-nav" id="report-date-nav">
-      <button class="date-nav-arrow" onclick="shiftReportDate(-1)" aria-label="Giorno precedente">‹</button>
-      <div class="date-nav-btn">
-        <span data-icon="CALENDAR"></span><span id="report-date-label"></span>
-        <input type="date" id="report-date-input" oninput="setReportDate(this.value)">
-      </div>
-      <button class="date-nav-arrow" onclick="shiftReportDate(1)" aria-label="Giorno successivo">›</button>
-    </div>
-    <div id="seg-pasto-row" class="seg-row" style="margin-top:10px">
-      <button class="seg-btn active" id="seg-pranzo-r" onclick="setReportPasto('pranzo')">Pranzo</button>
-      <button class="seg-btn"        id="seg-cena-r"   onclick="setReportPasto('cena')">Cena</button>
-    </div>
-    <div class="date-context-title" id="report-context-title"></div>
-    <div id="report-body"></div>
-    <div id="report-print-bar" style="display:none;margin-top:16px;gap:10px">
-      <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
-      <button class="btn-stampa" onclick="stampaReportTermica().catch(e=>alert('Errore JS: '+e.message))">Stampa termica</button>
-    </div>
   </div>
 
   <!-- CUCINA -->
@@ -664,8 +698,19 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
         <button class="kds-tool-btn kds-exit" id="kds-btn-esci" onclick="esciMonitor()"><span data-icon="CLOSE"></span>Esci</button>
       </div>
     </div>
+    <div class="seg-row kds-vista" style="margin-top:12px">
+      <button class="seg-btn active" id="seg-comande-v" onclick="setCucinaVista('comande')">Comande</button>
+      <button class="seg-btn"        id="seg-totali-v"  onclick="setCucinaVista('totali')">Totali piatti</button>
+    </div>
     <div class="date-context-title" id="cucina-context-title"></div>
     <div id="cucina-body"></div>
+    <div id="cucina-totali" style="display:none">
+      <div id="report-body"></div>
+      <div id="report-print-bar" style="display:none;margin-top:16px;gap:10px">
+        <button class="btn-stampa" onclick="scaricaReport()">Scarica report</button>
+        <button class="btn-stampa" onclick="stampaReportTermica().catch(e=>alert('Errore JS: '+e.message))">Stampa termica</button>
+      </div>
+    </div>
   </div>
 
   <!-- MENU -->
@@ -728,7 +773,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
       <div id="f-bambini-ages"></div>
       <div class="form-row">
         <input class="finput" id="f-tel"   type="tel"  placeholder="Telefono">
-        <input class="finput" id="f-tavolo" type="text" placeholder="N. Tavolo (opzionale)">
+        <input class="finput" id="f-tavolo" type="text" list="tavoli-datalist" placeholder="Tavolo (opzionale)">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
@@ -856,7 +901,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
     <div class="mlabel">Telefono</div>
     <input class="minput" id="ef-tel" type="tel" placeholder="Telefono">
     <div class="mlabel">N. Tavolo</div>
-    <input class="minput" id="ef-tavolo" type="text" placeholder="es. 5 (lascia vuoto se nessun tavolo condiviso)">
+    <input class="minput" id="ef-tavolo" type="text" list="tavoli-datalist" placeholder="Tavolo (scegli dalla pianta o lascia vuoto)">
     <div class="mlabel">Note</div>
     <textarea class="minput" id="ef-note" placeholder="es. celiaco, intollerante al lattosio, cane…" rows="2" style="resize:none;height:auto;font-family:inherit;font-size:14px;padding-top:10px;padding-bottom:10px"></textarea>
     <div id="edit-qr-wrap" style="display:none;text-align:center;margin-bottom:16px">
@@ -980,6 +1025,17 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div>
 </div>
 
+<!-- MODAL TAVOLO (dettaglio in servizio / editor in modifica pianta) -->
+<div id="modal-tavolo" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center">
+  <div class="modal-box" style="max-height:85vh;overflow-y:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom))">
+    <div class="modal-title" id="mt-title"></div>
+    <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px" id="mt-sub"></p>
+    <div id="mt-body"></div>
+    <div class="mbtns" id="mt-foot" style="margin-top:16px"></div>
+  </div>
+</div>
+<datalist id="tavoli-datalist"></datalist>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1023,12 +1079,11 @@ function menuItemsBambini() {
 }
 
 // ── STATO ───────────────────────────────────────────────────────────────────
-let currentTab      = 'oggi';
+let currentTab      = 'sala';
+let cucinaVista     = 'comande';   // 'comande' | 'totali'
 let oggiPasto       = new Date().getHours() < 14 ? 'pranzo' : 'cena';
 let unsubOggi       = null;
 let oggiOrdini      = [];      // ordini di oggi (entrambi i pasti), realtime
-let reportDate      = isoToday(0);
-let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
 let cucinaDate      = isoToday(0);
 let menuGiorno      = 1;          // 1-14
@@ -1094,20 +1149,21 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('loading-screen').classList.add('hidden');
   document.getElementById('sync-dot').classList.add('ok');
 
-  buildReportDateStrip();
   buildCucinaDateStrip();
   buildCicloStrip();
   renderReport();
   renderMenu();
   startCucina();
   startOggi();
+  loadSala();
   avviaDaUrl();
 });
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
-const TAB_TITOLI = { oggi:'Oggi', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', report:'Report' };
+const TAB_TITOLI = { sala:'Sala', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti' };
 function switchTab(tab) {
-  if (!TAB_TITOLI[tab]) tab = 'oggi';
+  if (tab === 'report') { tab = 'cucina'; setCucinaVista('totali'); }  // vecchio nome della scheda
+  if (!TAB_TITOLI[tab]) tab = 'sala';
   currentTab = tab;
   document.querySelectorAll('#tab-bar .tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
@@ -1115,7 +1171,7 @@ function switchTab(tab) {
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
   document.getElementById('ph-title').textContent = TAB_TITOLI[tab];
-  if (tab === 'oggi') renderOggi();
+  if (tab === 'sala') renderOggi();
   if (tab === 'ospiti') renderFamiglie();
   // Rimuovi print-area se esiste
   const pa = document.getElementById('print-area');
@@ -1130,30 +1186,14 @@ function setSeg(idA, idB, aActive) {
 }
 
 // ── REPORT ────────────────────────────────────────────────────────────────────
-function buildReportDateStrip() {
-  refreshReportDateUi();
-}
-function refreshReportDateUi() {
-  document.getElementById('report-date-input').value = reportDate;
-  document.getElementById('report-date-label').textContent = fmtDataBreve(reportDate);
-  document.getElementById('report-context-title').innerHTML =
-    '<strong>' + fmtDataLunga(reportDate) + '</strong> · ' + (reportPasto === 'pranzo' ? 'Pranzo' : 'Cena');
-}
-function shiftReportDate(delta) {
-  const d = new Date(reportDate + 'T12:00:00');
-  d.setDate(d.getDate() + delta);
-  setReportDate(d.toISOString().split('T')[0]);
-}
-function setReportDate(iso) {
-  reportDate = iso;
-  refreshReportDateUi();
-  renderReport();
-}
-function setReportPasto(p) {
-  reportPasto = p;
-  setSeg('seg-pranzo-r','seg-cena-r', p==='pranzo');
-  refreshReportDateUi();
-  renderReport();
+// Vista Cucina: Comande (monitor) oppure Totali piatti (ex scheda Report).
+// Data e pasto sono quelli della barra in alto, uguali per entrambe.
+function setCucinaVista(v) {
+  cucinaVista = v === 'totali' ? 'totali' : 'comande';
+  setSeg('seg-comande-v', 'seg-totali-v', cucinaVista === 'comande');
+  document.getElementById('cucina-body').style.display = cucinaVista === 'comande' ? '' : 'none';
+  document.getElementById('cucina-totali').style.display = cucinaVista === 'totali' ? '' : 'none';
+  if (cucinaVista === 'totali') renderReport();
 }
 
 // ── LOGICA PASTI CONDIVISA (Oggi + Report) ───────────────────────────────────
@@ -1233,16 +1273,16 @@ async function renderReport() {
   const el = document.getElementById('report-body');
   el.innerHTML = '<div class="empty-state">Caricamento...</div>';
 
-  const targetDate = reportDate;
+  const targetDate = cucinaDate;
   const { db, collection, query, where, getDocs, getDocsFromServer } = window._fb;
 
   // Carica ordini per entrambi i pasti (serve per l'alert MP)
   const famIds = new Set(famiglieDocs.map(f => f.id));
   let ordini = [], ordiniAltro = [];
-  const altroPasto = reportPasto === 'pranzo' ? 'cena' : 'pranzo';
+  const altroPasto = cucinaPasto === 'pranzo' ? 'cena' : 'pranzo';
   try {
     const [snapQ, snapA] = await Promise.all([
-      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',reportPasto))),
+      getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',cucinaPasto))),
       getDocsFromServer(query(collection(db,'ordini_ristorazione'), where('data','==',targetDate), where('tipo','==',altroPasto)))
     ]);
     ordini      = snapQ.docs.map(d=>({id:d.id,...d.data()})).filter(o=>famIds.has(o.famiglia_id));
@@ -1251,7 +1291,7 @@ async function renderReport() {
 
   // Menu per questa data+pasto
   const giornoReport = getGiornoCiclo(targetDate);
-  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === reportPasto).concat(menuItemsBambini());
+  const menuItems = menuDocs.filter(m => m.giorno === giornoReport && m.tipo === cucinaPasto).concat(menuItemsBambini());
 
   if (!menuItems.length) {
     el.innerHTML = '<div class="empty-state">Nessun menu inserito per questa data.</div>';
@@ -1260,9 +1300,9 @@ async function renderReport() {
   }
 
   const { attese, senzaOrdine: famiglieSenzaOrdine, recuperi: recuperiOggi } =
-    calcolaPastiGiorno(targetDate, reportPasto, ordini, ordiniAltro);
-  const recuperiHtml = htmlAlertRecuperi(recuperiOggi, targetDate, reportPasto);
-  const alertHtml    = htmlAlertSenzaOrdine(famiglieSenzaOrdine, targetDate, reportPasto);
+    calcolaPastiGiorno(targetDate, cucinaPasto, ordini, ordiniAltro);
+  const recuperiHtml = htmlAlertRecuperi(recuperiOggi, targetDate, cucinaPasto);
+  const alertHtml    = htmlAlertSenzaOrdine(famiglieSenzaOrdine, targetDate, cucinaPasto);
 
   // Aggrega quantità per menuId — gestisce array e mappa legacy
   const totali = {};
@@ -1312,7 +1352,7 @@ async function renderReport() {
               </div>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="fam-detail-qty">${r.qty}</div>
-                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${jsEsc(r.nome)}','${targetDate}','${reportPasto}')" title="Modifica ordine">
+                <button class="fam-edit" style="flex-shrink:0" onclick="event.stopPropagation();apriModificaOrdineStaff('${r.famId}','${jsEsc(r.nome)}','${targetDate}','${cucinaPasto}')" title="Modifica ordine">
                   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M14.7 3.3a1 1 0 0 1 2 2L7 15l-3 1 1-3z"/></svg>
                 </button>
               </div>
@@ -1331,7 +1371,7 @@ async function renderReport() {
   el.innerHTML = recuperiHtml + alertHtml + (html || '<div class="empty-state">Nessun ordine registrato.</div>');
 
   // Salva dati per la stampa e mostra sempre il pulsante se c'è menu
-  _printData = { targetDate, pasto: reportPasto, ordini, menuItems, famiglieSenzaOrdine };
+  _printData = { targetDate, pasto: cucinaPasto, ordini, menuItems, famiglieSenzaOrdine };
   document.getElementById('report-print-bar').style.display = 'flex';
 }
 
@@ -1392,6 +1432,7 @@ function renderOggi() {
   const { attese, senzaOrdine, recuperi } = calcolaPastiGiorno(oggi, oggiPasto, ordini, altri);
   const famMap = {}; famiglieDocs.forEach(f => { famMap[f.id] = f; });
 
+  const presenti = attese.concat(ordini.map(o => famMap[o.famiglia_id]).filter(f => f && !attese.includes(f)));
   const ordinatiQui = attese.filter(f => ordini.some(o => o.famiglia_id === f.id));
   const somma = lista => lista.reduce((s, f) => s + ospitiFamiglia(f), 0);
   const copertiConfermati = somma(ordinatiQui);
@@ -1439,12 +1480,337 @@ function renderOggi() {
     <div class="oggi-card"><h3><span>Partenze oggi</span><span>${partenze.length}</span></h3>${partenze.length ? partenze.map(f => riga(f, '')).join('') : '<div class="oggi-empty">Nessuna partenza.</div>'}</div>
   </div>`;
 
+  const dettagli = `<details class="oggi-det"><summary>Note e allergie <span>${note.length}</span></summary>${noteHtml}</details>
+    <details class="oggi-det"><summary>Arrivi e partenze <span>${arrivi.length} / ${partenze.length}</span></summary>${movHtml}</details>`;
   el.innerHTML = tiles
+    + htmlSala(ordini, presenti)
     + htmlAlertRecuperi(recuperi, oggi, oggiPasto)
     + htmlAlertSenzaOrdine(senzaOrdine, oggi, oggiPasto)
-    + noteHtml + movHtml
-    + `<div style="margin-top:6px"><button class="oggi-cta" onclick="switchTab('cucina');entraMonitor(true)"><span data-icon="UTENSILS"></span>Apri monitor cucina</button></div>`;
+    + dettagli;
   if (typeof hydrateIcons === 'function') hydrateIcons(el);
+}
+
+// ── SALA: pianta dei tavoli ─────────────────────────────────────────────────
+// Le sale e i tavoli stanno in un solo documento: impostazioni/ristorazione_sala
+// ({sale:[{id,nome,cols,rows,tavoli:[{id,nome,posti,x,y,forma}]}]}); le regole
+// di `impostazioni/{id}` valgono già, nessuna regola nuova. L'assegnazione resta
+// il campo `tavolo` della famiglia (testo = nome del tavolo), lo stesso che
+// raggruppa le comande in Cucina: qui diventa un tavolo vero invece di testo libero.
+const SALA_DOC = 'ristorazione_sala';
+function salaDefault() {
+  const mk = (id, nome, pre) => ({
+    id, nome, cols: 5, rows: 3,
+    tavoli: Array.from({ length: 15 }, (_, i) => ({ id: pre + (i + 1), nome: pre + (i + 1), posti: 4, x: i % 5, y: Math.floor(i / 5), forma: 'quadrato' }))
+  });
+  return { sale: [mk('interna', 'Sala interna', 'I'), mk('esterna', 'Sala esterna', 'E')] };
+}
+let SALA = salaDefault();
+let salaIdx = 0, salaEdit = false, salaDraft = null;
+let assegnaFam = null;         // famiglia in attesa di un tavolo ("tocca un tavolo")
+let tavoloAperto = null;       // tavolo aperto nel foglio di dettaglio
+let _salaDati = {}, _salaPresenti = [], _salaOrdini = [];
+const SALA_FORME = { quadrato: 'Quadrato', tondo: 'Tondo', lungo: 'Lungo (2 posti griglia)' };
+
+function salaNormalizza(raw) {
+  if (!raw || !Array.isArray(raw.sale) || !raw.sale.length) return null;
+  const sale = raw.sale.map((s, i) => ({
+    id: String(s.id || 'sala' + i), nome: String(s.nome || 'Sala ' + (i + 1)),
+    cols: Math.min(12, Math.max(3, Number(s.cols) || 5)), rows: Math.min(12, Math.max(3, Number(s.rows) || 5)),
+    tavoli: (Array.isArray(s.tavoli) ? s.tavoli : []).map((t, j) => ({
+      id: String(t.id || 't' + i + '_' + j).replace(/[^A-Za-z0-9_]/g, '_'), nome: String(t.nome || ''),
+      posti: Math.max(1, Number(t.posti) || 4), x: Math.max(0, Number(t.x) || 0), y: Math.max(0, Number(t.y) || 0),
+      forma: SALA_FORME[t.forma] ? t.forma : 'quadrato'
+    }))
+  }));
+  return { sale };
+}
+
+function loadSala() {
+  const { db, doc, onSnapshot } = window._fb;
+  try {
+    onSnapshot(doc(db, 'impostazioni', SALA_DOC), snap => {
+      const n = snap.exists() ? salaNormalizza(snap.data()) : null;
+      SALA = n || salaDefault();
+      aggiornaDatalistTavoli();
+      if (!salaEdit) renderOggi();
+    }, err => console.error('Sala snapshot:', err));
+  } catch (e) { console.error(e); }
+}
+
+function salaTavoliTutti() { const out = []; SALA.sale.forEach(s => s.tavoli.forEach(t => out.push({ t, s }))); return out; }
+function aggiornaDatalistTavoli() {
+  const dl = document.getElementById('tavoli-datalist');
+  if (dl) dl.innerHTML = salaTavoliTutti().map(x => `<option value="${esc(x.t.nome)}">${esc(x.s.nome)}</option>`).join('');
+}
+function isAdminSess() { try { return JSON.parse(sessionStorage.getItem('gr_session') || '{}').ruolo === 'admin'; } catch (e) { return false; } }
+
+// Per ogni tavolo: famiglie sedute (tra chi mangia in questo pasto), coperti e stato del servizio.
+function datiTavoli(ordini, presenti) {
+  const map = {};
+  presenti.forEach(f => {
+    const n = String(f.tavolo || '').trim();
+    if (!n) return;
+    (map[n] = map[n] || { fams: [], coperti: 0, stato: 'libero' }).fams.push(f);
+  });
+  Object.values(map).forEach(m => {
+    m.coperti = m.fams.reduce((s, f) => s + ospitiFamiglia(f), 0);
+    const ords = m.fams.map(f => ordini.find(o => o.famiglia_id === f.id));
+    const con = ords.filter(Boolean);
+    const iniziato = o => tuttoServito(o) || Object.values(o.servito_piatti || {}).some(v => Number(v) > 0);
+    if (con.length && con.length === ords.length && con.every(tuttoServito)) m.stato = 'servito';
+    else if (con.some(iniziato)) m.stato = 'servizio';
+    else if (con.length === ords.length) m.stato = 'ordinato';
+    else m.stato = 'atteso';
+  });
+  return map;
+}
+const STATO_LBL = { libero: 'Libero', atteso: 'In attesa ordine', ordinato: 'Ordinato', servizio: 'In servizio', servito: 'Servito' };
+
+function statoFamiglia(f, ordini) {
+  const o = ordini.find(x => x.famiglia_id === f.id);
+  if (!o) return 'Nessun ordine';
+  if (tuttoServito(o)) return 'Servito';
+  const items = estraiPiattiOrdine(o, {});
+  const tot = items.reduce((s, p) => s + p.qty, 0);
+  const serv = items.reduce((s, p) => s + Math.min(Number((o.servito_piatti || {})[p.mid] || 0), p.qty), 0);
+  return serv > 0 ? `In servizio ${serv}/${tot}` : 'Ordinato';
+}
+
+function htmlSala(ordini, presenti) {
+  _salaOrdini = ordini; _salaPresenti = presenti;
+  const dati = datiTavoli(ordini, presenti);
+  _salaDati = dati;
+  const S = salaEdit ? salaDraft : SALA;
+  if (salaIdx >= S.sale.length) salaIdx = 0;
+  const room = S.sale[salaIdx];
+  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
+
+  const tabs = S.sale.map((s, i) => {
+    const occ = s.tavoli.filter(t => dati[t.nome]).length;
+    return `<button class="seg-btn${i === salaIdx ? ' active' : ''}" onclick="salaScegli(${i})">${esc(s.nome)} <span class="sala-n">${salaEdit ? s.tavoli.length : occ + '/' + s.tavoli.length}</span></button>`;
+  }).join('');
+
+  const nomeFam = f => String(f.nome || '').trim();
+  const cellaTav = t => {
+    const m = dati[t.nome];
+    const w = t.forma === 'lungo' ? 2 : 1;
+    const pos = `grid-column:${t.x + 1} / span ${w};grid-row:${t.y + 1}`;
+    if (salaEdit) {
+      return `<div class="tav forma-${t.forma}" data-edit="1" data-id="${t.id}" style="${pos}"><span class="tav-nome">${esc(t.nome)}</span><span class="tav-info">${t.posti} posti</span></div>`;
+    }
+    const stato = m ? m.stato : 'libero';
+    const nomi = m ? (m.fams.length > 1 ? nomeFam(m.fams[0]) + ' +' + (m.fams.length - 1) : nomeFam(m.fams[0])) : '';
+    const over = m && m.coperti > t.posti;
+    const info = m ? `<span class="tav-fam">${esc(nomi)}</span><span class="tav-info${over ? ' over' : ''}">${m.coperti}/${t.posti} coperti</span>` : `<span class="tav-info">${t.posti} posti</span>`;
+    return `<button class="tav forma-${t.forma} stato-${stato}${assegnaFam ? ' target' : ''}" style="${pos}" onclick="salaTavolo('${t.id}')"><span class="tav-nome">${esc(t.nome)}</span>${info}</button>`;
+  };
+
+  let celle = '';
+  if (salaEdit) for (let y = 0; y < room.rows; y++) for (let x = 0; x < room.cols; x++) celle += `<div class="sala-cell" style="grid-column:${x + 1};grid-row:${y + 1}"></div>`;
+  const canvas = `<div class="sala-canvas${salaEdit ? ' edit' : ''}" style="--cols:${room.cols};--rows:${room.rows}">${celle}${room.tavoli.map(cellaTav).join('')}</div>`;
+
+  let barra = '';
+  if (salaEdit) {
+    barra = `<div class="sala-edit-bar">
+      <input class="finput" style="max-width:200px;height:40px" value="${esc(room.nome)}" onchange="salaRinomina(this.value)" aria-label="Nome sala">
+      <button class="sala-btn" onclick="salaAggiungi()">+ Tavolo</button>
+      <span class="sala-dim">Colonne <button onclick="salaDim('cols',-1)">−</button><b>${room.cols}</b><button onclick="salaDim('cols',1)">+</button></span>
+      <span class="sala-dim">Righe <button onclick="salaDim('rows',-1)">−</button><b>${room.rows}</b><button onclick="salaDim('rows',1)">+</button></span>
+    </div>
+    <div class="sala-edit-hint">Trascina i tavoli per spostarli, toccane uno per cambiare nome, posti e forma.</div>
+    <div class="sala-edit-foot"><button class="mcancel" onclick="salaAnnulla()">Annulla</button><button class="msave" onclick="salvaPianta()">Salva pianta</button></div>`;
+  }
+
+  const legenda = salaEdit ? '' : `<div class="sala-legenda">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
+
+  let senza = '';
+  if (!salaEdit) {
+    const lista = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim()));
+    const banner = assegnaFam
+      ? `<div class="sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
+    senza = banner + `<div class="sala-senza"><div class="sala-senza-t">Senza tavolo <span>${lista.length}</span></div>${
+      lista.length ? `<div class="sala-chips">${lista.map(f => `<button class="sala-chip${assegnaFam === f.id ? ' sel' : ''}" onclick="salaPrendi('${f.id}')">${esc(f.nome)} <span>${ospitiFamiglia(f)}</span>${f.tavolo ? '<em>' + esc(f.tavolo) + ' non in pianta</em>' : ''}</button>`).join('')}</div>`
+                   : '<div class="oggi-empty">Tutte le famiglie hanno un tavolo.</div>'}</div>`;
+  }
+
+  const modBtn = (!salaEdit && isAdminSess()) ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '';
+  return `<div class="oggi-card sala-card">
+    <div class="sala-head"><div class="seg-row sala-rooms">${tabs}</div>${modBtn}</div>
+    ${barra}${canvas}${legenda}${senza}
+  </div>`;
+}
+
+function salaScegli(i) { salaIdx = i; renderOggi(); }
+function salaPrendi(famId) { assegnaFam = (assegnaFam === famId) ? null : famId; renderOggi(); }
+
+function salaTavolo(id) {
+  const x = salaTavoliTutti().find(y => y.t.id === id);
+  if (!x) return;
+  if (assegnaFam) { const f = assegnaFam; assegnaFam = null; assegnaTavolo(f, x.t.nome); return; }
+  tavoloAperto = id;
+  renderSheetTavolo();
+  document.getElementById('modal-tavolo').classList.remove('hidden');
+}
+function chiudiTavolo() { tavoloAperto = null; document.getElementById('modal-tavolo').classList.add('hidden'); }
+
+async function assegnaTavolo(famId, nomeTavolo) {
+  const { db, doc, setDoc } = window._fb;
+  try {
+    await setDoc(doc(db, 'famiglie_ristorazione', famId), { tavolo: nomeTavolo }, { merge: true });
+    const f = famiglieDocs.find(x => x.id === famId); if (f) f.tavolo = nomeTavolo;
+    const t = salaTavoliTutti().find(x => x.t.nome === nomeTavolo);
+    const coperti = famiglieDocs.filter(x => String(x.tavolo || '') === nomeTavolo && _salaPresenti.some(p => p.id === x.id)).reduce((s, x) => s + ospitiFamiglia(x), 0);
+    showToast(t && coperti > t.t.posti ? `Attenzione: ${coperti} coperti su ${t.t.posti} posti` : (nomeTavolo ? `Assegnato al tavolo ${nomeTavolo}` : 'Tavolo liberato'));
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  renderOggi();
+  if (tavoloAperto) renderSheetTavolo();
+}
+
+function renderSheetTavolo() {
+  const x = salaTavoliTutti().find(y => y.t.id === tavoloAperto);
+  if (!x) { chiudiTavolo(); return; }
+  const m = _salaDati[x.t.nome];
+  document.getElementById('mt-title').textContent = 'Tavolo ' + x.t.nome;
+  document.getElementById('mt-sub').textContent = `${x.s.nome} · ${x.t.posti} posti · ${m ? m.coperti + ' coperti' : 'libero'}`;
+  const oggi = isoToday(0);
+  const righe = (m ? m.fams : []).map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti · ${statoFamiglia(f, _salaOrdini)}</div>${f.note ? `<div class="oggi-nota">${esc(f.note)}</div>` : ''}</div>
+    <div style="display:flex;gap:6px;flex-shrink:0"><button class="sala-btn ghost" onclick="chiudiTavolo();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">Ordine</button><button class="sala-btn ghost" onclick="assegnaTavolo('${f.id}','')">Libera</button></div></div>`).join('');
+  const altre = _salaPresenti.filter(f => String(f.tavolo || '').trim() !== x.t.nome);
+  const opz = altre.map(f => `<option value="${f.id}">${esc(f.nome)} · ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} osp.${f.tavolo ? ' (ora: ' + esc(f.tavolo) + ')' : ''}</option>`).join('');
+  document.getElementById('mt-body').innerHTML = (righe || '<div class="oggi-empty">Nessuna famiglia a questo tavolo.</div>')
+    + (altre.length ? `<div class="mlabel" style="margin-top:14px">Aggiungi famiglia</div><div style="display:flex;gap:8px"><select class="fselect" id="mt-sel"><option value="">Scegli…</option>${opz}</select><button class="sala-btn" onclick="assegnaDaSheet()">Assegna</button></div>` : '');
+  document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Chiudi</button>';
+}
+function assegnaDaSheet() {
+  const v = document.getElementById('mt-sel').value;
+  const x = salaTavoliTutti().find(y => y.t.id === tavoloAperto);
+  if (v && x) assegnaTavolo(v, x.t.nome);
+}
+
+// ── EDITOR PIANTA (solo admin) ──────────────────────────────────────────────
+function salaModifica() { salaDraft = JSON.parse(JSON.stringify(SALA)); salaEdit = true; assegnaFam = null; renderOggi(); }
+function salaAnnulla() { salaEdit = false; salaDraft = null; renderOggi(); }
+function salaRinomina(v) { const n = String(v).trim(); if (n) salaDraft.sale[salaIdx].nome = n; renderOggi(); }
+
+function salaLibera(room, x, y, w, ignoraId) {
+  if (x < 0 || y < 0 || x + w > room.cols || y >= room.rows) return false;
+  return !room.tavoli.some(t => t.id !== ignoraId && t.y === y && (t.forma === 'lungo' ? 2 : 1) > 0 && x < t.x + (t.forma === 'lungo' ? 2 : 1) && t.x < x + w);
+}
+function salaNomeLibero() {
+  const usati = new Set(); salaDraft.sale.forEach(s => s.tavoli.forEach(t => usati.add(t.nome)));
+  let n = 1; while (usati.has('T' + n)) n++;
+  return 'T' + n;
+}
+function salaAggiungi() {
+  const room = salaDraft.sale[salaIdx];
+  for (let y = 0; y < room.rows; y++) for (let x = 0; x < room.cols; x++) {
+    if (salaLibera(room, x, y, 1, null)) {
+      const nome = salaNomeLibero();
+      room.tavoli.push({ id: 'n' + Date.now().toString(36) + Math.floor(Math.random() * 1000), nome, posti: 4, x, y, forma: 'quadrato' });
+      renderOggi(); return;
+    }
+  }
+  showToast('Pianta piena: aggiungi righe o colonne');
+}
+function salaDim(campo, delta) {
+  const room = salaDraft.sale[salaIdx];
+  const v = room[campo] + delta;
+  if (v < 3 || v > 12) return;
+  if (delta < 0 && room.tavoli.some(t => campo === 'cols' ? (t.x + (t.forma === 'lungo' ? 2 : 1) > v) : (t.y + 1 > v))) { showToast('Sposta prima i tavoli che finirebbero fuori'); return; }
+  room[campo] = v; renderOggi();
+}
+
+// Trascinamento dei tavoli (mouse e dito): un tocco senza spostamento apre il dettaglio.
+let _drag = null;
+document.addEventListener('pointerdown', e => {
+  if (!salaEdit) return;
+  const tav = e.target.closest && e.target.closest('.tav[data-edit="1"]');
+  if (!tav) return;
+  const canvas = tav.closest('.sala-canvas'); const room = salaDraft.sale[salaIdx];
+  const t = room.tavoli.find(x => x.id === tav.dataset.id); if (!t) return;
+  _drag = { tav, rect: canvas.getBoundingClientRect(), room, t, sx: e.clientX, sy: e.clientY, moved: false };
+  try { tav.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+});
+document.addEventListener('pointermove', e => {
+  if (!_drag) return;
+  const dx = e.clientX - _drag.sx, dy = e.clientY - _drag.sy;
+  if (!_drag.moved && Math.hypot(dx, dy) < 6) return;
+  _drag.moved = true; _drag.tav.classList.add('dragging');
+  _drag.tav.style.transform = `translate(${dx}px,${dy}px)`;
+});
+document.addEventListener('pointerup', e => {
+  if (!_drag) return;
+  const d = _drag; _drag = null;
+  if (!d.moved) { apriEditorTavolo(d.t.id); return; }
+  const cw = d.rect.width / d.room.cols, ch = d.rect.height / d.room.rows;
+  const nx = Math.round(d.t.x + (e.clientX - d.sx) / cw), ny = Math.round(d.t.y + (e.clientY - d.sy) / ch);
+  if (salaLibera(d.room, nx, ny, d.t.forma === 'lungo' ? 2 : 1, d.t.id)) { d.t.x = nx; d.t.y = ny; }
+  renderOggi();
+});
+document.addEventListener('pointercancel', () => { if (_drag) { _drag = null; renderOggi(); } });
+
+function apriEditorTavolo(id) {
+  const t = salaDraft.sale[salaIdx].tavoli.find(x => x.id === id); if (!t) return;
+  tavoloAperto = id;
+  document.getElementById('mt-title').textContent = 'Modifica tavolo';
+  document.getElementById('mt-sub').textContent = salaDraft.sale[salaIdx].nome;
+  document.getElementById('mt-body').innerHTML = `
+    <div class="mlabel">Nome</div><input class="minput" id="mt-nome" type="text" value="${esc(t.nome)}">
+    <div class="mlabel">Posti</div><input class="minput" id="mt-posti" type="number" min="1" max="30" value="${t.posti}">
+    <div class="mlabel">Forma</div><select class="mselect" id="mt-forma" style="margin-bottom:12px">${Object.entries(SALA_FORME).map(([k, v]) => `<option value="${k}"${k === t.forma ? ' selected' : ''}>${v}</option>`).join('')}</select>
+    <button class="sala-btn danger" onclick="eliminaTavoloDraft()">Elimina tavolo</button>`;
+  document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Annulla</button><button class="msave" onclick="applicaEditorTavolo()">Applica</button>';
+  document.getElementById('modal-tavolo').classList.remove('hidden');
+}
+function applicaEditorTavolo() {
+  const room = salaDraft.sale[salaIdx];
+  const t = room.tavoli.find(x => x.id === tavoloAperto); if (!t) return chiudiTavolo();
+  const nome = document.getElementById('mt-nome').value.trim();
+  const posti = Math.max(1, parseInt(document.getElementById('mt-posti').value) || 1);
+  const forma = document.getElementById('mt-forma').value;
+  if (!nome) { showToast('Inserisci il nome del tavolo'); return; }
+  if (salaDraft.sale.some(s => s.tavoli.some(x => x.id !== t.id && x.nome.toLowerCase() === nome.toLowerCase()))) { showToast('Esiste già un tavolo con questo nome'); return; }
+  const w = forma === 'lungo' ? 2 : 1;
+  if (!salaLibera(room, t.x, t.y, w, t.id)) { showToast('Non c\'è spazio per questa forma: sposta il tavolo'); return; }
+  t.nome = nome; t.posti = posti; t.forma = forma;
+  chiudiTavolo(); renderOggi();
+}
+function eliminaTavoloDraft() {
+  const room = salaDraft.sale[salaIdx];
+  const t = room.tavoli.find(x => x.id === tavoloAperto); if (!t) return;
+  if (!confirm(`Eliminare il tavolo "${t.nome}"? Le famiglie assegnate resteranno senza tavolo.`)) return;
+  room.tavoli = room.tavoli.filter(x => x.id !== t.id);
+  chiudiTavolo(); renderOggi();
+}
+
+async function salvaPianta() {
+  const nomi = new Set();
+  for (const s of salaDraft.sale) for (const t of s.tavoli) {
+    const k = t.nome.trim().toLowerCase();
+    if (!k) { showToast('Un tavolo non ha il nome'); return; }
+    if (nomi.has(k)) { showToast(`Nome duplicato: ${t.nome}`); return; }
+    nomi.add(k);
+  }
+  // Tavoli rinominati: le famiglie già assegnate seguono il nuovo nome.
+  const vecchi = {}; SALA.sale.forEach(s => s.tavoli.forEach(t => { vecchi[t.id] = t.nome; }));
+  const ren = {};
+  salaDraft.sale.forEach(s => s.tavoli.forEach(t => { if (vecchi[t.id] && vecchi[t.id] !== t.nome) ren[vecchi[t.id]] = t.nome; }));
+  const { db, doc, setDoc, writeBatch } = window._fb;
+  try {
+    await setDoc(doc(db, 'impostazioni', SALA_DOC), { sale: salaDraft.sale });
+    const daAgg = famiglieDocs.filter(f => ren[String(f.tavolo || '')]);
+    if (daAgg.length) {
+      const batch = writeBatch(db);
+      daAgg.forEach(f => batch.set(doc(db, 'famiglie_ristorazione', f.id), { tavolo: ren[String(f.tavolo)] }, { merge: true }));
+      await batch.commit();
+    }
+    SALA = JSON.parse(JSON.stringify(salaDraft));
+    salaEdit = false; salaDraft = null;
+    aggiornaDatalistTavoli();
+    showToast('Pianta salvata');
+  } catch (e) { showToast('Errore salvataggio pianta'); console.error(e); }
+  renderOggi();
 }
 
 // ── MONITOR CUCINA (iPad a schermo intero) ──────────────────────────────────
@@ -1465,6 +1831,7 @@ function entraMonitor(reset) {
     startCucina();
   }
   switchTab('cucina');
+  setCucinaVista('comande');
   document.body.classList.add('monitor');
   tickMonitor();
   richiediWakeLock();
@@ -1528,6 +1895,7 @@ function setCucinaDate(iso) {
   cucinaDate = iso;
   refreshCucinaDateUi();
   startCucina();
+  if (cucinaVista === 'totali') renderReport();
 }
 
 function setCucinaPasto(p) {
@@ -1536,6 +1904,7 @@ function setCucinaPasto(p) {
   setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
   refreshCucinaDateUi();
   startCucina();
+  if (cucinaVista === 'totali') renderReport();
 }
 
 function startCucina() {
