@@ -341,6 +341,15 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   const auth = getAuth(fbApp);
 
   window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
+  // fetch verso le Cloud Function di notifica con l'ID token dell'operatore (come in assets/auth-suite.js,
+  // che la home non carica): serve al pulsante di test notifiche e alla chiave del feed avvisi dell'app.
+  window.fetchStaff = async (url, opts = {}) => {
+    let tok = '';
+    try { const u = auth.currentUser; if (u && !u.isAnonymous) tok = await u.getIdToken(); } catch (e) { /* senza token la funzione risponde 401 */ }
+    const headers = { ...(opts.headers || {}) };
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+    return fetch(url, { ...opts, headers });
+  };
   // Alias per il codice della home che usava le due connessioni separate.
   window._fbData = window._fb;
   window._fbMagazzino = window._fb;

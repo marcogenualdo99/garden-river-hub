@@ -17,16 +17,21 @@
   // Con app chiusa gli avvisi li gestisce il servizio nativo dell'app (feed dalla CF telegram-bot).
   // Qui gli si passano i reparti scelti e, la prima volta, la chiave del feed (la dà la CF a un operatore loggato).
   var BOT = 'https://telegram-bot-113994721180.europe-west1.run.app';
+  var tentativi = 0;
+  function riprova() { if (++tentativi < 40) setTimeout(provisiona, 4000); }   // l'operatore può non aver ancora fatto il login: si riprova per ~3 minuti
   function provisiona() {
     var N = window.GRNativo;
     try { if (N.impostaReparti) N.impostaReparti(JSON.stringify(reparti())); } catch (e) { /* ok */ }
     try {
       if (!N.impostaFeed || (N.feedPronto && N.feedPronto())) return;
-      if (typeof window.fetchStaff !== 'function') { log('fetchStaff non disponibile: feed non configurato'); return; }
+      if (typeof window.fetchStaff !== 'function') { log('fetchStaff non ancora disponibile, riprovo'); riprova(); return; }
       window.fetchStaff(BOT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ evento: 'feed_chiave' }) })
         .then(function (r) { return r.json(); })
-        .then(function (d) { if (d && d.ok && d.key) { N.impostaFeed(BOT, d.key); log('feed avvisi configurato'); } else log('feed non configurato: ' + (d && d.errore)); })
-        .catch(function () { /* riproverà alla prossima pagina */ });
+        .then(function (d) {
+          if (d && d.ok && d.key) { N.impostaFeed(BOT, d.key); log('feed avvisi configurato'); }
+          else { log('feed non configurato: ' + (d && d.errore)); riprova(); }
+        })
+        .catch(function () { riprova(); });
     } catch (e) { /* ok */ }
   }
 
