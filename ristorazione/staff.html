@@ -184,7 +184,7 @@ main{max-width:800px;margin:0 auto;padding:16px 14px 80px}
 /* ── KDS DONE BTN ── */
 .kds-foot{padding:12px 16px}
 .kds-done-btn{width:100%;height:44px;border:none;border-radius:var(--radius);font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;transition:background .15s}
-.kds-done-btn.pending{background:var(--gray-100);color:var(--gray-400,#9CA3AF);cursor:default}
+.kds-done-btn.partial{background:var(--green-50);color:var(--green-700);box-shadow:inset 0 0 0 2px var(--green-700)}
 .kds-done-btn.ready{background:var(--green-700);color:#fff}
 .kds-done-btn.ready:active{opacity:.85}
 .kds-done-btn.servita{background:var(--green-50);color:var(--green-500)}
@@ -352,6 +352,70 @@ input[type="date"].finput{font-size:13px}
 
 /* ── CHECK SVG ── */
 .check-svg{width:12px;height:12px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── OGGI (cruscotto del servizio) ── */
+.oggi-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.oggi-date{font-size:18px;font-weight:800;color:var(--gray-900)}
+.oggi-seg{width:220px;margin-bottom:0}
+.oggi-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media(min-width:640px){.oggi-tiles{grid-template-columns:repeat(4,1fr)}}
+.oggi-tile{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:14px 16px}
+.oggi-tile-num{font-size:28px;font-weight:800;line-height:1;color:var(--green-700)}
+.oggi-tile.warn .oggi-tile-num{color:#B45309}
+.oggi-tile-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-500);margin-top:8px}
+.oggi-tile-sub{font-size:12px;color:var(--gray-500);margin-top:2px}
+.oggi-progress{height:8px;border-radius:6px;background:var(--gray-100);overflow:hidden;margin-top:10px}
+.oggi-progress>span{display:block;height:100%;background:var(--green-500);transition:width .3s}
+.oggi-card{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:14px 16px;margin-bottom:12px}
+.oggi-card h3{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-500);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.oggi-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);font-size:13px}
+.oggi-row:last-child{border-bottom:none}
+.oggi-row-nome{font-weight:700;color:var(--gray-900)}
+.oggi-row-meta{font-size:11px;color:var(--gray-500);margin-top:2px}
+.oggi-nota{font-size:12px;color:var(--gray-700);margin-top:3px}
+.oggi-tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap;background:var(--gray-100);color:var(--gray-700);flex-shrink:0}
+.oggi-tag.allergia{background:#FEE2E2;color:#B91C1C}
+.oggi-cols{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:720px){.oggi-cols{grid-template-columns:1fr 1fr}}
+.oggi-empty{font-size:13px;color:var(--gray-500);padding:6px 0}
+.oggi-cta{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border:none;border-radius:var(--radius-xl);background:var(--green-700);color:#fff;font-size:14px;font-weight:800;cursor:pointer;font-family:var(--font)}
+.oggi-cta svg,.kds-tool-btn svg{width:18px;height:18px}
+.tab-btn{font-size:13px}
+
+/* ── CUCINA: barra strumenti + MONITOR a schermo intero (iPad in cucina) ── */
+.kds-tools{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:10px}
+.kds-clock,.kds-count,.kds-exit{display:none}
+.kds-tool-btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:none;border-radius:var(--radius-xl);background:var(--green-700);color:#fff;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent}
+.kds-tool-btn:active{opacity:.85}
+@media(min-width:900px){.kds-seg{max-width:772px;margin-left:auto;margin-right:auto}}
+
+body.monitor{background:#0f1117;overflow:hidden}
+body.monitor .nav-zone,body.monitor .top-bar,body.monitor .page-head,body.monitor #tab-bar{display:none!important}
+body.monitor #sec-cucina{position:fixed;inset:0;z-index:500;background:#0f1117;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:0;padding:0 18px calc(28px + env(safe-area-inset-bottom));color:#f0f0f0}
+body.monitor .kds-toolbar{position:sticky;top:0;z-index:5;background:#0f1117;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:calc(12px + env(safe-area-inset-top)) 0 12px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
+body.monitor #cucina-date-nav{padding:0}
+body.monitor .kds-seg{margin:0!important;width:230px;max-width:none;background:#22263a}
+body.monitor .kds-seg .seg-btn{color:#8a8fa8;height:42px;font-size:15px}
+body.monitor .kds-seg .seg-btn.active{background:#fff;color:#0f1117}
+body.monitor .date-nav-arrow,body.monitor .date-nav-btn{background:#22263a;color:#f0f0f0;height:42px}
+body.monitor .date-nav-arrow{width:42px}
+body.monitor .kds-tools{margin:0;gap:14px}
+body.monitor .kds-clock{display:block;font-size:30px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+body.monitor .kds-count{display:block;font-size:13px;font-weight:700;color:#8a8fa8;white-space:nowrap}
+body.monitor .kds-count strong{color:#f59e0b;font-size:20px;margin-right:4px}
+body.monitor .kds-exit{display:inline-flex;background:#22263a;height:42px}
+body.monitor #kds-btn-monitor,body.monitor #cucina-context-title{display:none}
+body.monitor #cucina-body{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;margin-top:14px}
+body.monitor .empty-state{color:#8a8fa8}
+body.monitor .kds-btn{width:46px;height:46px;font-size:22px}
+body.monitor .kds-dish{padding:10px 0}
+body.monitor .kds-dish-name{font-size:17px}
+body.monitor .kds-qty-badge{width:36px;height:36px;font-size:17px}
+body.monitor .kds-nome{font-size:19px}
+body.monitor .kds-served{font-size:14px;min-width:40px}
+body.monitor .kds-done-btn{height:58px;font-size:16px}
+body.monitor .kds-edit-btn{width:42px;height:42px}
+@media(max-width:700px){body.monitor .kds-toolbar{flex-wrap:wrap}}
 </style>
 <link rel="stylesheet" href="../assets/restyle.css?v=3">
 <link rel="stylesheet" href="../assets/mobile-leggero.css?v=4">
@@ -523,7 +587,7 @@ input[type="date"].finput{font-size:13px}
       </button>
       <div>
         <div class="stitle">Impostazioni Ristorante</div>
-        <div class="ssub">Aggiungi, elimina o disattiva</div>
+        <div class="ssub">Stampanti, categorie del menu e menu bambini</div>
       </div>
     </div>
   </div>
@@ -534,16 +598,30 @@ input[type="date"].finput{font-size:13px}
 
   <div class="page-head">
     <div class="page-eyebrow"><span data-icon="RISTORAZIONE"></span><span>Ristorazione</span></div>
-    <div class="page-head-title" id="ph-title">Report</div>
+    <div class="page-head-title" id="ph-title">Oggi</div>
   </div>
   <div class="tab-bar" id="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('report')">Report</button>
-    <button class="tab-btn"        onclick="switchTab('cucina')">Cucina</button>
-    <button class="tab-btn"        onclick="switchTab('menu')">Menu</button>
+    <button class="tab-btn active" data-tab="oggi"   onclick="switchTab('oggi')">Oggi</button>
+    <button class="tab-btn"        data-tab="cucina" onclick="switchTab('cucina')">Cucina</button>
+    <button class="tab-btn"        data-tab="menu"   onclick="switchTab('menu')">Menu</button>
+    <button class="tab-btn"        data-tab="ospiti" onclick="switchTab('ospiti')">Ospiti</button>
+    <button class="tab-btn"        data-tab="report" onclick="switchTab('report')">Report</button>
+  </div>
+
+  <!-- OGGI (cruscotto del servizio) -->
+  <div class="sec active" id="sec-oggi">
+    <div class="oggi-top">
+      <div class="oggi-date" id="oggi-date"></div>
+      <div class="seg-row oggi-seg">
+        <button class="seg-btn active" id="seg-pranzo-o" onclick="setOggiPasto('pranzo')">Pranzo</button>
+        <button class="seg-btn"        id="seg-cena-o"   onclick="setOggiPasto('cena')">Cena</button>
+      </div>
+    </div>
+    <div id="oggi-body"><div class="empty-state">Caricamento...</div></div>
   </div>
 
   <!-- REPORT -->
-  <div class="sec active" id="sec-report">
+  <div class="sec" id="sec-report">
     <div class="date-nav" id="report-date-nav">
       <button class="date-nav-arrow" onclick="shiftReportDate(-1)" aria-label="Giorno precedente">‹</button>
       <div class="date-nav-btn">
@@ -566,17 +644,25 @@ input[type="date"].finput{font-size:13px}
 
   <!-- CUCINA -->
   <div class="sec" id="sec-cucina">
-    <div class="date-nav" id="cucina-date-nav">
-      <button class="date-nav-arrow" onclick="shiftCucinaDate(-1)" aria-label="Giorno precedente">‹</button>
-      <div class="date-nav-btn">
-        <span data-icon="CALENDAR"></span><span id="cucina-date-label"></span>
-        <input type="date" id="cucina-date-input" oninput="setCucinaDate(this.value)">
+    <div class="kds-toolbar">
+      <div class="date-nav" id="cucina-date-nav">
+        <button class="date-nav-arrow" onclick="shiftCucinaDate(-1)" aria-label="Giorno precedente">‹</button>
+        <div class="date-nav-btn">
+          <span data-icon="CALENDAR"></span><span id="cucina-date-label"></span>
+          <input type="date" id="cucina-date-input" oninput="setCucinaDate(this.value)">
+        </div>
+        <button class="date-nav-arrow" onclick="shiftCucinaDate(1)" aria-label="Giorno successivo">›</button>
       </div>
-      <button class="date-nav-arrow" onclick="shiftCucinaDate(1)" aria-label="Giorno successivo">›</button>
-    </div>
-    <div class="seg-row" style="margin-top:10px">
-      <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
-      <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
+      <div class="seg-row kds-seg" style="margin-top:10px">
+        <button class="seg-btn" id="seg-pranzo-c" onclick="setCucinaPasto('pranzo')">Pranzo</button>
+        <button class="seg-btn" id="seg-cena-c"   onclick="setCucinaPasto('cena')">Cena</button>
+      </div>
+      <div class="kds-tools">
+        <span class="kds-clock" id="kds-clock"></span>
+        <span class="kds-count" id="kds-count"></span>
+        <button class="kds-tool-btn" id="kds-btn-monitor" onclick="entraMonitor()"><span data-icon="UTENSILS"></span>Monitor cucina</button>
+        <button class="kds-tool-btn kds-exit" id="kds-btn-esci" onclick="esciMonitor()"><span data-icon="CLOSE"></span>Esci</button>
+      </div>
     </div>
     <div class="date-context-title" id="cucina-context-title"></div>
     <div id="cucina-body"></div>
@@ -608,11 +694,8 @@ input[type="date"].finput{font-size:13px}
     <button class="btn-duplica" id="btn-duplica" onclick="duplicaMenu()"></button>
   </div>
 
-</main>
-
-<!-- SETTINGS VIEW -->
-<div id="settings-view" class="hidden">
-  <main>
+  <!-- OSPITI PENSIONE (anagrafica famiglie, QR, link ospite) -->
+  <div class="sec" id="sec-ospiti">
   <div class="settings-cols">
   <div class="settings-col-left">
     <div class="add-fam-card">
@@ -665,6 +748,13 @@ input[type="date"].finput{font-size:13px}
     <div id="famiglie-list"></div>
   </div><!-- /settings-col-right -->
   </div><!-- /settings-cols -->
+  </div>
+
+</main>
+
+<!-- SETTINGS VIEW -->
+<div id="settings-view" class="hidden">
+  <main>
 
   <div class="settings-row2">
     <div class="add-fam-card" style="margin-top:0">
@@ -933,7 +1023,10 @@ function menuItemsBambini() {
 }
 
 // ── STATO ───────────────────────────────────────────────────────────────────
-let currentTab      = 'report';
+let currentTab      = 'oggi';
+let oggiPasto       = new Date().getHours() < 14 ? 'pranzo' : 'cena';
+let unsubOggi       = null;
+let oggiOrdini      = [];      // ordini di oggi (entrambi i pasti), realtime
 let reportDate      = isoToday(0);
 let reportPasto     = 'pranzo';
 let cucinaPasto     = new Date().getHours() < 14 ? 'pranzo' : 'cena';
@@ -992,7 +1085,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('hdr-role').textContent   = sess.ruolo === 'admin' ? 'Amministratore' : 'Operatore';
 
   // Set pasto cucina tab buttons
-  setSeg('pranzo-c', 'cena-c', cucinaPasto === 'pranzo');
+  setSeg('seg-pranzo-c', 'seg-cena-c', cucinaPasto === 'pranzo');
+  setSeg('seg-pranzo-o', 'seg-cena-o', oggiPasto === 'pranzo');
 
   // Load static data
   await Promise.all([loadMenu(), startFamiglie(), loadAlloggi(), loadImpostazioni()]);
@@ -1006,17 +1100,23 @@ window.addEventListener('DOMContentLoaded', async () => {
   renderReport();
   renderMenu();
   startCucina();
+  startOggi();
+  avviaDaUrl();
 });
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
+const TAB_TITOLI = { oggi:'Oggi', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', report:'Report' };
 function switchTab(tab) {
+  if (!TAB_TITOLI[tab]) tab = 'oggi';
   currentTab = tab;
-  document.querySelectorAll('#tab-bar .tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['report','cucina','menu'][i] === tab);
+  document.querySelectorAll('#tab-bar .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
   });
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
-  document.getElementById('ph-title').textContent = { report:'Report', cucina:'Cucina', menu:'Menu' }[tab];
+  document.getElementById('ph-title').textContent = TAB_TITOLI[tab];
+  if (tab === 'oggi') renderOggi();
+  if (tab === 'ospiti') renderFamiglie();
   // Rimuovi print-area se esiste
   const pa = document.getElementById('print-area');
   if (pa) pa.remove();
@@ -1056,6 +1156,79 @@ function setReportPasto(p) {
   renderReport();
 }
 
+// ── LOGICA PASTI CONDIVISA (Oggi + Report) ───────────────────────────────────
+// Per una data e un pasto calcola: le famiglie "attese" (in struttura e con
+// diritto a quel pasto), quelle senza ordine e i recuperi pasti (PC che partono
+// oggi dopo un arrivo tardivo). Regole identiche al vecchio Report.
+function calcolaPastiGiorno(targetDate, pasto, ordini, ordiniAltro) {
+  const haOrdine = (lista, f) => lista.some(o => o.famiglia_id === f.id);
+  const recuperi = famiglieDocs.filter(f => {
+    if (f.checkout !== targetDate) return false;
+    if (f.trattamento !== 'PC') return false;
+    if (f.ora_arrivo === 'dopo_pranzo') return pasto === 'pranzo';
+    if (f.ora_arrivo === 'sera')        return true;
+    return false;
+  }).filter(f => !haOrdine(ordini, f));
+
+  const attese = famiglieDocs.filter(f => {
+    if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
+    if (f.checkout && f.checkout <= targetDate) return false; // partono oggi o già partite
+    if (f.checkin === targetDate) {
+      if (f.ora_arrivo === 'dopo_pranzo' && pasto === 'pranzo') return false;
+      if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
+    }
+    return true;
+  });
+  const senzaOrdine = attese.filter(f => {
+    const haCorrente = haOrdine(ordini, f);
+    if (f.trattamento === 'MP') return !haCorrente && !haOrdine(ordiniAltro, f); // MP: basta uno dei due pasti
+    return !haCorrente;                                                            // PC: serve questo pasto
+  });
+  return { attese, senzaOrdine, recuperi };
+}
+
+function ospitiFamiglia(f) {
+  const n = Number(f.max_ospiti) || ((Number(f.adulti) || 0) + (Array.isArray(f.bambini) ? f.bambini.length : 0));
+  return n > 0 ? n : 1;
+}
+
+function htmlAlertRecuperi(lista, targetDate, pasto) {
+  if (!lista.length) return '';
+  const label = f => f.ora_arrivo === 'dopo_pranzo' ? 'Colazione + Pranzo' : 'Colazione + Pranzo + Cena';
+  const n = lista.length;
+  return `<div class="report-alert" style="border:1px solid #F5D78A;background:#FFFBEB">
+      <div class="report-alert-head">
+        <div class="report-alert-icon" style="color:#D97706">!</div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count" style="color:#D97706">${n}</span>
+            <span class="report-alert-label">recuper${n===1?'o':'i'} pasti (partenz${n===1?'a':'e'} oggi)</span>
+          </div>
+        </div>
+      </div>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${lista.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${pasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${label(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
+    </div>`;
+}
+
+function htmlAlertSenzaOrdine(lista, targetDate, pasto) {
+  if (!lista.length) return '';
+  const n = lista.length;
+  return `<div class="report-alert">
+      <div class="report-alert-head">
+        <div class="report-alert-icon" style="color:#D97706">${ICON('WARN',18)}</div>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <span class="report-alert-count">${n}</span>
+            <span class="report-alert-label">famigli${n===1?'a':'e'} senza ordine</span>
+          </div>
+        </div>
+      </div>
+      <div class="report-alert-divider"></div>
+      <div class="report-alert-list">${lista.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${pasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
+    </div>`;
+}
+
 async function renderReport() {
   const el = document.getElementById('report-body');
   el.innerHTML = '<div class="empty-state">Caricamento...</div>';
@@ -1086,88 +1259,17 @@ async function renderReport() {
     return;
   }
 
-  // Recuperi pasti: PC che partono oggi e hanno pasti da recuperare e non li hanno ancora ordinati
-  const recuperiOggi = famiglieDocs.filter(f => {
-    if (f.checkout !== targetDate) return false;
-    if (f.trattamento !== 'PC') return false;
-    if (f.ora_arrivo === 'dopo_pranzo') return true;  // recupera colazione + pranzo
-    if (f.ora_arrivo === 'sera')        return true;  // recupera colazione + pranzo + cena
-    return false;
-  }).filter(f => {
-    // Filtra per pasto corrente: dopo_pranzo recupera pranzo (e colazione); sera recupera pranzo e cena
-    if (f.ora_arrivo === 'dopo_pranzo') return reportPasto === 'pranzo';
-    if (f.ora_arrivo === 'sera')        return true; // sia pranzo che cena
-    return false;
-  }).filter(f => !ordini.some(o => o.famiglia_id === f.id)); // escludi chi ha già ordinato
-
-  // Alert famiglie senza ordine — considera trattamento e giorno di arrivo/partenza
-  const famiglieSenzaOrdine = famiglieDocs.filter(f => {
-    if (f.checkin  && f.checkin  > targetDate) return false; // non ancora arrivate
-    if (f.checkout && f.checkout <= targetDate) return false; // partono oggi o già partite
-    // Famiglie che arrivano oggi: escludi se non mangiano questo pasto
-    if (f.checkin === targetDate) {
-      if (f.ora_arrivo === 'dopo_pranzo' && reportPasto === 'pranzo') return false;
-      if (f.ora_arrivo === 'sera') return false; // nessun pasto il giorno di arrivo
-    }
-    const haPastoCorrente = ordini.some(o => o.famiglia_id === f.id);
-    if (f.trattamento === 'MP') {
-      // MP: ok se ha compilato almeno uno tra pranzo e cena
-      const haAltro = ordiniAltro.some(o => o.famiglia_id === f.id);
-      return !haPastoCorrente && !haAltro;
-    }
-    // PC (o senza trattamento): deve avere questo specifico pasto
-    return !haPastoCorrente;
-  });
-  const recuperoLabel = f => f.ora_arrivo === 'dopo_pranzo' ? 'Colazione + Pranzo' : 'Colazione + Pranzo + Cena';
-  let recuperiHtml = '';
-  if (recuperiOggi.length) {
-    recuperiHtml = `<div class="report-alert" style="border:1px solid #F5D78A;background:#FFFBEB">
-      <div class="report-alert-head">
-        <div class="report-alert-icon" style="color:#D97706">!</div>
-        <div>
-          <div style="display:flex;align-items:baseline;gap:6px">
-            <span class="report-alert-count" style="color:#D97706">${recuperiOggi.length}</span>
-            <span class="report-alert-label">recuper${recuperiOggi.length===1?'o':'i'} pasti (partenz${recuperiOggi.length===1?'a':'e'} oggi)</span>
-          </div>
-        </div>
-      </div>
-      <div class="report-alert-divider"></div>
-      <div class="report-alert-list">${recuperiOggi.map(f=>`<button class="report-alert-chip" style="border-color:#D97706" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit" style="color:#D97706">· ${recuperoLabel(f)}</span><span style="font-size:13px;color:#D97706">→</span></button>`).join('')}</div>
-    </div>`;
-  }
-
-  let alertHtml = '';
-  if (famiglieSenzaOrdine.length) {
-    alertHtml = `<div class="report-alert">
-      <div class="report-alert-head">
-        <div class="report-alert-icon" style="color:#D97706">${ICON('WARN',18)}</div>
-        <div>
-          <div style="display:flex;align-items:baseline;gap:6px">
-            <span class="report-alert-count">${famiglieSenzaOrdine.length}</span>
-            <span class="report-alert-label">famili${famiglieSenzaOrdine.length===1?'a':'e'} senza ordine</span>
-          </div>
-        </div>
-      </div>
-      <div class="report-alert-divider"></div>
-      <div class="report-alert-list">${famiglieSenzaOrdine.map(f=>`<button class="report-alert-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${targetDate}','${reportPasto}')"><span class="report-alert-chip-name">${esc(f.nome)}</span><span class="report-alert-chip-unit">· ${esc(f.unita||'—')}</span><span style="font-size:13px;color:#B45309">→</span></button>`).join('')}</div>
-    </div>`;
-  }
+  const { attese, senzaOrdine: famiglieSenzaOrdine, recuperi: recuperiOggi } =
+    calcolaPastiGiorno(targetDate, reportPasto, ordini, ordiniAltro);
+  const recuperiHtml = htmlAlertRecuperi(recuperiOggi, targetDate, reportPasto);
+  const alertHtml    = htmlAlertSenzaOrdine(famiglieSenzaOrdine, targetDate, reportPasto);
 
   // Aggrega quantità per menuId — gestisce array e mappa legacy
   const totali = {};
   const byFam  = {};
   for (const ord of ordini) {
-    const raw  = ord.piatti || [];
     const nota = ord.note || '';
-    const items = [];
-    if (Array.isArray(raw)) {
-      raw.forEach(p => { if (p && Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
-    } else if (typeof raw === 'object') {
-      Object.entries(raw).forEach(([k,v]) => {
-        if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
-        else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id || k, qty: Number(v.quantita)});
-      });
-    }
+    const items = estraiPiattiOrdine(ord, {}).map(p => ({ mid: p.mid, qty: p.qty }));
     for (const {mid, qty} of items) {
       totali[mid] = (totali[mid] || 0) + qty;
       if (!byFam[mid]) byFam[mid] = [];
@@ -1246,6 +1348,167 @@ window.addEventListener('afterprint', () => {
   if (pa) pa.remove();
 });
 
+// ── OGGI (cruscotto del servizio) ───────────────────────────────────────────
+// Vista unica per chi gestisce la sala: coperti attesi, ordini ricevuti e
+// mancanti, avanzamento del servizio, note/allergie, arrivi e partenze.
+// Ascolta in tempo reale tutti gli ordini di oggi (una sola query, entrambi i pasti).
+let oggiData = null;
+const ALLERGIE_KW = ['glutine','celiac','lattosio','allerg','intolleran','arachid','noci','frutta a guscio','uova','pesce','crostacei','molluschi','soia','sesamo','sedano','senape','solfiti','vegan','vegetarian'];
+function notaDelicata(txt) {
+  const n = String(txt || '').toLowerCase();
+  return ALLERGIE_KW.some(k => n.includes(k));
+}
+
+function startOggi() {
+  if (unsubOggi) { unsubOggi(); unsubOggi = null; }
+  const { db, collection, query, where, onSnapshot } = window._fb;
+  oggiData = isoToday(0);
+  try {
+    unsubOggi = onSnapshot(
+      query(collection(db, 'ordini_ristorazione'), where('data', '==', oggiData)),
+      snap => { oggiOrdini = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderOggi(); },
+      err => console.error('Oggi snapshot:', err)
+    );
+  } catch (e) { console.error(e); }
+}
+
+function setOggiPasto(p) {
+  oggiPasto = p;
+  setSeg('seg-pranzo-o', 'seg-cena-o', p === 'pranzo');
+  renderOggi();
+}
+
+function renderOggi() {
+  const el = document.getElementById('oggi-body');
+  if (!el) return;
+  const oggi = isoToday(0);
+  if (oggiData && oggiData !== oggi) { startOggi(); return; } // pagina rimasta aperta oltre la mezzanotte
+  document.getElementById('oggi-date').textContent = fmtDataLunga(oggi);
+
+  const famIds = new Set(famiglieDocs.map(f => f.id));
+  const tutti  = oggiOrdini.filter(o => famIds.has(o.famiglia_id));
+  const ordini = tutti.filter(o => o.tipo === oggiPasto);
+  const altri  = tutti.filter(o => o.tipo !== oggiPasto);
+  const { attese, senzaOrdine, recuperi } = calcolaPastiGiorno(oggi, oggiPasto, ordini, altri);
+  const famMap = {}; famiglieDocs.forEach(f => { famMap[f.id] = f; });
+
+  const ordinatiQui = attese.filter(f => ordini.some(o => o.famiglia_id === f.id));
+  const somma = lista => lista.reduce((s, f) => s + ospitiFamiglia(f), 0);
+  const copertiConfermati = somma(ordinatiQui);
+  const copertiAttesi = copertiConfermati + somma(senzaOrdine);
+
+  // Avanzamento servizio
+  let totPiatti = 0, totServiti = 0, daServire = 0;
+  ordini.forEach(o => {
+    const items = estraiPiattiOrdine(o, {});
+    const serv = o.servito_piatti || {};
+    const fatto = tuttoServito(o);
+    items.forEach(p => { totPiatti += p.qty; totServiti += fatto ? p.qty : Math.min(Number(serv[p.mid] || 0), p.qty); });
+    if (items.length && !fatto) daServire++;
+  });
+  const perc = totPiatti ? Math.round(totServiti / totPiatti * 100) : 0;
+  const pastoLbl = oggiPasto === 'pranzo' ? 'pranzo' : 'cena';
+
+  const tiles = `<div class="oggi-tiles">
+    <div class="oggi-tile"><div class="oggi-tile-num">${copertiAttesi}</div><div class="oggi-tile-lbl">Coperti attesi</div><div class="oggi-tile-sub">${copertiConfermati} confermati</div></div>
+    <div class="oggi-tile${senzaOrdine.length ? ' warn' : ''}"><div class="oggi-tile-num">${ordinatiQui.length}</div><div class="oggi-tile-lbl">Ordini ricevuti</div><div class="oggi-tile-sub">${senzaOrdine.length ? senzaOrdine.length + ' mancanti' : 'tutti ordinati'}</div></div>
+    <div class="oggi-tile"><div class="oggi-tile-num">${totServiti}<span style="font-size:16px;color:var(--gray-400)">/${totPiatti}</span></div><div class="oggi-tile-lbl">Piatti serviti</div><div class="oggi-progress"><span style="width:${perc}%"></span></div></div>
+    <div class="oggi-tile${daServire ? ' warn' : ''}"><div class="oggi-tile-num">${daServire}</div><div class="oggi-tile-lbl">Comande da servire</div><div class="oggi-tile-sub">${ordini.length} totali</div></div>
+  </div>`;
+
+  // Note e allergie di chi mangia in questo pasto (allergie in cima)
+  const note = [];
+  ordinatiQui.forEach(f => {
+    const o = ordini.find(x => x.famiglia_id === f.id) || {};
+    const testi = [f.note, o.note].filter(Boolean);
+    if (!testi.length) return;
+    note.push({ f, testo: testi.join(' · '), allergia: testi.some(notaDelicata) });
+  });
+  note.sort((a, b) => (b.allergia - a.allergia) || String(a.f.nome).localeCompare(String(b.f.nome), 'it'));
+  const noteHtml = `<div class="oggi-card"><h3><span>Note e allergie · ${pastoLbl}</span><span>${note.length}</span></h3>${
+    note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('')
+         : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</div>`;
+
+  // Arrivi e partenze di oggi
+  const ORA = { mattina: 'dalla colazione', dopo_pranzo: 'dalla cena', sera: 'nessun pasto oggi' };
+  const arrivi = famiglieDocs.filter(f => f.checkin === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+  const partenze = famiglieDocs.filter(f => f.checkout === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+  const riga = (f, extra) => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti${f.trattamento ? ' · ' + esc(f.trattamento) : ''}</div></div>${extra ? `<span class="oggi-tag">${extra}</span>` : ''}</div>`;
+  const movHtml = `<div class="oggi-cols">
+    <div class="oggi-card"><h3><span>Arrivi oggi</span><span>${arrivi.length}</span></h3>${arrivi.length ? arrivi.map(f => riga(f, ORA[f.ora_arrivo] || '')).join('') : '<div class="oggi-empty">Nessun arrivo.</div>'}</div>
+    <div class="oggi-card"><h3><span>Partenze oggi</span><span>${partenze.length}</span></h3>${partenze.length ? partenze.map(f => riga(f, '')).join('') : '<div class="oggi-empty">Nessuna partenza.</div>'}</div>
+  </div>`;
+
+  el.innerHTML = tiles
+    + htmlAlertRecuperi(recuperi, oggi, oggiPasto)
+    + htmlAlertSenzaOrdine(senzaOrdine, oggi, oggiPasto)
+    + noteHtml + movHtml
+    + `<div style="margin-top:6px"><button class="oggi-cta" onclick="switchTab('cucina');entraMonitor(true)"><span data-icon="UTENSILS"></span>Apri monitor cucina</button></div>`;
+  if (typeof hydrateIcons === 'function') hydrateIcons(el);
+}
+
+// ── MONITOR CUCINA (iPad a schermo intero) ──────────────────────────────────
+// Stessa vista Cucina, ma senza navigazione: tema scuro, controlli grandi,
+// orologio, schermo sempre acceso. Si apre anche direttamente con ?vista=cucina
+// (il vecchio indirizzo cucina.html rimanda qui).
+let _kdsAuto = false;     // true = il pasto segue l'orario (pranzo fino alle 14, poi cena)
+let _wakeLock = null;
+function pastoDaOrario() { return new Date().getHours() < 14 ? 'pranzo' : 'cena'; }
+
+function entraMonitor(reset) {
+  if (reset) {
+    cucinaDate = isoToday(0);
+    cucinaPasto = pastoDaOrario();
+    _kdsAuto = true;
+    setSeg('seg-pranzo-c', 'seg-cena-c', cucinaPasto === 'pranzo');
+    refreshCucinaDateUi();
+    startCucina();
+  }
+  switchTab('cucina');
+  document.body.classList.add('monitor');
+  tickMonitor();
+  richiediWakeLock();
+  try { history.replaceState(null, '', location.pathname + '?vista=cucina'); } catch (e) {}
+}
+
+function esciMonitor() {
+  document.body.classList.remove('monitor');
+  _kdsAuto = false;
+  if (_wakeLock) { try { _wakeLock.release(); } catch (e) {} _wakeLock = null; }
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+}
+
+async function richiediWakeLock() {
+  try { if ('wakeLock' in navigator) _wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && document.body.classList.contains('monitor')) richiediWakeLock();
+});
+
+function tickMonitor() {
+  const c = document.getElementById('kds-clock');
+  if (c) { const n = new Date(); c.textContent = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }
+  // Pasto automatico: a mezzogiorno/sera il monitor cambia da solo, finché nessuno sceglie a mano
+  if (document.body.classList.contains('monitor') && _kdsAuto && cucinaDate === isoToday(0) && cucinaPasto !== pastoDaOrario()) {
+    cucinaPasto = pastoDaOrario();
+    setSeg('seg-pranzo-c', 'seg-cena-c', cucinaPasto === 'pranzo');
+    refreshCucinaDateUi();
+    startCucina();
+  }
+}
+setInterval(tickMonitor, 15000);
+
+function aggiornaKdsCount(n) {
+  const el = document.getElementById('kds-count');
+  if (el) el.innerHTML = '<strong>' + n + '</strong>da servire';
+}
+
+function avviaDaUrl() {
+  const v = new URLSearchParams(location.search).get('vista');
+  if (v === 'cucina') entraMonitor(true);
+  else if (v && TAB_TITOLI[v]) switchTab(v);
+}
+
 // ── CUCINA ────────────────────────────────────────────────────────────────────
 function buildCucinaDateStrip() {
   refreshCucinaDateUi();
@@ -1268,6 +1531,7 @@ function setCucinaDate(iso) {
 }
 
 function setCucinaPasto(p) {
+  _kdsAuto = false;
   cucinaPasto = p;
   setSeg('seg-pranzo-c','seg-cena-c', p==='pranzo');
   refreshCucinaDateUi();
@@ -1308,6 +1572,7 @@ function renderCucina(ordini) {
   const el = document.getElementById('cucina-body');
   if (!ordini.length) {
     el.innerHTML = '<div class="empty-state">Nessun ordine per questo pasto.</div>';
+    aggiornaKdsCount(0);
     return;
   }
 
@@ -1345,6 +1610,7 @@ function renderCucina(ordini) {
     return aDone === bDone ? 0 : aDone ? 1 : -1;
   });
 
+  aggiornaKdsCount(unita.filter(u => !(u.tipo === 'gruppo' ? u.ordini.every(tuttoServito) : tuttoServito(u.ord))).length);
   el.innerHTML = unita.map(u => u.tipo === 'gruppo'
     ? renderKdsCardGruppo(u.tavolo, u.ordini, menuById)
     : renderKdsCardSingola(u.ord, menuById)
@@ -1447,8 +1713,8 @@ function renderKdsCardSingola(ord, menuById) {
     }).join('')}
   </div>`;
 
-  const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
-  const doneBtnTxt = isDone ? 'Servito' : totServiti===totPiatti ? 'Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+  const doneBtnCls = isDone ? 'servita' : totServiti===totPiatti ? 'ready' : 'partial';
+  const doneBtnTxt = isDone ? 'Servito' : totServiti===totPiatti ? 'Segna come servito' : `Servi tutto · ${totServiti}/${totPiatti}`;
 
   return `<div class="kds-card${isDone?' servita':''}">
     <div class="kds-head ${headCls}">
@@ -1477,7 +1743,7 @@ function renderKdsCardSingola(ord, menuById) {
       </div>
     </div>
     <div class="kds-foot">
-      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
+      <button class="kds-done-btn ${doneBtnCls}" onclick="segnaServito('${jsEsc(ord.id)}',${isDone})">${doneBtnTxt}</button>
     </div>
   </div>`;
 }
@@ -1570,8 +1836,8 @@ function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
     </div>`;
   }).join('');
 
-  const doneBtnCls = isDoneGroup ? 'servita' : totServiti===totPiatti ? 'ready' : 'pending';
-  const doneBtnTxt = isDoneGroup ? 'Servito' : totServiti===totPiatti ? 'Segna come servito' : `${totServiti} / ${totPiatti} piatti`;
+  const doneBtnCls = isDoneGroup ? 'servita' : totServiti===totPiatti ? 'ready' : 'partial';
+  const doneBtnTxt = isDoneGroup ? 'Servito' : totServiti===totPiatti ? 'Segna come servito' : `Servi tutto · ${totServiti}/${totPiatti}`;
   const ordIdsCsv = ordsGroup.map(o => o.id).join(',');
   const famNomiHead = ordsGroup.map(o => esc(o.famiglia_nome || '—')).join(' · ');
 
@@ -1589,7 +1855,7 @@ function renderKdsCardGruppo(tavolo, ordsGroup, menuById) {
     <div class="kds-body">${piattiHtml}</div>
     ${famRighe}
     <div class="kds-foot">
-      <button class="kds-done-btn ${doneBtnCls}" ${doneBtnCls==='pending'?'disabled':''} onclick="segnaServitoGruppo('${ordIdsCsv}',${isDoneGroup})">${doneBtnTxt}</button>
+      <button class="kds-done-btn ${doneBtnCls}" onclick="segnaServitoGruppo('${ordIdsCsv}',${isDoneGroup})">${doneBtnTxt}</button>
     </div>
   </div>`;
 }
@@ -1774,18 +2040,12 @@ async function salvaOrdineStaff() {
 }
 
 function tuttoServito(ord) {
-  const rawPiatti = ord.piatti || [];
-  const serviti   = ord.servito_piatti || {};
-  const items = [];
-  if (Array.isArray(rawPiatti)) {
-    rawPiatti.forEach(p => { if (Number(p.quantita) > 0) items.push({mid: p.menu_id, qty: Number(p.quantita)}); });
-  } else if (typeof rawPiatti === 'object') {
-    Object.entries(rawPiatti).forEach(([k,v]) => {
-      if (typeof v === 'number' && v > 0) items.push({mid: k, qty: v});
-      else if (v && typeof v === 'object' && Number(v.quantita) > 0) items.push({mid: v.menu_id||k, qty: Number(v.quantita)});
-    });
-  }
-  return items.length > 0 && items.every(({mid, qty}) => Number(serviti[mid] || 0) >= qty);
+  const items = estraiPiattiOrdine(ord, {});
+  if (!items.length) return false;
+  const serviti = ord.servito_piatti || {};
+  if (items.every(p => Number(serviti[p.mid] || 0) >= p.qty)) return true;
+  // Formato storico del vecchio monitor cucina: solo il flag `servito`, senza conteggi per piatto.
+  return ord.servito === true && !ord.servito_piatti;
 }
 
 // max=-1 significa decremento di 1
@@ -1800,24 +2060,14 @@ async function incrementServito(ordId, menuId, current, max) {
 }
 
 async function segnaServito(ordId, isAlreadyDone) {
-  const { db, doc, updateDoc, collection, getDocs, query, where } = window._fb;
+  const { db, doc, updateDoc } = window._fb;
+  const ord = _kdsOrdiniMap[ordId];
   try {
-    if (isAlreadyDone) {
-      // Resetta tutti i piatti a 0
-      const snap = await getDocs(query(collection(db,'ordini_ristorazione'), where('__name__','==',ordId)));
-      if (!snap.empty) {
-        const ord = snap.docs[0].data();
-        const raw = ord.piatti || [];
-        const updates = {};
-        const ids = Array.isArray(raw)
-          ? raw.map(p=>p.menu_id)
-          : Object.keys(raw);
-        ids.forEach(id => { updates[`servito_piatti.${id}`] = 0; });
-        await updateDoc(doc(db,'ordini_ristorazione',ordId), updates);
-      }
-    } else {
-      await updateDoc(doc(db,'ordini_ristorazione',ordId), { servito: true });
-    }
+    const items = ord ? estraiPiattiOrdine(ord, {}) : [];
+    const updates = { servito: !isAlreadyDone };
+    // Servito = tutte le porzioni a quantità piena; annullato = tutte a 0.
+    items.forEach(p => { updates[`servito_piatti.${p.mid}`] = isAlreadyDone ? 0 : p.qty; });
+    await updateDoc(doc(db,'ordini_ristorazione',ordId), updates);
   } catch(e) { showToast('Errore salvataggio'); console.error(e); }
 }
 
@@ -2256,6 +2506,7 @@ function startFamiglie() {
     unsubFamiglie = onSnapshot(collection(db, 'famiglie_ristorazione'), (snap) => {
       famiglieDocs = snap.docs.map(d => ({id:d.id, ...d.data()}));
       renderFamiglie();
+      if (typeof renderOggi === 'function') renderOggi();
       if (primaVolta) { primaVolta = false; resolve(); }
     }, (err) => {
       console.error('Famiglie snapshot:', err);
