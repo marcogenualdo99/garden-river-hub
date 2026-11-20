@@ -307,14 +307,15 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork }
+  import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously, signInWithCustomToken, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  // Progetto Firebase unico della suite. 'operatori', 'permessi', 'home_layout'
-  // e 'meta' (prima sul progetto separato "garden-river-hub") sono stati
-  // migrati dentro garden-river-conti-febed: questa connessione ora punta lì.
+  // Progetto Firebase unico della suite (garden-river-conti-febed): operatori,
+  // permessi, home_layout, e tutti i dati letti dalla home. UNA sola connessione
+  // (prima erano tre, con tre login e tre canali aperti): dopo il PIN la sessione
+  // operatore e' questa, e vale per tutte le letture.
   const firebaseConfig = {
     apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
     authDomain: "garden-river-conti-febed.firebaseapp.com",
@@ -325,11 +326,25 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   };
 
   const fbApp = initializeApp(firebaseConfig);
-  const db    = getFirestore(fbApp);
-  const auth  = getAuth(fbApp);
+  // Cache locale persistente (IndexedDB): tornando alla home i dati compaiono
+  // subito dalla cache e dal server arriva solo la differenza. Se il browser non
+  // la permette si ricade sulla cache in memoria, come prima.
+  let db;
+  try {
+    db = initializeFirestore(fbApp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  } catch (e) {
+    console.warn('Cache persistente non disponibile:', e);
+    db = getFirestore(fbApp);
+  }
+  const auth = getAuth(fbApp);
 
-  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, enableNetwork, disableNetwork };
+  window._fb = { db, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
+  // Alias per il codice della home che usava le due connessioni separate.
+  window._fbData = window._fb;
+  window._fbMagazzino = window._fb;
   window._fbReady     = false;
+  window._fbDataReady = false;
+  window._fbMagazzinoReady = false;
   window._fbAuthError = false;
 
   function segnalaPronto() {
@@ -337,8 +352,16 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     window._fbReady = true;
     window.dispatchEvent(new Event('firebase-ready'));
   }
+  function segnalaDatiPronti() {
+    if (!window._fbDataReady) { window._fbDataReady = true; window.dispatchEvent(new Event('firebase-data-ready')); }
+    if (!window._fbMagazzinoReady) { window._fbMagazzinoReady = true; window.dispatchEvent(new Event('firebase-magazzino-ready')); }
+  }
 
-  onAuthStateChanged(auth, (user) => { if (user) segnalaPronto(); });
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    segnalaPronto();
+    if (!user.isAnonymous) segnalaDatiPronti();   // i dati si leggono solo con la sessione operatore
+  });
   // L'accesso anonimo serve SOLO a mostrare l'elenco operatori nella schermata
   // di login (le regole lo limitano a operatori/permessi in lettura). Se c'è
   // già una sessione operatore persistita NON va sostituita con una anonima.
@@ -365,87 +388,9 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     await auth.authStateReady();
     return !!(auth.currentUser && !auth.currentUser.isAnonymous);
   };
-</script>
-<!-- Secondo collegamento Firebase: serve a leggere i dati di Conti / Alloggi / Bici
-     per mostrare i numeri live nelle card della home, -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { sessioneHub } from "/assets/auth-suite.js";
-
-  const dataFirebaseConfig = {
-    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
-    authDomain: "garden-river-conti-febed.firebaseapp.com",
-    projectId: "garden-river-conti-febed",
-    storageBucket: "garden-river-conti-febed.firebasestorage.app",
-    messagingSenderId: "113994721180",
-    appId: "1:113994721180:web:c41d309c9270134b640a59"
-  };
-
-  const dataApp   = initializeApp(dataFirebaseConfig, "datiSuite");
-  const dataDb    = getFirestore(dataApp);
-  const dataAuth  = getAuth(dataApp);
-
-
-  window._fbData = { db: dataDb, collection, doc, getDocs, onSnapshot, updateDoc, query, limit, where, enableNetwork, disableNetwork };
-  window._fbDataReady = false;
-
-  function segnalaDatiPronti() {
-    if (window._fbDataReady) return;
-    window._fbDataReady = true;
-    window.dispatchEvent(new Event('firebase-data-ready'));
-  }
-
-  onAuthStateChanged(dataAuth, (user) => { if (user && !user.isAnonymous) segnalaDatiPronti(); });
-  // Nessun login anonimo: la sessione arriva dal PIN. Si prova all'avvio (sessione
-  // già persistita) e di nuovo subito dopo il login (window._collegaDatiSuite).
-  window._collegaDatiSuite = () => sessioneHub(dataAuth).catch(() => {});
-  window._scollegaDatiSuite = () => signOut(dataAuth).catch(() => {});
-  window._collegaDatiSuite();
-</script>
-<!-- Terzo collegamento Firebase: legge "prodotti" (scorte sotto soglia) e
-     "categorie" del Magazzino Bar. Queste collezioni, prima sul progetto
-     separato "garden-river-magazzino", sono state migrate dentro
-     garden-river-conti-febed: la config qui sotto è la stessa degli altri
-     due blocchi. Resta un blocco a sé (con _fbMagazzino / firebase-magazzino-ready)
-     solo per non toccare il resto del codice della home. -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { sessioneHub } from "/assets/auth-suite.js";
-
-  const magazzinoFirebaseConfig = {
-    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
-    authDomain: "garden-river-conti-febed.firebaseapp.com",
-    projectId: "garden-river-conti-febed",
-    storageBucket: "garden-river-conti-febed.firebasestorage.app",
-    messagingSenderId: "113994721180",
-    appId: "1:113994721180:web:c41d309c9270134b640a59"
-  };
-
-  const magApp  = initializeApp(magazzinoFirebaseConfig, "magazzinoSuite");
-  const magDb   = getFirestore(magApp);
-  const magAuth = getAuth(magApp);
-
-  window._fbMagazzino = { db: magDb, collection, getDocs, onSnapshot, query, limit, enableNetwork, disableNetwork };
-  window._fbMagazzinoReady = false;
-
-  function segnalaMagazzinoPronto() {
-    if (window._fbMagazzinoReady) return;
-    window._fbMagazzinoReady = true;
-    window.dispatchEvent(new Event('firebase-magazzino-ready'));
-  }
-
-  onAuthStateChanged(magAuth, (user) => { if (user && !user.isAnonymous) segnalaMagazzinoPronto(); });
-  window._collegaMagazzino = () => sessioneHub(magAuth).catch(() => {});
-  window._scollegaMagazzino = () => signOut(magAuth).catch(() => {});
-  window._collegaMagazzino();
+  // Compatibilita': le vecchie connessioni separate non esistono piu'.
+  window._collegaDatiSuite = window._scollegaDatiSuite = () => {};
+  window._collegaMagazzino = window._scollegaMagazzino = () => {};
 </script>
 </head>
 <body>
@@ -1124,7 +1069,11 @@ async function fsSetOperatore(nome, ruolo) {
 // Rilegge operatori e permessi con una query diretta — serve come rete di
 // sicurezza se la connessione realtime si blocca (vedi sotto) o quando la
 // pagina torna in primo piano dopo essere stata in background.
+let _ultimoRefresh = 0;
 async function forceRefresh() {
+  // focus + visibilitychange + online scattano quasi insieme: una lettura basta.
+  if (Date.now() - _ultimoRefresh < 15000) return;
+  _ultimoRefresh = Date.now();
   await waitForFirebase();
   const { db, collection, getDocs } = window._fb;
   try {
@@ -1132,9 +1081,12 @@ async function forceRefresh() {
       getDocs(collection(db, 'operatori')),
       getDocs(collection(db, 'permessi')),
     ]);
-    operatori = snapOp.docs.map(d => ({ nome: d.id, ruolo: 'operatore', haPin: false, ...d.data() }));
-    permessi = {};
-    snapPerm.docs.forEach(d => { permessi[d.id] = d.data(); });
+    const nuoviOp = snapOp.docs.map(d => ({ nome: d.id, ruolo: 'operatore', haPin: false, ...d.data() }));
+    const nuoviPerm = {};
+    snapPerm.docs.forEach(d => { nuoviPerm[d.id] = d.data(); });
+    if (JSON.stringify(nuoviOp) === JSON.stringify(operatori) && JSON.stringify(nuoviPerm) === JSON.stringify(permessi)) return;
+    operatori = nuoviOp;
+    permessi = nuoviPerm;
     initLogin();
     if (currentOperatore) renderHome();
     if (document.getElementById('sec-settings').classList.contains('active')) {
@@ -1146,8 +1098,7 @@ async function forceRefresh() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') forceRefresh();
 });
-window.addEventListener('online', () => forceRefresh());
-window.addEventListener('focus',  () => forceRefresh());
+window.addEventListener('online', () => { _ultimoRefresh = 0; forceRefresh(); });
 
 // ── AUTO-RECOVERY: rileva una connessione Firestore bloccata e la riavvia ───
 // A volte (rete instabile, wifi che cambia, ecc.) la connessione realtime
@@ -1179,7 +1130,7 @@ async function checkConnessione() {
     forceRefresh();
   }
 }
-setInterval(checkConnessione, 30000);
+setInterval(checkConnessione, 60000);
 async function fsUpdateOperatore(nome, data) {
   await waitForFirebase();
   const { db, doc, updateDoc } = window._fb;
@@ -1249,8 +1200,12 @@ async function startHomeStatsSync() {
   // Conti, Alloggi e Bici condividono invece il progetto garden-river-conti-febed.
   await waitForFirebaseData();
   const { db, collection, onSnapshot, query, limit, where } = window._fbData;
+  // Finestre di date per le query: si scarica solo cio' che la home usa davvero
+  // (prima venivano lette per intero le collezioni, con tutto lo storico).
+  const giornoISO = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10); };
   try {
-    onSnapshot(collection(db, 'ospiti'), (snap) => {
+    // Ospiti: servono solo i checkout dei prossimi 7 giorni (margine di 1 giorno, poi il filtro preciso resta sotto).
+    onSnapshot(query(collection(db, 'ospiti'), where('checkout', '>=', giornoISO(-1)), where('checkout', '<=', giornoISO(8))), (snap) => {
       const ospiti = snap.docs.map(d => d.data());
       const scadenze = ospiti.filter(o => !o.chiuso && giorniA(o.checkout) >= 0 && giorniA(o.checkout) <= 7).length;
       homeStats.conti = { scadenze };
@@ -1267,7 +1222,8 @@ async function startHomeStatsSync() {
 
     // ── Prenotazioni (Calendario): arrivi/partenze/presenti oggi + compleanni,
     //    per il blocco "Presenti in struttura + ricerca" della home ──
-    onSnapshot(collection(db, 'prenotazioni'), (snap) => {
+    // Prenotazioni: da 30 giorni fa in avanti (presenti, arrivi, partenze, compleanni e ricerca).
+    onSnapshot(query(collection(db, 'prenotazioni'), where('checkout', '>=', giornoISO(-30))), (snap) => {
       prenotazioniList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       const oggi = new Date().toISOString().slice(0, 10);
       const oggiMese = oggi.slice(5); // "MM-DD"
@@ -1295,8 +1251,8 @@ async function startHomeStatsSync() {
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche bici:', err));
 
-    onSnapshot(collection(db, 'shop_ordini'), (snap) => {
-      const aperti = snap.docs.filter(d => ['nuovo', 'pronto'].includes((d.data() || {}).stato)).length;
+    onSnapshot(query(collection(db, 'shop_ordini'), where('stato', 'in', ['nuovo', 'pronto'])), (snap) => {
+      const aperti = snap.size;
       homeStats.shop = { aperti };
       if (currentOperatore) renderHome();
     }, (err) => console.error('Errore statistiche shop:', err));
@@ -1379,7 +1335,7 @@ async function startHomeStatsSync() {
     }, (err) => console.error('Errore statistiche presenze mensa:', err));
 
     // ── Spiaggia: prenotazioni attive oggi ──
-    onSnapshot(collection(db, 'beach_prenotazioni'), (snap) => {
+    onSnapshot(query(collection(db, 'beach_prenotazioni'), where('al', '>=', giornoISO(0))), (snap) => {
       const oggi = new Date().toISOString().split('T')[0];
       const attive = snap.docs.filter(d => {
         const p = d.data();
@@ -1391,47 +1347,7 @@ async function startHomeStatsSync() {
   } catch(e) { console.error('Errore avvio sync statistiche home:', e); }
 }
 
-// Stesso pattern di auto-recovery già usato per la connessione principale:
-// se una delle connessioni dati si blocca, la riavviamo da sola.
-async function kickFirestoreConnectionData() {
-  try {
-    await waitForFirebaseData();
-    const { db, enableNetwork, disableNetwork } = window._fbData;
-    await disableNetwork(db);
-    await enableNetwork(db);
-  } catch(e) { console.error('Errore riconnessione dati:', e); }
-}
-async function checkConnessioneData() {
-  try {
-    await waitForFirebaseData();
-    const { db, collection, getDocs, query, limit } = window._fbData;
-    await withTimeout(getDocs(query(collection(db, 'alloggi'), limit(1))), 8000);
-  } catch(e) {
-    console.warn('Connessione dati statistiche bloccata, la riavvio:', e);
-    await kickFirestoreConnectionData();
-  }
-}
-setInterval(checkConnessioneData, 30000);
-
-async function kickFirestoreConnectionMagazzino() {
-  try {
-    await waitForFirebaseMagazzino();
-    const { db, enableNetwork, disableNetwork } = window._fbMagazzino;
-    await disableNetwork(db);
-    await enableNetwork(db);
-  } catch(e) { console.error('Errore riconnessione dati magazzino:', e); }
-}
-async function checkConnessioneMagazzino() {
-  try {
-    await waitForFirebaseMagazzino();
-    const { db, collection, getDocs, query, limit } = window._fbMagazzino;
-    await withTimeout(getDocs(query(collection(db, 'prodotti'), limit(1))), 8000);
-  } catch(e) {
-    console.warn('Connessione dati magazzino bloccata, la riavvio:', e);
-    await kickFirestoreConnectionMagazzino();
-  }
-}
-setInterval(checkConnessioneMagazzino, 30000);
+// (Le connessioni dati e magazzino separate non esistono piu': il controllo qui sopra le copre tutte.)
 
 // ── LOGIN / PIN ───────────────────────────────────────────────────────────
 // La verifica del PIN avviene sulla Cloud Function 'auth-operatori': nel
@@ -2166,14 +2082,15 @@ function renderKpiStrip() {
     pct: bi.totale ? Math.round(bi.occupate / bi.totale * 100) : 0,
     url: 'bici/',
   });
-  if (!rows.length) { wrap.innerHTML = ''; return; }
+  if (!rows.length) { wrap._html = ''; wrap.innerHTML = ''; return; }
   const accent = t => t === 'amber' ? 'var(--terracotta)' : 'var(--green-700)';
-  wrap.innerHTML = rows.map(r => `
+  const kpiHtml = rows.map(r => `
     <div class="kpi-chip" data-mod="${r.url.split('/')[0]}" onclick="openModule('${r.url}')">
       <div class="kpi-icon" style="background:var(--tile-${r.tile}-bg);color:${accent(r.tile)}">${r.icon}</div>
       <div><div class="kpi-label">${r.label}</div><div class="kpi-value">${r.value}<small>${r.small}</small></div></div>
       <div class="kpi-bar"><i style="width:${r.pct}%;background:${accent(r.tile)}"></i></div>
     </div>`).join('');
+  if (wrap._html !== kpiHtml) { wrap._html = kpiHtml; wrap.innerHTML = kpiHtml; }
 }
 
 // Disegna un singolo tile modulo (usato dentro un chunk .module-grid).
@@ -2227,7 +2144,17 @@ function renderModuleChunk(mods) {
 }
 
 let _homeRenderPending = false;
+// Ridisegni raggruppati: con ~10 ascoltatori Firestore la home riceveva una
+// raffica di snapshot e si ricostruiva a ogni singolo dato (pesante sul V2).
+// Il primo ridisegno e' immediato, quelli ravvicinati si fondono in uno.
+let _homeTimer = 0, _homeLast = 0;
 function renderHome() {
+  if (_homeTimer) return;
+  const attesa = Math.max(0, _homeLast + 300 - Date.now());
+  if (!attesa) { _homeLast = Date.now(); renderHomeNow(); return; }
+  _homeTimer = setTimeout(() => { _homeTimer = 0; _homeLast = Date.now(); renderHomeNow(); }, attesa);
+}
+function renderHomeNow() {
   // Se l'operatore sta scrivendo nella ricerca ospiti, ci fermiamo qui:
   // aggiorniamo solo i numeri della card (updateReportPresentiStats) e
   // rimandiamo il resto (striscia KPI, barra "oggi", elenco moduli) a quando
@@ -2276,6 +2203,7 @@ function renderHome() {
   const wrap = document.getElementById('module-list');
 
   if (!modList.length && !showOggiBar) {
+    wrap._html = null;
     wrap.innerHTML = `<div class="module-empty">${
       q ? 'Nessuna funzione corrisponde alla ricerca.'
         : "Nessuna funzione disponibile per il tuo profilo.<br>Chiedi all'amministratore di abilitarti dalla Hub."
@@ -2303,7 +2231,8 @@ function renderHome() {
     html.push(renderReportOggi());
   });
   flushRun();
-  wrap.innerHTML = html.join('');
+  const modHtml = html.join('');
+  if (wrap._html !== modHtml) { wrap._html = modHtml; wrap.innerHTML = modHtml; }
 }
 
 function renderReorderToggle() {

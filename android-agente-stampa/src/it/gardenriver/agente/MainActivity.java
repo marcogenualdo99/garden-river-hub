@@ -41,8 +41,14 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         configura(web);
-        // Svuota la cache web all'avvio dell'app
-        web.clearCache(true);   // a ogni avvio: le pagine nuove della Hub si vedono subito, senza aspettare la cache di 10 minuti
+        // Cache web: svuotarla a ogni avvio costringeva a riscaricare SDK Firebase e file della Hub (lento sul V2).
+        // Il sito ha comunque una cache di 10 minuti: la si svuota solo se l'ultimo svuotamento e' piu' vecchio di cosi',
+        // quindi le pagine nuove si vedono come sul sito (entro 10 minuti dal push).
+        long ora = System.currentTimeMillis();
+        if (ora - sp.getLong("cache_svuotata", 0) > 10 * 60 * 1000L) {
+            web.clearCache(true);
+            sp.edit().putLong("cache_svuotata", ora).apply();
+        }
         web.addJavascriptInterface(new Ponte(), "GRNativo");
         web.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
