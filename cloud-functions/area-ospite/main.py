@@ -1601,6 +1601,7 @@ PREN_TURNI_DEFAULT = {'giorni': 15, 'servizi': [
     {'id': 'pranzo', 'nome': 'Pranzo', 'attivo': True, 'turni': ['12:30', '13:30']},
     {'id': 'cena', 'nome': 'Cena', 'attivo': True, 'turni': ['19:30', '21:00']}]}
 PREN_ANTICIPO_MIN = 30          # minuti: non si prenota un turno che sta per iniziare
+PREN_ANNULLA_DEFAULT = 30       # minuti prima del turno entro cui l'ospite puo' annullare (impostabile dallo staff)
 PREN_MAX_ATTIVE = 12            # prenotazioni future attive per ospite (anti-abuso)
 PREN_LIBERE_DOC = ('impostazioni', 'ristorazione_pren_libere')
 
@@ -1608,12 +1609,17 @@ PREN_LIBERE_DOC = ('impostazioni', 'ristorazione_pren_libere')
 def _pren_turni(db):
     import copy
     out = copy.deepcopy(PREN_TURNI_DEFAULT)
+    out['annulla_min'] = PREN_ANNULLA_DEFAULT
     try:
         snap = db.collection('impostazioni').document('ristorazione_turni').get()
         d = (snap.to_dict() or {}) if snap.exists else {}
         try:
             out['giorni'] = min(60, max(1, int(d.get('giorni') or 15)))
         except (TypeError, ValueError):
+            pass
+        try:
+            out['annulla_min'] = min(2880, max(0, int(d['annulla_min'])))
+        except (KeyError, TypeError, ValueError):
             pass
         for sv in (d.get('servizi') or []):
             t = next((x for x in out['servizi'] if x['id'] == _s(sv.get('id'), 10)), None)
@@ -1662,18 +1668,20 @@ def _pren_finestra(p, oggi, giorni):
     return primo, ultimo
 
 
-def _pren_turno_scaduto(data, turno, ora):
-    """True se il turno e' gia' passato (o troppo vicino) rispetto ad adesso."""
+def _pren_turno_scaduto(data, turno, ora, anticipo=PREN_ANTICIPO_MIN):
+    """True se il turno e' gia' passato (o piu' vicino di `anticipo` minuti) rispetto ad adesso."""
     oggi = ora.strftime('%Y-%m-%d')
     if data < oggi:
         return True
-    if data > oggi or not turno:
+    if not turno:
         return False
     try:
         h, m = [int(x) for x in turno.split(':')]
+        giorno = datetime.strptime(data, '%Y-%m-%d')
     except ValueError:
         return False
-    return (h * 60 + m) - (ora.hour * 60 + ora.minute) < PREN_ANTICIPO_MIN
+    inizio = giorno.replace(hour=h, minute=m, tzinfo=TZ_ROMA)
+    return (inizio - ora).total_seconds() / 60 < anticipo
 
 
 def _azione_ristorazione_prenota_info(db, origin, data):
@@ -1690,7 +1698,7 @@ def _azione_ristorazione_prenota_info(db, origin, data):
         giorni.append(d)
         d = (datetime.strptime(d, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
     lista = [x for x in _pren_lista(db, pren_ref.id, fam_id) if x['data'] >= oggi]
-    return _json(origin, {'ok': True, 'oggi': oggi, 'ora': ora.strftime('%H:%M'), 'giorni': giorni,
+    return _json(origin, {'ok': True, 'oggi': oggi, 'ora': ora.strftime('%H:%M'), 'giorni': giorni, 'annulla_min': cfg['annulla_min'],
                           'servizi': [s for s in cfg['servizi'] if s['attivo']],
                           'ospiti': _pren_ospiti(p), 'prenotazioni': lista})
 
@@ -1760,10 +1768,12 @@ def _azione_ristorazione_prenota_annulla(db, origin, data):
     fam_id, _ = _risto_famiglia(db, pren_ref.id)
     pid = _s(data.get('id'), 40)
     ora = datetime.now(TZ_ROMA)
+    annulla_min = _pren_turni(db)['annulla_min']
     mia = next((x for x in _pren_lista(db, pren_ref.id, fam_id) if x['id'] == pid), None)   # solo le proprie prenotazioni
     if not mia:
         return _json(origin, {'ok': False, 'errore': 'non_trovata'}, 404)
-    if _pren_turno_scaduto(mia['data'], mia['turno'], ora):
+    # senza orario si annulla fino al giorno prima; con orario fino a `annulla_min` minuti prima
+    if (not mia['turno'] and mia['data'] <= ora.strftime('%Y-%m-%d')) or _pren_turno_scaduto(mia['data'], mia['turno'], ora, annulla_min):
         return _json(origin, {'ok': False, 'errore': 'turno_passato'}, 409)
     if mia['dove'] == 'fam':
         db.collection('famiglie_ristorazione').document(fam_id).update({f'prenotazioni.{pid}': firestore.DELETE_FIELD})

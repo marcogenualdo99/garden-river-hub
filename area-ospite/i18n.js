@@ -282,6 +282,10 @@ const _LISTA = [
   _D('Servizio non disponibile', 'Service not available', 'Service nicht verfügbar'),
   _D('Hai raggiunto il numero massimo di prenotazioni', 'You have reached the maximum number of bookings', 'Du hast die maximale Anzahl an Reservierungen erreicht'),
   _D('Numero di persone non valido', 'Invalid number of people', 'Ungültige Personenzahl'),
+  _D('Per annullare contatta il ristorante.', 'To cancel, please contact the restaurant.', 'Zum Stornieren wende dich bitte an das Restaurant.'),
+  _D("Puoi annullare fino a {t} prima dell'orario prenotato.", 'You can cancel up to {t} before your booked time.', 'Du kannst bis {t} vor der gebuchten Zeit stornieren.'),
+  _D("Puoi annullare fino all'orario prenotato.", 'You can cancel up to your booked time.', 'Du kannst bis zur gebuchten Zeit stornieren.'),
+  _D('1 ora', '1 hour', '1 Stunde'), _D('{n} ore', '{n} hours', '{n} Stunden'), _D('{n} minuti', '{n} minutes', '{n} Minuten'),
 ];
 const DIZ = { en: {}, de: {} };
 _LISTA.forEach(e => { DIZ.en[e.it] = e.en; DIZ.de[e.it] = e.de; });

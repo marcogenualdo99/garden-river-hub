@@ -1587,7 +1587,7 @@ function renderOggi() {
 // tavolo, note}: nessuna collezione nuova e nessuna regola nuova, e l'Area ospite potrà
 // scrivere lo stesso campo (Cloud Function) quando verrà collegata.
 // Orari e turni si impostano da Impostazioni (doc impostazioni/ristorazione_turni).
-const TURNI_DEFAULT = { giorni: 15, servizi: [
+const TURNI_DEFAULT = { giorni: 15, annulla_min: 30, servizi: [
   { id: 'pranzo', nome: 'Pranzo', attivo: true, turni: ['12:30', '13:30'] },
   { id: 'cena',   nome: 'Cena',   attivo: true, turni: ['19:30', '21:00'] }
 ] };
@@ -1600,6 +1600,7 @@ function turniNormalizza(d) {
   const out = JSON.parse(JSON.stringify(TURNI_DEFAULT));
   if (!d) return out;
   out.giorni = Math.min(60, Math.max(1, parseInt(d.giorni) || 15));
+  const am = parseInt(d.annulla_min); out.annulla_min = isNaN(am) ? 30 : Math.min(2880, Math.max(0, am));
   (Array.isArray(d.servizi) ? d.servizi : []).forEach(s => {
     const t = out.servizi.find(x => x.id === s.id); if (!t) return;
     t.attivo = s.attivo !== false;
@@ -1624,6 +1625,7 @@ function renderTurniSettings() {
   const el = document.getElementById('turni-settings'); if (!el) return;
   if (!turniDraft) turniDraft = JSON.parse(JSON.stringify(TURNI));
   el.innerHTML = `<div class="ins-f" style="margin-bottom:12px"><span>Giorni di prenotazione visibili</span><input class="minput" type="number" min="1" max="60" value="${turniDraft.giorni}" style="max-width:120px" onchange="turniGiorni(this.value)"></div>`
+    + `<div class="ins-f" style="margin-bottom:14px"><span>Annullamento da parte dell'ospite: fino a quanti minuti prima del turno</span><input class="minput" type="number" min="0" max="2880" step="15" value="${turniDraft.annulla_min}" style="max-width:120px" onchange="turniAnnulla(this.value)"><small style="text-transform:none;letter-spacing:0;font-weight:500;color:var(--gray-500);margin-top:2px">Es. 120 = fino a 2 ore prima. Oltre il limite l'ospite non vede più "Annulla" e deve chiamare il ristorante. Lo staff può sempre annullare.</small></div>`
     + turniDraft.servizi.map(s => `<div class="tn-serv">
       <div class="tn-head"><b>${esc(s.nome)}</b><label class="tn-on"><input type="checkbox" ${s.attivo ? 'checked' : ''} onchange="turniAttivo('${s.id}',this.checked)"> Attivo</label></div>
       <div class="tn-list">${s.turni.map((o, i) => `<div class="tn-row"><input class="minput" type="time" value="${esc(o)}" onchange="turnoSet('${s.id}',${i},this.value)"><button class="sala-btn danger" onclick="turnoDel('${s.id}',${i})" aria-label="Elimina turno">✕</button></div>`).join('') || '<div class="oggi-empty">Nessun turno: le prenotazioni useranno un orario libero.</div>'}</div>
@@ -1631,6 +1633,7 @@ function renderTurniSettings() {
     </div>`).join('')
     + `<button onclick="salvaTurni()" style="width:100%;height:44px;margin-top:6px;background:var(--orange);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Salva orari e turni</button>`;
 }
+function turniAnnulla(v) { const n = parseInt(v); turniDraft.annulla_min = isNaN(n) ? 30 : Math.min(2880, Math.max(0, n)); }
 function turniGiorni(v) { turniDraft.giorni = Math.min(60, Math.max(1, parseInt(v) || 15)); }
 function turniAttivo(sid, v) { turniDraft.servizi.find(s => s.id === sid).attivo = !!v; }
 function turnoSet(sid, i, v) { const s = turniDraft.servizi.find(x => x.id === sid); if (v) s.turni[i] = v; }

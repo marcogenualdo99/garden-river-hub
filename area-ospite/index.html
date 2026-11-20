@@ -2629,6 +2629,12 @@ function ptTurniDisp() {
     return { ora: o, ok: a * 60 + b - (h * 60 + m) >= 30 };
   });
 }
+const ptPuoAnnullare = p => {   // stesso limite del server (impostato dallo staff): minuti prima del turno
+  if (!p.turno) return p.data > PT.oggi;
+  const diff = (new Date(p.data + 'T' + p.turno + ':00') - new Date(PT.oggi + 'T' + PT.ora + ':00')) / 60000;
+  return diff >= (PT.annulla_min || 0);
+};
+const ptDurata = m => m % 60 === 0 && m >= 60 ? (m === 60 ? t('1 ora') : t('{n} ore', { n: m / 60 })) : t('{n} minuti', { n: m });
 const ptGia = () => (PT.prenotazioni || []).filter(p => p.data === PT.sel.data && p.pasto === PT.sel.pasto).reduce((s, p) => s + p.persone, 0);
 
 function ptRender() {
@@ -2643,8 +2649,10 @@ function ptRender() {
         ? `<div class="conferma-annulla"><p>${esc(t('Vuoi annullare questa prenotazione?'))}</p><div class="err" id="pt-annulla-err"></div>
             <div class="row-btns"><button type="button" class="ann" onclick="ptChiediAnnulla(null)">${esc(t('No, la tengo'))}</button>
             <button type="button" class="conf rosso" id="pt-annulla-conf" onclick="ptAnnulla('${p.id}')">${esc(t('Sì, annulla'))}</button></div></div>`
-        : `<div class="azioni-corsa"><button type="button" class="btn-annulla" onclick="ptChiediAnnulla('${p.id}')">${esc(t('Annulla la prenotazione'))}</button></div>`}
-    </div>`).join('') : '';
+        : (ptPuoAnnullare(p)
+          ? `<div class="azioni-corsa"><button type="button" class="btn-annulla" onclick="ptChiediAnnulla('${p.id}')">${esc(t('Annulla la prenotazione'))}</button></div>`
+          : `<p class="hint" style="margin-top:10px">${esc(t('Per annullare contatta il ristorante.'))}</p>`)}
+    </div>`).join('') + `<p class="hint" style="margin:10px 2px 0;font-size:14px">${esc(PT.annulla_min ? t("Puoi annullare fino a {t} prima dell'orario prenotato.", { t: ptDurata(PT.annulla_min) }) : t("Puoi annullare fino all'orario prenotato."))}</p>` : '';
 
   let form = `<div class="card" id="pt-form"><h2>${esc(t('Prenota un tavolo'))}</h2>
     <p class="hint">${esc(t('Scegli il giorno, il turno e quante persone siete: lo staff ti aspetta al ristorante.'))}</p>`;
