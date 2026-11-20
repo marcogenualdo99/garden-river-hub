@@ -493,14 +493,16 @@ body.vista-sala main{padding:0;max-width:none}
 .tav-fam{font-size:17px;font-weight:700;max-width:90%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.1}
 .tav-info{font-size:15px;font-weight:700;color:var(--gray-500)}
 .tav-info.over{color:#B91C1C}
-.sed{position:absolute;width:16px;height:16px;border-radius:5px;background:var(--gray-200);pointer-events:none}
-.sed.occ{background:var(--green-700)}
 .pz.tavolo.stato-atteso{background:#FFFBEB;border-color:#FCD34D}
 .pz.tavolo.stato-ordinato{background:#DCFCE7;border-color:#4ADE80}
 .pz.tavolo.stato-servizio{background:#F59E0B;border-color:#F59E0B;color:#fff}
 .pz.tavolo.stato-servizio .tav-info,.pz.tavolo.stato-servito .tav-info{color:rgba(255,255,255,.85)}
 .pz.tavolo.stato-servito{background:var(--green-700);border-color:var(--green-700);color:#fff}
 .pz.tavolo.target{box-shadow:0 0 0 4px var(--orange)}
+.pz.tavolo.usel{outline:5px solid var(--orange);outline-offset:3px}
+.pz.tavolo.unito{z-index:2}
+.ponte{position:absolute;height:44px;margin-top:-22px;border-radius:22px;transform-origin:0 50%;background:var(--gray-200);z-index:1;pointer-events:none}
+.ponte.stato-atteso{background:#FCD34D}.ponte.stato-ordinato{background:#4ADE80}.ponte.stato-servizio{background:#F59E0B}.ponte.stato-servito{background:var(--green-700)}
 .h{position:absolute;width:calc(30px / var(--s));height:calc(30px / var(--s));min-width:22px;min-height:22px;border-radius:50%;background:var(--orange);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:6;touch-action:none}
 .h-resize{right:calc(-15px / var(--s));bottom:calc(-15px / var(--s));cursor:nwse-resize}
 .h-rot{left:50%;top:calc(-44px / var(--s));margin-left:calc(-15px / var(--s));cursor:grab}
@@ -522,6 +524,8 @@ body.vista-sala main{padding:0;max-width:none}
 .sala-chip.sel{border-color:var(--orange);background:#FFF3EA}
 .sala-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#FFF3EA;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--gray-900)}
 .sala-banner button{border:none;background:none;color:var(--orange);font-weight:800;cursor:pointer;font-family:var(--font)}
+.sala-banner{box-shadow:0 6px 24px rgba(5,51,40,.18);flex-wrap:wrap}
+.sala-banner .sala-btn{color:#fff}
 .ins-add{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .ins-add .sala-btn{height:42px;font-size:12px}
 .ins-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
@@ -1106,6 +1110,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   startCucina();
   startOggi();
   loadSala();
+  loadUnioni();
   avviaDaUrl();
 });
 
@@ -1437,8 +1442,8 @@ function renderOggi() {
       ${partenze.map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Partenza · Alloggio ${esc(f.unita || '—')}</div></div></div>`).join('')}
       ${(arrivi.length + partenze.length) ? '' : '<div class="oggi-empty">Nessun movimento oggi.</div>'}</details>`;
 
-  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
-  const nSenzaTavolo = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim())).length;
+  const valide = salaChiaviValide();
+  const nSenzaTavolo = presenti.filter(f => !String(f.tavolo || '').trim() || !valide.has(String(f.tavolo).trim())).length;
   const pannello = salaEdit ? htmlStrumenti() : htmlSenzaTavolo(presenti) + panel + `<div class="sala-legenda sala-legenda-p">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
   el.innerHTML = htmlPianta(ordini, presenti, pannello, nSenzaTavolo + senzaOrdine.length);
   adattaPianta();
@@ -1447,7 +1452,7 @@ function renderOggi() {
 
 // ── SALA: pianta libera ─────────────────────────────────────────────────────
 // Ogni sala è una tela di 1000×640 con elementi posizionati liberamente:
-// tavoli (tondi, quadrati, rettangolari, con sedie), muri, zone e testi. Tutto
+// tavoli (tondi, quadrati, rettangolari), muri, zone e testi. Tutto
 // sta in un solo documento: impostazioni/ristorazione_sala — le regole di
 // `impostazioni/{id}` valgono già, nessuna regola nuova. L'assegnazione resta il
 // campo `tavolo` della famiglia (testo = nome del tavolo), lo stesso che
@@ -1457,13 +1462,15 @@ const SALA_W = 1000, SALA_H = 640, SALA_SNAP = 10;
 const SALA_FORME = { tondo: 'Tondo', quadrato: 'Quadrato', rettangolo: 'Rettangolare' };
 function salaDefault() {
   const mk = (id, nome, pre) => ({ id, nome, el: Array.from({ length: 15 }, (_, i) => ({
-    id: pre + (i + 1), tipo: 'tavolo', nome: pre + (i + 1), posti: 4, forma: 'quadrato', w: 110, h: 110, rot: 0,
+    id: pre + (i + 1), tipo: 'tavolo', nome: pre + (i + 1), forma: 'quadrato', w: 110, h: 110, rot: 0,
     x: 110 + (i % 5) * 170, y: 70 + Math.floor(i / 5) * 190 })) });
   return { sale: [mk('interna', 'Sala interna', 'I'), mk('esterna', 'Sala esterna', 'E')] };
 }
 let SALA = salaDefault();
 let salaIdx = 0, salaEdit = false, salaDraft = null, salaSel = null, _salaScale = 1;
 let salaPannelloAperto = false;
+let salaGruppi = [];           // tavoli uniti OGGI: [{id, tavoli:[nomi]}]
+let salaUnisci = false, salaUnSel = [];   // modalità "Unisci tavoli" e tavoli (id) scelti
 let assegnaFam = null;         // famiglia in attesa di un tavolo ("tocca un tavolo")
 let tavoloAperto = null;       // tavolo aperto nel foglio di dettaglio
 let _salaDati = {}, _salaPresenti = [], _salaOrdini = [];
@@ -1472,7 +1479,7 @@ function salaClean(e) {
   const out = { id: String(e.id || 'e' + Math.random().toString(36).slice(2, 8)).replace(/[^A-Za-z0-9_]/g, '_'),
     tipo: ['tavolo', 'muro', 'zona', 'testo'].includes(e.tipo) ? e.tipo : 'tavolo',
     x: Number(e.x) || 0, y: Number(e.y) || 0, w: Math.max(10, Number(e.w) || 100), h: Math.max(10, Number(e.h) || 100), rot: Number(e.rot) || 0 };
-  if (out.tipo === 'tavolo') { out.nome = String(e.nome || ''); out.posti = Math.max(1, Math.min(30, Number(e.posti) || 4)); out.forma = SALA_FORME[e.forma] ? e.forma : 'quadrato'; }
+  if (out.tipo === 'tavolo') { out.nome = String(e.nome || ''); out.forma = SALA_FORME[e.forma] ? e.forma : 'quadrato'; }
   if (out.tipo === 'zona' || out.tipo === 'testo') out.testo = String(e.testo || '');
   return out;
 }
@@ -1507,11 +1514,99 @@ function aggiornaDatalistTavoli() {
 }
 function isAdminSess() { try { return JSON.parse(sessionStorage.getItem('gr_session') || '{}').ruolo === 'admin'; } catch (e) { return false; } }
 
+// ── TAVOLI UNITI ────────────────────────────────────────────────────────────
+// Per un gruppo numeroso si uniscono due o più tavoli: da quel momento sono un
+// tavolo solo (stato, famiglie, comande in Cucina). L'unione vale per la giornata
+// (doc impostazioni/ristorazione_unioni con la data) e il giorno dopo sparisce da sola.
+// Le famiglie sedute portano come `tavolo` l'etichetta del gruppo, es. "I4 + I5":
+// così Cucina le raggruppa in un'unica comanda, come per ogni tavolo condiviso.
+function gruppoLabel(g) { return g.tavoli.join(' + '); }
+function gruppoDi(nome) { return salaGruppi.find(g => g.tavoli.includes(nome)) || null; }
+function chiaveTavolo(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  const g = salaGruppi.find(x => x.tavoli.includes(s) || gruppoLabel(x) === s);
+  return g ? gruppoLabel(g) : s;
+}
+function salaChiaviValide() {
+  const set = new Set(salaTavoliTutti().map(x => x.t.nome));
+  salaGruppi.forEach(g => set.add(gruppoLabel(g)));
+  return set;
+}
+function loadUnioni() {
+  const { db, doc, onSnapshot } = window._fb;
+  try {
+    onSnapshot(doc(db, 'impostazioni', 'ristorazione_unioni'), snap => {
+      const d = snap.exists() ? (snap.data() || {}) : {};
+      salaGruppi = (d.data === isoToday(0) && Array.isArray(d.gruppi))
+        ? d.gruppi.filter(g => g && Array.isArray(g.tavoli) && g.tavoli.length > 1).map(g => ({ id: String(g.id || ''), tavoli: g.tavoli.map(String) })) : [];
+      if (!salaEdit) renderOggi();
+    }, err => console.error('Unioni snapshot:', err));
+  } catch (e) { console.error(e); }
+}
+async function salvaUnioni(gruppi) {
+  const { db, doc, setDoc } = window._fb;
+  await setDoc(doc(db, 'impostazioni', 'ristorazione_unioni'), { data: isoToday(0), gruppi: gruppi.map(g => ({ id: g.id, tavoli: g.tavoli })) });
+}
+async function riassegnaFamiglie(mappa) {   // mappa: funzione (stringa tavolo) -> nuova stringa o null
+  const { db, doc, writeBatch } = window._fb;
+  const daAgg = famiglieDocs.filter(f => { const n = mappa(String(f.tavolo || '').trim()); return n !== null && n !== undefined && n !== String(f.tavolo || '').trim(); });
+  if (!daAgg.length) return;
+  const batch = writeBatch(db);
+  daAgg.forEach(f => { const n = mappa(String(f.tavolo || '').trim()); batch.set(doc(db, 'famiglie_ristorazione', f.id), { tavolo: n }, { merge: true }); f.tavolo = n; });
+  await batch.commit();
+}
+
+function salaUnisciInizia(preId) {
+  chiudiTavolo();
+  salaUnisci = true; assegnaFam = null; salaPannelloAperto = false; salaUnSel = [];
+  if (preId) salaToggleUnione(preId, true);
+  renderOggi();
+}
+function salaUnisciAnnulla() { salaUnisci = false; salaUnSel = []; renderOggi(); }
+function salaToggleUnione(id, forzaAggiungi) {
+  const room = SALA.sale[salaIdx];
+  const e = room.el.find(x => x.id === id && x.tipo === 'tavolo'); if (!e) return;
+  const g = gruppoDi(e.nome);
+  const ids = g ? g.tavoli.map(n => (room.el.find(x => x.tipo === 'tavolo' && x.nome === n) || {}).id).filter(Boolean) : [id];
+  const gia = salaUnSel.includes(id);
+  if (gia && !forzaAggiungi) salaUnSel = salaUnSel.filter(x => !ids.includes(x));
+  else ids.forEach(i => { if (!salaUnSel.includes(i)) salaUnSel.push(i); });
+}
+async function salaUnisciConferma() {
+  const room = SALA.sale[salaIdx];
+  const scelti = room.el.filter(e => e.tipo === 'tavolo' && salaUnSel.includes(e.id)).sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  if (scelti.length < 2) { showToast('Scegli almeno due tavoli'); return; }
+  const nomi = scelti.map(e => e.nome);
+  const toccati = salaGruppi.filter(g => g.tavoli.some(n => nomi.includes(n)));
+  const vecchieEtichette = toccati.map(gruppoLabel);
+  const nuovo = { id: 'g' + Date.now().toString(36), tavoli: nomi };
+  const etichetta = gruppoLabel(nuovo);
+  try {
+    const resto = salaGruppi.filter(g => !toccati.includes(g));
+    await salvaUnioni(resto.concat([nuovo]));
+    await riassegnaFamiglie(s => (nomi.includes(s) || vecchieEtichette.includes(s)) ? etichetta : null);
+    showToast('Tavoli uniti: ' + etichetta);
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  salaUnisci = false; salaUnSel = [];
+  renderOggi();
+}
+async function salaSepara(label) {
+  const g = salaGruppi.find(x => gruppoLabel(x) === label); if (!g) return;
+  try {
+    await salvaUnioni(salaGruppi.filter(x => x !== g));
+    await riassegnaFamiglie(s => s === label ? g.tavoli[0] : null);
+    showToast('Tavoli separati');
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  chiudiTavolo();
+  renderOggi();
+}
+
 // Per ogni tavolo: famiglie sedute (tra chi mangia in questo pasto), coperti e stato del servizio.
 function datiTavoli(ordini, presenti) {
   const map = {};
   presenti.forEach(f => {
-    const n = String(f.tavolo || '').trim();
+    const n = chiaveTavolo(f.tavolo);
     if (!n) return;
     (map[n] = map[n] || { fams: [], coperti: 0, stato: 'libero' }).fams.push(f);
   });
@@ -1539,29 +1634,6 @@ function statoFamiglia(f, ordini) {
   return serv > 0 ? `In servizio ${serv}/${tot}` : 'Ordinato';
 }
 
-// Sedie attorno al tavolo (posizioni nel riquadro del tavolo, prima della rotazione)
-function sedieTavolo(t) {
-  const n = Math.min(t.posti, 16), S = 16, g = 5, out = [];
-  if (t.forma === 'tondo') {
-    for (let i = 0; i < n; i++) {
-      const a = (2 * Math.PI * i) / n - Math.PI / 2;
-      out.push([t.w / 2 + (t.w / 2 + g + S / 2) * Math.cos(a) - S / 2, t.h / 2 + (t.h / 2 + g + S / 2) * Math.sin(a) - S / 2]);
-    }
-    return out;
-  }
-  const lati = (t.w >= t.h * 1.4) ? ['t', 'b'] : (t.h >= t.w * 1.4) ? ['l', 'r'] : ['t', 'r', 'b', 'l'];
-  const cnt = lati.map(() => 0);
-  for (let i = 0; i < n; i++) cnt[i % lati.length]++;
-  lati.forEach((l, k) => {
-    const c = cnt[k], len = (l === 't' || l === 'b') ? t.w : t.h;
-    for (let j = 0; j < c; j++) {
-      const p = (j + 0.5) * len / c - S / 2;
-      out.push(l === 't' ? [p, -g - S] : l === 'b' ? [p, t.h + g] : l === 'l' ? [-g - S, p] : [t.w + g, p]);
-    }
-  });
-  return out;
-}
-
 function htmlPianta(ordini, presenti, pannello, badge) {
   _salaOrdini = ordini; _salaPresenti = presenti;
   const dati = datiTavoli(ordini, presenti);
@@ -1572,11 +1644,23 @@ function htmlPianta(ordini, presenti, pannello, badge) {
 
   const tabs = S.sale.map((s, i) => {
     const tav = s.el.filter(e => e.tipo === 'tavolo');
-    const occ = tav.filter(t => dati[t.nome]).length;
+    const occ = tav.filter(t => dati[chiaveTavolo(t.nome)]).length;
     return `<button class="seg-btn${i === salaIdx ? ' active' : ''}" onclick="salaScegli(${i})">${esc(s.nome)} <span class="sala-n">${salaEdit ? tav.length : occ + '/' + tav.length}</span></button>`;
   }).join('');
 
-  const els = room.el.map(e => {
+  // collegamenti tra i tavoli uniti (sotto ai tavoli)
+  let ponti = '';
+  if (!salaEdit) salaGruppi.forEach(g => {
+    const ms = g.tavoli.map(n => room.el.find(x => x.tipo === 'tavolo' && x.nome === n)).filter(Boolean).sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    const st = (dati[gruppoLabel(g)] || {}).stato || 'libero';
+    for (let i = 0; i + 1 < ms.length; i++) {
+      const a = ms[i], b = ms[i + 1];
+      const x1 = a.x + a.w / 2, y1 = a.y + a.h / 2, x2 = b.x + b.w / 2, y2 = b.y + b.h / 2;
+      const len = Math.hypot(x2 - x1, y2 - y1), ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+      ponti += `<i class="ponte stato-${st}" style="left:${x1}px;top:${y1}px;width:${len}px;transform:rotate(${ang}deg)"></i>`;
+    }
+  });
+  const els = ponti + room.el.map(e => {
     const stile = `left:${e.x}px;top:${e.y}px;width:${e.w}px;height:${e.h}px;transform:rotate(${e.rot}deg)`;
     const contro = `transform:rotate(${-e.rot}deg)`;
     const sel = salaEdit && salaSel === e.id;
@@ -1586,25 +1670,27 @@ function htmlPianta(ordini, presenti, pannello, badge) {
     if (e.tipo === 'zona') return `<div class="pz zona${sel ? ' sel' : ''}"${ed} style="${stile}"><span class="pz-in" style="${contro}">${esc(e.testo)}</span>${handles}</div>`;
     if (e.tipo === 'testo') return `<div class="pz testo${sel ? ' sel' : ''}"${ed} style="${stile}"><span class="pz-in" style="${contro}">${esc(e.testo)}</span>${handles}</div>`;
     // tavolo
-    const m = dati[e.nome];
+    const g = salaEdit ? null : gruppoDi(e.nome);
+    const m = dati[g ? gruppoLabel(g) : e.nome];
     const stato = (!salaEdit && m) ? m.stato : 'libero';
-    const occ = (!salaEdit && m) ? m.coperti : 0;
-    const sedie = sedieTavolo(e).map((p, i) => `<i class="sed${i < occ ? ' occ' : ''}" style="left:${p[0]}px;top:${p[1]}px"></i>`).join('');
-    const nomi = m ? (m.fams.length > 1 ? String(m.fams[0].nome || '').trim() + ' +' + (m.fams.length - 1) : String(m.fams[0].nome || '').trim()) : '';
-    const over = m && m.coperti > e.posti;
-    const info = salaEdit ? `${e.posti} posti` : (m ? `${m.coperti}/${e.posti}` : `${e.posti} posti`);
-    const cls = `pz tavolo forma-${e.forma} stato-${stato}${sel ? ' sel' : ''}${(!salaEdit && assegnaFam) ? ' target' : ''}`;
-    const inner = `${sedie}<span class="pz-in" style="${contro}"><span class="tav-nome">${esc(e.nome)}</span>${nomi ? `<span class="tav-fam">${esc(nomi)}</span>` : ''}<span class="tav-info${over ? ' over' : ''}">${info}</span></span>${handles}`;
+    const principale = !g || g.tavoli[0] === e.nome;
+    const nomi = (m && principale) ? (m.fams.length > 1 ? String(m.fams[0].nome || '').trim() + ' +' + (m.fams.length - 1) : String(m.fams[0].nome || '').trim()) : '';
+    const info = (m && principale) ? `${m.coperti} coperti` : (g ? `unito a ${g.tavoli[0]}` : '');
+    const usel = salaUnisci && salaUnSel.includes(e.id);
+    const cls = `pz tavolo forma-${e.forma} stato-${stato}${g ? ' unito' : ''}${usel ? ' usel' : ''}${sel ? ' sel' : ''}${(!salaEdit && (assegnaFam || salaUnisci)) ? ' target' : ''}`;
+    const inner = `<span class="pz-in" style="${contro}"><span class="tav-nome">${esc(e.nome)}</span>${nomi ? `<span class="tav-fam">${esc(nomi)}</span>` : ''}${info ? `<span class="tav-info">${esc(info)}</span>` : ''}</span>${handles}`;
     return salaEdit ? `<div class="${cls}"${ed} style="${stile}">${inner}</div>`
                     : `<button class="${cls}" style="${stile}" onclick="salaTavolo('${e.id}')">${inner}</button>`;
   }).join('');
 
   const modBtn = salaEdit
     ? `<button class="sala-btn ghost" onclick="salaAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salvaPianta()">Salva pianta</button>`
-    : (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
+    : `<button class="sala-btn ghost" onclick="salaUnisciInizia()">Unisci tavoli</button>` + (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
   const legRiga = ['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('');
   const legenda = salaEdit ? '' : `<div class="hud hud-bl sala-legenda">${legRiga}</div>`;
-  const banner = (!salaEdit && assegnaFam)
+  const banner = salaUnisci
+    ? `<div class="hud hud-top sala-banner">Tocca i tavoli da unire · <b>${salaUnSel.length}</b> scelti<button onclick="salaUnisciAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salaUnisciConferma()">Unisci</button></div>`
+    : (!salaEdit && assegnaFam)
     ? `<div class="hud hud-top sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
   const btnPannello = `<button class="hud hud-br sala-fab" onclick="salaPannello()">${salaEdit ? 'Strumenti' : 'Famiglie'}${(!salaEdit && badge) ? `<b>${badge}</b>` : ''}</button>`;
   return `<div class="sala-wrap${salaPannelloAperto ? ' panel-open' : ''}${salaEdit ? ' edit' : ''}">
@@ -1631,8 +1717,8 @@ function adattaPianta() {
 window.addEventListener('resize', adattaPianta);
 
 function htmlSenzaTavolo(presenti) {
-  const tuttiNomi = new Set(salaTavoliTutti().map(x => x.t.nome));
-  const lista = presenti.filter(f => !String(f.tavolo || '').trim() || !tuttiNomi.has(String(f.tavolo).trim()));
+  const valide = salaChiaviValide();
+  const lista = presenti.filter(f => !String(f.tavolo || '').trim() || !valide.has(String(f.tavolo).trim()));
   return `<div class="sp-sez"><div class="sp-t">Senza tavolo <span>${lista.length}</span></div>${
     lista.length ? `<div class="sala-chips">${lista.map(f => `<button class="sala-chip${assegnaFam === f.id ? ' sel' : ''}" onclick="salaPrendi('${f.id}')">${esc(f.nome)} <span>${ospitiFamiglia(f)}</span>${f.tavolo ? '<em>' + esc(f.tavolo) + ' non in pianta</em>' : ''}</button>`).join('')}</div><div class="oggi-empty">Tocca una famiglia, poi il tavolo.</div>`
                 : '<div class="oggi-empty">Tutte le famiglie hanno un tavolo.</div>'}</div>`;
@@ -1645,7 +1731,8 @@ function salaPannello() { salaPannelloAperto = !salaPannelloAperto; renderOggi()
 function salaTavolo(id) {
   const x = salaTavoliTutti().find(y => y.t.id === id);
   if (!x) return;
-  if (assegnaFam) { const f = assegnaFam; assegnaFam = null; assegnaTavolo(f, x.t.nome); return; }
+  if (salaUnisci) { salaToggleUnione(id); renderOggi(); return; }
+  if (assegnaFam) { const f = assegnaFam; assegnaFam = null; assegnaTavolo(f, chiaveTavolo(x.t.nome)); return; }
   tavoloAperto = id;
   renderSheetTavolo();
   document.getElementById('modal-tavolo').classList.remove('hidden');
@@ -1657,9 +1744,7 @@ async function assegnaTavolo(famId, nomeTavolo) {
   try {
     await setDoc(doc(db, 'famiglie_ristorazione', famId), { tavolo: nomeTavolo }, { merge: true });
     const f = famiglieDocs.find(x => x.id === famId); if (f) f.tavolo = nomeTavolo;
-    const t = salaTavoliTutti().find(x => x.t.nome === nomeTavolo);
-    const coperti = famiglieDocs.filter(x => String(x.tavolo || '') === nomeTavolo && _salaPresenti.some(p => p.id === x.id)).reduce((s, x) => s + ospitiFamiglia(x), 0);
-    showToast(t && coperti > t.t.posti ? `Attenzione: ${coperti} coperti su ${t.t.posti} posti` : (nomeTavolo ? `Assegnato al tavolo ${nomeTavolo}` : 'Tavolo liberato'));
+    showToast(nomeTavolo ? `Assegnato al tavolo ${nomeTavolo}` : 'Tavolo liberato');
   } catch (e) { showToast('Errore — riprova'); console.error(e); }
   renderOggi();
   if (tavoloAperto) renderSheetTavolo();
@@ -1668,22 +1753,26 @@ async function assegnaTavolo(famId, nomeTavolo) {
 function renderSheetTavolo() {
   const x = salaTavoliTutti().find(y => y.t.id === tavoloAperto);
   if (!x) { chiudiTavolo(); return; }
-  const m = _salaDati[x.t.nome];
-  document.getElementById('mt-title').textContent = 'Tavolo ' + x.t.nome;
-  document.getElementById('mt-sub').textContent = `${x.s.nome} · ${x.t.posti} posti · ${m ? m.coperti + ' coperti' : 'libero'}`;
+  const g = gruppoDi(x.t.nome);
+  const key = chiaveTavolo(x.t.nome);
+  const m = _salaDati[key];
+  document.getElementById('mt-title').textContent = (g ? 'Tavoli ' : 'Tavolo ') + key;
+  document.getElementById('mt-sub').textContent = `${x.s.nome} · ${m ? m.coperti + ' coperti' : 'libero'}`;
   const oggi = isoToday(0);
   const righe = (m ? m.fams : []).map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti · ${statoFamiglia(f, _salaOrdini)}</div>${f.note ? `<div class="oggi-nota">${esc(f.note)}</div>` : ''}</div>
     <div style="display:flex;gap:6px;flex-shrink:0"><button class="sala-btn ghost" onclick="chiudiTavolo();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">Ordine</button><button class="sala-btn ghost" onclick="assegnaTavolo('${f.id}','')">Libera</button></div></div>`).join('');
-  const altre = _salaPresenti.filter(f => String(f.tavolo || '').trim() !== x.t.nome);
+  const altre = _salaPresenti.filter(f => chiaveTavolo(f.tavolo) !== key);
   const opz = altre.map(f => `<option value="${f.id}">${esc(f.nome)} · ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} osp.${f.tavolo ? ' (ora: ' + esc(f.tavolo) + ')' : ''}</option>`).join('');
   document.getElementById('mt-body').innerHTML = (righe || '<div class="oggi-empty">Nessuna famiglia a questo tavolo.</div>')
     + (altre.length ? `<div class="mlabel" style="margin-top:14px">Aggiungi famiglia</div><div style="display:flex;gap:8px"><select class="fselect" id="mt-sel"><option value="">Scegli…</option>${opz}</select><button class="sala-btn" onclick="assegnaDaSheet()">Assegna</button></div>` : '');
-  document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Chiudi</button>';
+  document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Chiudi</button>'
+    + (g ? `<button class="sala-btn danger" style="flex:1;height:50px" onclick="salaSepara('${jsEsc(key)}')">Separa i tavoli</button>`
+         : `<button class="msave" onclick="salaUnisciInizia('${x.t.id}')">Unisci con altri tavoli</button>`);
 }
 function assegnaDaSheet() {
   const v = document.getElementById('mt-sel').value;
   const x = salaTavoliTutti().find(y => y.t.id === tavoloAperto);
-  if (v && x) assegnaTavolo(v, x.t.nome);
+  if (v && x) assegnaTavolo(v, chiaveTavolo(x.t.nome));
 }
 
 // ── EDITOR PIANTA (solo admin) ──────────────────────────────────────────────
@@ -1704,7 +1793,7 @@ function salaNuovo(tipo, forma) {
   const off = (room.el.length % 8) * 20;
   const e = { id: 'e' + Date.now().toString(36) + Math.floor(Math.random() * 1000), tipo, rot: 0, ...base,
     x: quanta((SALA_W - base.w) / 2 + off), y: quanta((SALA_H - base.h) / 2 + off) };
-  if (tipo === 'tavolo') { e.nome = salaNomeLibero(); e.posti = 4; e.forma = forma || 'quadrato'; }
+  if (tipo === 'tavolo') { e.nome = salaNomeLibero(); e.forma = forma || 'quadrato'; }
   if (tipo === 'zona') e.testo = 'Zona';
   if (tipo === 'testo') e.testo = 'Testo';
   room.el.push(e); salaSel = e.id; renderOggi();
@@ -1730,7 +1819,7 @@ function salaProp(k, v) {
     if (!nome) { showToast('Il tavolo ha bisogno di un nome'); renderOggi(); return; }
     if (salaDraft.sale.some(s => s.el.some(x => x.tipo === 'tavolo' && x.id !== e.id && x.nome.toLowerCase() === nome.toLowerCase()))) { showToast('Esiste già un tavolo con questo nome'); renderOggi(); return; }
     e.nome = nome;
-  } else if (k === 'posti') e.posti = Math.max(1, Math.min(30, parseInt(v) || 1));
+  }
   else if (k === 'forma') { e.forma = v; if (v !== 'rettangolo') e.h = e.w; else if (e.w === e.h) e.w = Math.round(e.h * 1.7 / 10) * 10; }
   else if (k === 'testo') e.testo = String(v);
   else if (k === 'w' || k === 'h') { e[k] = Math.max(10, Math.min(900, quanta(parseInt(v) || 10))); if (e.tipo === 'tavolo' && e.forma !== 'rettangolo') { e.w = e.h = e[k]; } }
@@ -1745,7 +1834,7 @@ function htmlStrumenti() {
   if (e) {
     const campo = (lbl, k, val, tipo) => `<label class="ins-f"><span>${lbl}</span><input class="minput" type="${tipo || 'text'}" value="${esc(String(val))}" onchange="salaProp('${k}',this.value)"></label>`;
     insp = `<div class="ins-grid">
-      ${e.tipo === 'tavolo' ? campo('Nome', 'nome', e.nome) + campo('Posti', 'posti', e.posti, 'number')
+      ${e.tipo === 'tavolo' ? campo('Nome', 'nome', e.nome)
         + `<label class="ins-f"><span>Forma</span><select class="mselect" style="margin:0" onchange="salaProp('forma',this.value)">${Object.entries(SALA_FORME).map(([k, v]) => `<option value="${k}"${k === e.forma ? ' selected' : ''}>${v}</option>`).join('')}</select></label>` : ''}
       ${(e.tipo === 'zona' || e.tipo === 'testo') ? campo('Testo', 'testo', e.testo) : ''}
       ${campo(e.tipo === 'muro' ? 'Lunghezza' : 'Larghezza', 'w', e.w, 'number')}
@@ -1828,12 +1917,14 @@ async function salvaPianta() {
   try {
     const pulita = { versione: 2, sale: salaDraft.sale.map(s => ({ id: s.id, nome: s.nome, el: s.el.map(salaClean) })) };
     await setDoc(doc(db, 'impostazioni', SALA_DOC), pulita);
-    const daAgg = famiglieDocs.filter(f => ren[String(f.tavolo || '')]);
+    const rinomStr = s => String(s || '').split(' + ').map(n => ren[n] || n).join(' + ');
+    const daAgg = famiglieDocs.filter(f => f.tavolo && rinomStr(f.tavolo) !== String(f.tavolo));
     if (daAgg.length) {
       const batch = writeBatch(db);
-      daAgg.forEach(f => batch.set(doc(db, 'famiglie_ristorazione', f.id), { tavolo: ren[String(f.tavolo)] }, { merge: true }));
+      daAgg.forEach(f => batch.set(doc(db, 'famiglie_ristorazione', f.id), { tavolo: rinomStr(f.tavolo) }, { merge: true }));
       await batch.commit();
     }
+    if (Object.keys(ren).length && salaGruppi.length) await salvaUnioni(salaGruppi.map(g => ({ id: g.id, tavoli: g.tavoli.map(n => ren[n] || n) })));
     SALA = salaNormalizza(pulita);
     salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = false;
     aggiornaDatalistTavoli();
