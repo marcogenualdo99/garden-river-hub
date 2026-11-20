@@ -3237,6 +3237,9 @@ async function loadImpostazioni() {
     }
     if (typeof renderCategorieMenu === 'function') renderCategorieMenu();
     if (typeof renderMenuBambini === 'function') renderMenuBambini();
+    // Il ciclo di 14 giorni arriva con le impostazioni: se la pagina è già disegnata, la striscia dei giorni e il menu si rifanno
+    if (typeof buildCicloStrip === 'function' && document.getElementById('ciclo-strip')) { buildCicloStrip(); if (typeof renderMenu === 'function') renderMenu(); }
+    if (typeof renderReport === 'function' && typeof currentTab !== 'undefined' && currentTab === 'cucina' && cucinaVista === 'totali') renderReport();
   }, (err) => console.error('Errore listener impostazioni ristorazione:', err));
 }
 
