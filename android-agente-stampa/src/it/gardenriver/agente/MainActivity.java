@@ -231,7 +231,11 @@ public class MainActivity extends Activity {
     }
     @Override public boolean onKeyUp(int k, KeyEvent e) {
         if (k == KeyEvent.KEYCODE_BACK) {
-            if (!backLungo) { if (web.canGoBack()) web.goBack(); else moveTaskToBack(true); }
+            // Sul V2 la barra di sistema non manda l'evento "pressione lunga": il rilascio arriva
+            // annullato (FLAG_CANCELED) o dopo molto tempo. Si riconosce da li'.
+            boolean lungo = backLungo || e.isCanceled() || (e.getEventTime() - e.getDownTime()) >= 700;
+            if (lungo) { if (!backLungo) startActivity(new Intent(this, SettingsActivity.class)); backLungo = false; return true; }
+            if (web.canGoBack()) web.goBack(); else moveTaskToBack(true);
             return true;
         }
         return super.onKeyUp(k, e);
