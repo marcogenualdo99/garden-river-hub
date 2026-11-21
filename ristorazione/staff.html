@@ -453,15 +453,18 @@ body.vista-sala main{padding:0;max-width:none}
 .hud-br{right:12px;bottom:12px}
 .sala-fab{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 20px;border:none;border-radius:999px;background:var(--green-700);color:#fff;font-size:14px;font-weight:800;box-shadow:0 8px 24px rgba(9,92,72,.35);cursor:pointer;font-family:var(--font)}
 .sala-fab b{background:var(--orange);color:#fff;border-radius:999px;min-width:22px;height:22px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
-.sala-drawer{position:absolute;top:0;right:0;bottom:0;width:330px;max-width:92vw;background:#F4F6F3;border-left:1px solid var(--gray-200);box-shadow:-10px 0 30px rgba(5,51,40,.12);overflow-y:auto;padding:58px 12px 80px;display:flex;flex-direction:column;gap:12px;z-index:35;transform:translateX(105%);transition:transform .22s ease;visibility:hidden}
+.sala-drawer{position:absolute;top:0;left:0;bottom:0;width:360px;max-width:92vw;background:#F4F6F3;border-right:1px solid var(--gray-200);box-shadow:10px 0 30px rgba(5,51,40,.12);overflow-y:auto;padding:58px 12px 80px;display:flex;flex-direction:column;gap:12px;z-index:35;transform:translateX(-105%);transition:transform .22s ease;visibility:hidden}
 .sala-drawer.open{transform:none;visibility:visible}
 .sala-drawer .sala-azioni-m{margin-right:44px}
+.sala-arr{width:30px;height:30px;font-size:17px}
+.sala-oggi{height:30px;padding:0 12px;font-size:12px}
 .sala-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:none;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);font-size:15px;cursor:pointer;color:var(--gray-700)}
 @media(min-width:900px){
-  .sala-wrap.panel-open .sala-stage{right:330px}
-  .sala-wrap.panel-open .hud-tr{right:342px}
-  .sala-wrap.panel-open .hud-bc{left:calc(50% - 165px)}
-  .sala-wrap.panel-open .hud-br{right:342px}
+  .sala-wrap.panel-open .sala-stage{left:360px}
+  .sala-wrap.panel-open .hud-bc{left:calc(50% + 180px)}
+  .sala-wrap.panel-open .hud-top{left:calc(50% + 180px)}
+  .sala-wrap.panel-open .hud-bl{left:372px}
+  #sec-sala.panel-open .sala-bar{left:372px}
   .sala-drawer{padding-top:14px}
   .sala-x{display:none}
 }
@@ -705,7 +708,10 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   <div class="sec active" id="sec-sala">
     <div class="sala-bar">
       <div class="sala-bar-l">
+        <button class="date-nav-arrow sala-arr" onclick="salaGiornoSposta(-1)" aria-label="Giorno prima">&#8249;</button>
         <div class="oggi-date" id="oggi-date"></div>
+        <button class="date-nav-arrow sala-arr" onclick="salaGiornoSposta(1)" aria-label="Giorno dopo">&#8250;</button>
+        <button class="sala-btn ghost sala-oggi" id="sala-oggi" onclick="salaVaiOggi()" style="display:none">Oggi</button>
         <div class="seg-row oggi-seg">
           <button class="seg-btn active" id="seg-pranzo-o" onclick="setOggiPasto('pranzo')">Pranzo</button>
           <button class="seg-btn"        id="seg-cena-o"   onclick="setOggiPasto('cena')">Cena</button>
@@ -1535,36 +1541,65 @@ function renderOggi() {
   if (!el || _drag) return;
   const oggi = isoToday(0);
   if (oggiData && oggiData !== oggi) { startOggi(); return; } // pagina rimasta aperta oltre la mezzanotte
-  document.getElementById('oggi-date').textContent = fmtDataLunga(oggi);
+  if (salaData && salaData < oggi) salaData = null;
+  const D = salaData || oggi, eOggi = D === oggi;
+  document.getElementById('oggi-date').textContent = fmtDataLunga(D);
+  const bOggi = document.getElementById('sala-oggi'); if (bOggi) bOggi.style.display = eOggi ? 'none' : '';
+  const secSala = document.getElementById('sec-sala'); if (secSala) secSala.classList.toggle('panel-open', !!salaPannelloAperto);
 
   const famIds = new Set(famiglieDocs.map(f => f.id));
-  const tutti  = oggiOrdini.filter(o => famIds.has(o.famiglia_id));
+  const tutti  = eOggi ? oggiOrdini.filter(o => famIds.has(o.famiglia_id)) : [];   // le comande esistono solo per oggi
   const ordini = tutti.filter(o => o.tipo === oggiPasto);
   const altri  = tutti.filter(o => o.tipo !== oggiPasto);
-  const { attese, senzaOrdine, recuperi } = calcolaPastiGiorno(oggi, oggiPasto, ordini, altri);
+  const calc = calcolaPastiGiorno(D, oggiPasto, ordini, altri);
+  const attese = calc.attese, senzaOrdine = eOggi ? calc.senzaOrdine : [], recuperi = eOggi ? calc.recuperi : [];
   const famMap = {}; famiglieDocs.forEach(f => { famMap[f.id] = f; });
-  const presenti = attese.concat(ordini.map(o => famMap[o.famiglia_id]).filter(f => f && !attese.includes(f)));
+  const presentiVeri = attese.concat(ordini.map(o => famMap[o.famiglia_id]).filter(f => f && !attese.includes(f)));
   const ordinatiQui = attese.filter(f => ordini.some(o => o.famiglia_id === f.id));
   const somma = lista => lista.reduce((s, f) => s + ospitiFamiglia(f), 0);
   const copertiAttesi = somma(ordinatiQui) + somma(senzaOrdine);
 
-  // Avanzamento servizio
-  let totPiatti = 0, totServiti = 0, daServire = 0;
-  ordini.forEach(o => {
-    const items = estraiPiattiOrdine(o, {});
-    const serv = o.servito_piatti || {};
-    const fatto = tuttoServito(o);
-    items.forEach(p => { totPiatti += p.qty; totServiti += fatto ? p.qty : Math.min(Number(serv[p.mid] || 0), p.qty); });
-    if (items.length && !fatto) daServire++;
+  // Prenotazioni del giorno e tavolo di ogni voce (pensioni e privati)
+  const prens = tuttePrenotazioni().filter(p => p.data === D && p.pasto === oggiPasto);
+  if (eOggi) presentiVeri.forEach(f => {   // tavolo programmato in anticipo: lo riporto sulla famiglia, e' quello che raggruppa le comande in Cucina
+    if (String(f.tavolo || '').trim()) return;
+    const t = tavoloPens(f, D, oggiPasto, prens);
+    if (!t || _syncTav.has(f.id + '|' + t)) return;
+    _syncTav.add(f.id + '|' + t); f.tavolo = t;
+    try { const { db, doc, setDoc } = window._fb; setDoc(doc(db, 'famiglie_ristorazione', f.id), { tavolo: t }, { merge: true }).catch(console.error); } catch (e) { console.error(e); }
   });
+  const presenti = presentiVeri.map(f => {
+    const pf = prens.filter(p => p.famId === f.id);
+    return { ...f, tavolo: tavoloPens(f, D, oggiPasto, prens), _pers: pf.length ? pf.reduce((a, p) => a + (Number(p.persone) || 0), 0) : null, _turno: Array.from(new Set(pf.map(p => p.turno).filter(Boolean))).sort().join(' · '), _prenId: (pf[0] || {}).id || '' };
+  });
+  const priv = prens.filter(p => p.libera).map(p => ({ id: 'L:' + p.id, _priv: true, _prenId: p.id, nome: p.nome, unita: p.unita, tel: p.tel, note: p.note, _turno: p.turno || '', _pers: Number(p.persone) || 0, tavolo: String(p.tavolo || '').trim() }));
+  const voci = presenti.concat(priv);
 
   // Barra sottile in alto: numeri piccoli, la sala è il protagonista
   const chip = (n, lbl, warn) => `<span class="sala-stat${warn ? ' warn' : ''}"><b>${n}</b>${lbl}</span>`;
-  document.getElementById('sala-stats').innerHTML =
-      chip(copertiAttesi, 'coperti')
-    + chip(`${ordinatiQui.length}/${attese.length}`, 'ordini', senzaOrdine.length > 0)
-    + chip(`${totServiti}/${totPiatti}`, 'piatti serviti')
-    + chip(daServire, 'da servire', daServire > 0);
+  const valide = salaChiaviValide();
+  const senzaTav = voci.filter(f => !String(f.tavolo || '').trim() || !valide.has(chiaveTavolo(f.tavolo))).length;
+  if (eOggi) {
+    let totPiatti = 0, totServiti = 0, daServire = 0;
+    ordini.forEach(o => {
+      const items = estraiPiattiOrdine(o, {});
+      const serv = o.servito_piatti || {};
+      const fatto = tuttoServito(o);
+      items.forEach(p => { totPiatti += p.qty; totServiti += fatto ? p.qty : Math.min(Number(serv[p.mid] || 0), p.qty); });
+      if (items.length && !fatto) daServire++;
+    });
+    document.getElementById('sala-stats').innerHTML =
+        chip(copertiAttesi + priv.reduce((a, f) => a + f._pers, 0), 'coperti')
+      + chip(`${ordinatiQui.length}/${attese.length}`, 'ordini', senzaOrdine.length > 0)
+      + chip(`${totServiti}/${totPiatti}`, 'piatti serviti')
+      + chip(daServire, 'da servire', daServire > 0);
+  } else {
+    document.getElementById('sala-stats').innerHTML =
+        chip(voci.reduce((a, f) => a + (f._pers != null ? f._pers : ospitiFamiglia(f)), 0), 'coperti')
+      + chip(priv.length, 'privati')
+      + chip(presenti.length, 'pensioni')
+      + chip(senzaTav, 'senza tavolo', senzaTav > 0);
+  }
 
   // Note e allergie di chi mangia in questo pasto (allergie in cima)
   const note = [];
@@ -1577,27 +1612,72 @@ function renderOggi() {
   note.sort((a, b) => (b.allergia - a.allergia) || String(a.f.nome).localeCompare(String(b.f.nome), 'it'));
 
   const ORA = { mattina: 'dalla colazione', dopo_pranzo: 'dalla cena', sera: 'nessun pasto oggi' };
-  const arrivi = famiglieDocs.filter(f => f.checkin === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
-  const partenze = famiglieDocs.filter(f => f.checkout === oggi).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+  const arrivi = famiglieDocs.filter(f => f.checkin === D).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
+  const partenze = famiglieDocs.filter(f => f.checkout === D).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it'));
 
   const chipFam = (f, extra) => `<button class="sala-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">${esc(f.nome)} <span>${esc(extra || f.unita || '')}</span></button>`;
   const panel = `
     ${recuperi.length ? `<div class="sp-sez"><div class="sp-t">Recuperi pasti <span>${recuperi.length}</span></div><div class="sala-chips">${recuperi.map(f => chipFam(f, f.ora_arrivo === 'dopo_pranzo' ? 'colaz.+pranzo' : 'tutti i pasti')).join('')}</div></div>` : ''}
-    ${htmlPrenotazioniOggi()}
-    <div class="sp-sez"><div class="sp-t">Senza ordine <span>${senzaOrdine.length}</span></div>${senzaOrdine.length ? `<div class="sala-chips">${senzaOrdine.map(f => chipFam(f)).join('')}</div>` : '<div class="oggi-empty">Tutti hanno ordinato.</div>'}</div>
+    ${eOggi ? `<div class="sp-sez"><div class="sp-t">Senza ordine <span>${senzaOrdine.length}</span></div>${senzaOrdine.length ? `<div class="sala-chips">${senzaOrdine.map(f => chipFam(f)).join('')}</div>` : '<div class="oggi-empty">Tutti hanno ordinato.</div>'}</div>
     <details class="sp-det"${note.length ? ' open' : ''}><summary>Note e allergie <span>${note.length}</span></summary>${
-      note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('') : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</details>
+      note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('') : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</details>` : ''}
     <details class="sp-det"><summary>Arrivi e partenze <span>${arrivi.length} / ${partenze.length}</span></summary>
       ${arrivi.map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Arrivo · Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti</div></div>${ORA[f.ora_arrivo] ? `<span class="oggi-tag">${ORA[f.ora_arrivo]}</span>` : ''}</div>`).join('')}
       ${partenze.map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Partenza · Alloggio ${esc(f.unita || '—')}</div></div></div>`).join('')}
-      ${(arrivi.length + partenze.length) ? '' : '<div class="oggi-empty">Nessun movimento oggi.</div>'}</details>`;
+      ${(arrivi.length + partenze.length) ? '' : '<div class="oggi-empty">Nessun movimento.</div>'}</details>`;
 
-  const valide = salaChiaviValide();
-  const nSenzaTavolo = presenti.filter(f => !String(f.tavolo || '').trim() || !valide.has(String(f.tavolo).trim())).length;
-  const pannello = salaEdit ? htmlStrumenti() : htmlSenzaTavolo(presenti) + panel + `<div class="sala-legenda sala-legenda-p">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
-  el.innerHTML = htmlPianta(ordini, presenti, pannello, nSenzaTavolo + senzaOrdine.length);
+  const pannello = salaEdit ? htmlStrumenti() : htmlElencoSala(D, presenti, priv) + panel + `<div class="sala-legenda sala-legenda-p">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
+  el.innerHTML = htmlPianta(ordini, voci, pannello, senzaTav + senzaOrdine.length);
   adattaPianta();
   if (typeof hydrateIcons === 'function') hydrateIcons(el);
+}
+
+// Giorno mostrato in Sala: da oggi in avanti, quanti ne copre il calendario prenotazioni
+function salaGiornoSposta(d) {
+  const lista = prGiorniLista(), cur = Math.max(0, lista.indexOf(salaData || isoToday(0)));
+  const n = Math.max(0, Math.min(lista.length - 1, cur + d));
+  salaData = n === 0 ? null : lista[n]; assegnaFam = null; renderOggi();
+}
+function salaVaiOggi() { salaData = null; assegnaFam = null; renderOggi(); }
+// Tavolo di una famiglia in pensione per un giorno/servizio: oggi vale il campo `tavolo` (lo usa Cucina per
+// raggruppare le comande), per gli altri giorni il tavolo programmato (`tavoli_prog`) o quello della prenotazione.
+function tavoloPens(f, D, pasto, prens) {
+  const prog = String(((f.tavoli_prog || {})['d' + D.replace(/-/g, '') + '_' + pasto]) || '').trim();
+  const dalleP = String(((prens || []).find(p => p.famId === f.id && String(p.tavolo || '').trim()) || {}).tavolo || '').trim();
+  if (D === isoToday(0)) return String(f.tavolo || '').trim() || prog || dalleP;
+  return prog || dalleP;
+}
+const copertiVoce = f => f._pers != null ? f._pers : ospitiFamiglia(f);
+
+// Elenco di sinistra: prenotazioni del giorno, prima i privati poi le pensioni, ognuna col suo tavolo
+function htmlElencoSala(D, pens, priv) {
+  const eOggi = D === isoToday(0);
+  const sv = TURNI.servizi.find(x => x.id === oggiPasto);
+  const ord = (a, b) => (a._turno ? 0 : 1) - (b._turno ? 0 : 1) || String(a._turno).localeCompare(String(b._turno)) || String(a.nome).localeCompare(String(b.nome), 'it');
+  const tot = priv.concat(pens).reduce((a, f) => a + copertiVoce(f), 0);
+  const blocco = t => `<span class="pv-tav${t ? '' : ' vuoto'}">${t ? esc(t) : '—'}</span>`;
+  const card = (f, meta, azioni) => {
+    const tav = String(f.tavolo || '').trim();
+    return `<div class="pv-card${assegnaFam === f.id ? ' sel' : ''}" role="button" tabindex="0" onclick="salaPrendi('${f.id}')">${blocco(tav)}
+      <div class="pv-main"><div class="pv-nome">${esc(f.nome || '—')}</div><div class="pv-meta">${meta}</div>
+      <div class="pv-acts">${azioni}${tav ? `<button class="pv-b" onclick="event.stopPropagation();assegnaTavolo('${f.id}','')">Libera</button>` : ''}</div></div></div>`;
+  };
+  const metaPriv = f => [f._turno || 'Senza orario', persLbl(f._pers), f.tel ? esc(f.tel) : '', f.note ? esc(f.note) : ''].filter(Boolean).join(' · ');
+  const metaPens = f => [f._turno || (f._pers == null ? 'Senza prenotazione' : 'Senza orario'), persLbl(copertiVoce(f)), 'Alloggio ' + esc(f.unita || '—')].join(' · ') + (notaDelicata(f.note) ? ' <i class="pr-tag" style="background:#FEE2E2;color:#B91C1C">Allergia</i>' : '');
+  const azPriv = f => `<button class="pv-b" onclick="event.stopPropagation();apriPren('','${D}','${oggiPasto}','${f._prenId}')">Modifica</button>`;
+  const azPens = f => `<button class="pv-b" onclick="event.stopPropagation();apriPren('${f.id}','${D}','${oggiPasto}'${f._prenId ? `,'${f._prenId}'` : ''})">${f._prenId ? 'Modifica' : 'Prenota'}</button>`
+    + (eOggi ? `<button class="pv-b" onclick="event.stopPropagation();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${D}','${oggiPasto}')">Ordine</button>` : '');
+  const sez = (titolo, lista, html, vuoto) => `<div class="pv-sez"><div class="pv-t">${titolo}<span>${lista.length ? lista.reduce((a, f) => a + copertiVoce(f), 0) + ' pers.' : ''}</span></div>${lista.length ? html : `<div class="oggi-empty">${vuoto}</div>`}</div>`;
+  return `<div class="pv-head"><div class="pv-title">Prenotazioni · ${esc(sv ? sv.nome.toLowerCase() : oggiPasto)}<span>${tot} coperti</span></div>
+      <div class="pv-new"><button class="sala-btn" onclick="prNuova('libera')">Nuovo privato</button><button class="sala-btn ghost" onclick="prNuova('fam')">Nuova pensione</button></div></div>
+    ${assegnaFam ? '' : '<div class="oggi-empty" style="padding:0 2px 4px">Tocca una prenotazione, poi il tavolo sulla pianta.</div>'}
+    ${sez('Privati', priv, priv.slice().sort(ord).map(f => card(f, metaPriv(f), azPriv(f))).join(''), 'Nessuna prenotazione di privati.')}
+    ${sez('Pensioni', pens, pens.slice().sort(ord).map(f => card(f, metaPens(f), azPens(f))).join(''), 'Nessuna famiglia in pensione per questo servizio.')}`;
+}
+function prNuova(tipo) { prEditTipoUltimo = tipo; apriPren('', salaData || isoToday(0), oggiPasto); }
+function nomeVoce(key) {
+  if (String(key).startsWith('L:')) return (PREN_LIBERE[String(key).slice(2)] || {}).nome || '';
+  return (famiglieDocs.find(f => f.id === key) || {}).nome || '';
 }
 
 // ── PRENOTAZIONI DEL RISTORANTE ─────────────────────────────────────────────
@@ -1903,6 +1983,7 @@ async function salvaPren() {
     chiudiPren();
   } catch (e) { showToast('Errore — riprova'); console.error(e); }
   renderPrenotazioni();
+  if (currentTab === 'sala') renderOggi();
 }
 async function eliminaPren() {
   if (!prEdit || !confirm('Eliminare la prenotazione?')) return;
@@ -1916,6 +1997,7 @@ async function eliminaPren() {
     chiudiPren();
   } catch (e) { showToast('Errore — riprova'); console.error(e); }
   renderPrenotazioni();
+  if (currentTab === 'sala') renderOggi();
 }
 function stampaPrenDaModale() { if (prEdit) stampaPrenSingola(prEdit.id); }
 
@@ -2059,10 +2141,12 @@ function salaDefault() {
 }
 let SALA = salaDefault();
 let salaIdx = 0, salaEdit = false, salaDraft = null, salaSel = null, _salaScale = 1;
-let salaPannelloAperto = false;
+let salaPannelloAperto = window.innerWidth >= 900;   // da desktop l'elenco prenotazioni sta sempre aperto a sinistra
 let salaGruppi = [];           // tavoli uniti OGGI: [{id, tavoli:[nomi]}]
 let salaUnisci = false, salaUnSel = [];   // modalità "Unisci tavoli" e tavoli (id) scelti
-let assegnaFam = null;         // famiglia in attesa di un tavolo ("tocca un tavolo")
+let assegnaFam = null;         // voce in attesa di un tavolo ("tocca un tavolo"): id famiglia oppure 'L:'+id prenotazione privata
+let salaData = null;           // giorno mostrato in Sala (null = oggi)
+const _syncTav = new Set();    // tavoli di programmazione gia' riportati sulla famiglia (oggi)
 let tavoloAperto = null;       // tavolo aperto nel foglio di dettaglio
 let _salaDati = {}, _salaPresenti = [], _salaOrdini = [];
 
@@ -2112,16 +2196,17 @@ function isAdminSess() { try { return JSON.parse(sessionStorage.getItem('gr_sess
 // Le famiglie sedute portano come `tavolo` l'etichetta del gruppo, es. "I4 + I5":
 // così Cucina le raggruppa in un'unica comanda, come per ogni tavolo condiviso.
 function gruppoLabel(g) { return g.tavoli.join(' + '); }
-function gruppoDi(nome) { return salaGruppi.find(g => g.tavoli.includes(nome)) || null; }
+function salaGruppiAtt() { return (salaData && salaData !== isoToday(0)) ? [] : salaGruppi; }   // le unioni sono solo di oggi
+function gruppoDi(nome) { return salaGruppiAtt().find(g => g.tavoli.includes(nome)) || null; }
 function chiaveTavolo(s) {
   s = String(s || '').trim();
   if (!s) return '';
-  const g = salaGruppi.find(x => x.tavoli.includes(s) || gruppoLabel(x) === s);
+  const g = salaGruppiAtt().find(x => x.tavoli.includes(s) || gruppoLabel(x) === s);
   return g ? gruppoLabel(g) : s;
 }
 function salaChiaviValide() {
   const set = new Set(salaTavoliTutti().map(x => x.t.nome));
-  salaGruppi.forEach(g => set.add(gruppoLabel(g)));
+  salaGruppiAtt().forEach(g => set.add(gruppoLabel(g)));
   return set;
 }
 function loadUnioni() {
@@ -2154,7 +2239,7 @@ function salaUnisciInizia(preId) {
   if (preId) salaToggleUnione(preId, true);
   renderOggi();
 }
-function salaUnisciAnnulla() { salaUnisci = false; salaUnSel = []; renderOggi(); }
+function salaUnisciAnnulla() { salaUnisci = false; salaUnSel = []; salaPannelloAperto = window.innerWidth >= 900; renderOggi(); }
 function salaToggleUnione(id, forzaAggiungi) {
   const room = SALA.sale[salaIdx];
   const e = room.el.find(x => x.id === id && x.tipo === 'tavolo'); if (!e) return;
@@ -2179,7 +2264,7 @@ async function salaUnisciConferma() {
     await riassegnaFamiglie(s => (nomi.includes(s) || vecchieEtichette.includes(s)) ? etichetta : null);
     showToast('Tavoli uniti: ' + etichetta);
   } catch (e) { showToast('Errore — riprova'); console.error(e); }
-  salaUnisci = false; salaUnSel = [];
+  salaUnisci = false; salaUnSel = []; salaPannelloAperto = window.innerWidth >= 900;
   renderOggi();
 }
 async function salaSepara(label) {
@@ -2202,8 +2287,8 @@ function datiTavoli(ordini, presenti) {
     (map[n] = map[n] || { fams: [], coperti: 0, stato: 'libero' }).fams.push(f);
   });
   Object.values(map).forEach(m => {
-    m.coperti = m.fams.reduce((s, f) => s + ospitiFamiglia(f), 0);
-    const ords = m.fams.map(f => ordini.find(o => o.famiglia_id === f.id));
+    m.coperti = m.fams.reduce((s, f) => s + copertiVoce(f), 0);
+    const ords = m.fams.filter(f => !f._priv).map(f => ordini.find(o => o.famiglia_id === f.id));   // i privati non hanno comanda
     const con = ords.filter(Boolean);
     const iniziato = o => tuttoServito(o) || Object.values(o.servito_piatti || {}).some(v => Number(v) > 0);
     if (con.length && con.length === ords.length && con.every(tuttoServito)) m.stato = 'servito';
@@ -2216,6 +2301,8 @@ function datiTavoli(ordini, presenti) {
 const STATO_LBL = { libero: 'Libero', atteso: 'In attesa ordine', ordinato: 'Ordinato', servizio: 'In servizio', servito: 'Servito' };
 
 function statoFamiglia(f, ordini) {
+  if (f._priv) return 'Prenotazione privata';
+  if (salaData && salaData !== isoToday(0)) return 'Prenotata';
   const o = ordini.find(x => x.famiglia_id === f.id);
   if (!o) return 'Nessun ordine';
   if (tuttoServito(o)) return 'Servito';
@@ -2241,7 +2328,7 @@ function htmlPianta(ordini, presenti, pannello, badge) {
 
   // collegamenti tra i tavoli uniti (sotto ai tavoli)
   let ponti = '';
-  if (!salaEdit) salaGruppi.forEach(g => {
+  if (!salaEdit) salaGruppiAtt().forEach(g => {
     const ms = g.tavoli.map(n => room.el.find(x => x.tipo === 'tavolo' && x.nome === n)).filter(Boolean).sort((a, b) => (a.y - b.y) || (a.x - b.x));
     const st = (dati[gruppoLabel(g)] || {}).stato || 'libero';
     for (let i = 0; i + 1 < ms.length; i++) {
@@ -2287,14 +2374,14 @@ function htmlPianta(ordini, presenti, pannello, badge) {
   }
   const modBtn = salaEdit
     ? `<button class="sala-btn ghost" onclick="salaAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salvaPianta()">Salva pianta</button>`
-    : `<button class="sala-btn ghost" onclick="salaUnisciInizia()">Unisci tavoli</button>` + (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
+    : ((!salaData || salaData === isoToday(0)) ? `<button class="sala-btn ghost" onclick="salaUnisciInizia()">Unisci tavoli</button>` : '') + (isAdminSess() ? `<button class="sala-btn ghost" onclick="salaModifica()">Modifica pianta</button>` : '');
   const legRiga = ['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('');
   const legenda = salaEdit ? '' : `<div class="hud hud-bl sala-legenda">${legRiga}</div>`;
   const banner = salaUnisci
     ? `<div class="hud hud-top sala-banner">Tocca i tavoli da unire · <b>${salaUnSel.length}</b> scelti<button onclick="salaUnisciAnnulla()">Annulla</button><button class="sala-btn accent" onclick="salaUnisciConferma()">Unisci</button></div>`
     : (!salaEdit && assegnaFam)
-    ? `<div class="hud hud-top sala-banner">Scegli il tavolo per <b>${esc((famiglieDocs.find(f => f.id === assegnaFam) || {}).nome || '')}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
-  const btnPannello = `<button class="hud hud-br sala-fab" onclick="salaPannello()">${salaEdit ? 'Strumenti' : 'Famiglie'}${(!salaEdit && badge) ? `<b>${badge}</b>` : ''}</button>`;
+    ? `<div class="hud hud-top sala-banner">Scegli il tavolo per <b>${esc(nomeVoce(assegnaFam))}</b><button onclick="salaPrendi(null)">Annulla</button></div>` : '';
+  const btnPannello = `<button class="hud hud-br sala-fab" onclick="salaPannello()">${salaEdit ? 'Strumenti' : 'Prenotazioni'}${(!salaEdit && badge) ? `<b>${badge}</b>` : ''}</button>`;
   return `<div class="sala-wrap${salaPannelloAperto ? ' panel-open' : ''}${salaEdit ? ' edit' : ''}">
     <div class="sala-stage" id="pianta-wrap"><div class="pianta-box${salaEdit ? ' edit' : ''}" id="pianta-box"><div class="pianta${salaEdit ? ' edit' : ''}" id="pianta" data-bx="${bb.x}" data-by="${bb.y}" data-bw="${bb.w}" data-bh="${bb.h}">${els}</div></div></div>
     ${modBtn ? `<div class="hud hud-tr">${modBtn}</div>` : ''}
@@ -2329,7 +2416,7 @@ function htmlSenzaTavolo(presenti) {
 }
 
 function salaScegli(i) { salaIdx = i; salaSel = null; renderOggi(); }
-function salaPrendi(famId) { assegnaFam = (assegnaFam === famId) ? null : famId; if (assegnaFam) salaPannelloAperto = false; renderOggi(); }
+function salaPrendi(key) { assegnaFam = (assegnaFam === key) ? null : key; if (assegnaFam && window.innerWidth < 900) salaPannelloAperto = false; renderOggi(); }
 function salaPannello() { salaPannelloAperto = !salaPannelloAperto; renderOggi(); }
 
 function salaTavolo(id) {
@@ -2343,11 +2430,29 @@ function salaTavolo(id) {
 }
 function chiudiTavolo() { tavoloAperto = null; document.getElementById('modal-tavolo').classList.add('hidden'); }
 
-async function assegnaTavolo(famId, nomeTavolo) {
-  const { db, doc, setDoc } = window._fb;
+async function assegnaTavolo(key, nomeTavolo) {
+  const { db, doc, setDoc, updateDoc } = window._fb;
+  const oggi = isoToday(0), D = salaData || oggi;
   try {
-    await setDoc(doc(db, 'famiglie_ristorazione', famId), { tavolo: nomeTavolo }, { merge: true });
-    const f = famiglieDocs.find(x => x.id === famId); if (f) f.tavolo = nomeTavolo;
+    if (String(key).startsWith('L:')) {   // prenotazione di un privato
+      const id = String(key).slice(2);
+      await updateDoc(doc(db, 'impostazioni', 'ristorazione_pren_libere'), { ['pren.' + id + '.tavolo']: nomeTavolo });
+      if (PREN_LIBERE[id]) PREN_LIBERE[id].tavolo = nomeTavolo;
+    } else {                               // famiglia in pensione: tavolo del giorno (+ campo `tavolo` se e' oggi, per Cucina)
+      const f = famiglieDocs.find(x => x.id === key);
+      const k = 'd' + D.replace(/-/g, '') + '_' + oggiPasto;
+      const upd = { tavoli_prog: { [k]: nomeTavolo } };
+      if (D === oggi) upd.tavolo = nomeTavolo;
+      const pr = {};
+      Object.entries((f && f.prenotazioni) || {}).forEach(([id, p]) => { if (p && p.data === D && p.pasto === oggiPasto) pr[id] = { tavolo: nomeTavolo }; });
+      if (Object.keys(pr).length) upd.prenotazioni = pr;
+      await setDoc(doc(db, 'famiglie_ristorazione', key), upd, { merge: true });
+      if (f) {
+        f.tavoli_prog = { ...(f.tavoli_prog || {}), [k]: nomeTavolo };
+        if (D === oggi) f.tavolo = nomeTavolo;
+        Object.keys(pr).forEach(id => { f.prenotazioni[id] = { ...f.prenotazioni[id], tavolo: nomeTavolo }; });
+      }
+    }
     showToast(nomeTavolo ? `Assegnato al tavolo ${nomeTavolo}` : 'Tavolo liberato');
   } catch (e) { showToast('Errore — riprova'); console.error(e); }
   renderOggi();
@@ -2363,10 +2468,10 @@ function renderSheetTavolo() {
   document.getElementById('mt-title').textContent = (g ? 'Tavoli ' : 'Tavolo ') + key;
   document.getElementById('mt-sub').textContent = `${x.s.nome} · ${m ? m.coperti + ' coperti' : 'libero'}`;
   const oggi = isoToday(0);
-  const righe = (m ? m.fams : []).map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} ospiti · ${statoFamiglia(f, _salaOrdini)}</div>${f.note ? `<div class="oggi-nota">${esc(f.note)}</div>` : ''}</div>
-    <div style="display:flex;gap:6px;flex-shrink:0"><button class="sala-btn ghost" onclick="chiudiTavolo();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">Ordine</button><button class="sala-btn ghost" onclick="assegnaTavolo('${f.id}','')">Libera</button></div></div>`).join('');
+  const righe = (m ? m.fams : []).map(f => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(f.nome)}</div><div class="oggi-row-meta">${f._priv ? esc(f._turno || 'Senza orario') + ' · ' + persLbl(f._pers) : 'Alloggio ' + esc(f.unita || '—') + ' · ' + persLbl(copertiVoce(f))} · ${statoFamiglia(f, _salaOrdini)}</div>${f.note ? `<div class="oggi-nota">${esc(f.note)}</div>` : ''}</div>
+    <div style="display:flex;gap:6px;flex-shrink:0">${f._priv ? `<button class="sala-btn ghost" onclick="chiudiTavolo();apriPren('','${salaData || oggi}','${oggiPasto}','${f._prenId}')">Modifica</button>` : ((!salaData || salaData === oggi) ? `<button class="sala-btn ghost" onclick="chiudiTavolo();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">Ordine</button>` : '')}<button class="sala-btn ghost" onclick="assegnaTavolo('${f.id}','')">Libera</button></div></div>`).join('');
   const altre = _salaPresenti.filter(f => chiaveTavolo(f.tavolo) !== key);
-  const opz = altre.map(f => `<option value="${f.id}">${esc(f.nome)} · ${esc(f.unita || '—')} · ${ospitiFamiglia(f)} osp.${f.tavolo ? ' (ora: ' + esc(f.tavolo) + ')' : ''}</option>`).join('');
+  const opz = altre.map(f => `<option value="${f.id}">${esc(f.nome)} · ${esc(f.unita || (f._priv ? 'privato' : '—'))} · ${copertiVoce(f)} osp.${f.tavolo ? ' (ora: ' + esc(f.tavolo) + ')' : ''}</option>`).join('');
   document.getElementById('mt-body').innerHTML = (righe || '<div class="oggi-empty">Nessuna famiglia a questo tavolo.</div>')
     + (altre.length ? `<div class="mlabel" style="margin-top:14px">Aggiungi famiglia</div><div style="display:flex;gap:8px"><select class="fselect" id="mt-sel"><option value="">Scegli…</option>${opz}</select><button class="sala-btn" onclick="assegnaDaSheet()">Assegna</button></div>` : '');
   document.getElementById('mt-foot').innerHTML = '<button class="mcancel" onclick="chiudiTavolo()">Chiudi</button>'
@@ -2381,7 +2486,7 @@ function assegnaDaSheet() {
 
 // ── EDITOR PIANTA (solo admin) ──────────────────────────────────────────────
 function salaModifica() { salaDraft = JSON.parse(JSON.stringify(SALA)); salaEdit = true; salaSel = null; assegnaFam = null; salaPannelloAperto = true; renderOggi(); }
-function salaAnnulla() { salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = false; renderOggi(); }
+function salaAnnulla() { salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = window.innerWidth >= 900; renderOggi(); }
 function salaRoom() { return salaDraft.sale[salaIdx]; }
 function salaElSel() { return salaEdit && salaSel ? salaRoom().el.find(e => e.id === salaSel) : null; }
 const quanta = v => Math.round(v / SALA_SNAP) * SALA_SNAP;
@@ -2530,7 +2635,7 @@ async function salvaPianta() {
     }
     if (Object.keys(ren).length && salaGruppi.length) await salvaUnioni(salaGruppi.map(g => ({ id: g.id, tavoli: g.tavoli.map(n => ren[n] || n) })));
     SALA = salaNormalizza(pulita);
-    salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = false;
+    salaEdit = false; salaDraft = null; salaSel = null; salaPannelloAperto = window.innerWidth >= 900;
     aggiornaDatalistTavoli();
     showToast('Pianta salvata');
   } catch (e) { showToast('Errore salvataggio pianta'); console.error(e); }

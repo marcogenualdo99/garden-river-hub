@@ -180,3 +180,22 @@ body.monitor .kds-clock{font-family:var(--font-display);font-weight:400;letter-s
 /* Niente animazioni d'entrata: le schede si ridisegnano a ogni aggiornamento
    in tempo reale (comande, Sala) e ogni volta lampeggerebbero. */
 @media print{body{background:#fff}}
+
+/* ── Sala + prenotazioni in una vista: elenco del giorno a sinistra ────── */
+.pv-head{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.pv-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--font-display);font-weight:400;font-size:18px;color:var(--green-900)}
+.pv-title span{font-family:var(--font);font-size:12px;font-weight:800;color:var(--green-700);background:var(--green-100);border-radius:999px;padding:3px 10px}
+.pv-new{display:flex;gap:8px}.pv-new .sala-btn{flex:1}
+.pv-sez{margin-top:6px}
+.pv-t{display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--green-600);margin:8px 2px}
+.pv-card{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;margin-bottom:8px;background:#fff;border:1px solid var(--rs-line);border-radius:18px;box-shadow:var(--rs-card-shadow);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pv-card:hover{border-color:var(--green-200)}
+.pv-card.sel{border-color:var(--orange);background:var(--orange-bg)}
+.pv-tav{flex:0 0 52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--green-100);color:var(--green-700);font-size:14px;font-weight:800;text-align:center;overflow:hidden;padding:0 3px}
+.pv-tav.vuoto{background:#FFF3EA;color:#C2570C}
+.pv-main{flex:1;min-width:0}
+.pv-nome{font-size:14px;font-weight:800;color:var(--gray-900)}
+.pv-meta{font-size:11.5px;color:var(--gray-500);margin-top:2px;line-height:1.4}
+.pv-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pv-b{height:28px;padding:0 12px;border:none;border-radius:999px;background:var(--green-50);color:var(--green-700);font-size:11.5px;font-weight:800;font-family:var(--font);cursor:pointer}
+.pv-b:active{opacity:.7}
