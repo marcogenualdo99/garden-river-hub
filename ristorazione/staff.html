@@ -468,20 +468,20 @@ body.vista-sala main{padding:0;max-width:none}
 @media(max-width:899px){.sala-wrap.panel-open .hud-br,.sala-wrap.panel-open .hud-tr,.sala-wrap.panel-open .hud-bc{visibility:hidden}}
 @media(max-width:767px){
   /* Telefono / Sunmi V2: barra in alto a tutta larghezza, pianta nello spazio libero tra barra e comandi in basso */
-  .sala-bar{top:0;left:0;right:0;max-width:none;border-radius:0 0 18px 18px;padding:8px 12px;gap:6px}
+  .sala-bar{top:8px;left:12px;right:12px;max-width:none;border-radius:18px;padding:8px 12px;gap:6px}
   .sala-bar-l{flex-wrap:nowrap;justify-content:space-between}
   .oggi-date{font-size:15px;white-space:nowrap}
   .oggi-seg{width:150px}
   .sala-stats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.sala-stats::-webkit-scrollbar{display:none}
   .sala-stat{flex:0 0 auto}
-  .sala-stage{top:150px;bottom:68px}
-  .hud-top{top:152px}
-  .hud-bc{left:12px;right:12px;top:98px;bottom:auto;transform:none;max-width:none;padding:4px;overflow-x:auto}
+  .sala-stage{top:170px;bottom:68px;align-items:flex-start;padding-top:12px;box-sizing:border-box}
+  .hud-top{top:170px}
+  .hud-bc{left:12px;right:12px;top:108px;bottom:auto;transform:none;max-width:none;padding:4px;overflow-x:auto}
   .hud-bc .sala-rooms{width:100%}
   .hud-bc .seg-btn{flex:1;padding:0 12px;font-size:13px}.hud-bc .sala-n{display:none}
   .hud-bc .seg-btn.active{background:var(--green-700);color:#fff;box-shadow:none}
-  .hud-br{left:12px;right:12px;bottom:12px}
-  .sala-fab{width:100%;justify-content:center}
+  .hud-br{left:12px;right:auto;bottom:12px}
+  .sala-fab{width:calc(100vw - 24px);box-sizing:border-box;justify-content:center}
   .hud-tr{display:none}
   .sala-azioni-m{display:flex!important}
   .sala-fab{height:44px;padding:0 16px}
