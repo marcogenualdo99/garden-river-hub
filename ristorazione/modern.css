@@ -9,7 +9,7 @@
    alleggerite e non aggiunge blur ne' animazioni pesanti.
    ══════════════════════════════════════════════════════════════════════════ */
 :root{
-  --rs-bg:#F7F8F4;
+  --rs-bg:#FFFFFF;
   --rs-line:#E4ECE8;
   --rs-card-shadow:0 1px 2px rgba(5,51,40,.04),0 8px 24px -8px rgba(5,51,40,.10);
   --rs-ease:cubic-bezier(.22,1,.36,1);
@@ -199,3 +199,48 @@ body.monitor .kds-clock{font-family:var(--font-display);font-weight:400;letter-s
 .pv-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .pv-b{height:28px;padding:0 12px;border:none;border-radius:999px;background:var(--green-50);color:var(--green-700);font-size:11.5px;font-weight:800;font-family:var(--font);cursor:pointer}
 .pv-b:active{opacity:.7}
+
+/* ── Sfondo bianco per tutta la sezione, come le altre pagine ──────────── */
+body,.rs-main,#sec-sala,.sala-drawer{background:#fff}
+.sala-drawer{border-right:1px solid var(--rs-line)}
+
+/* ── Sala: barra alta fissa (non copre piu' i tavoli) con la barra dei giorni ── */
+.sala-days{flex:1;min-width:0;margin:0;padding:2px 2px 4px}
+.sala-days .pr-pill{width:50px;padding:6px 0}
+.pv-step{display:inline-flex;align-items:center;gap:2px;height:28px;background:var(--green-50);border-radius:999px;padding:0 3px}
+.pv-step button{width:24px;height:24px;border:none;border-radius:50%;background:#fff;color:var(--green-700);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);line-height:1}
+.pv-step b{min-width:22px;text-align:center;font-size:13px;color:var(--green-900)}
+.pv-step b.mod{color:var(--orange)}
+@media(min-width:768px){
+  #sec-sala .sala-bar{top:0;left:0;right:0;max-width:none;flex-direction:row;align-items:center;gap:16px;height:72px;padding:6px 16px;border:none;border-bottom:1px solid var(--rs-line);border-radius:0;box-shadow:none;background:#fff}
+  #sec-sala .sala-bar-l{flex-wrap:nowrap}
+  #sec-sala .sala-stats{flex-wrap:nowrap}
+  #sec-sala .sala-stage{top:72px}
+  #sec-sala .sala-drawer{top:72px}
+  #sec-sala .hud-tr,#sec-sala .hud-top{top:84px}
+}
+@media(max-width:767px){
+  #sec-sala .sala-bar{gap:4px}
+  #sec-sala .sala-days{order:2;width:100%;flex:none}
+  #sec-sala .sala-stats{order:3}
+  #sec-sala .sala-stage{top:158px}
+  #sec-sala .hud-top{top:164px}
+}
+/* legenda in colonna, a sinistra: non copre piu' le sale in basso */
+@media(min-width:1300px){
+  .hud-bl.sala-legenda{flex-direction:column;align-items:flex-start;gap:7px;border-radius:16px;padding:10px 14px;background:rgba(255,255,255,.96);border:1px solid var(--rs-line)}
+}
+
+/* ── Menu laterale richiudibile ────────────────────────────────────────── */
+.rs-handle{display:none}
+@media(min-width:768px){
+  .rs-side{transition:transform .22s ease}
+  .rs-main{transition:margin-left .22s ease}
+  .rs-handle{display:flex;align-items:center;justify-content:center;position:fixed;top:50%;left:232px;transform:translateY(-50%);width:20px;height:60px;z-index:160;border:1px solid var(--rs-line);border-left:none;border-radius:0 12px 12px 0;background:#fff;color:var(--green-700);font-size:20px;line-height:1;cursor:pointer;box-shadow:4px 0 14px -6px rgba(5,51,40,.2);transition:left .22s ease}
+  body.rs-collapsed .rs-side{transform:translateX(-100%)}
+  body.rs-collapsed .rs-main{margin-left:0}
+  body.rs-collapsed .rs-handle{left:0}
+  body.rs-collapsed .rs-handle{transform:translateY(-50%) scaleX(-1)}
+  body.rs-collapsed #sec-sala .sala-drawer{padding-left:28px}
+  body.monitor .rs-handle{display:none}
+}

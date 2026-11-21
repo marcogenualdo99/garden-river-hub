@@ -456,15 +456,12 @@ body.vista-sala main{padding:0;max-width:none}
 .sala-drawer{position:absolute;top:0;left:0;bottom:0;width:360px;max-width:92vw;background:#F4F6F3;border-right:1px solid var(--gray-200);box-shadow:10px 0 30px rgba(5,51,40,.12);overflow-y:auto;padding:58px 12px 80px;display:flex;flex-direction:column;gap:12px;z-index:35;transform:translateX(-105%);transition:transform .22s ease;visibility:hidden}
 .sala-drawer.open{transform:none;visibility:visible}
 .sala-drawer .sala-azioni-m{margin-right:44px}
-.sala-arr{width:30px;height:30px;font-size:17px}
-.sala-oggi{height:30px;padding:0 12px;font-size:12px}
 .sala-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border:none;border-radius:50%;background:#fff;box-shadow:var(--shadow-sm);font-size:15px;cursor:pointer;color:var(--gray-700)}
 @media(min-width:900px){
   .sala-wrap.panel-open .sala-stage{left:360px}
   .sala-wrap.panel-open .hud-bc{left:calc(50% + 180px)}
   .sala-wrap.panel-open .hud-top{left:calc(50% + 180px)}
   .sala-wrap.panel-open .hud-bl{left:372px}
-  #sec-sala.panel-open .sala-bar{left:372px}
   .sala-drawer{padding-top:14px}
   .sala-x{display:none}
 }
@@ -693,6 +690,8 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   </div>
   <a class="rs-home" href="../"><span data-icon="BACK"></span>Torna alla Home</a>
 </aside>
+<button class="rs-handle" id="rs-handle" onclick="rsToggle()" aria-label="Apri o chiudi il menu" title="Apri o chiudi il menu">&#8249;</button>
+<script>try{if(localStorage.getItem('rs_collapsed')==='1')document.body.classList.add('rs-collapsed')}catch(e){}</script>
 
 <div class="rs-main">
 <div class="rs-top">
@@ -708,15 +707,13 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
   <div class="sec active" id="sec-sala">
     <div class="sala-bar">
       <div class="sala-bar-l">
-        <button class="date-nav-arrow sala-arr" onclick="salaGiornoSposta(-1)" aria-label="Giorno prima">&#8249;</button>
         <div class="oggi-date" id="oggi-date"></div>
-        <button class="date-nav-arrow sala-arr" onclick="salaGiornoSposta(1)" aria-label="Giorno dopo">&#8250;</button>
-        <button class="sala-btn ghost sala-oggi" id="sala-oggi" onclick="salaVaiOggi()" style="display:none">Oggi</button>
         <div class="seg-row oggi-seg">
           <button class="seg-btn active" id="seg-pranzo-o" onclick="setOggiPasto('pranzo')">Pranzo</button>
           <button class="seg-btn"        id="seg-cena-o"   onclick="setOggiPasto('cena')">Cena</button>
         </div>
       </div>
+      <div class="pr-strip sala-days" id="sala-days"></div>
       <div class="sala-stats" id="sala-stats"></div>
     </div>
     <div id="oggi-body"><div class="empty-state">Caricamento...</div></div>
@@ -1277,6 +1274,11 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 const TAB_TITOLI = { sala:'Sala', prenotazioni:'Prenotazioni', cucina:'Cucina', menu:'Menu', ospiti:'Ospiti', impostazioni:'Impostazioni' };
+function rsToggle() {
+  const c = document.body.classList.toggle('rs-collapsed');
+  try { localStorage.setItem('rs_collapsed', c ? '1' : '0'); } catch (e) {}
+  setTimeout(() => { if (typeof adattaPianta === 'function') adattaPianta(); }, 260);
+}
 function switchTab(tab) {
   if (tab === 'report') { tab = 'cucina'; setCucinaVista('totali'); }  // vecchio nome della scheda
   if (!TAB_TITOLI[tab]) tab = 'sala';
@@ -1544,7 +1546,15 @@ function renderOggi() {
   if (salaData && salaData < oggi) salaData = null;
   const D = salaData || oggi, eOggi = D === oggi;
   document.getElementById('oggi-date').textContent = fmtDataLunga(D);
-  const bOggi = document.getElementById('sala-oggi'); if (bOggi) bOggi.style.display = eOggi ? 'none' : '';
+  const strip = document.getElementById('sala-days');
+  if (strip) {   // barra dei giorni: da oggi in avanti, scorrevole; resta dov'e' a meno che non cambi il giorno scelto
+    const prima = strip.scrollLeft;
+    strip.innerHTML = prGiorniLista().map((g, i) => { const dt = new Date(g + 'T12:00:00'); const dow = dt.toLocaleDateString('it-IT', { weekday: 'short' }).replace('.', '');
+      return `<button class="pr-pill${g === D ? ' active' : ''}" onclick="salaSetGiorno('${g}')"><span class="pr-g">${i === 0 ? 'oggi' : dow}</span><span class="pr-n">${dt.getDate()}</span></button>`; }).join('');
+    const act = strip.querySelector('.active');
+    if (_stripD !== D && act) strip.scrollLeft = Math.max(0, act.offsetLeft - strip.clientWidth / 2 + act.offsetWidth / 2); else strip.scrollLeft = prima;
+    _stripD = D;
+  }
   const secSala = document.getElementById('sec-sala'); if (secSala) secSala.classList.toggle('panel-open', !!salaPannelloAperto);
 
   const famIds = new Set(famiglieDocs.map(f => f.id));
@@ -1561,16 +1571,10 @@ function renderOggi() {
 
   // Prenotazioni del giorno e tavolo di ogni voce (pensioni e privati)
   const prens = tuttePrenotazioni().filter(p => p.data === D && p.pasto === oggiPasto);
-  if (eOggi) presentiVeri.forEach(f => {   // tavolo programmato in anticipo: lo riporto sulla famiglia, e' quello che raggruppa le comande in Cucina
-    if (String(f.tavolo || '').trim()) return;
-    const t = tavoloPens(f, D, oggiPasto, prens);
-    if (!t || _syncTav.has(f.id + '|' + t)) return;
-    _syncTav.add(f.id + '|' + t); f.tavolo = t;
-    try { const { db, doc, setDoc } = window._fb; setDoc(doc(db, 'famiglie_ristorazione', f.id), { tavolo: t }, { merge: true }).catch(console.error); } catch (e) { console.error(e); }
-  });
   const presenti = presentiVeri.map(f => {
     const pf = prens.filter(p => p.famId === f.id);
-    return { ...f, tavolo: tavoloPens(f, D, oggiPasto, prens), _pers: pf.length ? pf.reduce((a, p) => a + (Number(p.persone) || 0), 0) : null, _turno: Array.from(new Set(pf.map(p => p.turno).filter(Boolean))).sort().join(' · '), _prenId: (pf[0] || {}).id || '' };
+    const pg = (f.persone_giorno || {})[pgKey(D, oggiPasto)];
+    return { ...f, tavolo: tavoloPens(f, D, prens), _pers: pg != null ? Number(pg) : (pf.length ? pf.reduce((a, p) => a + (Number(p.persone) || 0), 0) : null), _pgModificato: pg != null, _turno: Array.from(new Set(pf.map(p => p.turno).filter(Boolean))).sort().join(' · '), _prenId: (pf[0] || {}).id || '' };
   });
   const priv = prens.filter(p => p.libera).map(p => ({ id: 'L:' + p.id, _priv: true, _prenId: p.id, nome: p.nome, unita: p.unita, tel: p.tel, note: p.note, _turno: p.turno || '', _pers: Number(p.persone) || 0, tavolo: String(p.tavolo || '').trim() }));
   const voci = presenti.concat(priv);
@@ -1589,13 +1593,12 @@ function renderOggi() {
       if (items.length && !fatto) daServire++;
     });
     document.getElementById('sala-stats').innerHTML =
-        chip(copertiAttesi + priv.reduce((a, f) => a + f._pers, 0), 'coperti')
-      + chip(`${ordinatiQui.length}/${attese.length}`, 'ordini', senzaOrdine.length > 0)
+        chip(voci.reduce((a, f) => a + copertiVoce(f), 0), 'coperti')
       + chip(`${totServiti}/${totPiatti}`, 'piatti serviti')
       + chip(daServire, 'da servire', daServire > 0);
   } else {
     document.getElementById('sala-stats').innerHTML =
-        chip(voci.reduce((a, f) => a + (f._pers != null ? f._pers : ospitiFamiglia(f)), 0), 'coperti')
+        chip(voci.reduce((a, f) => a + copertiVoce(f), 0), 'coperti')
       + chip(priv.length, 'privati')
       + chip(presenti.length, 'pensioni')
       + chip(senzaTav, 'senza tavolo', senzaTav > 0);
@@ -1618,7 +1621,7 @@ function renderOggi() {
   const chipFam = (f, extra) => `<button class="sala-chip" onclick="apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${oggi}','${oggiPasto}')">${esc(f.nome)} <span>${esc(extra || f.unita || '')}</span></button>`;
   const panel = `
     ${recuperi.length ? `<div class="sp-sez"><div class="sp-t">Recuperi pasti <span>${recuperi.length}</span></div><div class="sala-chips">${recuperi.map(f => chipFam(f, f.ora_arrivo === 'dopo_pranzo' ? 'colaz.+pranzo' : 'tutti i pasti')).join('')}</div></div>` : ''}
-    ${eOggi ? `<div class="sp-sez"><div class="sp-t">Senza ordine <span>${senzaOrdine.length}</span></div>${senzaOrdine.length ? `<div class="sala-chips">${senzaOrdine.map(f => chipFam(f)).join('')}</div>` : '<div class="oggi-empty">Tutti hanno ordinato.</div>'}</div>
+    ${eOggi ? `
     <details class="sp-det"${note.length ? ' open' : ''}><summary>Note e allergie <span>${note.length}</span></summary>${
       note.length ? note.map(n => `<div class="oggi-row"><div><div class="oggi-row-nome">${esc(n.f.nome)}</div><div class="oggi-row-meta">Alloggio ${esc(n.f.unita || '—')}${n.f.tavolo ? ' · Tavolo ' + esc(n.f.tavolo) : ''}</div><div class="oggi-nota">${esc(n.testo)}</div></div>${n.allergia ? '<span class="oggi-tag allergia">Allergia</span>' : ''}</div>`).join('') : '<div class="oggi-empty">Nessuna nota per questo pasto.</div>'}</details>` : ''}
     <details class="sp-det"><summary>Arrivi e partenze <span>${arrivi.length} / ${partenze.length}</span></summary>
@@ -1627,26 +1630,36 @@ function renderOggi() {
       ${(arrivi.length + partenze.length) ? '' : '<div class="oggi-empty">Nessun movimento.</div>'}</details>`;
 
   const pannello = salaEdit ? htmlStrumenti() : htmlElencoSala(D, presenti, priv) + panel + `<div class="sala-legenda sala-legenda-p">${['libero', 'atteso', 'ordinato', 'servizio', 'servito'].map(s => `<span><i class="lg stato-${s}"></i>${STATO_LBL[s]}</span>`).join('')}</div>`;
-  el.innerHTML = htmlPianta(ordini, voci, pannello, senzaTav + senzaOrdine.length);
+  el.innerHTML = htmlPianta(ordini, voci, pannello, senzaTav);
   adattaPianta();
   if (typeof hydrateIcons === 'function') hydrateIcons(el);
 }
 
 // Giorno mostrato in Sala: da oggi in avanti, quanti ne copre il calendario prenotazioni
-function salaGiornoSposta(d) {
-  const lista = prGiorniLista(), cur = Math.max(0, lista.indexOf(salaData || isoToday(0)));
-  const n = Math.max(0, Math.min(lista.length - 1, cur + d));
-  salaData = n === 0 ? null : lista[n]; assegnaFam = null; renderOggi();
+function salaSetGiorno(g) { salaData = g === isoToday(0) ? null : g; assegnaFam = null; renderOggi(); }
+// Tavolo di una famiglia in pensione: e' lo stesso per tutto il soggiorno (campo `tavolo` della famiglia, lo usa anche
+// Cucina per raggruppare le comande). Le unioni di tavoli sono solo di oggi: negli altri giorni conta il primo tavolo.
+function tavoloPens(f, D, prens) {
+  let t = String(f.tavolo || '').trim();
+  if (!t) t = String(((prens || []).find(p => p.famId === f.id && String(p.tavolo || '').trim()) || {}).tavolo || '').trim();
+  if (D !== isoToday(0) && t.includes(' + ')) t = t.split(' + ')[0];
+  return t;
 }
-function salaVaiOggi() { salaData = null; assegnaFam = null; renderOggi(); }
-// Tavolo di una famiglia in pensione per un giorno/servizio: oggi vale il campo `tavolo` (lo usa Cucina per
-// raggruppare le comande), per gli altri giorni il tavolo programmato (`tavoli_prog`) o quello della prenotazione.
-function tavoloPens(f, D, pasto, prens) {
-  const prog = String(((f.tavoli_prog || {})['d' + D.replace(/-/g, '') + '_' + pasto]) || '').trim();
-  const dalleP = String(((prens || []).find(p => p.famId === f.id && String(p.tavolo || '').trim()) || {}).tavolo || '').trim();
-  if (D === isoToday(0)) return String(f.tavolo || '').trim() || prog || dalleP;
-  return prog || dalleP;
+const pgKey = (D, pasto) => 'd' + D.replace(/-/g, '') + '_' + pasto;
+// Persone di una famiglia in pensione in un certo giorno/servizio (si regola giorno per giorno)
+async function salaPersone(famId, delta) {
+  const f = famiglieDocs.find(x => x.id === famId), v = _salaPresenti.find(x => x.id === famId); if (!f || !v) return;
+  const D = salaData || isoToday(0), k = pgKey(D, oggiPasto);
+  const n = Math.max(0, Math.min(ospitiFamiglia(f), copertiVoce(v) + delta));
+  if (n === copertiVoce(v)) return;
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'famiglie_ristorazione', famId), { persone_giorno: { [k]: n } }, { merge: true });
+    f.persone_giorno = { ...(f.persone_giorno || {}), [k]: n };
+  } catch (e) { showToast('Errore — riprova'); console.error(e); }
+  renderOggi();
 }
+function salaStampa() { prData = salaData || isoToday(0); prServ = oggiPasto; apriStampaPren(); }
 const copertiVoce = f => f._pers != null ? f._pers : ospitiFamiglia(f);
 
 // Elenco di sinistra: prenotazioni del giorno, prima i privati poi le pensioni, ognuna col suo tavolo
@@ -1663,13 +1676,13 @@ function htmlElencoSala(D, pens, priv) {
       <div class="pv-acts">${azioni}${tav ? `<button class="pv-b" onclick="event.stopPropagation();assegnaTavolo('${f.id}','')">Libera</button>` : ''}</div></div></div>`;
   };
   const metaPriv = f => [f._turno || 'Senza orario', persLbl(f._pers), f.tel ? esc(f.tel) : '', f.note ? esc(f.note) : ''].filter(Boolean).join(' · ');
-  const metaPens = f => [f._turno || (f._pers == null ? 'Senza prenotazione' : 'Senza orario'), persLbl(copertiVoce(f)), 'Alloggio ' + esc(f.unita || '—')].join(' · ') + (notaDelicata(f.note) ? ' <i class="pr-tag" style="background:#FEE2E2;color:#B91C1C">Allergia</i>' : '');
+  const metaPens = f => [f._turno || '', 'Alloggio ' + esc(f.unita || '—'), f.checkout ? 'fino al ' + fmtDataBreve(f.checkout) : ''].filter(Boolean).join(' · ') + (notaDelicata(f.note) ? ' <i class="pr-tag" style="background:#FEE2E2;color:#B91C1C">Allergia</i>' : '');
   const azPriv = f => `<button class="pv-b" onclick="event.stopPropagation();apriPren('','${D}','${oggiPasto}','${f._prenId}')">Modifica</button>`;
-  const azPens = f => `<button class="pv-b" onclick="event.stopPropagation();apriPren('${f.id}','${D}','${oggiPasto}'${f._prenId ? `,'${f._prenId}'` : ''})">${f._prenId ? 'Modifica' : 'Prenota'}</button>`
+  const azPens = f => `<span class="pv-step" onclick="event.stopPropagation()"><button onclick="salaPersone('${f.id}',-1)" aria-label="Meno persone">&minus;</button><b${f._pgModificato ? ' class="mod"' : ''}>${copertiVoce(f)}</b><button onclick="salaPersone('${f.id}',1)" aria-label="Piu persone">+</button></span>`
     + (eOggi ? `<button class="pv-b" onclick="event.stopPropagation();apriModificaOrdineStaff('${f.id}','${jsEsc(f.nome)}','${D}','${oggiPasto}')">Ordine</button>` : '');
   const sez = (titolo, lista, html, vuoto) => `<div class="pv-sez"><div class="pv-t">${titolo}<span>${lista.length ? lista.reduce((a, f) => a + copertiVoce(f), 0) + ' pers.' : ''}</span></div>${lista.length ? html : `<div class="oggi-empty">${vuoto}</div>`}</div>`;
   return `<div class="pv-head"><div class="pv-title">Prenotazioni · ${esc(sv ? sv.nome.toLowerCase() : oggiPasto)}<span>${tot} coperti</span></div>
-      <div class="pv-new"><button class="sala-btn" onclick="prNuova('libera')">Nuovo privato</button><button class="sala-btn ghost" onclick="prNuova('fam')">Nuova pensione</button></div></div>
+      <div class="pv-new"><button class="sala-btn" onclick="prNuova('libera')">Nuova prenotazione</button><button class="sala-btn ghost" onclick="salaStampa()">Stampa</button></div></div>
     ${assegnaFam ? '' : '<div class="oggi-empty" style="padding:0 2px 4px">Tocca una prenotazione, poi il tavolo sulla pianta.</div>'}
     ${sez('Privati', priv, priv.slice().sort(ord).map(f => card(f, metaPriv(f), azPriv(f))).join(''), 'Nessuna prenotazione di privati.')}
     ${sez('Pensioni', pens, pens.slice().sort(ord).map(f => card(f, metaPens(f), azPens(f))).join(''), 'Nessuna famiglia in pensione per questo servizio.')}`;
@@ -2146,7 +2159,7 @@ let salaGruppi = [];           // tavoli uniti OGGI: [{id, tavoli:[nomi]}]
 let salaUnisci = false, salaUnSel = [];   // modalità "Unisci tavoli" e tavoli (id) scelti
 let assegnaFam = null;         // voce in attesa di un tavolo ("tocca un tavolo"): id famiglia oppure 'L:'+id prenotazione privata
 let salaData = null;           // giorno mostrato in Sala (null = oggi)
-const _syncTav = new Set();    // tavoli di programmazione gia' riportati sulla famiglia (oggi)
+let _stripD = null;            // ultimo giorno centrato nella barra dei giorni
 let tavoloAperto = null;       // tavolo aperto nel foglio di dettaglio
 let _salaDati = {}, _salaPresenti = [], _salaOrdini = [];
 
@@ -2438,18 +2451,15 @@ async function assegnaTavolo(key, nomeTavolo) {
       const id = String(key).slice(2);
       await updateDoc(doc(db, 'impostazioni', 'ristorazione_pren_libere'), { ['pren.' + id + '.tavolo']: nomeTavolo });
       if (PREN_LIBERE[id]) PREN_LIBERE[id].tavolo = nomeTavolo;
-    } else {                               // famiglia in pensione: tavolo del giorno (+ campo `tavolo` se e' oggi, per Cucina)
+    } else {                               // famiglia in pensione: il tavolo vale per tutto il soggiorno
       const f = famiglieDocs.find(x => x.id === key);
-      const k = 'd' + D.replace(/-/g, '') + '_' + oggiPasto;
-      const upd = { tavoli_prog: { [k]: nomeTavolo } };
-      if (D === oggi) upd.tavolo = nomeTavolo;
+      const upd = { tavolo: nomeTavolo };
       const pr = {};
       Object.entries((f && f.prenotazioni) || {}).forEach(([id, p]) => { if (p && p.data === D && p.pasto === oggiPasto) pr[id] = { tavolo: nomeTavolo }; });
       if (Object.keys(pr).length) upd.prenotazioni = pr;
       await setDoc(doc(db, 'famiglie_ristorazione', key), upd, { merge: true });
       if (f) {
-        f.tavoli_prog = { ...(f.tavoli_prog || {}), [k]: nomeTavolo };
-        if (D === oggi) f.tavolo = nomeTavolo;
+        f.tavolo = nomeTavolo;
         Object.keys(pr).forEach(id => { f.prenotazioni[id] = { ...f.prenotazioni[id], tavolo: nomeTavolo }; });
       }
     }
