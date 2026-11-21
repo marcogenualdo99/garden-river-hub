@@ -214,7 +214,15 @@ public class MainActivity extends Activity {
     }
 
     @Override public boolean onKeyDown(int k, KeyEvent e) {
-        if (k == KeyEvent.KEYCODE_BACK) { backLungo = false; e.startTracking(); return true; }
+        if (k == KeyEvent.KEYCODE_BACK) {
+            // Alcuni tasti Indietro (barra di sistema del V2) non passano da onKeyLongPress:
+            // tasto tenuto premuto = ripetizione o flag "long press" gia' qui.
+            if (e.getRepeatCount() > 0 || (e.getFlags() & KeyEvent.FLAG_LONG_PRESS) != 0) {
+                if (!backLungo) { backLungo = true; startActivity(new Intent(this, SettingsActivity.class)); }
+                return true;
+            }
+            backLungo = false; e.startTracking(); return true;
+        }
         return super.onKeyDown(k, e);
     }
     @Override public boolean onKeyLongPress(int k, KeyEvent e) {
@@ -248,7 +256,7 @@ public class MainActivity extends Activity {
     private static final String BT_INTERNA = "00:11:22:33:44:55";
 
     /** Invia ESC/POS alla stampante integrata del V2 (dispositivo Bluetooth virtuale gia' associato dal sistema). */
-    private void inviaInterna(byte[] dati) throws Exception {
+    static void inviaInterna(byte[] dati) throws Exception {
         android.bluetooth.BluetoothAdapter ad = android.bluetooth.BluetoothAdapter.getDefaultAdapter();
         if (ad == null) throw new Exception("Bluetooth non disponibile");
         if (!ad.isEnabled()) ad.enable();

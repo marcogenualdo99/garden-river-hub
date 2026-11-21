@@ -113,8 +113,21 @@ def stampa_agente(request):
             if adesso - float(d.get('creato_ts', 0)) > MAX_ETA_S:
                 snap.reference.update({'stato': 'scaduta'})
                 continue
+            ip = str(d.get('ip', ''))
+            if ip == 'interna':
+                # Stampante integrata del V2: l'app converte l'XML per la carta da 58mm
+                # e stampa via Bluetooth, quindi qui si passa l'XML cosi' com'e'.
+                @firestore.transactional
+                def prendi_int(tx, ref):
+                    s = ref.get(transaction=tx)
+                    if (s.to_dict() or {}).get('stato') != 'in_coda':
+                        return False
+                    tx.update(ref, {'stato': 'in_invio', 'preso_ts': adesso})
+                    return True
+                if prendi_int(db.transaction(), snap.reference):
+                    lavori.append({'id': snap.id, 'ip': 'interna', 'xml': str(d.get('xml', ''))})
+                continue
             try:
-                ip = str(d.get('ip', ''))
                 if not ipaddress.ip_address(ip).is_private:
                     raise ValueError('IP non locale')
                 dati = base64.b64encode(epos_to_escpos(str(d.get('xml', '')).encode('utf-8'))).decode()

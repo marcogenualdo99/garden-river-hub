@@ -94,7 +94,15 @@ public class PrintService extends Service {
                     JSONObject j = lav.getJSONObject(i);
                     JSONObject es = new JSONObject().put("azione", "esito").put("id", j.getString("id"));
                     try {
-                        invia(j.getString("ip"), Base64.decode(j.getString("dati"), Base64.DEFAULT));
+                        if ("interna".equals(j.getString("ip"))) {
+                            byte[] d = EposConverter.converti(j.getString("xml"), 32, 42, 384);
+                            byte[] tutto = new byte[d.length + 6];
+                            System.arraycopy(d, 0, tutto, 0, d.length);
+                            for (int k = d.length; k < tutto.length; k++) tutto[k] = '\n';   // spazio per lo strappo
+                            MainActivity.inviaInterna(tutto);
+                        } else {
+                            invia(j.getString("ip"), Base64.decode(j.getString("dati"), Base64.DEFAULT));
+                        }
                         es.put("ok", true); stampati++;
                     } catch (Exception e) {
                         es.put("ok", false).put("errore", "stampante " + j.optString("ip") + ": " + e.getMessage());

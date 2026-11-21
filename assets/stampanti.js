@@ -108,8 +108,9 @@
       return esito(text.indexOf('success="true"') !== -1, code);
     } catch (e) {
       clearTimeout(tm);
-      return esito(false, ac.signal.aborted ? 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + '): controlla che sia accesa e sulla stessa rete'
-                                            : 'stampante non raggiungibile (' + p.ip + ')');
+      if (ac.signal.aborted) return esito(false, 'nessuna risposta da ' + (p.nome || p.ip) + ' (' + p.ip + '): controlla che sia accesa e sulla stessa rete');
+      // Stampante non raggiungibile da questo dispositivo (altra rete, certificato): la stampa il V2 dalla coda
+      return inviaCoda(p, xml);
     }
   }
 
@@ -132,7 +133,8 @@
   // Stampante integrata del V2: esiste solo dentro l'app Garden Hub installata sul V2.
   function inviaInterna(p, xml) {
     if (window.GRNativo && window.GRNativo.stampa) return inviaNativo(p, xml);
-    return Promise.resolve(esito(false, 'la stampante integrata si usa solo dall\'app Garden Hub sul Sunmi V2'));
+    // Fuori dall'app (iPad, telefono, PC, anche da un'altra rete): passa dalla coda, la stampa il V2
+    return inviaCoda(p, xml);
   }
 
   async function inviaSunmi(p, xml) {

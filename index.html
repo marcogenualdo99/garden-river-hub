@@ -667,6 +667,8 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <div id="stampanti-list"></div>
       <div id="stampante-form"></div>
       <button class="btn-primary" id="stampante-add-btn" onclick="apriFormStampante()">+ Aggiungi stampante</button>
+      <button class="new-op-btn" id="stampante-app-btn" style="display:none;margin-top:8px" onclick="window.GRNativo.impostazioni()">Impostazioni app (token agente di stampa)</button>
+      <script>if (window.GRNativo && window.GRNativo.impostazioni) document.getElementById('stampante-app-btn').style.display = '';</script>
     </div>
 
     <div class="card" id="stampa-auto-card">
