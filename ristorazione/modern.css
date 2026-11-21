@@ -204,43 +204,64 @@ body.monitor .kds-clock{font-family:var(--font-display);font-weight:400;letter-s
 body,.rs-main,#sec-sala,.sala-drawer{background:#fff}
 .sala-drawer{border-right:1px solid var(--rs-line)}
 
-/* ── Sala: barra alta fissa (non copre piu' i tavoli) con la barra dei giorni ── */
-.sala-days{flex:1;min-width:0;margin:0;padding:2px 2px 4px}
-.sala-days .pr-pill{width:50px;padding:6px 0}
+/* ── Sala: barra alta fissa (non copre piu' i tavoli) ─────────────────── */
 .pv-step{display:inline-flex;align-items:center;gap:2px;height:28px;background:var(--green-50);border-radius:999px;padding:0 3px}
 .pv-step button{width:24px;height:24px;border:none;border-radius:50%;background:#fff;color:var(--green-700);font-size:15px;font-weight:800;cursor:pointer;font-family:var(--font);line-height:1}
 .pv-step b{min-width:22px;text-align:center;font-size:13px;color:var(--green-900)}
 .pv-step b.mod{color:var(--orange)}
+#oggi-date{display:none}
 @media(min-width:768px){
-  #sec-sala .sala-bar{top:0;left:0;right:0;max-width:none;flex-direction:row;align-items:center;gap:16px;height:72px;padding:6px 16px;border:none;border-bottom:1px solid var(--rs-line);border-radius:0;box-shadow:none;background:#fff}
+  #sec-sala .sala-bar{top:0;left:0;right:0;max-width:none;flex-direction:row;align-items:center;justify-content:space-between;gap:16px;height:56px;padding:6px 16px;border:none;border-bottom:1px solid var(--rs-line);border-radius:0;box-shadow:none;background:#fff}
   #sec-sala .sala-bar-l{flex-wrap:nowrap}
   #sec-sala .sala-stats{flex-wrap:nowrap}
-  #sec-sala .sala-stage{top:72px}
-  #sec-sala .sala-drawer{top:72px}
-  #sec-sala .hud-tr,#sec-sala .hud-top{top:84px}
+  /* tra barra e pianta c'e' una fascia per legenda e pulsanti, in basso una per le sale: la pianta sta in mezzo e non viene coperta */
+  #sec-sala .sala-stage{top:112px;bottom:64px}
+  #sec-sala .sala-drawer{top:56px}
+  #sec-sala .hud-tr,#sec-sala .hud-top,#sec-sala .hud-bl{top:66px;bottom:auto}
+  #sec-sala .hud-top{left:12px;transform:none}
+  .sala-wrap.panel-open .hud-top{left:372px}
+  .sala-wrap.panel-open .hud-bl{left:372px}
 }
 @media(max-width:767px){
   #sec-sala .sala-bar{gap:4px}
-  #sec-sala .sala-days{order:2;width:100%;flex:none}
-  #sec-sala .sala-stats{order:3}
-  #sec-sala .sala-stage{top:158px}
-  #sec-sala .hud-top{top:164px}
 }
-/* legenda in colonna, a sinistra: non copre piu' le sale in basso */
+/* legenda in riga nella fascia alta */
 @media(min-width:1300px){
-  .hud-bl.sala-legenda{flex-direction:column;align-items:flex-start;gap:7px;border-radius:16px;padding:10px 14px;background:rgba(255,255,255,.96);border:1px solid var(--rs-line)}
+  .hud-bl.sala-legenda{flex-direction:row;align-items:center;gap:16px;border-radius:999px;padding:8px 16px;background:#fff;border:1px solid var(--rs-line)}
+}
+@media(min-width:900px){.sala-wrap.panel-open .hud-br{display:none}}   /* l'elenco e' gia' aperto: il pulsante non serve */
+
+/* ── Menu laterale come nella home: striscia con le icone, si apre al passaggio ── */
+@media(min-width:768px){
+  .rs-main{margin-left:78px}
+  .rs-side{width:78px;padding:16px 8px;overflow:hidden;transition:width .2s ease,box-shadow .2s ease}
+  .rs-side:hover,.rs-side:focus-within{width:232px;overflow-y:auto;box-shadow:var(--shadow-lg)}
+  .rs-brand{justify-content:center;padding:2px 0 14px}
+  .rs-brand>div,.rs-user>div:not(.avatar),.rs-user .sync-dot{display:none}
+  .rs-user{justify-content:center;padding:8px 0}
+  .rs-item{flex-direction:column;justify-content:center;gap:4px;padding:9px 4px;font-size:9px;text-align:center;line-height:1.1;border-radius:14px}
+  .rs-item svg{width:20px;height:20px}
+  .rs-home{font-size:0;gap:0}
+  .rs-sep{margin:8px 4px}
+  .rs-side:hover .rs-brand,.rs-side:focus-within .rs-brand{justify-content:flex-start;padding:2px 8px 16px}
+  .rs-side:hover .rs-brand>div,.rs-side:focus-within .rs-brand>div,.rs-side:hover .rs-user>div:not(.avatar),.rs-side:focus-within .rs-user>div:not(.avatar),.rs-side:hover .rs-user .sync-dot,.rs-side:focus-within .rs-user .sync-dot{display:block}
+  .rs-side:hover .rs-user,.rs-side:focus-within .rs-user{justify-content:flex-start;padding:10px 8px}
+  .rs-side:hover .rs-item,.rs-side:focus-within .rs-item{flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 16px;font-size:14.5px;text-align:left;border-radius:999px}
+  .rs-side:hover .rs-home,.rs-side:focus-within .rs-home{font-size:14px;gap:8px}
+  body.monitor .rs-main{margin-left:0}
 }
 
-/* ── Menu laterale richiudibile ────────────────────────────────────────── */
-.rs-handle{display:none}
-@media(min-width:768px){
-  .rs-side{transition:transform .22s ease}
-  .rs-main{transition:margin-left .22s ease}
-  .rs-handle{display:flex;align-items:center;justify-content:center;position:fixed;top:50%;left:232px;transform:translateY(-50%);width:20px;height:60px;z-index:160;border:1px solid var(--rs-line);border-left:none;border-radius:0 12px 12px 0;background:#fff;color:var(--green-700);font-size:20px;line-height:1;cursor:pointer;box-shadow:4px 0 14px -6px rgba(5,51,40,.2);transition:left .22s ease}
-  body.rs-collapsed .rs-side{transform:translateX(-100%)}
-  body.rs-collapsed .rs-main{margin-left:0}
-  body.rs-collapsed .rs-handle{left:0}
-  body.rs-collapsed .rs-handle{transform:translateY(-50%) scaleX(-1)}
-  body.rs-collapsed #sec-sala .sala-drawer{padding-left:28px}
-  body.monitor .rs-handle{display:none}
-}
+/* ── Schede prenotazione: orario, nome, telefono e pax in evidenza ─────── */
+.pv-head{gap:12px}
+.pv-datenav{display:flex;align-items:center;gap:8px}
+.pv-date{flex:1;min-width:0;text-align:center}
+.pv-date b{display:block;font-size:15px;color:var(--green-900);letter-spacing:-.01em}
+.pv-date small{display:block;font-size:11.5px;font-weight:700;color:var(--green-600);margin-top:1px}
+.pv-ora{flex:0 0 50px;font-size:17px;font-weight:800;color:var(--green-900);font-variant-numeric:tabular-nums;line-height:1.2}
+.pv-ora.no{color:var(--gray-400)}
+.pv-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pv-nome{font-size:15px;line-height:1.25}
+.pv-tc{flex-shrink:0;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--green-100);color:var(--green-700);white-space:nowrap}
+.pv-tc.vuoto{background:#FFF3EA;color:#C2570C}
+.pv-info{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:3px;font-size:13px;font-weight:600;color:var(--gray-700)}
+.pv-info b{color:var(--gray-900);font-size:14px}
