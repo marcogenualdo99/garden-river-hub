@@ -591,7 +591,11 @@ body.vista-sala main{padding:0;max-width:none}
 .tn-row .minput{margin:0;flex:1}
 
 
-.pr-head-az{display:flex;gap:8px}
+.pr-head{flex-wrap:wrap}
+.pr-head-az{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:420px){.pr-head .pr-title{font-size:20px}}
+.date-lbl{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;font-size:11px;font-weight:700;color:var(--gray-500,#6b7280);text-transform:uppercase;letter-spacing:.05em}
+.date-lbl .finput{width:100%;min-width:0}
 .pr-head-az .sala-btn{display:inline-flex;align-items:center;gap:6px}
 .pr-head-az svg{width:16px;height:16px}
 .pr-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:8px 0 12px}
@@ -798,8 +802,8 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
         <select class="fselect" id="f-alloggio"><option value="">Alloggio</option></select>
       </div>
       <div class="form-row">
-        <input class="finput" id="f-checkin"  type="date" placeholder="Check-in">
-        <input class="finput" id="f-checkout" type="date" placeholder="Check-out">
+        <label class="date-lbl">Check-in<input class="finput" id="f-checkin"  type="date"></label>
+        <label class="date-lbl">Check-out<input class="finput" id="f-checkout" type="date"></label>
       </div>
       <div class="form-row">
         <select class="fselect" id="f-trattamento">
@@ -821,7 +825,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
       <div id="f-bambini-ages"></div>
       <div class="form-row">
         <input class="finput" id="f-tel"   type="tel"  placeholder="Telefono">
-        <input class="finput" id="f-tavolo" type="text" list="tavoli-datalist" placeholder="Tavolo (opzionale)">
+        <input class="finput" id="f-tavolo" type="text" list="tavoli-datalist" placeholder="Tavolo">
       </div>
       <div class="form-row" style="grid-template-columns:1fr">
         <textarea class="finput" id="f-note" placeholder="Note (es. celiaco, intollerante al lattosio, cane…)" rows="2" style="resize:none;padding-top:10px;padding-bottom:10px;height:auto;font-family:inherit;font-size:14px"></textarea>
