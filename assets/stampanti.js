@@ -165,24 +165,26 @@
   async function inviaCoda(p, xml) {
     var fb = window._fb;
     var errNoProxy = 'proxy stampante non raggiungibile su questo dispositivo e agente di stampa non risponde';
+    var passo = 'scrittura in coda';
     try {
       var id = 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       var ref = fb.doc(fb.db, 'coda_stampa', id);
       await fb.setDoc(ref, { stato: 'in_coda', ip: p.ip, xml: xml, stampante: p.nome || p.ip, creato_ts: Date.now() / 1000 });
+      passo = 'attesa del V2';
       return await new Promise(function (resolve) {
         var unsub = null, fatto = false;
         function fine(r) { if (fatto) return; fatto = true; clearTimeout(tm); if (unsub) unsub(); resolve(r); }
-        var tm = setTimeout(function () { fine(esito(false, errNoProxy)); }, 30000);
+        var tm = setTimeout(function () { fine(esito(false, errNoProxy + ' [nessuna presa in carico dal V2 in 30 s: controlla token e funzione]')); }, 30000);
         unsub = fb.onSnapshot(ref, function (snap) {
           var d = snap.exists() ? snap.data() : null;
           if (!d) return;
           if (d.stato === 'ok') fine(esito(true, ''));
           else if (d.stato === 'fallita') fine(esito(false, d.errore || 'stampa fallita'));
-          else if (d.stato === 'scaduta') fine(esito(false, errNoProxy));
-        }, function () { fine(esito(false, errNoProxy)); });
+          else if (d.stato === 'scaduta') fine(esito(false, 'lavoro scaduto in coda (il V2 non l\'ha preso in tempo)'));
+        }, function (e) { fine(esito(false, 'lettura esito negata: ' + (e && e.code))); });
       });
     } catch (e) {
-      return esito(false, errNoProxy);
+      return esito(false, 'coda di stampa, ' + passo + ': ' + ((e && (e.code || e.message)) || 'errore') + (passo === 'scrittura in coda' ? ' (regola Firestore coda_stampa non pubblicata o accesso non valido)' : ''));
     }
   }
 
