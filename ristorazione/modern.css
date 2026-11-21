@@ -223,7 +223,7 @@ body,.rs-main,#sec-sala,.sala-drawer{background:#fff}
   .sala-wrap.panel-open .hud-bl{left:372px}
 }
 @media(max-width:767px){
-  #sec-sala .sala-bar{gap:4px}
+  #sec-sala .sala-bar{gap:10px}
 }
 /* legenda in riga nella fascia alta */
 @media(min-width:1300px){

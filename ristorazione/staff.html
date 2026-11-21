@@ -468,20 +468,25 @@ body.vista-sala main{padding:0;max-width:none}
 @media(max-width:899px){.sala-wrap.panel-open .hud-br,.sala-wrap.panel-open .hud-tr,.sala-wrap.panel-open .hud-bc{visibility:hidden}}
 @media(max-width:767px){
   /* Telefono / Sunmi V2: barra in alto a tutta larghezza, pianta nello spazio libero tra barra e comandi in basso */
-  .sala-bar{top:8px;left:12px;right:12px;max-width:none;border-radius:18px;padding:8px 12px;gap:6px}
-  .sala-bar-l{flex-wrap:nowrap;justify-content:space-between}
-  .oggi-date{font-size:15px;white-space:nowrap}
-  .oggi-seg{width:150px}
-  .sala-stats{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.sala-stats::-webkit-scrollbar{display:none}
-  .sala-stat{flex:0 0 auto}
-  .sala-stage{top:170px;bottom:68px;align-items:flex-start;padding-top:12px;box-sizing:border-box}
-  .hud-top{top:170px}
-  .hud-bc{left:12px;right:12px;top:108px;bottom:auto;transform:none;max-width:none;padding:4px;overflow-x:auto}
+  .sala-bar{top:8px;left:12px;right:12px;max-width:none;border-radius:18px;padding:10px;gap:10px}
+  .sala-bar-l{display:block}
+  .oggi-date{display:none}
+  .oggi-seg{width:100%;padding:4px;margin:0}
+  .oggi-seg .seg-btn{height:44px;font-size:16px;font-weight:800}
+  .oggi-seg .seg-btn.active{background:var(--green-700);color:#fff;box-shadow:0 4px 12px -4px rgba(9,92,72,.55)}
+  .sala-stats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;overflow:visible}
+  .sala-stat{flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;border-radius:14px;font-size:11px;line-height:1.15;text-align:center;min-width:0}
+  .sala-stat b{font-size:20px;line-height:1.1;font-family:var(--font-display,inherit)}
+  .sala-stage{top:222px;bottom:68px;align-items:flex-start;padding-top:12px;box-sizing:border-box}
+  .hud-top{top:222px}
+  .hud-bc{left:12px;right:12px;top:160px;bottom:auto;transform:none;max-width:none;padding:4px;overflow-x:auto}
   .hud-bc .sala-rooms{width:100%}
   .hud-bc .seg-btn{flex:1;padding:0 12px;font-size:13px}.hud-bc .sala-n{display:none}
   .hud-bc .seg-btn.active{background:var(--green-700);color:#fff;box-shadow:none}
   .hud-br{left:12px;right:auto;bottom:12px}
   .sala-fab{width:calc(100vw - 24px);box-sizing:border-box;justify-content:center}
+  .sala-drawer{width:100%;max-width:none;border-right:none;box-shadow:none;transform:translateY(100%);padding:62px 12px 24px;z-index:60}
+  .sala-drawer.open{transform:none}
   .hud-tr{display:none}
   .sala-azioni-m{display:flex!important}
   .sala-fab{height:44px;padding:0 16px}
@@ -651,7 +656,7 @@ body.monitor .kds-edit-btn{width:42px;height:42px}
 </style>
 <link rel="stylesheet" href="../assets/restyle.css?v=3">
 <link rel="stylesheet" href="../assets/mobile-leggero.css?v=5">
-<link rel="stylesheet" href="modern.css?v=4">
+<link rel="stylesheet" href="modern.css?v=5">
 <script src="../assets/avvisi-app.js?v=3" defer></script>
 <script src="../assets/menu-anim.js?v=1" defer></script>
 </head>
