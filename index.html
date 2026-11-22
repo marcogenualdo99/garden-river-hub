@@ -678,7 +678,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 
     <div class="card" id="stampanti-card" data-tab="stampanti">
       <h3>Stampanti</h3>
-      <p class="subtitle">Elenco unico delle stampanti termiche. Per ogni stampante scegli cosa stampa (servizi) e quali stampe automatiche fa: nelle altre sezioni compaiono solo le stampanti che c'entrano. Chi ha quel servizio sbloccato nei permessi stampa sulla stampante associata. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
+      <p class="subtitle">Una scheda per stampante: dove si trova, cosa stampa e quali stampe fa da sola. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
       <div id="stampanti-list"></div>
       <div id="stampante-form"></div>
       <button class="btn-primary" id="stampante-add-btn" onclick="apriFormStampante()">+ Aggiungi stampante</button>
@@ -688,18 +688,21 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 
     <div class="card" id="stampa-auto-card" data-tab="auto">
       <h3>Stampe automatiche</h3>
-      <p class="subtitle">Le stampe partono da sole dal primo dispositivo che ha aperta la pagina di Ristorazione (comande) o dello Shop (ordini), con il proxy attivo se la stampante è una Sunmi. Due dispositivi non stampano mai lo stesso lavoro. I pulsanti di stampa manuale restano sempre disponibili.</p>
+      <p class="subtitle">Qui decidi <b>quando</b> stampare. <b>Su quale stampante</b> lo decidi nella scheda Stampanti. Partono da sole quando una pagina di Ristorazione o Shop è aperta su un dispositivo; i pulsanti Stampa a mano restano sempre disponibili.</p>
       <div class="perm-module-title">Comande ristorazione (tutte le comande del giorno)</div>
       <div style="display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap">
         <label class="perm-row" style="margin:0"><input type="checkbox" id="sa-pranzo-on"> Pranzo alle</label>
         <input type="time" id="sa-pranzo-ora" class="new-op-input" style="width:auto">
       </div>
+      <div class="sa-dest" id="sa-dest-comande_pranzo"></div>
       <div style="display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap">
         <label class="perm-row" style="margin:0"><input type="checkbox" id="sa-cena-on"> Cena alle</label>
         <input type="time" id="sa-cena-ora" class="new-op-input" style="width:auto">
       </div>
+      <div class="sa-dest" id="sa-dest-comande_cena"></div>
       <div class="perm-module-title" style="margin-top:14px">Ordini shop</div>
       <label class="perm-row"><input type="checkbox" id="sa-shop-on"> Stampa ogni ordine appena arriva (quando è confermato)</label>
+      <div class="sa-dest" id="sa-dest-shop"></div>
       <div class="perm-module-title" style="margin-top:14px">Aspetto delle stampe</div>
       <select id="sa-logo" class="new-op-ruolo" style="width:100%;margin-top:6px">
         <option value="conti">Logo su conti, riepiloghi, report e ordini shop (comande senza)</option>
@@ -2777,26 +2780,35 @@ function renderStampanti() {
   const elenco = GRStampanti.lista().sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'it'));
   if (!elenco.length) {
     box.innerHTML = '<p class="perm-hint">Nessuna stampante configurata. Aggiungine una: finché l\'elenco è vuoto, Conti e Ristorazione usano l\'IP impostato sul singolo dispositivo.</p>';
+    renderAutoDest();
     return;
   }
   const nomeServizio = id => (GRStampanti.SERVIZI.find(x => x.id === id) || { nome: id }).nome;
   const nomeTipo = id => (GRStampanti.TIPI.find(x => x.id === id) || { nome: id }).nome;
-  box.innerHTML = elenco.map(p => `
-    <div style="padding:12px 0;border-bottom:1px solid var(--gray-200,#e5e7eb)">
+  const chip = (t, on) => `<span style="display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;margin:0 6px 6px 0;${on ? 'background:var(--green-700,#15803d);color:#fff' : 'background:var(--gray-100,#f3f4f6);color:var(--gray-700,#374151)'}">${esc(t)}</span>`;
+  const brevi = { conti: 'Conti', comande: 'Comande', shop: 'Shop' };
+  box.innerHTML = elenco.map(p => {
+    const srv = p.servizi || [], aut = p.auto || [];
+    const disattiva = p.attiva === false;
+    return `
+    <div style="padding:14px 0;border-bottom:1px solid var(--gray-200,#e5e7eb);${disattiva ? 'opacity:.6' : ''}">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap">
-        <strong>${esc(p.nome || '(senza nome)')}</strong>
-        <span style="font-size:12px;color:var(--gray-500,#6b7280)">${p.attiva === false ? 'Disattivata' : 'Attiva'}</span>
+        <strong style="font-size:16px">${esc(p.nome || '(senza nome)')}</strong>
+        <span style="font-size:12px;font-weight:700;color:${disattiva ? 'var(--red,#dc2626)' : 'var(--green-700,#15803d)'}">${disattiva ? 'Disattivata' : 'Attiva'}</span>
       </div>
-      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 8px">${esc(nomeTipo(p.tipo))}${p.tipo === 'interna' ? '' : ' · ' + esc(p.ip || 'IP mancante')}</div>
-      <div style="font-size:13px;margin-bottom:${(p.auto || []).length ? 2 : 8}px">${(p.servizi || []).length ? (p.servizi || []).map(s => esc(nomeServizio(s))).join(' · ') : '<em>Nessun servizio associato</em>'}</div>
-      ${(p.auto || []).length ? `<div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:8px">Automatiche: ${(p.auto || []).map(a => esc((GRStampanti.AUTO.find(x => x.id === a) || { nome: a }).nome)).join(' · ')}</div>` : ''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 10px">${esc(nomeTipo(p.tipo))}${p.tipo === 'interna' ? '' : ' · ' + esc(p.ip || 'IP mancante')}</div>
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Stampa</div>
+      <div>${srv.length ? srv.map(x => chip(brevi[x] || nomeServizio(x), false)).join('') : '<em style="font-size:13px">Niente: non è associata a nessun servizio</em>'}</div>
+      ${srv.length ? `<div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">In automatico</div>
+      <div>${aut.length ? aut.map(x => chip((GRStampanti.AUTO.find(y => y.id === x) || { nome: x }).nome, true)).join('') : '<span style="font-size:13px;color:var(--gray-500,#6b7280)">Nessuna stampa automatica (solo quando premi Stampa)</span>'}</div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
         <button class="new-op-btn" onclick="provaStampante(${jsq(p.id)})">Stampa di prova</button>
         <button class="new-op-btn" onclick="apriFormStampante(${jsq(p.id)})">Modifica</button>
         <button class="new-op-btn" onclick="eliminaStampante(${jsq(p.id)})">Elimina</button>
       </div>
       <div id="stampante-esito-${esc(p.id)}" style="font-size:13px;margin-top:6px;min-height:16px"></div>
-    </div>`).join('');
+    </div>`; }).join('');
+  renderAutoDest();
 }
 
 function apriFormStampante(id) {
@@ -2814,11 +2826,12 @@ function apriFormStampante(id) {
         ${GRStampanti.TIPI.map(t => `<option value="${t.id}" ${ (cur.tipo || 'epson') === t.id ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}
       </select>
       <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.tipo === 'interna' ? '' : (cur.ip || ''))}" style="width:100%;margin-bottom:8px;${cur.tipo === 'interna' ? 'display:none' : ''}">
-      <div class="perm-module-title">Servizi che stampano qui</div>
-      ${GRStampanti.SERVIZI.map(sv => `<label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''} onchange="aggiornaAutoForm()"> ${esc(sv.nome)}</label>`).join('')}
-      <div class="perm-module-title" style="margin-top:10px">Stampe automatiche su questa stampante</div>
-      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Si attivano e si programmano in "Stampe automatiche" qui sotto. Se nessuna stampante ne ha una spuntata, va alla stampante del servizio.</div>
-      ${GRStampanti.AUTO.map(a => `<label class="perm-row" id="stp-autorow-${a.id}"><input type="checkbox" id="stp-auto-${a.id}" ${(cur.auto || []).includes(a.id) ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('')}
+      <div class="perm-module-title">Cosa stampa questa stampante</div>
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Nei pulsanti Stampa di ogni sezione comparirà solo se il servizio è spuntato.</div>
+      ${GRStampanti.SERVIZI.map(sv => `
+        <label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''} onchange="aggiornaAutoForm()"> ${esc(sv.nome)}</label>
+        ${GRStampanti.AUTO.filter(a => a.servizio === sv.id).map(a => `<label class="perm-row" id="stp-autorow-${a.id}" style="margin-left:28px;font-size:13px"><input type="checkbox" id="stp-auto-${a.id}" ${(cur.auto || []).includes(a.id) ? 'checked' : ''}> Stampa anche in automatico: ${esc(a.nome.toLowerCase())}</label>`).join('')}`).join('')}
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin:6px 0 10px">Orari e attivazione delle stampe automatiche si impostano nella scheda "Stampe automatiche". Se nessuna stampante ne ha una spuntata, va alla stampante del servizio.</div>
       <label class="perm-row"><input type="checkbox" id="stp-attiva" ${cur.attiva === false ? '' : 'checked'}> Stampante attiva</label>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn-primary" onclick="salvaFormStampante()">Salva</button>
@@ -2828,6 +2841,18 @@ function apriFormStampante(id) {
   document.getElementById('stampante-add-btn').style.display = 'none';
   aggiornaAutoForm();
   document.getElementById('stp-nome').focus();
+}
+
+// Nella scheda "Stampe automatiche": su quali stampanti va ogni stampa
+function renderAutoDest() {
+  if (!window.GRStampanti) return;
+  GRStampanti.AUTO.forEach(a => {
+    const el = document.getElementById('sa-dest-' + a.id);
+    if (!el) return;
+    const dest = GRStampanti.perAuto(a.id);
+    el.style.cssText = 'font-size:13px;margin:0 0 6px 2px;color:' + (dest.length ? 'var(--gray-600,#4b5563)' : 'var(--red,#dc2626)');
+    el.textContent = dest.length ? 'Stampa su: ' + dest.map(p => p.nome || p.ip).join(', ') : 'Nessuna stampante: spuntala nella scheda Stampanti';
+  });
 }
 
 // Le stampe automatiche si possono scegliere solo per i servizi spuntati
@@ -2897,6 +2922,7 @@ function renderStampaAuto() {
   set('sa-cena-on', c.comande.cena.attivo);     set('sa-cena-ora', c.comande.cena.ora.padStart(5, '0'));
   set('sa-shop-on', c.shop.attiva);
   set('sa-logo', c.aspetto.logo);
+  renderAutoDest();
 }
 window.addEventListener('stampa-auto-aggiornata', () => { if (document.getElementById('sec-settings').classList.contains('active')) renderStampaAuto(); });
 
