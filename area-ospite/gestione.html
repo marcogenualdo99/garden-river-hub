@@ -63,6 +63,11 @@
   .foto-item .stato { font-size: 11.5px; color: var(--gray-500); margin-bottom: 8px }
   .foto-item .btns { display: flex; gap: 6px }
   .foto-item .btns .btn { height: 36px; padding: 0 14px; font-size: 12.5px; flex: 1 }
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px }
+  .menu-item { border: 1px solid var(--gray-100); border-radius: var(--radius); overflow: hidden; background: var(--white) }
+  .menu-item img { display: block; width: 100%; height: 190px; object-fit: cover; object-position: top; background: var(--gray-100) }
+  .menu-item .info { padding: 8px 10px 10px } .menu-item .n { font-weight: 800; font-size: 13px; margin-bottom: 6px }
+  .menu-item .btns { display: flex; gap: 4px; flex-wrap: wrap } .menu-item .btns .btn { height: 32px; padding: 0 10px; font-size: 12px }
   .aut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px }
   .aut-item { border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 16px 12px 12px; text-align: center; background: var(--white) }
   .aut-item .av { width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 10px; background: var(--green-700) center/cover no-repeat;
@@ -256,8 +261,16 @@
     </div>
     <div class="card">
       <h3>Foto degli autisti</h3>
-      <div class="subtitle">La foto compare nella card dell'autista quando l'ospite sceglie "Chi ti ha accompagnato?". Gli autisti si aggiungono da Navetta, icona ingranaggio. La foto viene ritagliata a quadrato in automatico.</div>
-      <div class="aut-grid" id="aut-grid"></div>
+      <div class="subtitle">Nella card dell'autista (quando l'ospite sceglie "Chi ti ha accompagnato?") compare la foto della sua scheda operatore, cercata per nome. Per cambiarla: Impostazioni &gt; Operatori, tocca il cerchio con le iniziali.</div>
+    </div>
+    <div class="card">
+      <h3>Menu del ristorante</h3>
+      <div class="subtitle">Le pagine del menu alla carta che l'ospite sfoglia dall'Area ospite. Carica immagini (JPG/PNG) o un PDF: ogni pagina viene ridimensionata in automatico. Con il tasto «Su» / «Giù» cambi l'ordine. Se non carichi nulla resta il menu predefinito.</div>
+      <div class="menu-grid" id="menu-grid"></div>
+      <div class="btns" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn primary" onclick="menuScegli()">Aggiungi pagine</button>
+        <button class="btn danger" id="menu-ripristina" style="display:none" onclick="menuRipristina()">Torna al menu predefinito</button>
+      </div>
     </div>
     <div class="card">
       <h3>Info utili</h3>
@@ -335,56 +348,113 @@ function renderFoto() {
   if (typeof anRender === 'function' && document.querySelector('#an-cat')) anRender();
 }
 
-// ── Foto autisti (navetta_autisti/{id}.foto, data URL quadrato) ──────────
-let autisti = [];   // [{id, nome, foto}]
-function renderAutisti() {
-  const g = $('#aut-grid');
-  if (!autisti.length) { g.innerHTML = '<p class="nota">Nessun autista ancora aggiunto. Aggiungili da Navetta, icona ingranaggio.</p>'; return; }
-  g.innerHTML = autisti.map(a => `<div class="aut-item">
-    <div class="av"${a.foto ? ` style="background-image:url('${esc(a.foto)}')"` : ''}>${a.foto ? '' : esc((a.nome || '?').trim().slice(0, 1).toUpperCase())}</div>
-    <div class="nome">${esc(a.nome)}</div>
-    <div class="btns"><button class="btn ghost" onclick="scegliFotoAutista('${esc(a.id)}')">${a.foto ? 'Cambia' : 'Carica foto'}</button>
-    ${a.foto ? `<button class="btn danger" onclick="rimuoviFotoAutista('${esc(a.id)}')">Rimuovi</button>` : ''}</div></div>`).join('');
+// ── Menu del ristorante (impostazioni/area_ospite_menu.ordine + area_ospite_menu_<id>.data_url) ──
+let menuPagine = [];   // [{id, url}] nell'ordine mostrato all'ospite
+const menuNuovoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function renderMenu() {
+  const g = $('#menu-grid'); if (!g) return;
+  $('#menu-ripristina').style.display = menuPagine.length ? '' : 'none';
+  if (!menuPagine.length) { g.innerHTML = '<p class="nota">Nessuna pagina caricata: gli ospiti vedono il menu predefinito.</p>'; return; }
+  g.innerHTML = menuPagine.map((m, i) => `<div class="menu-item"><img src="${esc(m.url)}" alt="">
+    <div class="info"><div class="n">Pagina ${i + 1}</div><div class="btns">
+      ${i > 0 ? `<button class="btn ghost" onclick="menuSposta(${i}, -1)">Su</button>` : ''}
+      ${i < menuPagine.length - 1 ? `<button class="btn ghost" onclick="menuSposta(${i}, 1)">Giù</button>` : ''}
+      <button class="btn danger" onclick="menuElimina(${i})">Elimina</button></div></div></div>`).join('');
 }
-function ritagliaQuadrata(file, lato) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const m = Math.min(img.width, img.height);
-      const c = document.createElement('canvas');
-      c.width = c.height = lato;
-      c.getContext('2d').drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, lato, lato);
-      resolve(c.toDataURL('image/jpeg', 0.82));
-    };
-    img.onerror = () => reject(new Error('immagine non valida'));
-    img.src = url;
-  });
+async function menuSalvaOrdine() {
+  const { db, doc, setDoc } = window._fb;
+  await setDoc(doc(db, 'impostazioni', 'area_ospite_menu'), { ordine: menuPagine.map(m => m.id), aggiornato_il: new Date().toISOString() });
 }
-function scegliFotoAutista(id) {
+function menuScegli() {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*';
-  inp.onchange = async () => {
-    if (!inp.files[0]) return;
-    try {
-      toast('Caricamento…');
-      const dataUrl = await ritagliaQuadrata(inp.files[0], 360);
-      const { db, doc, updateDoc } = window._fb;
-      await updateDoc(doc(db, 'navetta_autisti', id), { foto: dataUrl, foto_aggiornata_il: new Date().toISOString() });
-      const a = autisti.find(x => x.id === id); if (a) a.foto = dataUrl;
-      renderAutisti(); toast('Foto autista aggiornata');
-    } catch (e) { console.error(e); toast('Caricamento non riuscito'); }
-  };
+  inp.type = 'file'; inp.accept = 'image/*,application/pdf'; inp.multiple = true;
+  inp.onchange = () => { if (inp.files.length) menuCarica([...inp.files]); };
   inp.click();
 }
-async function rimuoviFotoAutista(id) {
+// PDF → una immagine per pagina (pdf.js caricato solo quando serve)
+function menuCaricaPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; ok(); };
+    sc.onerror = () => ko(new Error('pdf.js non caricato'));
+    document.head.appendChild(sc);
+  });
+}
+async function menuPdfInImmagini(file) {
+  await menuCaricaPdfJs();
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise, out = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const pg = await pdf.getPage(n), vp0 = pg.getViewport({ scale: 1 }), k = 1400 / Math.max(vp0.width, vp0.height);
+    const vp = pg.getViewport({ scale: k }), c = document.createElement('canvas');
+    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+    const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+    await pg.render({ canvasContext: cx, viewport: vp }).promise;
+    let q = 0.8, url = c.toDataURL('image/jpeg', q);
+    while (url.length > MAX_CHARS && q > 0.4) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+    if (url.length > MAX_CHARS) throw new Error('pagina troppo grande');
+    out.push(url);
+  }
+  return out;
+}
+async function menuCarica(files) {
   try {
-    const { db, doc, updateDoc } = window._fb;
-    await updateDoc(doc(db, 'navetta_autisti', id), { foto: '' });
-    const a = autisti.find(x => x.id === id); if (a) a.foto = '';
-    renderAutisti(); toast('Foto rimossa');
-  } catch (e) { console.error(e); toast('Operazione non riuscita'); }
+    if (menuPagine.length + files.length > 30) { toast('Massimo 30 pagine'); return; }
+    toast('Caricamento…');
+    const { db, doc, setDoc } = window._fb, nuove = [];
+    for (const f of files) {
+      const urls = f.type === 'application/pdf' ? await menuPdfInImmagini(f) : [await ridimensiona(f, 1400)];
+      for (const url of urls) {
+        const id = menuNuovoId();
+        await setDoc(doc(db, 'impostazioni', 'area_ospite_menu_' + id), { data_url: url, aggiornato_il: new Date().toISOString() });
+        nuove.push({ id, url });
+      }
+    }
+    menuPagine = menuPagine.concat(nuove);
+    await menuSalvaOrdine();
+    renderMenu(); toast(nuove.length === 1 ? 'Pagina aggiunta' : nuove.length + ' pagine aggiunte');
+  } catch (e) { console.error(e); toast('Caricamento non riuscito'); await menuLeggi(); }
+}
+async function menuSposta(i, d) {
+  const j = i + d; if (j < 0 || j >= menuPagine.length) return;
+  [menuPagine[i], menuPagine[j]] = [menuPagine[j], menuPagine[i]];
+  renderMenu();
+  try { await menuSalvaOrdine(); toast('Ordine salvato'); } catch (e) { console.error(e); toast('Salvataggio non riuscito'); await menuLeggi(); }
+}
+async function menuElimina(i) {
+  if (!confirm('Eliminare la pagina ' + (i + 1) + ' del menu?')) return;
+  const m = menuPagine[i];
+  try {
+    const { db, doc, deleteDoc } = window._fb;
+    menuPagine.splice(i, 1);
+    await menuSalvaOrdine();
+    await deleteDoc(doc(db, 'impostazioni', 'area_ospite_menu_' + m.id));
+    renderMenu(); toast('Pagina eliminata');
+  } catch (e) { console.error(e); toast('Operazione non riuscita'); await menuLeggi(); }
+}
+async function menuRipristina() {
+  if (!confirm('Eliminare tutte le pagine caricate e tornare al menu predefinito?')) return;
+  try {
+    const { db, doc, deleteDoc } = window._fb, vecchie = menuPagine.slice();
+    menuPagine = [];
+    await menuSalvaOrdine();
+    await Promise.all(vecchie.map(m => deleteDoc(doc(db, 'impostazioni', 'area_ospite_menu_' + m.id))));
+    renderMenu(); toast('Menu predefinito ripristinato');
+  } catch (e) { console.error(e); toast('Operazione non riuscita'); await menuLeggi(); }
+}
+async function menuLeggi() {
+  try {
+    const { db, doc, getDoc } = window._fb;
+    const idx = await getDoc(doc(db, 'impostazioni', 'area_ospite_menu'));
+    const ordine = idx.exists() && Array.isArray(idx.data().ordine) ? idx.data().ordine : [];
+    const pagine = await Promise.all(ordine.map(async id => {
+      const sn = await getDoc(doc(db, 'impostazioni', 'area_ospite_menu_' + id));
+      return sn.exists() && sn.data().data_url ? { id, url: sn.data().data_url } : null;
+    }));
+    menuPagine = pagine.filter(Boolean);
+  } catch (e) { console.error('Lettura menu:', e); }
+  renderMenu();
 }
 
 function scegliFile(id, larghezzaMax) {
@@ -451,15 +521,10 @@ async function salvaTesti() {
 
 async function carica() {
   renderFoto();
-  renderAutisti();
+  renderMenu();
   await waitFb();
   const { db, doc, getDoc, collection, getDocs } = window._fb;
-  try {
-    const sn = await getDocs(collection(db, 'navetta_autisti'));
-    autisti = sn.docs.map(d => ({ id: d.id, nome: (d.data().nome || d.id), foto: d.data().foto || '' }))
-      .sort((a, b) => a.nome.localeCompare(b.nome));
-  } catch (e) { console.error('Lettura autisti:', e); }
-  renderAutisti();
+  menuLeggi();
   try {
     const snap = await getDoc(doc(db, 'impostazioni', 'area_ospite'));
     const d = snap.exists() ? snap.data() : {};

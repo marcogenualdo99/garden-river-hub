@@ -527,18 +527,69 @@ def _autisti_elenco(db, con_foto=True):
     return tutti if con_foto else [{**a, 'foto': ''} for a in tutti]
 
 
+def _foto_operatori(db):
+    """{nome normalizzato: foto} dalla scheda operatore (Hub > Impostazioni > Operatori)."""
+    out = {}
+    try:
+        for d in db.collection('operatori').stream():
+            f = _s((d.to_dict() or {}).get('foto'), 300000)
+            if f.startswith('data:image/'):
+                out[_norm_nome(d.id)] = f
+    except Exception as e:
+        print(f'Lettura foto operatori non riuscita: {e}')
+    return out
+
+
+def _foto_per_autista(nome, foto_op):
+    """Foto dell'operatore col nome dell'autista (nome intero, altrimenti solo il nome di battesimo:
+    stessa regola della Navetta nella Hub)."""
+    n = _norm_nome(nome)
+    if n in foto_op:
+        return foto_op[n]
+    primo = n.split(' ')[0] if n else ''
+    if primo:
+        for k, f in foto_op.items():
+            if k.split(' ')[0] == primo:
+                return f
+    return ''
+
+
 def _autisti_leggi(db, con_foto=True):
     """Autisti configurati (collezione navetta_autisti, gestita dalla
     dashboard Navetta) — sono sempre tutti disponibili, nessuna gestione
-    giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente."""
+    giorno per giorno. Ogni corsa deve avere un autista scelto dal cliente.
+    La foto e' quella dell'operatore con lo stesso nome."""
     try:
-        return [
-            {'id': d.id, 'nome': _s((d.to_dict() or {}).get('nome')) or d.id,
-             'foto': _s((d.to_dict() or {}).get('foto'), 300000) if con_foto else ''}
-            for d in db.collection('navetta_autisti').stream()
-        ]
+        foto_op = _foto_operatori(db) if con_foto else {}
+        out = []
+        for d in db.collection('navetta_autisti').stream():
+            nome = _s((d.to_dict() or {}).get('nome')) or d.id
+            out.append({'id': d.id, 'nome': nome, 'foto': _foto_per_autista(nome, foto_op) if con_foto else ''})
+        return out
     except Exception as e:
         print(f'Lettura navetta_autisti non riuscita: {e}')
+        return []
+
+
+def _menu_carta_leggi(db):
+    """Pagine del menu alla carta caricate dall'Hub (Area clienti > Servizi): data URL in
+    `impostazioni/area_ospite_menu_<id>`, ordine in `impostazioni/area_ospite_menu`.ordine."""
+    try:
+        snap = db.collection('impostazioni').document('area_ospite_menu').get()
+        ordine = [str(x) for x in ((snap.to_dict() or {}).get('ordine') or []) if re.fullmatch(r'[A-Za-z0-9_-]{1,40}', str(x))][:30]
+        if not ordine:
+            return []
+        refs = [db.collection('impostazioni').document(f'area_ospite_menu_{i}') for i in ordine]
+        per_id = {s.id[len('area_ospite_menu_'):]: s for s in db.get_all(refs) if s.exists}
+        out = []
+        for i in ordine:
+            s = per_id.get(i)
+            url = str((s.to_dict() or {}).get('data_url') or '').strip() if s else ''
+            if url.startswith('data:image/') and len(url) <= 900000:
+                out.append(url)
+        return out
+    except Exception as e:
+        print(f'Lettura menu alla carta non riuscita: {e}')
         return []
 
 
@@ -1147,6 +1198,13 @@ def _meteo(db):
     if vecchio.get('dati') and ora - vecchio.get('ts', 0) < METEO_STALE_MAX:
         return {**vecchio['dati'], 'aggiornato': vecchio['ts'], 'fonte': vecchio.get('fonte', ''), 'vecchio': True}
     return None
+
+
+def _azione_ristorazione_menu_carta(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    return _json(origin, {'ok': True, 'pagine': _con_cache('menu_carta', 60, lambda: _menu_carta_leggi(db))})
 
 
 def _azione_meteo(db, origin, data):
@@ -2503,6 +2561,7 @@ AZIONI = {
     'staff_modifica':          _azione_staff_modifica,
     'staff_riapri':            _azione_staff_riapri,
     'ristorazione_menu':       _azione_ristorazione_menu,
+    'ristorazione_menu_carta': _azione_ristorazione_menu_carta,
     'ristorazione_ordina':     _azione_ristorazione_ordina,
     'ristorazione_prenota_info':    _azione_ristorazione_prenota_info,
     'ristorazione_prenota':         _azione_ristorazione_prenota,

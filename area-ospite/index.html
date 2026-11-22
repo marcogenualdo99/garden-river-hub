@@ -2501,13 +2501,22 @@ async function renderRistorazione(keep) {
 
 const rsTile = (cls, ic, ey, titolo, sotto, fn, cta, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<span class="ic">${ic}</span>${ey ? `<span class="ey">${esc(ey)}</span>` : ''}<b>${titolo}</b><small>${esc(sotto)}</small><span class="cta">${esc(cta)}${ICONS.CHEVRON}</span></button>`;
 
-function rsApriMenu() {
+let _menuCarta = null;   // pagine caricate dall'Hub (data URL); [] = usa il menu predefinito
+function rsMenuCorpo(pagine) {
+  const pg = pagine && pagine.length ? pagine : [1, 2, 3, 4].map(n => `img/carta/pagina-${n}.jpg`);
+  const pdf = pagine && pagine.length ? '' : `<a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:6px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a>`;
+  return pg.map((u, i) => `<img src="${esc(u)}" alt="Menu alla carta, pagina ${i + 1}" loading="lazy">`).join('') + pdf;
+}
+async function rsApriMenu() {
   if (document.getElementById('rs-menu-ov')) return;
   const ov = document.createElement('div'); ov.id = 'rs-menu-ov';
   ov.innerHTML = `<div class="bar"><h2>Menu alla carta</h2><button type="button" class="chiudi" onclick="rsChiudiMenu()">${ICONS.CLOSE}Chiudi</button></div>
-    <div class="corpo">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}
-      <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:6px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a></div>`;
+    <div class="corpo" id="rs-menu-corpo">${_menuCarta ? rsMenuCorpo(_menuCarta) : '<div class="rs-load"><span></span><span></span><span></span></div>'}</div>`;
   document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+  if (_menuCarta) return;
+  try { const d = await chiama({ azione: 'ristorazione_menu_carta' }); _menuCarta = d && d.ok && Array.isArray(d.pagine) ? d.pagine : []; }
+  catch (e) { _menuCarta = []; }
+  const c = document.getElementById('rs-menu-corpo'); if (c) c.innerHTML = rsMenuCorpo(_menuCarta);
 }
 function rsChiudiMenu() { const ov = document.getElementById('rs-menu-ov'); if (ov) ov.remove(); document.body.style.overflow = ''; }
 function rsVai(v) {
