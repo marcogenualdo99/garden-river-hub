@@ -5591,10 +5591,33 @@ async function analizzaFileImportazione(inputEl) {
 // lo stesso risultato.
 // Conto di una riga importata: se la sorgente ha già le voci vere (Scidoo
 // JSON) si usano quelle, altrimenti una riga unica col totale + la caparra.
+// Tassa di soggiorno stimata all'import: i file non hanno le generalità né le età
+// esatte, quindi si contano solo gli adulti (paganti certi, ricorrono le notti
+// nella finestra 1/7-31/8 con il tetto per persona). Bambini e ragazzi restano
+// fuori (la fascia 10-17 mescola esenti e paganti): si correggono dalla scheda
+// con "Aggiorna tassa di soggiorno" una volta inseriti gli ospiti.
+function rigaTassaSoggiornoImport(r) {
+  try {
+    const cfg = tassaSoggiornoConfig();
+    const adulti = Number(r.adulti) || 0;
+    const notti = Math.min(nottiTassaSoggiornoInFinestra(r.checkin, r.checkout, cfg), cfg.maxNottiPagantiPerPersona);
+    const importo = Math.round(adulti * notti * cfg.importoGiorno * 100) / 100;
+    if (!(importo > 0)) return null;
+    const n = adulti * notti;
+    return { label: `Tassa di soggiorno · ${n} nott${n === 1 ? 'e' : 'i'}-persona`, importo, pagato: false };
+  } catch (e) { return null; }
+}
 function righeContoImport(r) {
-  if (r.righeConto && r.righeConto.length) return r.righeConto.map(x => ({ ...x }));
-  const righe = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
-  if (r.caparra > 0) righe.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  let righe;
+  if (r.righeConto && r.righeConto.length) righe = r.righeConto.map(x => ({ ...x }));
+  else {
+    righe = [{ label: 'Soggiorno (agenzia)', importo: Math.round(r.totale * 100) / 100, pagato: false }];
+    if (r.caparra > 0) righe.push({ label: 'Caparra agenzia', importo: Math.round(r.caparra * 100) / 100, acconto: true, manuale: true, pagato: true });
+  }
+  if (!righe.some(x => (x.label || '').startsWith('Tassa di soggiorno'))) {
+    const tassa = rigaTassaSoggiornoImport(r);
+    if (tassa) righe.push(tassa);
+  }
   return righe;
 }
 function costruisciDatiImportRiga(r) {
@@ -5656,7 +5679,9 @@ function contoAggiornabileDaImport(r) {
   return p.conto_import ? null : { p, vecchia: null, soloSalva: true };
 }
 function righeContoAggiornate(r, p, vecchia) {
-  const nuove = righeContoImport(r);
+  let nuove = righeContoImport(r);
+  // la tassa di soggiorno già presente nel conto (magari corretta a mano) non si duplica né si sovrascrive
+  if (p.conto.righe.some(x => (x.label || '').startsWith('Tassa di soggiorno'))) nuove = nuove.filter(x => !(x.label || '').startsWith('Tassa di soggiorno'));
   if (!vecchia) {
     // ripristino: via le voci del listino Hub e quelle già presenti nell'import; restano tassa di soggiorno e voci esterne
     const etichette = new Set(nuove.map(x => x.label));
