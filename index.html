@@ -3061,5 +3061,25 @@ async function start() {
 
 start();
 </script>
+<script>
+/* iOS (iPhone X e simili): dopo la tastiera o un drawer il viewport visivo può
+   restare spostato verso l'alto e la barra in alto finisce sotto il notch,
+   non più cliccabile. Appena nessun campo è attivo si riallinea il viewport. */
+(function(){
+  var vv = window.visualViewport;
+  function isField(el){ return el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName); }
+  function riallinea(){
+    try {
+      if (isField(document.activeElement)) return;
+      var off = vv ? vv.offsetTop : 0;
+      if (off > 0 || window.pageYOffset < 0) window.scrollTo(window.pageXOffset, Math.max(0, window.pageYOffset));
+    } catch(e){}
+  }
+  document.addEventListener('focusout', function(){ setTimeout(riallinea, 60); setTimeout(riallinea, 350); }, true);
+  if (vv) { vv.addEventListener('resize', riallinea); vv.addEventListener('scroll', riallinea); }
+  window.addEventListener('orientationchange', function(){ setTimeout(riallinea, 300); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) setTimeout(riallinea, 100); });
+})();
+</script>
 </body>
 </html>
