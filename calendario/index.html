@@ -1772,6 +1772,10 @@ function eEsenteTassaSoggiorno(ospite) {
 // dall'array "prenotazioni" già in memoria (sincronizzato realtime da
 // Firestore, v. onSnapshot su collection 'prenotazioni'), niente query.
 function nottiGiaTassateAnno(chiave, anno, checkinCorrente, tuttePrenotazioni, escludiId) {
+  // Ospite senza cognome né nome (scheda vuota, come nelle prenotazioni appena importate):
+  // non si può riconoscere tra le prenotazioni, e la chiave vuota "||" sommava le notti di
+  // TUTTE le schede vuote dell'anno, azzerando la tassa dopo le prime prenotazioni.
+  if (String(chiave).split('|').slice(0, 2).every(x => !x)) return 0;
   let somma = 0;
   (tuttePrenotazioni || []).forEach(p => {
     if (p.id === escludiId) return;
