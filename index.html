@@ -298,6 +298,14 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   .drawer, .sidebar, .drawer-overlay, .nav-item, .nav-group-header, .sidebar-brand > * { transition: none !important; animation: none !important; transform: none; }
   .drawer:not(.open) { transform: translateX(-100%); }
 }
+
+/* Impostazioni a schede */
+.set-tabs { display:flex; gap:8px; overflow-x:auto; padding:2px 0 12px; margin:0 0 4px; -webkit-overflow-scrolling:touch; }
+.set-tab { flex:0 0 auto; border:1px solid var(--gray-200,#e5e7eb); background:var(--white,#fff); color:var(--gray-700,#374151); font:700 14px var(--font,inherit); padding:10px 16px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+.set-tab.active { background:var(--green-700,#15803d); border-color:var(--green-700,#15803d); color:#fff; }
+#sec-settings .card[data-tab] { display:none; }
+#sec-settings.tab-operatori .card[data-tab="operatori"], #sec-settings.tab-permessi .card[data-tab="permessi"],
+#sec-settings.tab-stampanti .card[data-tab="stampanti"], #sec-settings.tab-auto .card[data-tab="auto"] { display:block; }
 </style>
 <script src="assets/icons.js?v=1794700100"></script>
 <script src="assets/avvisi-app.js?v=3" defer></script>
@@ -638,7 +646,14 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <div class="back-title">Impostazioni</div>
     </div>
 
-    <div class="card">
+    <div class="set-tabs" id="set-tabs">
+      <button class="set-tab" data-tab="operatori" onclick="setSettingsTab('operatori')">Operatori</button>
+      <button class="set-tab" data-tab="permessi" onclick="setSettingsTab('permessi')">Permessi</button>
+      <button class="set-tab" data-tab="stampanti" onclick="setSettingsTab('stampanti')">Stampanti</button>
+      <button class="set-tab" data-tab="auto" onclick="setSettingsTab('auto')">Stampe automatiche</button>
+    </div>
+
+    <div class="card" id="operatori-card" data-tab="operatori">
       <h3>Operatori</h3>
       <p class="subtitle">Gli operatori creati qui possono accedere a tutta la suite Garden River con un unico PIN.</p>
       <div class="new-op-form">
@@ -652,7 +667,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <div id="operatori-list" style="margin-top:6px"></div>
     </div>
 
-    <div class="card" id="permessi-card">
+    <div class="card" id="permessi-card" data-tab="permessi">
       <h3>Permessi per modulo</h3>
       <p class="subtitle">Scegli quali sezioni di ogni app può vedere ciascun operatore. Gli amministratori hanno sempre accesso completo a tutto. Le modifiche hanno effetto dal prossimo accesso dell'operatore.</p>
       <select class="perm-op-select" id="perm-op-select" onchange="renderPermessiForm(this.value)">
@@ -661,7 +676,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <div id="permessi-form"></div>
     </div>
 
-    <div class="card" id="stampanti-card">
+    <div class="card" id="stampanti-card" data-tab="stampanti">
       <h3>Stampanti</h3>
       <p class="subtitle">Elenco unico delle stampanti termiche. Per ogni stampante scegli cosa stampa (servizi) e quali stampe automatiche fa: nelle altre sezioni compaiono solo le stampanti che c'entrano. Chi ha quel servizio sbloccato nei permessi stampa sulla stampante associata. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
       <div id="stampanti-list"></div>
@@ -671,7 +686,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <script>if (window.GRNativo && window.GRNativo.impostazioni) document.getElementById('stampante-app-btn').style.display = '';</script>
     </div>
 
-    <div class="card" id="stampa-auto-card">
+    <div class="card" id="stampa-auto-card" data-tab="auto">
       <h3>Stampe automatiche</h3>
       <p class="subtitle">Le stampe partono da sole dal primo dispositivo che ha aperta la pagina di Ristorazione (comande) o dello Shop (ordini), con il proxy attivo se la stampante è una Sunmi. Due dispositivi non stampano mai lo stesso lavoro. I pulsanti di stampa manuale restano sempre disponibili.</p>
       <div class="perm-module-title">Comande ristorazione (tutte le comande del giorno)</div>
@@ -2301,8 +2316,19 @@ function toggleDrawer(open) {
 }
 
 // ── IMPOSTAZIONI (solo admin) ─────────────────────────────────────────────
+function setSettingsTab(t) {
+  if (!['operatori', 'permessi', 'stampanti', 'auto'].includes(t)) t = 'operatori';
+  const sec = document.getElementById('sec-settings');
+  sec.classList.remove('tab-operatori', 'tab-permessi', 'tab-stampanti', 'tab-auto');
+  sec.classList.add('tab-' + t);
+  document.querySelectorAll('#set-tabs .set-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  try { localStorage.setItem('gr_set_tab', t); } catch (e) { /* ok */ }
+  window.scrollTo(0, 0);
+}
 function openSettings() {
   if (!isAdmin()) return;
+  let tab = 'operatori'; try { tab = localStorage.getItem('gr_set_tab') || tab; } catch (e) { /* ok */ }
+  setSettingsTab(tab);
   document.getElementById('sec-home').classList.remove('active');
   document.getElementById('sec-settings').classList.add('active');
   renderOperatoriList();
