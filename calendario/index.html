@@ -5481,6 +5481,101 @@ function elaboraRigaImportazioneMrPreno(row, riservatePerCategoria) {
   }
   return risultato;
 }
+// ── IMPORT OFFERTE VILLAGGI (PDF della singola prenotazione) ────────────────
+// Oltre al file Excel con l'elenco arrivi, OfferteVillaggi manda per ogni
+// prenotazione un PDF ("N° prenotazione 230894 del ...") con etichette fisse:
+// Prenotante, Periodo vacanza, N° di persone, Tipologia alloggio, Trattamento,
+// Caparra (quota agenzia), Importo Totale. leggiPrenotazioneOfferteVillaggi()
+// è pura (righe di testo → oggetto) così si prova senza PDF; il resto del
+// flusso riusa l'import "agenzia" già collaudato (stesso id agenzia, stesso
+// conto a riga unica con caparra come acconto) e salta i doppioni.
+function leggiPrenotazioneOfferteVillaggi(righe) {
+  const L = righe.map(s => String(s).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const testo = L.join('\n');
+  const val = (etichetta) => {
+    const re = new RegExp('^' + etichetta + '\\s*:\\s*(.*)$', 'i');
+    const l = L.find(s => re.test(s));
+    return l ? l.match(re)[1].trim() : '';
+  };
+  const eur = (etichetta) => {
+    const m = val(etichetta).match(/([\d.]+,\d{2})/);
+    return m ? _eurMrp(m[1]) : 0;
+  };
+  const q = { avvisi: [] };
+  q.codice = ((testo.match(/N°\s*prenotazione\s+(\d+)/i) || [])[1] || '').trim();
+  q.nome = val('Prenotante');
+  const mP = val('Periodo vacanza').match(/(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})\s*\/\s*(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
+  q.checkin = mP ? parseDataAgenzia(mP[1]) : '';
+  q.checkout = mP ? parseDataAgenzia(mP[2]) : '';
+  const pers = val('N° di persone');
+  q.adulti = parseInt((pers.match(/(\d+)\s*adult/i) || [])[1], 10) || 0;
+  const nBamb = parseInt((pers.match(/(\d+)\s*bambin/i) || [])[1], 10) || 0;
+  const nNeon = parseInt((pers.match(/(\d+)\s*(?:neonat|infant)/i) || [])[1], 10) || 0;
+  const etaTxt = (pers.match(/et[àa]\s*(?:di\s*)?(.*)$/i) || [])[1] || '';
+  const eta = (etaTxt.match(/\d+/g) || []).map(Number);
+  q.etaBambini = eta.join(',');
+  if (nBamb && eta.length !== nBamb) q.avvisi.push(`${nBamb} bambini ma ${eta.length} età indicate: controlla le fasce`);
+  q.neonati = nNeon;
+  if (!q.adulti && !nBamb) q.avvisi.push('persone non riconosciute nel PDF');
+  q.culla = /^s/i.test(val('Culla'));
+  q.animali = /^s/i.test(val('Animali domestici'));
+  q.tipologia = val('Tipologia alloggio').replace(/\s*\(.*$/, '').trim();
+  q.trattamento = val('Trattamento');
+  q.caparra = eur('Caparra');
+  q.totale = eur('Importo Totale');
+  const iNote = L.findIndex(s => /^Note\s*:/i.test(s));
+  q.nota = '';
+  if (iNote >= 0) {
+    const acc = [L[iNote].replace(/^Note\s*:\s*/i, '')];
+    for (let k = iNote + 1; k < L.length && !/^Compreso nella Quota/i.test(L[k]); k++) acc.push(L[k]);
+    q.nota = acc.join(' ').replace(/\s+/g, ' ').trim();
+    if (/^(nessuna|nulla|-)\.?$/i.test(q.nota)) q.nota = '';
+  }
+  return q;
+}
+async function leggiRigheOfferteVillaggiPdf(files) {
+  const out = [];
+  for (const f of files) {
+    if (!/\.pdf$/i.test(f.name)) { out.push({ __errore: 'serve il PDF della prenotazione OfferteVillaggi', __file: f.name }); continue; }
+    try { out.push({ __ovpdf: leggiPrenotazioneOfferteVillaggi(await righeDaPdf(f)), __file: f.name }); }
+    catch (e) { out.push({ __errore: 'PDF non leggibile: ' + e.message, __file: f.name }); }
+  }
+  return out;
+}
+function elaboraRigaImportazioneOfferteVillaggiPdf(row, riservatePerCategoria) {
+  const q = row.__ovpdf;
+  const vuota = { agenziaId: '', cliente: row.__file || '', checkin: '', checkout: '', tel: '', provenienza: 'Offerte Villaggi',
+    adulti: 0, bambiniFasce: { b0_2: 0, b3_4: 0, b5_9: 0, b10_17: 0, adultiExtra: 0 }, animali: false, noteAnimali: '', noteGenerali: '',
+    tipoAlloggio: '', trattamento: 'no', totale: 0, caparra: 0, alloggioId: null, alloggioNome: null, stato: 'errore', erroreMsg: null, selezionata: true };
+  if (!q) return { ...vuota, erroreMsg: `${row.__file}: ${row.__errore}` };
+  if (!q.codice || !q.nome || !q.checkin || !q.checkout || q.checkout <= q.checkin) {
+    return { ...vuota, erroreMsg: `${row.__file}: dati mancanti o PDF non riconosciuto come prenotazione OfferteVillaggi` };
+  }
+  riservatePerCategoria.__ovCodici = riservatePerCategoria.__ovCodici || new Set();
+  if (riservatePerCategoria.__ovCodici.has(q.codice)) {
+    return { ...vuota, agenziaId: q.codice, cliente: q.nome, erroreMsg: `Prenotazione ${q.codice} già caricata in questa importazione (PDF doppio)` };
+  }
+  riservatePerCategoria.__ovCodici.add(q.codice);
+  const noteGenerali = [q.nota, q.culla ? 'Culla richiesta' : ''].filter(Boolean).join(' — ');
+  const r = elaboraRigaImportazioneAgenziaStandard({
+    'id prenotazione': q.codice, 'cliente': q.nome, 'arrivo': q.checkin.split('-').reverse().join('-'), 'partenza': q.checkout.split('-').reverse().join('-'),
+    'adulti': q.adulti, 'età bambini': [q.etaBambini, ...Array(q.neonati).fill('0')].filter(s => s !== '').join(','),
+    'animali': q.animali ? 'si' : 'no', 'note': noteGenerali, 'tipo alloggio': q.tipologia,
+    'trattamento': q.trattamento, 'totale': q.totale, 'caparra': q.caparra,
+  }, riservatePerCategoria);
+  // già entrata da un altro canale (es. file Excel o Scidoo): stesso cliente e stesse date
+  if (r.stato !== 'esistente' && r.stato !== 'errore') {
+    const doppio = prenotazioni.find(p => p.checkin === q.checkin && p.checkout === q.checkout && _normNomeConfronto(p.nome) === _normNomeConfronto(q.nome));
+    if (doppio) {
+      r.stato = 'esistente'; r.esistenteId = doppio.id; r.alloggioId = null; r.alloggioNome = null;
+      r.erroreMsg = `Già presente (stesso cliente e date, importata con ID ${doppio.agenzia_id || 'manuale'})`;
+      return r;
+    }
+  }
+  if (q.avvisi.length) r.erroreMsg = [r.erroreMsg, ...q.avvisi].filter(Boolean).join(' · ');
+  if (!q.totale) r.erroreMsg = [r.erroreMsg, 'totale non trovato nel PDF'].filter(Boolean).join(' · ');
+  return r;
+}
 // ── Elenco delle sorgenti/canali supportati ─────────────────────────────────
 // Ognuna ha solo il proprio "elaboraRiga" (formato del file), il tipo di file
 // accettato e i passaggi guida mostrati sopra al selettore file. Per collegarne
@@ -5495,6 +5590,16 @@ const SORGENTI_IMPORT = {
       'Scegli il file qui sotto (uno alla volta).',
       'Controlla l\'anteprima: le prenotazioni con lo stesso ID già presenti vengono saltate, quelle con categoria piena restano «da assegnare a mano».',
       'Togli la spunta alle righe che non vuoi importare e premi <b>Conferma importazione</b>. Il conto parte come riga unica «Soggiorno (agenzia)» con il totale e la caparra del file.',
+    ],
+  },
+  offertevillaggi_pdf: {
+    nome: 'OFFERTE VILLAGGI (PDF prenotazione)', elaboraRiga: elaboraRigaImportazioneOfferteVillaggiPdf, accept: '.pdf', leggiRighe: (file, files) => leggiRigheOfferteVillaggiPdf(files),
+    guida: [
+      'Apri il PDF della prenotazione che OfferteVillaggi ti ha inviato (quello con «N° prenotazione», «Periodo vacanza», «Importo Totale»).',
+      'Scegli qui sotto <b>uno o più PDF insieme</b> (Cmd/Ctrl per selezionarne più di uno).',
+      'L\'Hub legge numero prenotazione, prenotante, date, adulti e età dei bambini, tipologia alloggio, trattamento, animali, culla, note, caparra (quota agenzia) e importo totale.',
+      'Se il numero prenotazione è già presente, o c\'è già lo stesso cliente con le stesse date, la riga viene saltata. Se la categoria è piena resta «da assegnare a mano».',
+      'Controlla l\'anteprima e premi <b>Conferma importazione</b>. Il conto parte come riga unica «Soggiorno (agenzia)» con il totale e la caparra come acconto già pagato, più la tassa di soggiorno stimata.',
     ],
   },
   scidoo: {
