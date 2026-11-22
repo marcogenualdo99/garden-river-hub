@@ -3117,6 +3117,7 @@ function onDragMouseUp(ev) {
       if (nuovoCheckin === overlap.checkin && nuovoCheckout === overlap.checkout) {
         try {
           const { db, doc, updateDoc } = window._fb;
+          undoRegistra('scambio alloggi', [ctx.id, overlap.id]);
           await updateDoc(doc(db, 'prenotazioni', ctx.id), {
             alloggio_id: nuovoAlloggioId, alloggio_nome: nuovoAlloggioNome || nuovoAlloggioId,
           });
@@ -3141,6 +3142,7 @@ function onDragMouseUp(ev) {
         patch.alloggio_id = nuovoAlloggioId;
         patch.alloggio_nome = nuovoAlloggioNome || nuovoAlloggioId;
       }
+      undoRegistra('spostamento prenotazione', [ctx.id]);
       await updateDoc(doc(db, 'prenotazioni', ctx.id), patch);
       showToast('Prenotazione spostata');
       // Allinea subito famiglia Ristorazione e conto in Conti alle nuove date/alloggio.
@@ -5871,6 +5873,7 @@ async function confermaImportazione() {
   btn.textContent = 'Importazione in corso…';
   const { db, doc, setDoc } = window._fb;
   let ok = 0, falliti = 0, spostate = 0;
+  const idImportati = [];
   const scritte = []; // prenotazioni scritte in questo import (la snapshot può non essere ancora aggiornata)
   for (const r of daImportare) {
     try {
@@ -5888,6 +5891,7 @@ async function confermaImportazione() {
       }
       await setDoc(doc(db, 'prenotazioni', idDoc), data);
       scritte.push({ alloggio_id: data.alloggio_id, checkin: data.checkin, checkout: data.checkout });
+      idImportati.push(idDoc);
       if (data.trattamento_ristorazione === 'PC' || data.trattamento_ristorazione === 'MP') sincronizzaFamigliaRistorazione(idDoc, data);
       ok++;
     } catch(e) {
@@ -5895,6 +5899,7 @@ async function confermaImportazione() {
       falliti++;
     }
   }
+  if (idImportati.length) undoRegistra('importazione', idImportati, { creazione: true });
   showToast(`Importazione completata: ${ok} prenotazioni create${falliti ? `, ${falliti} fallite` : ''}${spostate ? `, ${spostate} lasciate da assegnare perché l'alloggio risultava occupato` : ''}`);
   chiudiImportModal();
   renderGrid();
@@ -7035,6 +7040,7 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
     idPrenotazione = editingId;
     const prec = prenotazioni.find(x => x.id === editingId);
     if (prec) datiPrima = { checkin: prec.checkin, checkout: prec.checkout, nome: prec.nome, alloggio_nome: prec.alloggio_nome, tel: prec.tel || '', area_ospite_token: prec.area_ospite_token, checkin_token: prec.checkin_token };
+    undoRegistra('modifica prenotazione', [editingId], { collassa: true });
     await updateDoc(doc(db, 'prenotazioni', editingId), data);
   } else {
     // Se stiamo salvando per la prima volta una bozza aperta da una riga di
@@ -7045,6 +7051,7 @@ async function scriviPrenotazione(alloggioId, checkin, data) {
     idPrenotazione = agenziaId ? `agenzia_${String(agenziaId).replace(/[\/\s]+/g, '-')}` :`${alloggioId}_${checkin}_${Date.now().toString(36)}`;
     const extra = agenziaId ? { agenzia_id: agenziaId } : {};
     await setDoc(doc(db, 'prenotazioni', idPrenotazione), { ...data, ...extra, codice: generaCodice(), createdAt: new Date().toISOString() });
+    undoRegistra('nuova prenotazione', [idPrenotazione], { creazione: true, collassa: true });
     editingId = idPrenotazione;
     document.getElementById('btn-elimina').classList.remove('hidden');
     document.getElementById('btn-log-modifiche').classList.remove('hidden');
@@ -7594,6 +7601,7 @@ function eliminaPrenotazioneCorrente() {
       await Promise.all(posizioniCollegate.map(d => deleteDoc(doc(db, 'beach_prenotazioni', d.id))));
       await deleteDoc(doc(db, 'famiglie_ristorazione', 'cal_' + id));
       await deleteDoc(doc(db, 'prenotazioni', id));
+      if (p) undoRegistra('eliminazione prenotazione', [id], { stati: [p], eliminaDopo: [['prenotazioni_eliminate', id]] });
       showToast('Prenotazione eliminata — resta nello Storico ospite');
       closeFormModal();
     } catch(e) {
@@ -8649,6 +8657,57 @@ setTimeout(async () => {
 }, 8000);
 setTimeout(hideLoadingScreen, 18000);
 
+// ── ANNULLA (Ctrl/Cmd+Z) sulle prenotazioni ──────────────────────────────
+// Pila in memoria (si azzera ricaricando la pagina) delle ultime modifiche alle
+// prenotazioni: spostamenti, scambi, modifiche dalla scheda, creazioni,
+// eliminazioni, importazioni. Ogni voce ricorda lo stato PRIMA (null = non
+// esisteva) e lo ripristina scrivendo il documento intero. Le modifiche in
+// raffica sulla stessa prenotazione (autosave della scheda) contano come una.
+// Non si annulla mentre un campo ha il focus (lì vale l'annulla del testo) né con
+// una finestra aperta.
+const _undoStack = [];
+function undoRegistra(etichetta, ids, opz) {
+  opz = opz || {};
+  const ora = Date.now();
+  const top = _undoStack[_undoStack.length - 1];
+  if (opz.collassa && top && top.collassabile && top.docs.length === 1 && top.docs[0].id === ids[0] && ora - top.ts < 90000) { top.ts = ora; return; }
+  const docs = ids.map((id, i) => {
+    if (opz.creazione) return { id, prima: null };
+    const p = (opz.stati && opz.stati[i]) || prenotazioni.find(x => x.id === id);
+    return p ? { id, prima: JSON.parse(JSON.stringify(p)) } : null;
+  }).filter(Boolean);
+  if (!docs.length) return;
+  _undoStack.push({ etichetta, docs, ts: ora, collassabile: !!opz.collassa, eliminaDopo: opz.eliminaDopo || [] });
+  if (_undoStack.length > 30) _undoStack.shift();
+}
+let _undoInCorso = false;
+async function undoEsegui() {
+  if (_undoInCorso) return;
+  const voce = _undoStack.pop();
+  if (!voce) { showToast('Niente da annullare'); return; }
+  _undoInCorso = true;
+  try {
+    const { db, doc, setDoc, deleteDoc } = window._fb;
+    for (const d of voce.docs.slice().reverse()) {
+      if (d.prima) { const { id: _omit, ...dati } = d.prima; await setDoc(doc(db, 'prenotazioni', d.id), dati); }
+      else await deleteDoc(doc(db, 'prenotazioni', d.id));
+    }
+    for (const [coll, id] of voce.eliminaDopo) { try { await deleteDoc(doc(db, coll, id)); } catch (e) { console.warn('Undo: pulizia', coll, e); } }
+    showToast('Annullato: ' + voce.etichetta);
+  } catch (e) {
+    console.error('Errore annullamento:', e);
+    _undoStack.push(voce);
+    showToast('Impossibile annullare: ' + e.message);
+  } finally { _undoInCorso = false; }
+}
+document.addEventListener('keydown', (e) => {
+  if (!((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'z')) return;
+  const t = e.target;
+  if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+  if (document.querySelector('.modal-overlay:not(.hidden)')) return;
+  e.preventDefault();
+  undoEsegui();
+});
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
