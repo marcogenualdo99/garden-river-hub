@@ -5041,12 +5041,12 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
     return risultato;
   }
   // Stessa prenotazione già inserita a mano o da un altro canale (senza ID Scidoo,
-  // o con codice MrPreno "bk/..."): stesso cliente e stesse date. Si considerano solo
-  // prenotazioni senza ID Scidoo, così due unità dello stesso cliente (R 1 / R 2)
+  // o con codice MrPreno "bk/..."): stesso cliente e stesse date. Si escludono le
+  // prenotazioni il cui ID è tra quelli del file (sono altre righe), così due unità dello stesso cliente (R 1 / R 2)
   // non si scambiano tra loro; ogni prenotazione esistente si abbina una volta sola.
   const usate = (riservatePerCategoria.__scidooEsistentiUsati = riservatePerCategoria.__scidooEsistentiUsati || new Set());
   const candidate = prenotazioni.filter(p => !usate.has(p.id) &&
-    (!p.agenzia_id || /^bk\//.test(String(p.agenzia_id))) &&
+    !(riservatePerCategoria.__idDelFile || new Set()).has(String(p.agenzia_id || '')) &&
     p.checkin === checkin && p.checkout === checkout &&
     _normNomeConfronto(p.nome) === _normNomeConfronto(cliente));
   const gemella = (numeroRichiesto && candidate.find(p => {
@@ -5576,6 +5576,7 @@ async function analizzaFileImportazione(inputEl) {
     }
     if (!righeGrezze.length) { wrap.innerHTML = '<p class="section-hint">Il file non contiene righe leggibili.</p>'; return; }
     const riservatePerCategoria = {};
+    riservatePerCategoria.__idDelFile = new Set(righeGrezze.map(r => String(campoScidoo(r, 'ID') || '').trim()).filter(Boolean));
     _importRighe = righeGrezze.map(r => sorgente.elaboraRiga(r, riservatePerCategoria));
     await assicuraProvenienzeImportate(_importRighe);
     renderRisultatiImportazione();
