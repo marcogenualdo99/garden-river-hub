@@ -1056,6 +1056,110 @@ def _azione_contenuti(db, origin, data):
     return _json(origin, {'ok': True, **_contenuti(db)})
 
 
+# ── Meteo (cache in Firestore, due fonti in cascata) ─────────────────────────
+# Il browser dell'ospite non chiama piu' servizi meteo esterni: legge da qui.
+# Il dato vive in `meteo_cache/garden` (collezione negata ai client, la scrive
+# solo questa funzione) e si rinnova al massimo ogni METEO_TTL secondi alla
+# prima richiesta utile. Fonte principale MET Norway (gratuita anche per uso
+# commerciale, richiede uno User-Agent identificativo), riserva Open-Meteo.
+# Se entrambe falliscono si restituisce l'ultimo dato salvato.
+METEO_LAT, METEO_LON = 43.08, 13.86
+METEO_TTL = 30 * 60
+METEO_STALE_MAX = 6 * 3600   # oltre 6 ore un dato vecchio non e' piu' credibile
+METEO_UA = 'GardenHub/1.0 (https://gardenhub.it)'
+
+
+def _meteo_http(url, headers=None):
+    req = urllib.request.Request(url, headers={'User-Agent': METEO_UA, **(headers or {})})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        return json.loads(r.read().decode('utf-8'))
+
+
+def _meteo_symbol_a_wmo(sym):
+    """Simbolo MET Norway (es. 'lightrainshowers_day') -> codice WMO usato dalla pagina."""
+    s = re.sub(r'_(day|night|polartwilight)$', '', str(sym or ''))
+    if 'thunder' in s: return 95
+    if 'snow' in s or 'sleet' in s: return 71
+    if 'showers' in s: return 80
+    if 'rain' in s: return 61
+    if s == 'fog': return 45
+    if s == 'clearsky': return 0
+    if s == 'fair': return 1
+    if s == 'partlycloudy': return 2
+    if s == 'cloudy': return 3
+    return 3
+
+
+def _meteo_da_metno():
+    j = _meteo_http(f'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={METEO_LAT}&lon={METEO_LON}')
+    ts = j['properties']['timeseries']
+    adesso = ts[0]
+    temp = adesso['data']['instant']['details']['air_temperature']
+    blocco = adesso['data'].get('next_1_hours') or adesso['data'].get('next_6_hours') or adesso['data'].get('next_12_hours') or {}
+    codice = _meteo_symbol_a_wmo((blocco.get('summary') or {}).get('symbol_code'))
+    oggi = datetime.now(TZ_ROMA).date()
+    domani = oggi + timedelta(days=1)
+    temp_dom, pioggia = [], 0
+    for x in ts:
+        d = datetime.fromisoformat(x['time'].replace('Z', '+00:00')).astimezone(TZ_ROMA)
+        t = x['data']['instant']['details'].get('air_temperature')
+        if d.date() == domani and t is not None:
+            temp_dom.append(t)
+        if d.date() == oggi:
+            for k in ('next_6_hours', 'next_12_hours'):
+                pr = ((x['data'].get(k) or {}).get('details') or {}).get('probability_of_precipitation')
+                if pr is not None:
+                    pioggia = max(pioggia, pr)
+    if not temp_dom:
+        raise ValueError('MET Norway: nessuna temperatura per domani')
+    return {'temp': temp, 'codice': codice, 'pioggia': pioggia, 'dom_min': min(temp_dom), 'dom_max': max(temp_dom)}
+
+
+def _meteo_da_openmeteo():
+    j = _meteo_http(f'https://api.open-meteo.com/v1/forecast?latitude={METEO_LAT}&longitude={METEO_LON}'
+                    '&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,'
+                    'precipitation_probability_max&timezone=Europe%2FRome&forecast_days=2')
+    return {'temp': j['current']['temperature_2m'], 'codice': j['current']['weather_code'],
+            'pioggia': (j['daily'].get('precipitation_probability_max') or [0])[0] or 0,
+            'dom_min': j['daily']['temperature_2m_min'][1], 'dom_max': j['daily']['temperature_2m_max'][1]}
+
+
+def _meteo(db):
+    ref = db.collection('meteo_cache').document('garden')
+    ora = time.time()
+    try:
+        vecchio = (ref.get().to_dict() or {})
+    except Exception as e:
+        print(f'Lettura cache meteo non riuscita: {e}')
+        vecchio = {}
+    if vecchio.get('dati') and ora - vecchio.get('ts', 0) < METEO_TTL:
+        return {**vecchio['dati'], 'aggiornato': vecchio['ts'], 'fonte': vecchio.get('fonte', '')}
+    for nome, fn in (('met.no', _meteo_da_metno), ('open-meteo', _meteo_da_openmeteo)):
+        try:
+            dati = fn()
+            try:
+                ref.set({'dati': dati, 'ts': ora, 'fonte': nome})
+            except Exception as e:
+                print(f'Scrittura cache meteo non riuscita: {e}')
+            return {**dati, 'aggiornato': ora, 'fonte': nome}
+        except Exception as e:
+            print(f'Meteo da {nome} non riuscito: {e}')
+    if vecchio.get('dati') and ora - vecchio.get('ts', 0) < METEO_STALE_MAX:
+        return {**vecchio['dati'], 'aggiornato': vecchio['ts'], 'fonte': vecchio.get('fonte', ''), 'vecchio': True}
+    return None
+
+
+def _azione_meteo(db, origin, data):
+    pren_ref, p = _risolvi_token(db, data.get('token'))
+    if not p:
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    m = _meteo(db)
+    if not m:
+        return _json(origin, {'ok': False, 'errore': 'meteo_non_disponibile'}, 503)
+    return _json(origin, {'ok': True, 'meteo': m})
+
+
+
 def _azione_navetta_stato(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
@@ -2389,6 +2493,7 @@ def _azione_shop_ordini(db, origin, data):
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
+    'meteo':                   _azione_meteo,
     'navetta_stato':           _azione_navetta_stato,
     'navetta_prenota':         _azione_navetta_prenota,
     'navetta_modifica_orario': _azione_navetta_modifica_orario,

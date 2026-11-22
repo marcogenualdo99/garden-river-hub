@@ -88,3 +88,7 @@ Senza le variabili resta attivo il fallback con link PayPal.Me (se compilato in 
 - Regole server: giorno tra oggi (o arrivo) e partenza entro `giorni`; turno valido e non a meno di 30 minuti; persone 1..ospiti del gruppo (sommando le prenotazioni dello stesso servizio); niente doppioni sullo stesso turno; massimo 12 prenotazioni future per ospite; si annullano solo le proprie e solo fino a `annulla_min` minuti prima del turno (impostazione `impostazioni/ristorazione_turni.annulla_min`, default 30; senza orario fino al giorno prima).
 - Ogni prenotazione/annullamento avvisa Telegram (gruppo Ristorazione) con l'evento `prenotazione` del bot; la CF `telegram-bot` copia l'avviso in `notifiche` per l'app.
 - Ridistribuire anche `telegram-bot` (nuovo evento) oltre ad `area-ospite`.
+
+## Meteo
+
+Azione `meteo`: la card meteo della home non chiama piu' servizi esterni dal browser. La funzione legge `meteo_cache/garden` (collezione negata ai client, scritta solo da qui) e la rinnova al massimo ogni 30 minuti: fonte principale MET Norway, riserva Open-Meteo, e se falliscono entrambe l'ultimo dato salvato (max 6 ore). Nessuna nuova regola Firestore e nessuna variabile d'ambiente. Se la funzione non risponde, la pagina ripiega su Open-Meteo diretto.
