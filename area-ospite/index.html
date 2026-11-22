@@ -1231,9 +1231,17 @@ async function caricaMeteo() {
   if (HOME_X.meteo || HOME_X._meteoProvato) return;
   HOME_X._meteoProvato = true;
   try {
-    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=43.08&longitude=13.86&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FRome&forecast_days=2');
-    const j = await r.json();
-    HOME_X.meteo = { temp: j.current.temperature_2m, codice: j.current.weather_code, pioggia: (j.daily.precipitation_probability_max || [0])[0] || 0, dom_min: j.daily.temperature_2m_min[1], dom_max: j.daily.temperature_2m_max[1] };
+    try {
+      // Fonte principale: la Cloud Function (cache + due fonti meteo in cascata)
+      const r = await chiama({ azione: 'meteo' }, { ms: 12000, tentativi: 2 });
+      if (!r || !r.meteo) throw new Error('meteo');
+      HOME_X.meteo = r.meteo;
+    } catch (e) {
+      // Riserva: se la funzione non risponde, prova direttamente Open-Meteo
+      const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=43.08&longitude=13.86&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Europe%2FRome&forecast_days=2');
+      const j = await r.json();
+      HOME_X.meteo = { temp: j.current.temperature_2m, codice: j.current.weather_code, pioggia: (j.daily.precipitation_probability_max || [0])[0] || 0, dom_min: j.daily.temperature_2m_min[1], dom_max: j.daily.temperature_2m_max[1] };
+    }
     if (!_servizioAperto) renderHomeExtra();
   } catch (e) { /* senza meteo la home resta com'e' */ }
 }
@@ -2518,7 +2526,7 @@ function rsDisegna() {
   if (v === 'pasti') { panel.innerHTML = rsPasti(); return; }
   if (v === 'tavolo') {
     panel.innerHTML = `<p class="rs-sub" style="margin-top:14px">Vuoi mangiare fuori dal tuo trattamento, per esempio un pasto in più? Prenota qui il tuo tavolo.</p>${ptCard()}`;
-    ptInit(); return;
+    ptInit(true); return;
   }
   const R = rsRiepilogo();
   panel.innerHTML = `
@@ -2671,12 +2679,13 @@ async function rsInvia(data) {
 // 'ristorazione_prenota_annulla'. Orari e turni li decide lo staff dalla Hub.
 let PT = null, _ptAnnullaId = null, _ptInvio = false;
 function ptCard() { return '<div id="pt-wrap"></div>'; }
-async function ptInit() {
+async function ptInit(apri) {
   try {
     const d = await chiama({ azione: 'ristorazione_prenota_info' });
     if (d && d.ok) { PT = Object.assign({ sel: { data: '', pasto: '', turno: '', persone: null, note: '' }, aperto: false, tuttiGiorni: false }, PT || {}, d); }
   } catch (e) {}
   ptRender();
+  if (apri && PT && PT.giorni && PT.giorni.length && PT.servizi.length && !PT.aperto) { ptApri(); window.scrollTo(0, 0); }
 }
 const ptGiornoBreve = iso => { if (!PT) return iso; const d = new Date(PT.oggi + 'T12:00:00'); d.setDate(d.getDate() + 1);
   if (iso === PT.oggi) return t('Oggi'); if (iso === d.toISOString().slice(0, 10)) return t('Domani');
