@@ -426,6 +426,12 @@
   .rs-tile.arancio { background: var(--orange) } .rs-tile.arancio .cta { color: var(--orange) }
   .rs-tile.chiaro { background: var(--green-50); color: var(--green-700); border: 2px solid var(--green-100); box-shadow: none } .rs-tile.chiaro .ic { background: var(--green-100) } .rs-tile.chiaro .cta { background: var(--green-700); color: #fff }
   .rs-tile.arancio .ic svg, .rs-tile .ic svg { color: inherit }
+  #rs-menu-ov { position: fixed; inset: 0; z-index: 200; background: #fff; display: flex; flex-direction: column }
+  #rs-menu-ov .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px; background: var(--green-700); color: #fff }
+  #rs-menu-ov .bar h2 { font-family: var(--font-display); font-weight: 400; font-size: 20px; margin: 0 }
+  #rs-menu-ov .chiudi { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 18px; border: none; border-radius: 99px; background: #fff; color: var(--green-700); font: 800 16px var(--font); cursor: pointer } .chiudi svg { width: 18px; height: 18px }
+  #rs-menu-ov .corpo { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 24px); background: var(--gray-50) }
+  #rs-menu-ov .corpo img { display: block; width: 100%; height: auto; border-radius: 10px; margin-bottom: 10px; background: #fff }
   .rs-sub { margin: 18px 2px 0; font-size: 13px; color: var(--gray-500); line-height: 1.45 }
   h2.rs-day { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700); margin: 24px 2px 4px }
   .rs-note { font-size: 13px; color: var(--gray-500); line-height: 1.5; margin: 4px 2px 8px }
@@ -1589,6 +1595,7 @@ async function sgCaricaPasti() {
 function apriPrenotazioneInfo() { apriSoggiorno(); }
 
 function handleBack() {
+  if (document.getElementById('rs-menu-ov')) { rsChiudiMenu(); return; }
   if (_servizioAperto === 'shop' && SH && SH.vista !== 'catalogo') { shIndietro(); return; }
   if (_servizioAperto === 'ristorazione' && RS && RS.vista && RS.vista !== 'home' && CFG.ristorazione) { rsVai('home'); return; }
   if (_servizioAperto === 'info' && _infoSub) { _infoSub = null; renderInfo(); window.scrollTo(0, 0); return; }
@@ -1596,6 +1603,7 @@ function handleBack() {
 }
 
 function tornaHome() {
+  rsChiudiMenu();
   if (typeof shChiudiDett === 'function' && SH) shChiudiDett();
   _servizioAperto = null; _editId = null; _infoSub = null; $('#titolo').style.fontSize = '';
   { const wf = $('#wa-footer'); if (wf) wf.style.display = ''; }
@@ -2478,12 +2486,19 @@ async function renderRistorazione(keep) {
   }
 }
 
-const rsCartaHtml = () => `<div class="card" id="rs-carta"><h2>Menu alla carta</h2>
-    <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
-    <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a></div>`;
-const rsTile = (cls, ic, ey, titolo, sotto, fn, cta, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<span class="ic">${ic}</span>${ey ? `<span class="ey">${esc(ey)}</span>` : ''}<b>${titolo}</b><small>${esc(sotto)}</small><span class="cta">${esc(cta)}${ICONS.GO}</span></button>`;
+const rsTile = (cls, ic, ey, titolo, sotto, fn, cta, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<span class="ic">${ic}</span>${ey ? `<span class="ey">${esc(ey)}</span>` : ''}<b>${titolo}</b><small>${esc(sotto)}</small><span class="cta">${esc(cta)}${ICONS.CHEVRON}</span></button>`;
 
-function rsVai(v) { RS.vista = v; rsDisegna(); window.scrollTo(0, 0); }
+function rsApriMenu() {
+  if (document.getElementById('rs-menu-ov')) return;
+  const ov = document.createElement('div'); ov.id = 'rs-menu-ov';
+  ov.innerHTML = `<div class="bar"><h2>Menu alla carta</h2><button type="button" class="chiudi" onclick="rsChiudiMenu()">${ICONS.CLOSE}Chiudi</button></div>
+    <div class="corpo">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}
+      <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:6px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a></div>`;
+  document.body.appendChild(ov); document.body.style.overflow = 'hidden';
+}
+function rsChiudiMenu() { const ov = document.getElementById('rs-menu-ov'); if (ov) ov.remove(); document.body.style.overflow = ''; }
+function rsVai(v) {
+  if (v === 'carta') { rsApriMenu(); return; } RS.vista = v; rsDisegna(); window.scrollTo(0, 0); }
 function rsRiepilogo() {
   const d = RS.d, f = d.famiglia, nome = f.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
   const dom = new Date(d.oggi + 'T12:00:00'); dom.setDate(dom.getDate() + 1); const domani = dom.toISOString().slice(0, 10);
@@ -2501,7 +2516,6 @@ function rsRiepilogo() {
 function rsDisegna() {
   const d = RS.d, v = RS.vista || 'home', panel = $('#service-content');
   if (v === 'pasti') { panel.innerHTML = rsPasti(); return; }
-  if (v === 'carta') { panel.innerHTML = rsCartaHtml(); return; }
   if (v === 'tavolo') {
     panel.innerHTML = `<p class="rs-sub" style="margin-top:14px">Vuoi mangiare fuori dal tuo trattamento, per esempio un pasto in più? Prenota qui il tuo tavolo.</p>${ptCard()}`;
     ptInit(); return;
@@ -2801,7 +2815,7 @@ function rsVaiTavolo() {
 function renderRistoranteLibero(panel) {
   panel.innerHTML = `<div class="rs-hub">
       ${rsTile('arancio', ICONS.CALENDAR, 'Mangia da noi', 'Prenota un tavolo', 'Scegli giorno, turno e persone: ti aspettiamo al ristorante.', "rsVaiTavolo()", 'Prenota').replace('class="rs-tile arancio"', 'class="rs-tile arancio" id="rs-tile-tavolo"')}
-      ${rsTile('', ICONS.BOOK, 'Sempre disponibile', 'Menu alla carta', 'Sfoglia tutti i piatti del ristorante.', "document.getElementById('rs-carta').scrollIntoView({behavior:'smooth'})", 'Sfoglia il menu')}
+      ${rsTile('', ICONS.BOOK, 'Sempre disponibile', 'Menu alla carta', 'Sfoglia tutti i piatti del ristorante.', "rsApriMenu()", 'Sfoglia il menu')}
     </div>` + ptCard() + `<div class="card" id="rs-orari-l"><h2>Il nostro ristorante</h2>
     <div class="info-body" style="margin-top:8px">
       <p>Il soggiorno non include i pasti, ma il ristorante è aperto anche a te: puoi mangiare alla carta quando vuoi, nei suoi orari.</p>
@@ -2819,7 +2833,7 @@ function renderRistoranteLibero(panel) {
         <li>Colazione, gelati e cocktail anche al chiosco bar a bordo piscina.</li>
       </ul>
     </div></div>
-    ${rsCartaHtml()}`;
+    `;
   ptInit();
 }
 
