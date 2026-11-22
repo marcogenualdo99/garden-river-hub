@@ -6182,7 +6182,16 @@ function aggiornaTassaSoggiorno() {
   const checkin = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
   const ospiti = raccogliOspitiDaForm();
-  const risultato = calcolaTassaSoggiorno(checkin, checkout, ospiti, tassaSoggiornoConfig(), prenotazioni, editingId);
+  let risultato = calcolaTassaSoggiorno(checkin, checkout, ospiti, tassaSoggiornoConfig(), prenotazioni, editingId);
+  if (!ospiti.length) {
+    // Nessun ospite inserito (es. prenotazione appena importata): senza questo la tassa
+    // stimata dall'import veniva cancellata. Si stima dagli adulti indicati nella scheda.
+    const stima = rigaTassaSoggiornoImport({ adulti: parseInt(document.getElementById('f-adulti').value, 10) || 0, checkin, checkout });
+    const cfgT = tassaSoggiornoConfig();
+    risultato = stima
+      ? { importo: stima.importo, nottiPersonaTotali: Math.round(stima.importo / (cfgT.importoGiorno || 1)) }
+      : { importo: 0, nottiPersonaTotali: 0 };
+  }
   const esistente = contoCorrente.find(r => r.label && r.label.startsWith('Tassa di soggiorno'));
   const altre = contoCorrente.filter(r => !(r.label && r.label.startsWith('Tassa di soggiorno')));
   const nuove = [];
@@ -6401,7 +6410,7 @@ async function riportaContoAllImport(pren) {
   const etichette = new Set(imp.map(x => x.label));
   const tassa = contoCorrente.filter(r => !r.acconto && (r.label || '').startsWith('Tassa di soggiorno'));
   const mantenute = contoCorrente.filter(r => !etichette.has(r.label) && !tassa.includes(r) && !PREFISSI_RIGHE_LISTINO.some(pre => (r.label || '').startsWith(pre)));
-  const nuove = imp.map(x => ({ ...x, pagato: x.acconto ? true : !!pagatoPerLabel[x.label] }));
+  const nuove = imp.filter(x => !(tassa.length && (x.label || '').startsWith('Tassa di soggiorno'))).map(x => ({ ...x, pagato: x.acconto ? true : !!pagatoPerLabel[x.label] }));
   contoCorrente = [...nuove, ...mantenute, ...tassa];
   contoModificatoManualmente = true; // un conto importato resta staccato dal listino
   aggiornaVociContoConosciute(contoCorrente);
