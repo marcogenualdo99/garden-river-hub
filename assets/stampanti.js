@@ -2,7 +2,7 @@
 //
 // Le stampanti si configurano UNA volta dalla Hub (Impostazioni > Stampanti) e
 // vivono su Firestore, collezione `stampanti`:
-//   { nome, tipo: 'epson' | 'sunmi', ip, servizi: ['conti', 'comande'], attiva }
+//   { nome, tipo: 'epson' | 'sunmi', ip, servizi: ['conti', 'comande'], auto: ['comande_pranzo'], attiva }
 // Ogni app chiede solo "stampa questo per il servizio X": la stampante e il
 // canale di invio si decidono qui. Chi ha il modulo del servizio sbloccato nei
 // permessi (Conti, Ristorazione...) puo' stampare sulla stampante associata.
@@ -23,6 +23,12 @@
     { id: 'conti',   nome: 'Conti pensioni (conto e riepilogo)', modulo: 'conti' },
     { id: 'comande', nome: 'Comande ristorazione',               modulo: 'ristorazione' },
     { id: 'shop',    nome: 'Ordini shop',                        modulo: 'shop' },
+  ];
+  // Stampe automatiche: ogni stampante sceglie quali fa (devono appartenere a un suo servizio).
+  var AUTO = [
+    { id: 'comande_pranzo', servizio: 'comande', nome: 'Comande pranzo' },
+    { id: 'comande_cena',   servizio: 'comande', nome: 'Comande cena' },
+    { id: 'shop',           servizio: 'shop',    nome: 'Ordini shop appena arrivano' },
   ];
   var TIPI = [
     { id: 'epson', nome: 'Epson (ePOS, diretta in rete)' },
@@ -75,6 +81,27 @@
       return p.attiva !== false && (p.servizi || []).indexOf(servizio) !== -1;
     }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
     return trovate[0] || null;
+  }
+
+  // Stampanti attive tra cui scegliere per stampare a mano un servizio: solo quelle
+  // associate al servizio (se nessuna lo e', tutte le attive, come prima).
+  function candidatePer(servizio) {
+    var ord = function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); };
+    var attive = elenco.filter(function (p) { return p.attiva !== false; }).sort(ord);
+    var assoc = attive.filter(function (p) { return (p.servizi || []).indexOf(servizio) !== -1; });
+    return assoc.length ? assoc : attive;
+  }
+
+  // Stampanti che fanno una stampa automatica (id di AUTO). Se nessuna e' stata
+  // configurata si usa la stampante associata al servizio, come prima.
+  function perAuto(autoId) {
+    var def = AUTO.filter(function (a) { return a.id === autoId; })[0];
+    var trovate = elenco.filter(function (p) {
+      return p.attiva !== false && (p.auto || []).indexOf(autoId) !== -1 && (!def || (p.servizi || []).indexOf(def.servizio) !== -1);
+    }).sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
+    if (trovate.length) return trovate;
+    var p = def && per(def.servizio);
+    return p ? [p] : [];
   }
 
   // Compatibilita': finche' non c'e' nessuna stampante configurata dalla Hub si
@@ -254,10 +281,18 @@
     if (!elenco.length && primaLettura) {
       await Promise.race([primaLettura, new Promise(function (r) { setTimeout(r, 2500); })]);
     }
+    if (opts && opts.auto) {
+      var dest = perAuto(opts.auto);
+      if (!dest.length) return esito(false, 'Nessuna stampante associata al servizio "' + servizio + '". Configurala da Hub > Impostazioni > Stampanti.');
+      var ris = await Promise.all(dest.map(function (d) { return inviaA(d, xml); }));
+      var ko = ris.filter(function (r) { return !r.ok; });
+      var tot = esito(!ko.length, ko.map(function (r) { return r.stampante + ': ' + (r.err || 'errore'); }).join(' | '));
+      tot.stampante = dest.map(function (d) { return d.nome || d.ip; }).join(', ');
+      return tot;
+    }
     var p = per(servizio) || (elenco.length ? null : legacy());
     if (opts && opts.scegli) {
-      var attive = elenco.filter(function (x) { return x.attiva !== false; })
-        .sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || ''), 'it'); });
+      var attive = candidatePer(servizio);
       if (attive.length > 1) {
         var scelta = await sceglieStampante(servizio, attive);
         if (!scelta) { var r = esito(false, ''); r.annullata = true; return r; }
@@ -303,6 +338,9 @@
       servizi: (p.servizi || []).filter(function (s) { return SERVIZI.some(function (x) { return x.id === s; }); }),
       attiva: p.attiva !== false,
     };
+    dati.auto = (p.auto || []).filter(function (a) {
+      return AUTO.some(function (x) { return x.id === a && dati.servizi.indexOf(x.servizio) !== -1; });
+    });
     await fb.setDoc(fb.doc(fb.db, 'stampanti', id), dati);
     return id;
   }
@@ -443,7 +481,7 @@
   async function logoPerStampa(tipo) { return logoPer(tipo) ? await logoXml() : ''; }
 
   window.GRStampanti = {
-    SERVIZI: SERVIZI, TIPI: TIPI,
+    SERVIZI: SERVIZI, TIPI: TIPI, AUTO: AUTO, candidatePer: candidatePer, perAuto: perAuto,
     avvia: avvia, lista: lista, per: per,
     invia: invia, inviaA: inviaA, prova: prova, proxyAttivo: proxyAttivo,
     salva: salva, elimina: elimina,

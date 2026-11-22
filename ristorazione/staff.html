@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css?v=1794330527">
 <script src="../assets/icons.js?v=1794700100"></script>
-<script src="../assets/stampanti.js?v=5"></script>
+<script src="../assets/stampanti.js?v=6"></script>
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -4684,7 +4684,7 @@ ${comandi.join('\n')}
 
 // Invio comande: la stampante e il canale li decide il modulo condiviso (assets/stampanti.js)
 async function inviaEpos(ip, xml, opts) {
-  return GRStampanti.invia('comande', xml, opts && opts.manuale ? { scegli: true } : null);
+  return GRStampanti.invia('comande', xml, opts && opts.manuale ? { scegli: true } : (opts && opts.auto ? { auto: opts.auto } : null));
 }
 
 function escXml(s) {
@@ -5030,8 +5030,8 @@ async function _stampaComandeGiorno(pasto, data) {
   for (const u of unita) {
     const chiave = u.ords.map(o => o.id + '|' + (o.timestamp || '')).join(',');
     if (_autoOrdStampati.has(chiave)) { n += u.ords.length; continue; }
-    const r = u.tavolo ? await stampaComandaGruppo(u.tavolo, u.ords, { silent: true })
-                       : await stampaComanda(u.ords[0], { silent: true });
+    const r = u.tavolo ? await stampaComandaGruppo(u.tavolo, u.ords, { silent: true, auto: 'comande_' + pasto })
+                       : await stampaComanda(u.ords[0], { silent: true, auto: 'comande_' + pasto });
     if (!r.ok) return { ok: false, err: r.err, n };
     _autoOrdStampati.add(chiave); n += u.ords.length;
   }

@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/theme.css?v=1794338668">
 <script src="../assets/icons.js?v=1794700100"></script>
-<script src="../assets/stampanti.js?v=5"></script>
+<script src="../assets/stampanti.js?v=6"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Shop">
@@ -479,7 +479,7 @@ async function _stampaShopOrdine(o) {
   if (_shopFatti.has(chiave)) return;
   if (!(await GRStampanti.rivendica(chiave))) { _shopFatti.add(chiave); return; }   // gia' stampato (o in corso) altrove
   let e;
-  try { e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop'))); } catch (x) { e = { ok: false, err: x.message }; }
+  try { e = await GRStampanti.invia('shop', xmlOrdineShop(o, await GRStampanti.logoPerStampa('shop')), { auto: 'shop' }); } catch (x) { e = { ok: false, err: x.message }; }
   await GRStampanti.concludi(chiave, e.ok, e.err);
   if (e.ok) { _shopFatti.add(chiave); showToast('Ordine di ' + (o.ospite_nome || 'ospite') + ' stampato'); return; }
   const n = (_shopTent[chiave] = (_shopTent[chiave] || 0) + 1);

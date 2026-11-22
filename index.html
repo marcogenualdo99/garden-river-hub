@@ -305,7 +305,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Garden Hub">
 <meta name="mobile-web-app-capable" content="yes">
-<script src="assets/stampanti.js?v=5"></script>
+<script src="assets/stampanti.js?v=6"></script>
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -663,7 +663,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 
     <div class="card" id="stampanti-card">
       <h3>Stampanti</h3>
-      <p class="subtitle">Elenco unico delle stampanti termiche. Ogni stampante è associata ai servizi che la usano: chi ha quel servizio sbloccato nei permessi stampa sulla stampante associata. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
+      <p class="subtitle">Elenco unico delle stampanti termiche. Per ogni stampante scegli cosa stampa (servizi) e quali stampe automatiche fa: nelle altre sezioni compaiono solo le stampanti che c'entrano. Chi ha quel servizio sbloccato nei permessi stampa sulla stampante associata. Le Sunmi richiedono il proxy attivo sul dispositivo che stampa.</p>
       <div id="stampanti-list"></div>
       <div id="stampante-form"></div>
       <button class="btn-primary" id="stampante-add-btn" onclick="apriFormStampante()">+ Aggiungi stampante</button>
@@ -2762,7 +2762,8 @@ function renderStampanti() {
         <span style="font-size:12px;color:var(--gray-500,#6b7280)">${p.attiva === false ? 'Disattivata' : 'Attiva'}</span>
       </div>
       <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 8px">${esc(nomeTipo(p.tipo))}${p.tipo === 'interna' ? '' : ' · ' + esc(p.ip || 'IP mancante')}</div>
-      <div style="font-size:13px;margin-bottom:8px">${(p.servizi || []).length ? (p.servizi || []).map(s => esc(nomeServizio(s))).join(' · ') : '<em>Nessun servizio associato</em>'}</div>
+      <div style="font-size:13px;margin-bottom:${(p.auto || []).length ? 2 : 8}px">${(p.servizi || []).length ? (p.servizi || []).map(s => esc(nomeServizio(s))).join(' · ') : '<em>Nessun servizio associato</em>'}</div>
+      ${(p.auto || []).length ? `<div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:8px">Automatiche: ${(p.auto || []).map(a => esc((GRStampanti.AUTO.find(x => x.id === a) || { nome: a }).nome)).join(' · ')}</div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="new-op-btn" onclick="provaStampante(${jsq(p.id)})">Stampa di prova</button>
         <button class="new-op-btn" onclick="apriFormStampante(${jsq(p.id)})">Modifica</button>
@@ -2788,7 +2789,10 @@ function apriFormStampante(id) {
       </select>
       <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.tipo === 'interna' ? '' : (cur.ip || ''))}" style="width:100%;margin-bottom:8px;${cur.tipo === 'interna' ? 'display:none' : ''}">
       <div class="perm-module-title">Servizi che stampano qui</div>
-      ${GRStampanti.SERVIZI.map(sv => `<label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''}> ${esc(sv.nome)}</label>`).join('')}
+      ${GRStampanti.SERVIZI.map(sv => `<label class="perm-row"><input type="checkbox" id="stp-srv-${sv.id}" ${servizi.includes(sv.id) ? 'checked' : ''} onchange="aggiornaAutoForm()"> ${esc(sv.nome)}</label>`).join('')}
+      <div class="perm-module-title" style="margin-top:10px">Stampe automatiche su questa stampante</div>
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Si attivano e si programmano in "Stampe automatiche" qui sotto. Se nessuna stampante ne ha una spuntata, va alla stampante del servizio.</div>
+      ${GRStampanti.AUTO.map(a => `<label class="perm-row" id="stp-autorow-${a.id}"><input type="checkbox" id="stp-auto-${a.id}" ${(cur.auto || []).includes(a.id) ? 'checked' : ''}> ${esc(a.nome)}</label>`).join('')}
       <label class="perm-row"><input type="checkbox" id="stp-attiva" ${cur.attiva === false ? '' : 'checked'}> Stampante attiva</label>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn-primary" onclick="salvaFormStampante()">Salva</button>
@@ -2796,7 +2800,18 @@ function apriFormStampante(id) {
       </div>
     </div>`;
   document.getElementById('stampante-add-btn').style.display = 'none';
+  aggiornaAutoForm();
   document.getElementById('stp-nome').focus();
+}
+
+// Le stampe automatiche si possono scegliere solo per i servizi spuntati
+function aggiornaAutoForm() {
+  GRStampanti.AUTO.forEach(a => {
+    const on = document.getElementById('stp-srv-' + a.servizio).checked;
+    const cb = document.getElementById('stp-auto-' + a.id), row = document.getElementById('stp-autorow-' + a.id);
+    if (!on) cb.checked = false;
+    cb.disabled = !on; row.style.opacity = on ? '' : '.45';
+  });
 }
 
 function chiudiFormStampante() {
@@ -2817,6 +2832,7 @@ async function salvaFormStampante() {
     await GRStampanti.salva({
       id: stampanteInModifica && stampanteInModifica.id,
       nome, ip, servizi,
+      auto: GRStampanti.AUTO.filter(a => document.getElementById('stp-auto-' + a.id).checked).map(a => a.id),
       tipo: document.getElementById('stp-tipo').value,
       attiva: document.getElementById('stp-attiva').checked,
     });
