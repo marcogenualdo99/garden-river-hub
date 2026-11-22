@@ -5040,6 +5040,26 @@ function elaboraRigaImportazioneScidoo(row, riservatePerCategoria) {
     risultato.stato = 'esistente';
     return risultato;
   }
+  // Stessa prenotazione già inserita a mano o da un altro canale (senza ID Scidoo,
+  // o con codice MrPreno "bk/..."): stesso cliente e stesse date. Si considerano solo
+  // prenotazioni senza ID Scidoo, così due unità dello stesso cliente (R 1 / R 2)
+  // non si scambiano tra loro; ogni prenotazione esistente si abbina una volta sola.
+  const usate = (riservatePerCategoria.__scidooEsistentiUsati = riservatePerCategoria.__scidooEsistentiUsati || new Set());
+  const candidate = prenotazioni.filter(p => !usate.has(p.id) &&
+    (!p.agenzia_id || /^bk\//.test(String(p.agenzia_id))) &&
+    p.checkin === checkin && p.checkout === checkout &&
+    _normNomeConfronto(p.nome) === _normNomeConfronto(cliente));
+  const gemella = (numeroRichiesto && candidate.find(p => {
+    const a = alloggiList.find(x => x.id === p.alloggio_id);
+    return a && String(a.numero) === numeroRichiesto;
+  })) || candidate[0];
+  if (gemella) {
+    usate.add(gemella.id);
+    risultato.stato = 'esistente';
+    risultato.esistenteId = gemella.id;
+    risultato.erroreMsg = `Già presente (stesso cliente e date, inserita ${gemella.agenzia_id ? 'con ID ' + gemella.agenzia_id : 'a mano'})`;
+    return risultato;
+  }
   const categoria = mappaCategoriaAgenzia(tipoAlloggio);
   if (!categoria) {
     risultato.stato = 'errore';
