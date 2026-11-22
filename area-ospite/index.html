@@ -414,6 +414,21 @@
   .rs-carta { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--orange-bg); border: 1.5px solid #F9C9AD; text-decoration: none; color: var(--gray-900) }
   .rs-carta .ic { display: flex; color: var(--green-700) } .rs-carta .ic svg { width: 26px; height: 26px } .rs-carta .tx { flex: 1; display: flex; flex-direction: column } .rs-carta b { font-size: 15px; font-weight: 800 }
   .rs-carta small { font-size: 12px; color: var(--gray-500) } .rs-carta .go { font-weight: 800; color: var(--orange); font-size: 14px }
+  .rs-riep { margin-top: 14px; padding: 16px; border-radius: var(--radius-lg); background: var(--green-700); color: #fff }
+  .rs-riep .k { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
+  .rs-riep h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 4px 0 2px; color: #fff }
+  .rs-riep p { font-size: 14px; line-height: 1.45; margin: 4px 0 0; opacity: .95 }
+  .rs-riep .rs-cta { display: block; width: 100%; margin-top: 12px; height: 52px; border: none; border-radius: var(--radius); background: var(--orange); color: #fff; font: 800 16px var(--font); cursor: pointer }
+  .rs-hub { display: flex; flex-direction: column; gap: 10px; margin-top: 14px }
+  .rs-tile { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px; border-radius: var(--radius-lg); border: 1.5px solid var(--gray-100); background: var(--white); box-shadow: var(--shadow-sm); color: var(--gray-900); font-family: var(--font); cursor: pointer }
+  .rs-tile .ic { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 15px; background: var(--green-50); color: var(--green-700); flex-shrink: 0 } .rs-tile .ic svg { width: 26px; height: 26px }
+  .rs-tile .tx { flex: 1; display: flex; flex-direction: column } .rs-tile b { font-size: 17px; font-weight: 800 } .rs-tile small { font-size: 13px; color: var(--gray-500); margin-top: 2px; line-height: 1.35 }
+  .rs-tile .go { display: flex; color: var(--gray-500) } .rs-tile .go svg { width: 20px; height: 20px }
+  .rs-tile.main { background: var(--orange-bg); border-color: #F9C9AD } .rs-tile.main .ic { background: var(--orange); color: #fff }
+  .rs-tile .pill { font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 99px; background: var(--orange); color: #fff; align-self: flex-start; margin-bottom: 4px }
+  .rs-azioni { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px }
+  .rs-azioni .rs-tile { flex-direction: column; align-items: flex-start; gap: 10px } .rs-azioni .rs-tile.main { grid-column: 1 / -1 }
+  .rs-sub { margin: 18px 2px 0; font-size: 13px; color: var(--gray-500); line-height: 1.45 }
   h2.rs-day { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700); margin: 24px 2px 4px }
   .rs-note { font-size: 13px; color: var(--gray-500); line-height: 1.5; margin: 4px 2px 8px }
   .rs-selwrap { margin-top: 10px } .rs-selwrap > p { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--gray-500); margin: 0 2px 6px }
@@ -1075,7 +1090,7 @@ function avvisiHome() {
       const testo = Sa.mArrivo.length
         ? t('Ti manca ancora: {x} del giorno di arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', { x: nomi(Sa.mArrivo) })
         : t('Ti manca ancora: {x} del giorno dopo l\'arrivo. Puoi ordinare fino alle 8:30 di quel giorno.', { x: nomi(Sa.mDopo) });
-      out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i tuoi pasti'), testo, azione: { label: t('Scegli i pasti'), fn: "apriServizio('ristorazione')" } });
+      out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Scegli i tuoi pasti'), testo, azione: { label: t('Scegli i pasti'), fn: "_rsVistaIniz='pasti';apriServizio('ristorazione')" } });
     }
     staff();
     return filtra(out);
@@ -1083,8 +1098,8 @@ function avvisiHome() {
   const S = vis('ordini') ? rsStatoPasti() : null;
   if (S) {
     const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
-    if (S.mOggi.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: S.min < 8 * 60 + 30 ? t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }) : t('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
-    if (S.mDomani.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "apriServizio('ristorazione')" } });
+    if (S.mOggi.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di oggi incompleto'), testo: S.min < 8 * 60 + 30 ? t('Ti manca ancora: {x}. Si ordina entro le 8:30.', { x: nomi(S.mOggi) }) : t('Ti manca ancora: {x}. Lo staff ha riaperto gli ordini di oggi.', { x: nomi(S.mOggi) }), azione: { label: t('Completa l\'ordine'), fn: "_rsVistaIniz='pasti';apriServizio('ristorazione')" } });
+    if (S.mDomani.length) out.push({ cls: 'todo', icon: ICONS.RISTORAZIONE, tag: t('Da completare'), titolo: t('Ordine di domani incompleto'), testo: t('Ti manca ancora: {x} di domani. Si ordina entro le 8:30 di domani mattina.', { x: nomi(S.mDomani) }), azione: { label: t('Completa l\'ordine'), fn: "_rsVistaIniz='pasti';apriServizio('ristorazione')" } });
   }
   // Procedura di check-out: fissa dal giorno prima fino alla partenza (non si chiude).
   const dd = giorniA(p.checkout);
@@ -1577,6 +1592,7 @@ function apriPrenotazioneInfo() { apriSoggiorno(); }
 
 function handleBack() {
   if (_servizioAperto === 'shop' && SH && SH.vista !== 'catalogo') { shIndietro(); return; }
+  if (_servizioAperto === 'ristorazione' && RS && RS.vista && RS.vista !== 'home' && CFG.ristorazione) { rsVai('home'); return; }
   if (_servizioAperto === 'info' && _infoSub) { _infoSub = null; renderInfo(); window.scrollTo(0, 0); return; }
   tornaHome();
 }
@@ -2404,7 +2420,7 @@ function shopHomeHtml() {
 // Menu e ordini vivono dentro l'Area ospite: i dati arrivano dalla Cloud
 // Function (azione 'ristorazione_menu', una sola chiamata) e l'ordine parte con
 // 'ristorazione_ordina', che ricontrolla quote, mezza pensione e orario limite.
-let RS = null, _ristoPre = null;
+let RS = null, _ristoPre = null, _rsVistaIniz = null;
 const RS_GRUPPI = { 'Primi Carne': ['Primi Carne', 'Primi Pesce'], 'Primi Pesce': ['Primi Carne', 'Primi Pesce'],
                     'Secondi Carne': ['Secondi Carne', 'Secondi Pesce'], 'Secondi Pesce': ['Secondi Carne', 'Secondi Pesce'] };
 function ristoPrecarica() { _ristoPre = { t: Date.now(), p: chiama({ azione: 'ristorazione_menu' }).catch(() => null) }; }
@@ -2446,7 +2462,8 @@ function rsToast(m) {
   t.textContent = m; t.classList.add('show'); clearTimeout(rsToast._t); rsToast._t = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-async function renderRistorazione() {
+async function renderRistorazione(keep) {
+  const vistaPrec = keep && RS ? RS.vista : null;
   const r = CFG.ristorazione, panel = $('#service-content');
   if (!r) { renderRistoranteLibero(panel); return; }
   panel.innerHTML = '<div class="rs-load"><span></span><span></span><span></span></div>';
@@ -2454,28 +2471,62 @@ async function renderRistorazione() {
     const d = await ristoDati();
     if (_servizioAperto !== 'ristorazione') return;
     if (!d || !d.ok) throw new Error((d && d.errore) || 'errore');
-    RS = { d, sel: {}, mp: {} };
+    RS = { d, sel: {}, mp: {}, vista: _rsVistaIniz || vistaPrec || 'home' }; _rsVistaIniz = null;
     rsDisegna();
   } catch (e) {
     if (_servizioAperto !== 'ristorazione') return;
     panel.innerHTML = `<div class="card"><div class="soon-box"><h3>Non riesco a caricare il menu</h3><p>Controlla la connessione e riprova.</p>
-      <button type="button" class="rs-retry" onclick="renderRistorazione()">Riprova</button></div></div>`;
+      <button type="button" class="rs-retry" onclick="renderRistorazione(true)">Riprova</button></div></div>`;
   }
 }
 
+const rsCartaHtml = () => `<div class="card" id="rs-carta"><h2>Menu alla carta</h2>
+    <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
+    <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a></div>`;
+const rsTile = (cls, ic, titolo, sotto, fn, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}"><span class="ic">${ic}</span><span class="tx">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<b>${titolo}</b><small>${sotto}</small></span><span class="go">${ICONS.GO}</span></button>`;
+
+function rsVai(v) { RS.vista = v; rsDisegna(); window.scrollTo(0, 0); }
+function rsRiepilogo() {
+  const d = RS.d, f = d.famiglia, nome = f.trattamento === 'PC' ? 'Pensione completa' : 'Mezza pensione';
+  const dom = new Date(d.oggi + 'T12:00:00'); dom.setDate(dom.getDate() + 1); const domani = dom.toISOString().slice(0, 10);
+  const nm = x => x === 'pranzo' ? 'pranzo' : (x === 'cena' ? 'cena' : 'un pasto');
+  let titolo, testo, n = 0;
+  if (d.giorni[0] > d.oggi) { const m = rsMancanti(d, d.giorni[0]); n = m.length; titolo = n ? 'Scegli i pasti del tuo arrivo' : 'Pasti di arrivo scelti'; testo = n ? `Ti manca: ${m.map(nm).join(' e ')}.` : 'Hai già ordinato tutto per il giorno di arrivo.'; }
+  else {
+    const mo = d.giorni.includes(d.oggi) && !d.chiusura_oggi ? rsMancanti(d, d.oggi) : [], md = d.giorni.includes(domani) ? rsMancanti(d, domani) : [];
+    n = mo.length + md.length;
+    titolo = n ? 'Hai dei pasti da scegliere' : 'Pasti in ordine';
+    testo = [mo.length ? `Oggi ti manca ${mo.map(nm).join(' e ')} (si ordina entro le 8:30).` : '', md.length ? `Per domani devi ancora scegliere ${md.map(nm).join(' e ')}.` : ''].filter(Boolean).join(' ') || 'Hai ordinato tutto quello che puoi ordinare per ora.';
+  }
+  return { nome, titolo, testo, n };
+}
 function rsDisegna() {
-  const d = RS.d, rec = rsRecupero();
-  const giorni = rec.length ? [d.oggi] : d.giorni.filter((g, i) => i === 0 || !d.famiglia.checkout || d.famiglia.checkout > d.oggi);
-  $('#service-content').innerHTML = `
-    <a class="rs-carta" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">
-      <span class="ic">${ICONS.BOOK}</span><span class="tx"><b>Menu alla carta</b><small>Sempre disponibile · tocca per sfogliarlo</small></span><span class="go">Apri ›</span></a>
-    ${ptCard()}
-    <div id="rs-root">${giorni.map(g => `<section id="rs-day-${g}">${rsGiorno(g)}</section>`).join('')}</div>
+  const d = RS.d, v = RS.vista || 'home', panel = $('#service-content');
+  if (v === 'pasti') { panel.innerHTML = rsPasti(); return; }
+  if (v === 'carta') { panel.innerHTML = rsCartaHtml(); return; }
+  if (v === 'tavolo') {
+    panel.innerHTML = `<p class="rs-sub" style="margin-top:14px">Vuoi mangiare fuori dal tuo trattamento, per esempio un pasto in più? Prenota qui il tuo tavolo.</p>${ptCard()}`;
+    ptInit(); return;
+  }
+  const R = rsRiepilogo();
+  panel.innerHTML = `
+    <div class="rs-riep"><div class="k">${esc(R.nome)}</div><h2>${esc(R.titolo)}</h2><p>${esc(R.testo)}</p>
+      <button type="button" class="rs-cta" onclick="rsVai('pasti')">${R.n ? 'Ordina i pasti' : 'Vedi i tuoi ordini'}</button></div>
+    <div class="rs-hub">
+      ${rsTile('', ICONS.UTENSILS, 'I tuoi pasti', 'Scegli e rivedi gli ordini compresi nel trattamento', "rsVai('pasti')", R.n ? `${R.n} da fare` : '')}
+      ${rsTile('', ICONS.BOOK, 'Menu alla carta', 'Sempre disponibile, anche fuori dal trattamento', "rsVai('carta')")}
+      ${rsTile('', ICONS.CALENDAR || ICONS.CLOCK, 'Prenota un tavolo', 'Per un altro pasto o per cenare in più', "rsVai('tavolo')")}
+    </div>
     <div class="card rs-orari"><h2>Orari del ristorante</h2>
       <p><b>Colazione</b> 8:00 – 10:00 · <b>Pranzo</b> 13:00 – 14:30 · <b>Cena</b> 20:00 – 22:00</p>
-      <p>Il lunedì sera è serata sushi. Per intolleranze, allergie o menù vegetariano/vegano contatta lo staff in anticipo.</p>
+      <p>Il lunedì sera è serata sushi. Per intolleranze, allergie o menù vegetariano/vegano contatta lo staff in anticipo.</p></div>`;
+}
+function rsPasti() {
+  const d = RS.d, rec = rsRecupero();
+  const giorni = rec.length ? [d.oggi] : d.giorni.filter((g, i) => i === 0 || !d.famiglia.checkout || d.famiglia.checkout > d.oggi);
+  return `<div id="rs-root">${giorni.map(g => `<section id="rs-day-${g}">${rsGiorno(g)}</section>`).join('')}</div>
+    <div class="card rs-orari"><h2>Come si ordina</h2>
       <p>Puoi ordinare al massimo ${d.famiglia.max_ospiti} porzioni per categoria e pasto. Per cambiare il numero di ospiti contatta lo staff.</p></div>`;
-  ptInit();
 }
 function rsRidisegna(data) { const el = document.getElementById('rs-day-' + data); if (el) el.innerHTML = rsGiorno(data); }
 
@@ -2594,7 +2645,7 @@ async function rsInvia(data) {
     const r = await chiama({ azione: 'ristorazione_ordina', data, pasti });
     if (!r.ok) {
       rsChiudiConferma(); rsToast(ERR[r.errore] || 'Non sono riuscito a inviare l\'ordine, riprova');
-      if (r.errore === 'gia_ordinato' || r.errore === 'ordini_chiusi') renderRistorazione();
+      if (r.errore === 'gia_ordinato' || r.errore === 'ordini_chiusi') renderRistorazione(true);
       return;
     }
     Object.assign(RS.d.ordini, r.ordini);
@@ -2639,7 +2690,9 @@ const ptGia = () => (PT.prenotazioni || []).filter(p => p.data === PT.sel.data &
 
 function ptRender() {
   const wrap = document.getElementById('pt-wrap'); if (!wrap) return;
-  if (!PT || !PT.giorni || !PT.giorni.length || !PT.servizi.length) { wrap.innerHTML = ''; return; }   // prenotazioni non disponibili: la scheda non compare
+  const tl = document.getElementById('rs-tile-tavolo'), okPT = !!(PT && PT.giorni && PT.giorni.length && PT.servizi.length);
+  if (tl) tl.style.display = okPT ? '' : 'none';
+  if (!okPT) { wrap.innerHTML = ''; return; }   // prenotazioni non disponibili: la scheda non compare
   const sel = PT.sel, mie = PT.prenotazioni || [];
   const lista = mie.length ? `<div class="lista-titolo">${esc(t('Le tue prenotazioni'))}</div>` + mie.map(p => `
     <div class="stato-card"><div class="riga"><div class="ora">${esc(p.turno || '—')}</div>
@@ -2745,8 +2798,16 @@ async function ptAnnulla(id) {
   } catch (e) { if (err) { err.textContent = t('Connessione assente, riprova'); err.style.display = 'block'; } if (btn) btn.disabled = false; }
 }
 
+function rsVaiTavolo() {
+  if (PT && !PT.aperto && PT.giorni && PT.giorni.length) ptApri();
+  setTimeout(() => { const el = document.getElementById('pt-wrap'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 60);
+}
 function renderRistoranteLibero(panel) {
-  panel.innerHTML = ptCard() + `<div class="card"><h2>Il nostro ristorante</h2>
+  panel.innerHTML = `<div class="rs-azioni">
+      <button type="button" class="rs-tile main" id="rs-tile-tavolo" onclick="rsVaiTavolo()"><span class="ic">${ICONS.CALENDAR || ICONS.CLOCK}</span><span class="tx"><b>Prenota un tavolo</b><small>Scegli giorno, turno e persone</small></span></button>
+      <button type="button" class="rs-tile" onclick="document.getElementById('rs-carta').scrollIntoView({behavior:'smooth'})"><span class="ic">${ICONS.BOOK}</span><span class="tx"><b>Menu</b><small>Alla carta</small></span></button>
+      <button type="button" class="rs-tile" onclick="document.getElementById('rs-orari-l').scrollIntoView({behavior:'smooth'})"><span class="ic">${ICONS.CLOCK}</span><span class="tx"><b>Orari</b><small>Pranzo e cena</small></span></button>
+    </div>` + ptCard() + `<div class="card" id="rs-orari-l"><h2>Il nostro ristorante</h2>
     <div class="info-body" style="margin-top:8px">
       <p>Il soggiorno non include i pasti, ma il ristorante è aperto anche a te: puoi mangiare alla carta quando vuoi, nei suoi orari.</p>
       <h3>Orari</h3>
@@ -2763,10 +2824,7 @@ function renderRistoranteLibero(panel) {
         <li>Colazione, gelati e cocktail anche al chiosco bar a bordo piscina.</li>
       </ul>
     </div></div>
-    <div class="card"><h2>Menu alla carta</h2>
-      <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
-      <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a>
-    </div>`;
+    ${rsCartaHtml()}`;
   ptInit();
 }
 
