@@ -248,6 +248,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 .print-overlay { position: fixed; inset: 0; z-index: 1020; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 20px; }
 .print-overlay.hidden { display: none; }
 .print-panel { background: var(--white); border-radius: var(--radius-lg); padding: 22px 20px; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.print-panel { position: relative; }
+.pp-x { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border: none; background: transparent; font-size: 26px; line-height: 1; color: var(--gray-500); cursor: pointer; border-radius: 8px; }
+.pp-x:hover { background: var(--gray-100); color: var(--gray-900); }
 .print-panel-title { font-size: 16px; font-weight: 800; margin-bottom: 3px; }
 .print-panel-sub   { font-size: 12px; color: var(--gray-500); margin-bottom: 16px; }
 .tickets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
@@ -571,12 +574,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 
   <!-- Legenda -->
   <div class="legend-row" id="legend-row" style="display:none">
-    <div class="leg-item"><div class="leg-dot" style="background:#2563EB"></div>Confermata</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#D97706"></div>Opzione</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#7C3AED"></div>VIP</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#059669"></div>Stagionale</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#DC2626"></div>Annullata</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#0891B2"></div>Gruppo</div>
+    <span id="legend-items" style="display:contents"></span>
     <div class="sync-hint">Doppio clic per modificare &middot; Trascina per spostare date o ombrellone</div>
   </div>
 
@@ -643,6 +641,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
 <!-- ══ PANNELLO STAMPA ═══════════════════════════════════════════════════════ -->
 <div class="print-overlay hidden" id="print-overlay">
   <div class="print-panel">
+    <button type="button" class="pp-x" onclick="closePrintPanel()" aria-label="Chiudi">&times;</button>
     <div class="print-panel-title" id="pp-title"></div>
     <div class="print-panel-sub"   id="pp-sub"></div>
     <!-- filtro date -->
@@ -651,7 +650,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px 14px 80px; }
       <input type="date" id="pp-filter-dal" class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
       <span style="font-size:12px;color:var(--gray-400)">→</span>
       <input type="date" id="pp-filter-al"  class="settings-input" style="height:32px;font-size:12px;flex:1;min-width:120px" onchange="filterPrintPanel()">
-      <button class="btn-close-print" style="height:32px;padding:0 10px;font-size:11px" onclick="resetPrintFilter()"><span data-icon="CLOSE" style="display:inline-flex;vertical-align:-2px;margin-right:4px"></span>Reset</button>
+      <button class="btn-close-print" style="height:32px;padding:0 10px;font-size:11px" onclick="resetPrintFilter()"><span data-icon="CLOSE" style="display:inline-flex;vertical-align:-2px;margin-right:4px"></span>Estate</button>
     </div>
     <div class="tickets-grid" id="pp-grid"></div>
     <div class="print-panel-btns">
@@ -678,11 +677,14 @@ const SECTION_IDS = ['spiaggia'];
 const STATI = [
   { id:'confermata', label:'Confermata', colore:'blue',   hex:'#2E7463' },
   { id:'opzione',    label:'Opzione',    colore:'amber',  hex:'#F2702A' },
-  { id:'vip',        label:'VIP',        colore:'purple', hex:'#053328' },
-  { id:'stagionale', label:'Stagionale', colore:'green',  hex:'#5F9588' },
+  { id:'vip',        label:'VIP',        colore:'purple', hex:'#053328', inUso:false },
+  { id:'stagionale', label:'Stagionale', colore:'green',  hex:'#5F9588', inUso:false },
   { id:'annullata',  label:'Annullata',  colore:'red',    hex:'#DC2626' },
-  { id:'gruppo',     label:'Gruppo',     colore:'teal',   hex:'#2563EB' },
+  { id:'gruppo',     label:'Gruppo',     colore:'teal',   hex:'#2563EB', inUso:false },
 ];
+// Stati non più offerti (inUso:false) restano nell'elenco per leggere le vecchie
+// prenotazioni, ma compaiono in legenda/selettore solo se qualcuna li usa ancora.
+const statiVisibili = (extraId) => STATI.filter(s => s.inUso !== false || s.id === extraId || Object.values(prenotazioni || {}).some(b => (b.stato || 'confermata') === s.id));
 const COLORS = STATI.map(s => ({ id: s.colore, hex: s.hex, label: s.label }));
 const colorHex   = colore => (STATI.find(s=>s.colore===colore)||STATI[0]).hex;
 const statoLabel = colore => (STATI.find(s=>s.colore===colore)||STATI[0]).label;
@@ -868,6 +870,10 @@ function renderBeachSelect() {
   });
   if (prev && spiagge[prev]) currentBeachId = prev;
 }
+function aggiornaLegenda() {
+  const el = document.getElementById('legend-items');
+  if (el) el.innerHTML = statiVisibili().map(st => `<div class="leg-item"><div class="leg-dot" style="background:${st.hex}"></div>${st.label}</div>`).join('');
+}
 function onBeachChange() {
   currentBeachId = document.getElementById('beach-sel').value;
   renderTimeline();
@@ -902,6 +908,7 @@ function renderStats() {
 
 // ── RENDER TIMELINE ───────────────────────────────────────────────────────────
 function renderTimeline() {
+  aggiornaLegenda();
   const outer = document.getElementById('tl-outer');
   const s = currentSpiaggia();
 
@@ -1130,7 +1137,7 @@ function closeModal() { document.getElementById('modal-overlay').classList.add('
 
 function renderStatoPicker() {
   const wrap = document.getElementById('stato-grid');
-  wrap.innerHTML = STATI.map(s =>
+  wrap.innerHTML = statiVisibili(selectedStato).map(s =>
     `<div class="stato-opt${selectedStato===s.id?' selected':''}" onclick="selectStato('${s.id}')">
       <div class="stato-dot" style="background:${s.hex}"></div>${s.label}
     </div>`
@@ -1281,18 +1288,25 @@ function renderPrintGrid() {
 
 function filterPrintPanel() { renderPrintGrid(); }
 
+// Di default si vedono solo i tagliandini della prossima estate (1 giugno - 30
+// settembre; se l'estate in corso è finita, quella dell'anno dopo).
+function intervalloProssimaEstate() {
+  const oggi = new Date();
+  const iso = oggi.getFullYear() + '-' + String(oggi.getMonth()+1).padStart(2,'0') + '-' + String(oggi.getDate()).padStart(2,'0');
+  const anno = iso > oggi.getFullYear() + '-09-30' ? oggi.getFullYear() + 1 : oggi.getFullYear();
+  return { dal: anno + '-06-01', al: anno + '-09-30' };
+}
 function resetPrintFilter() {
-  document.getElementById('pp-filter-dal').value = '';
-  document.getElementById('pp-filter-al').value  = '';
+  const e = intervalloProssimaEstate();
+  document.getElementById('pp-filter-dal').value = e.dal;
+  document.getElementById('pp-filter-al').value  = e.al;
   renderPrintGrid();
 }
 
 function openPrintPanel() {
   const s = currentSpiaggia();
   document.getElementById('pp-title').textContent = `Tagliandini — ${s ? s.nome : ''}`;
-  document.getElementById('pp-filter-dal').value = '';
-  document.getElementById('pp-filter-al').value  = '';
-  renderPrintGrid();
+  resetPrintFilter();
   document.getElementById('print-overlay').classList.remove('hidden');
 }
 function closePrintPanel() { document.getElementById('print-overlay').classList.add('hidden'); }
