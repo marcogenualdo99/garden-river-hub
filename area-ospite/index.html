@@ -414,20 +414,18 @@
   .rs-carta { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--orange-bg); border: 1.5px solid #F9C9AD; text-decoration: none; color: var(--gray-900) }
   .rs-carta .ic { display: flex; color: var(--green-700) } .rs-carta .ic svg { width: 26px; height: 26px } .rs-carta .tx { flex: 1; display: flex; flex-direction: column } .rs-carta b { font-size: 15px; font-weight: 800 }
   .rs-carta small { font-size: 12px; color: var(--gray-500) } .rs-carta .go { font-weight: 800; color: var(--orange); font-size: 14px }
-  .rs-riep { margin-top: 14px; padding: 16px; border-radius: var(--radius-lg); background: var(--green-700); color: #fff }
-  .rs-riep .k { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--orange-lt) }
-  .rs-riep h2 { font-family: var(--font-display); font-weight: 400; font-size: 22px; margin: 4px 0 2px; color: #fff }
-  .rs-riep p { font-size: 14px; line-height: 1.45; margin: 4px 0 0; opacity: .95 }
-  .rs-riep .rs-cta { display: block; width: 100%; margin-top: 12px; height: 52px; border: none; border-radius: var(--radius); background: var(--orange); color: #fff; font: 800 16px var(--font); cursor: pointer }
-  .rs-hub { display: flex; flex-direction: column; gap: 10px; margin-top: 14px }
-  .rs-tile { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px; border-radius: var(--radius-lg); border: 1.5px solid var(--gray-100); background: var(--white); box-shadow: var(--shadow-sm); color: var(--gray-900); font-family: var(--font); cursor: pointer }
-  .rs-tile .ic { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 15px; background: var(--green-50); color: var(--green-700); flex-shrink: 0 } .rs-tile .ic svg { width: 26px; height: 26px }
-  .rs-tile .tx { flex: 1; display: flex; flex-direction: column } .rs-tile b { font-size: 17px; font-weight: 800 } .rs-tile small { font-size: 13px; color: var(--gray-500); margin-top: 2px; line-height: 1.35 }
-  .rs-tile .go { display: flex; color: var(--gray-500) } .rs-tile .go svg { width: 20px; height: 20px }
-  .rs-tile.main { background: var(--orange-bg); border-color: #F9C9AD } .rs-tile.main .ic { background: var(--orange); color: #fff }
-  .rs-tile .pill { font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 99px; background: var(--orange); color: #fff; align-self: flex-start; margin-bottom: 4px }
-  .rs-azioni { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px }
-  .rs-azioni .rs-tile { flex-direction: column; align-items: flex-start; gap: 10px } .rs-azioni .rs-tile.main { grid-column: 1 / -1 }
+  .rs-hub { display: flex; flex-direction: column; gap: 14px; margin-top: 16px }
+  .rs-tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; min-height: 168px; text-align: left; padding: 22px 20px 20px; border: none; border-radius: 26px; background: var(--green-700); color: #fff; font-family: var(--font); cursor: pointer; box-shadow: var(--shadow-md, 0 8px 22px rgba(0,0,0,.14)); overflow: hidden }
+  .rs-tile:active { transform: scale(.985) }
+  .rs-tile .ic { display: flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 20px; background: rgba(255,255,255,.2); margin-bottom: 10px } .rs-tile .ic svg { width: 34px; height: 34px }
+  .rs-tile .ey { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .9 }
+  .rs-tile b { font-family: var(--font-display); font-weight: 400; font-size: 27px; line-height: 1.1 }
+  .rs-tile small { font-size: 15px; line-height: 1.4; opacity: .95; max-width: 88% }
+  .rs-tile .cta { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 12px 20px; border-radius: 99px; background: #fff; color: var(--green-700); font: 800 16px var(--font) } .rs-tile .cta svg { width: 18px; height: 18px }
+  .rs-tile .pill { position: absolute; top: 18px; right: 18px; padding: 6px 12px; border-radius: 99px; background: var(--orange); color: #fff; font: 800 13px var(--font) }
+  .rs-tile.arancio { background: var(--orange) } .rs-tile.arancio .cta { color: var(--orange) }
+  .rs-tile.chiaro { background: var(--green-50); color: var(--green-700); border: 2px solid var(--green-100); box-shadow: none } .rs-tile.chiaro .ic { background: var(--green-100) } .rs-tile.chiaro .cta { background: var(--green-700); color: #fff }
+  .rs-tile.arancio .ic svg, .rs-tile .ic svg { color: inherit }
   .rs-sub { margin: 18px 2px 0; font-size: 13px; color: var(--gray-500); line-height: 1.45 }
   h2.rs-day { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--green-700); margin: 24px 2px 4px }
   .rs-note { font-size: 13px; color: var(--gray-500); line-height: 1.5; margin: 4px 2px 8px }
@@ -2483,7 +2481,7 @@ async function renderRistorazione(keep) {
 const rsCartaHtml = () => `<div class="card" id="rs-carta"><h2>Menu alla carta</h2>
     <div class="carta-pagine">${[1, 2, 3, 4].map(n => `<img src="img/carta/pagina-${n}.jpg" alt="Menu alla carta, pagina ${n}" loading="lazy">`).join('')}</div>
     <a class="submit" style="display:block;text-align:center;text-decoration:none;line-height:52px;margin-top:12px" href="../ristorazione/menu-alla-carta.pdf" target="_blank" rel="noopener">Apri il menu in PDF</a></div>`;
-const rsTile = (cls, ic, titolo, sotto, fn, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}"><span class="ic">${ic}</span><span class="tx">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<b>${titolo}</b><small>${sotto}</small></span><span class="go">${ICONS.GO}</span></button>`;
+const rsTile = (cls, ic, ey, titolo, sotto, fn, cta, pill) => `<button type="button" class="rs-tile ${cls}" onclick="${fn}">${pill ? `<span class="pill">${esc(pill)}</span>` : ''}<span class="ic">${ic}</span>${ey ? `<span class="ey">${esc(ey)}</span>` : ''}<b>${titolo}</b><small>${esc(sotto)}</small><span class="cta">${esc(cta)}${ICONS.GO}</span></button>`;
 
 function rsVai(v) { RS.vista = v; rsDisegna(); window.scrollTo(0, 0); }
 function rsRiepilogo() {
@@ -2510,12 +2508,10 @@ function rsDisegna() {
   }
   const R = rsRiepilogo();
   panel.innerHTML = `
-    <div class="rs-riep"><div class="k">${esc(R.nome)}</div><h2>${esc(R.titolo)}</h2><p>${esc(R.testo)}</p>
-      <button type="button" class="rs-cta" onclick="rsVai('pasti')">${R.n ? 'Ordina i pasti' : 'Vedi i tuoi ordini'}</button></div>
     <div class="rs-hub">
-      ${rsTile('', ICONS.UTENSILS, 'I tuoi pasti', 'Scegli e rivedi gli ordini compresi nel trattamento', "rsVai('pasti')", R.n ? `${R.n} da fare` : '')}
-      ${rsTile('', ICONS.BOOK, 'Menu alla carta', 'Sempre disponibile, anche fuori dal trattamento', "rsVai('carta')")}
-      ${rsTile('', ICONS.CALENDAR || ICONS.CLOCK, 'Prenota un tavolo', 'Per un altro pasto o per cenare in più', "rsVai('tavolo')")}
+      ${rsTile('', ICONS.UTENSILS, R.nome, R.titolo, R.testo, "rsVai('pasti')", R.n ? 'Ordina i pasti' : 'Vedi i tuoi ordini', R.n ? `${R.n} da fare` : '')}
+      ${rsTile('arancio', ICONS.CALENDAR, 'Un pasto in più?', 'Prenota un tavolo', 'Scegli giorno, turno e persone: ti aspettiamo al ristorante.', "rsVai('tavolo')", 'Prenota')}
+      ${rsTile('chiaro', ICONS.BOOK, 'Sempre disponibile', 'Menu alla carta', 'Sfoglia tutti i piatti del ristorante.', "rsVai('carta')", 'Sfoglia il menu')}
     </div>
     <div class="card rs-orari"><h2>Orari del ristorante</h2>
       <p><b>Colazione</b> 8:00 – 10:00 · <b>Pranzo</b> 13:00 – 14:30 · <b>Cena</b> 20:00 – 22:00</p>
@@ -2803,10 +2799,9 @@ function rsVaiTavolo() {
   setTimeout(() => { const el = document.getElementById('pt-wrap'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 60);
 }
 function renderRistoranteLibero(panel) {
-  panel.innerHTML = `<div class="rs-azioni">
-      <button type="button" class="rs-tile main" id="rs-tile-tavolo" onclick="rsVaiTavolo()"><span class="ic">${ICONS.CALENDAR || ICONS.CLOCK}</span><span class="tx"><b>Prenota un tavolo</b><small>Scegli giorno, turno e persone</small></span></button>
-      <button type="button" class="rs-tile" onclick="document.getElementById('rs-carta').scrollIntoView({behavior:'smooth'})"><span class="ic">${ICONS.BOOK}</span><span class="tx"><b>Menu</b><small>Alla carta</small></span></button>
-      <button type="button" class="rs-tile" onclick="document.getElementById('rs-orari-l').scrollIntoView({behavior:'smooth'})"><span class="ic">${ICONS.CLOCK}</span><span class="tx"><b>Orari</b><small>Pranzo e cena</small></span></button>
+  panel.innerHTML = `<div class="rs-hub">
+      ${rsTile('arancio', ICONS.CALENDAR, 'Mangia da noi', 'Prenota un tavolo', 'Scegli giorno, turno e persone: ti aspettiamo al ristorante.', "rsVaiTavolo()", 'Prenota').replace('class="rs-tile arancio"', 'class="rs-tile arancio" id="rs-tile-tavolo"')}
+      ${rsTile('', ICONS.BOOK, 'Sempre disponibile', 'Menu alla carta', 'Sfoglia tutti i piatti del ristorante.', "document.getElementById('rs-carta').scrollIntoView({behavior:'smooth'})", 'Sfoglia il menu')}
     </div>` + ptCard() + `<div class="card" id="rs-orari-l"><h2>Il nostro ristorante</h2>
     <div class="info-body" style="margin-top:8px">
       <p>Il soggiorno non include i pasti, ma il ristorante è aperto anche a te: puoi mangiare alla carta quando vuoi, nei suoi orari.</p>
