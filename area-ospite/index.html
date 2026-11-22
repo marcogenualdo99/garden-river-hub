@@ -1086,8 +1086,6 @@ function avvisiHome() {
   const peso = a => a.pin ? 0.5 : (a.cls === 'todo' ? 0 : (a.cls === 'stop' ? 1 : 2));
   const filtra = l => l.filter(a => !(a.id && a.chiudibile !== false && chiusi.includes(a.id))).sort((a, b) => peso(a) - peso(b));
   if (preArrivo()) {
-    const n = giorniA(p.checkin);
-    if (vis('benvenuto')) out.push({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
     const Sa = vis('ordini') ? rsStatoPasti() : null;
     if (Sa && (Sa.mArrivo.length || Sa.mDopo.length)) {
       const nomi = l => l.includes('pasto') ? t('un pasto') : l.map(x => x === 'pranzo' ? t('il pranzo') : t('la cena')).join(t(' e '));
@@ -1251,6 +1249,13 @@ async function caricaRistoHome() {
 }
 
 // Banner principale con le informazioni utili per il check-in: da 5 giorni prima dell'arrivo fino al giorno stesso.
+// Conto alla rovescia dell'arrivo: sta in home sopra "Prima di partire", non fra gli avvisi/notifiche.
+function arrivoCountdownHtml() {
+  if (!preArrivo() || !vis('benvenuto')) return '';
+  const p = CFG.prenotazione || {}, n = giorniA(p.checkin);
+  if (n === null || n < 1) return '';
+  return avvisoHtml({ cls: 'info', icon: ICONS.CALENDAR, tag: t('Il tuo soggiorno'), titolo: n === 1 ? t('Ti aspettiamo domani!') : t('Ti aspettiamo tra {n} giorni', { n }), testo: t('Arrivo {d}. Intanto qui trovi le informazioni utili per prepararti.', { d: fmtDataLunga(p.checkin) }) });
+}
 function checkinInfoHtml() {
   const c = (CONTENUTI && CONTENUTI.checkin) || CHECKIN_DEF;
   const n = giorniA((CFG.prenotazione || {}).checkin);
@@ -1334,7 +1339,7 @@ function renderHomeExtra() {
   aggiornaFasce();
   shopHomeCarica();
   { const hs = $('#home-shop'); if (hs) hs.innerHTML = dopoPartenza() ? '' : shopHomeHtml(); }
-  const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : checkinInfoHtml();
+  const ci = $('#home-checkin'); if (ci) ci.innerHTML = dopoPartenza() ? '' : arrivoCountdownHtml() + checkinInfoHtml();
   const av = $('#home-alerts'); if (!av) return;
   if (dopoPartenza()) {
     _notifiche = []; aggiornaCampanella();
