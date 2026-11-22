@@ -3078,6 +3078,20 @@ start();
   document.addEventListener('focusout', function(){ setTimeout(riallinea, 60); setTimeout(riallinea, 350); }, true);
   if (vv) { vv.addEventListener('resize', riallinea); vv.addEventListener('scroll', riallinea); }
   window.addEventListener('orientationchange', function(){ setTimeout(riallinea, 300); });
+  /* Tornando da un modulo con la freccia indietro, iOS ripristina la pagina
+     dalla cache (bfcache) con scroll/viewport sfalsati: barra sotto il notch.
+     Si azzera lo scroll e si forza il ridisegno della barra. */
+  window.addEventListener('pageshow', function(e){
+    var fix = function(){
+      try {
+        window.scrollTo(0, 0);
+        var tb = document.querySelector('.top-bar');
+        if (tb) { tb.style.transform = 'translateZ(0)'; void tb.offsetHeight; tb.style.transform = ''; }
+        if (document.body.classList.contains('drawer-open') && typeof toggleDrawer === 'function') toggleDrawer(false);
+      } catch(err){}
+    };
+    if (e.persisted) { fix(); setTimeout(fix, 80); setTimeout(fix, 400); }
+  });
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) setTimeout(riallinea, 100); });
 })();
 </script>
