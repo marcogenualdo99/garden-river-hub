@@ -5870,11 +5870,24 @@ async function confermaImportazione() {
   btn.disabled = true;
   btn.textContent = 'Importazione in corso…';
   const { db, doc, setDoc } = window._fb;
-  let ok = 0, falliti = 0;
+  let ok = 0, falliti = 0, spostate = 0;
+  const scritte = []; // prenotazioni scritte in questo import (la snapshot può non essere ancora aggiornata)
   for (const r of daImportare) {
     try {
       const { idDoc, data } = costruisciDatiImportRiga(r);
+      // Ultimo controllo prima di scrivere: se l'alloggio scelto in anteprima nel frattempo
+      // si è occupato (altra riga, altro dispositivo), la prenotazione va "da assegnare".
+      if (data.alloggio_id) {
+        const occupato = trovaOverlap(data.alloggio_id, data.checkin, data.checkout, idDoc) ||
+          scritte.find(x => x.alloggio_id === data.alloggio_id && data.checkin < x.checkout && data.checkout > x.checkin);
+        if (occupato) {
+          data.alloggio_id = '';
+          data.alloggio_nome = `Da assegnare (${r.tipoAlloggio})`;
+          spostate++;
+        }
+      }
       await setDoc(doc(db, 'prenotazioni', idDoc), data);
+      scritte.push({ alloggio_id: data.alloggio_id, checkin: data.checkin, checkout: data.checkout });
       if (data.trattamento_ristorazione === 'PC' || data.trattamento_ristorazione === 'MP') sincronizzaFamigliaRistorazione(idDoc, data);
       ok++;
     } catch(e) {
@@ -5882,7 +5895,7 @@ async function confermaImportazione() {
       falliti++;
     }
   }
-  showToast(`Importazione completata: ${ok} prenotazioni create${falliti ? `, ${falliti} fallite` : ''}`);
+  showToast(`Importazione completata: ${ok} prenotazioni create${falliti ? `, ${falliti} fallite` : ''}${spostate ? `, ${spostate} lasciate da assegnare perché l'alloggio risultava occupato` : ''}`);
   chiudiImportModal();
   renderGrid();
 }
