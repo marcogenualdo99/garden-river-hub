@@ -15,24 +15,51 @@
 <link rel="stylesheet" href="assets/mobile-leggero.css?v=4">
 <link rel="stylesheet" href="assets/home-colori.css?v=5">
 <style>
-/* ══ SCONTRINO LIBERO — scontrino fiscale svincolato da prenotazioni/conti ══ */
-.sl-riga { display: flex; align-items: center; gap: 6px; padding: 6px 0; border-top: 1px solid var(--gray-100); }
-.sl-riga:first-child { border-top: none; }
-.sl-riga-label { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
-.sl-riga-label:focus { border-color: var(--green-400); }
-.sl-riga-importo { flex: none; width: 96px; height: 40px; padding: 0 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; text-align: right; font-family: var(--font); color: var(--gray-900); outline: none; }
-.sl-riga-importo:focus { border-color: var(--green-400); }
-.sl-riga-remove { flex: none; width: 36px; height: 36px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.sl-riga-remove:hover { background: var(--red-bg); color: var(--red); }
-.sl-add-btn { margin-top: 10px; background: none; border: none; padding: 0; font-size: 12.5px; font-weight: 700; color: var(--green-700); cursor: pointer; font-family: var(--font); }
-.sl-total-row { display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 800; color: var(--gray-900); padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--gray-100); }
-.sl-total-row span:last-child { color: var(--green-700); }
-.sl-label { display: block; font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 8px; }
-.sl-pay-options { display: flex; gap: 14px; margin-bottom: 18px; }
-.sl-pay-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--gray-700); cursor: pointer; }
-.sl-fiscalizza-btn { width: 100%; height: 48px; background: var(--green-700); color: #fff; border: none; border-radius: var(--radius-xl); font-size: 14px; font-weight: 700; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
-.sl-fiscalizza-btn:active { opacity: .85; }
-.sl-fiscalizza-btn:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
+/* ══ SCONTRINO LIBERO — schermata cassa: voci+totale a sinistra, tastierino+pagamenti a destra ══ */
+main:has(#sec-scontrino-libero.active) { max-width: 1100px; }
+.sl-cassa { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; height: calc(100vh - 150px); min-height: 520px; }
+.sl-pane { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.sl-pane-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--gray-100); font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; }
+.sl-clear { background: none; border: none; font-family: var(--font); font-size: 12px; font-weight: 700; color: var(--gray-500); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); }
+.sl-clear:hover { background: var(--red-bg); color: var(--red); }
+.sl-voci { flex: 1; overflow-y: auto; padding: 4px 18px; }
+.sl-voce { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--gray-100); font-size: 15px; color: var(--gray-900); }
+.sl-voce:first-child { border-top: none; }
+.sl-voce-n { flex: none; width: 24px; font-size: 12px; font-weight: 700; color: var(--gray-400); }
+.sl-voce-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-voce-imp { flex: none; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sl-voce.sl-voce-pending { color: var(--gray-500); font-style: italic; }
+.sl-voce-rm { flex: none; width: 32px; height: 32px; border: none; background: transparent; color: var(--gray-400); cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.sl-voce-rm:hover { background: var(--red-bg); color: var(--red); }
+.sl-vuoto { height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--gray-400); font-size: 13px; line-height: 1.6; padding: 0 20px; }
+.sl-totale-box { padding: 16px 18px; border-top: 2px solid var(--gray-100); display: flex; align-items: baseline; justify-content: space-between; }
+.sl-totale-box span:first-child { font-size: 13px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; }
+.sl-totale-box span:last-child { font-size: 40px; font-weight: 800; color: var(--green-700); font-variant-numeric: tabular-nums; }
+.sl-keys-pane { padding: 14px; gap: 12px; }
+.sl-display { background: var(--gray-50, #f7f7f5); border: 1.5px solid var(--gray-200); border-radius: var(--radius-md, 12px); padding: 8px 14px; text-align: right; font-size: 34px; font-weight: 800; color: var(--gray-900); font-variant-numeric: tabular-nums; min-height: 56px; line-height: 1.5; }
+.sl-display.vuoto { color: var(--gray-300, #c9c9c4); }
+.sl-descr { height: 40px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
+.sl-descr:focus { border-color: var(--green-400); }
+.sl-pad { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(5, 1fr); gap: 8px; }
+.sl-key { border: none; border-radius: var(--radius-md, 12px); background: var(--gray-100); color: var(--gray-900); font-size: 24px; font-weight: 700; font-family: var(--font); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .05s, background .1s; user-select: none; -webkit-user-select: none; }
+.sl-key:hover { background: var(--gray-200); }
+.sl-key:active, .sl-key.premuto { transform: scale(.96); background: var(--gray-200); }
+.sl-key.sl-key-add { grid-column: 1 / 4; background: var(--green-100, #e3f1e6); color: var(--green-700); font-size: 15px; }
+.sl-key.sl-key-add:hover { background: var(--green-200, #cfe6d4); }
+.sl-key.sl-key-ctl { color: var(--gray-600, #555); font-size: 18px; }
+.sl-key svg { width: 26px; height: 26px; }
+.sl-pay { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sl-pay-btn { height: 78px; border: none; border-radius: var(--radius-md, 12px); background: var(--green-700); color: #fff; font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: opacity .15s, transform .05s; }
+.sl-pay-btn small { font-size: 10px; font-weight: 600; opacity: .7; letter-spacing: .04em; }
+.sl-pay-btn:active { transform: scale(.97); }
+.sl-pay-btn:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
+.sl-pay-btn.sl-pay-alt { background: var(--gray-900); }
+.sl-hint { font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5; }
+@media (max-width: 800px) {
+  .sl-cassa { grid-template-columns: 1fr; height: auto; }
+  .sl-pane:first-child { min-height: 260px; max-height: 40vh; }
+  .sl-pad { grid-template-rows: repeat(5, 58px); }
+}
 
 /* ══ REPORT HOME: presenti+ricerca, oggi in struttura ═══════════════════════ */
 /* #module-list è un flusso verticale: i moduli si raggruppano in blocchi
@@ -742,28 +769,44 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   <div id="sec-scontrino-libero" class="section">
     <div class="back-header">
       <button class="back-btn" onclick="closeScontrinoLibero()">&#8592;</button>
-      <div class="back-title">Scontrino libero</div>
+      <div class="back-title">Cassa — scontrino libero</div>
     </div>
 
-    <div class="card">
-      <h3>Voci</h3>
-      <p class="subtitle">Emetti uno scontrino fiscale reale senza legarlo a nessuna prenotazione o conto: aggiungi una o più voci libere, controlla il totale e fiscalizza.</p>
-      <div id="sl-righe-list"></div>
-      <button type="button" class="sl-add-btn" onclick="aggiungiVoceScontrinoLibero()">+ Aggiungi voce</button>
-    </div>
+    <div class="sl-cassa">
+      <div class="sl-pane">
+        <div class="sl-pane-head"><span>Voci</span><button type="button" class="sl-clear" onclick="slAnnullaTutto()">Svuota</button></div>
+        <div class="sl-voci" id="sl-voci"></div>
+        <div class="sl-totale-box"><span>Totale</span><span id="sl-totale">€ 0,00</span></div>
+      </div>
 
-    <div class="card">
-      <div class="sl-total-row">
-        <span>Totale conto</span>
-        <span id="sl-totale">€ 0,00</span>
+      <div class="sl-pane sl-keys-pane">
+        <div class="sl-display vuoto" id="sl-display">0,00</div>
+        <input class="sl-descr" id="sl-descr" type="text" placeholder="Descrizione (facoltativa)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();slAggiungi();}">
+        <div class="sl-pad">
+          <button type="button" class="sl-key" data-k="7" onclick="slTasto('7')">7</button>
+          <button type="button" class="sl-key" data-k="8" onclick="slTasto('8')">8</button>
+          <button type="button" class="sl-key" data-k="9" onclick="slTasto('9')">9</button>
+          <button type="button" class="sl-key" data-k="4" onclick="slTasto('4')">4</button>
+          <button type="button" class="sl-key" data-k="5" onclick="slTasto('5')">5</button>
+          <button type="button" class="sl-key" data-k="6" onclick="slTasto('6')">6</button>
+          <button type="button" class="sl-key" data-k="1" onclick="slTasto('1')">1</button>
+          <button type="button" class="sl-key" data-k="2" onclick="slTasto('2')">2</button>
+          <button type="button" class="sl-key" data-k="3" onclick="slTasto('3')">3</button>
+          <button type="button" class="sl-key" data-k="0" onclick="slTasto('0')">0</button>
+          <button type="button" class="sl-key" data-k="00" onclick="slTasto('00')">00</button>
+          <button type="button" class="sl-key" data-k="," onclick="slTasto(',')">,</button>
+          <button type="button" class="sl-key sl-key-ctl" data-k="C" onclick="slTasto('C')">C</button>
+          <button type="button" class="sl-key sl-key-ctl" data-k="back" onclick="slTasto('back')" title="Cancella"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m17 9-4 6M13 9l4 6"/></svg></button>
+          <button type="button" class="sl-key sl-key-ctl" data-k="del" onclick="slRimuoviUltima()" title="Rimuovi ultima voce">Ult.</button>
+          <button type="button" class="sl-key sl-key-add" onclick="slAggiungi()">Aggiungi voce (Invio)</button>
+        </div>
+        <div class="sl-pay">
+          <button type="button" class="sl-pay-btn" id="sl-pay-contanti" onclick="slPaga('contanti')">Contanti<small>F1</small></button>
+          <button type="button" class="sl-pay-btn sl-pay-alt" id="sl-pay-carta" onclick="slPaga('carta_di_credito')">Carta<small>F2</small></button>
+          <button type="button" class="sl-pay-btn sl-pay-alt" id="sl-pay-bancomat" onclick="slPaga('bancomat')">Bancomat<small>F3</small></button>
+        </div>
+        <div class="sl-hint">Cifre e virgola dalla tastiera · Invio aggiunge · Canc rimuove l'ultima · Esc azzera · F1/F2/F3 pagano</div>
       </div>
-      <label class="sl-label">Metodo di pagamento</label>
-      <div class="sl-pay-options">
-        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="contanti" checked> Contanti</label>
-        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="carta_di_credito"> Carta</label>
-        <label class="sl-pay-opt"><input type="radio" name="sl-pagamento" value="bancomat"> Bancomat</label>
-      </div>
-      <button type="button" id="sl-fiscalizza-btn" class="sl-fiscalizza-btn" onclick="apriFiscalizzaScontrinoLibero()">Fiscalizza</button>
     </div>
   </div>
 
@@ -2456,13 +2499,14 @@ function puoFiscalizzare() {
   return !(p && p.azioni && p.azioni.fiscalizza === false);
 }
 
-function nuovaVoceScontrinoLibero() { return { label: '', importo: null }; }
+let slInput = '';           // importo in digitazione (stringa, virgola decimale)
+const SL_METODI = { contanti: 'Contanti', carta_di_credito: 'Carta di credito', bancomat: 'Bancomat' };
 
 function openScontrinoLibero() {
   if (!puoFiscalizzare()) { showToast('Non hai il permesso per fiscalizzare'); return; }
-  scontrinoLibero = [nuovaVoceScontrinoLibero()];
-  const radio = document.querySelector('input[name="sl-pagamento"][value="contanti"]');
-  if (radio) radio.checked = true;
+  scontrinoLibero = [];
+  slInput = '';
+  const d = document.getElementById('sl-descr'); if (d) d.value = '';
   document.getElementById('sec-home').classList.remove('active');
   document.getElementById('sec-scontrino-libero').classList.add('active');
   renderScontrinoLibero();
@@ -2473,45 +2517,103 @@ function closeScontrinoLibero() {
   renderHome();
 }
 
-function renderScontrinoLibero() {
-  const wrap = document.getElementById('sl-righe-list');
-  wrap.innerHTML = scontrinoLibero.map((r, i) => `
-    <div class="sl-riga">
-      <input class="sl-riga-label" type="text" placeholder="Descrizione voce…" value="${escHtml(r.label)}" oninput="aggiornaVoceScontrinoLibero(${i},'label',this.value)">
-      <input class="sl-riga-importo" type="number" step="0.01" min="0" placeholder="0,00" value="${r.importo === null ? '' : r.importo}" oninput="aggiornaVoceScontrinoLibero(${i},'importo',this.value)">
-      <button type="button" class="sl-riga-remove" title="Rimuovi voce" onclick="rimuoviVoceScontrinoLibero(${i})">&times;</button>
-    </div>`).join('');
-  aggiornaTotaleScontrinoLibero();
-}
-function aggiungiVoceScontrinoLibero() {
-  scontrinoLibero.push(nuovaVoceScontrinoLibero());
-  renderScontrinoLibero();
-}
-function rimuoviVoceScontrinoLibero(i) {
-  scontrinoLibero.splice(i, 1);
-  if (!scontrinoLibero.length) scontrinoLibero.push(nuovaVoceScontrinoLibero());
-  renderScontrinoLibero();
-}
-function aggiornaVoceScontrinoLibero(i, campo, valore) {
-  if (!scontrinoLibero[i]) return;
-  scontrinoLibero[i][campo] = campo === 'importo' ? (valore === '' ? null : parseFloat(valore)) : valore;
-  aggiornaTotaleScontrinoLibero();
-}
+const slEuro = n => '€ ' + n.toFixed(2).replace('.', ',');
+function slValoreInput() { return parseFloat(slInput.replace(',', '.')) || 0; }
 function totaleScontrinoLibero() {
   return scontrinoLibero.reduce((s, r) => s + (Number(r.importo) > 0 ? Number(r.importo) : 0), 0);
 }
-function aggiornaTotaleScontrinoLibero() {
-  const totale = totaleScontrinoLibero();
-  document.getElementById('sl-totale').textContent = '€ ' + totale.toFixed(2).replace('.', ',');
-  document.getElementById('sl-fiscalizza-btn').disabled = totale <= 0;
+
+function renderScontrinoLibero() {
+  const wrap = document.getElementById('sl-voci');
+  const pend = slValoreInput();
+  let h = scontrinoLibero.map((r, i) => `
+    <div class="sl-voce">
+      <span class="sl-voce-n">${i + 1}</span>
+      <span class="sl-voce-label">${escHtml(r.label)}</span>
+      <span class="sl-voce-imp">${slEuro(Number(r.importo))}</span>
+      <button type="button" class="sl-voce-rm" title="Rimuovi voce" onclick="rimuoviVoceScontrinoLibero(${i})">&times;</button>
+    </div>`).join('');
+  if (pend > 0) {
+    const d = (document.getElementById('sl-descr') || {}).value || '';
+    h += `<div class="sl-voce sl-voce-pending"><span class="sl-voce-n">${scontrinoLibero.length + 1}</span><span class="sl-voce-label">${escHtml(d.trim() || 'Vendita')}</span><span class="sl-voce-imp">${slEuro(pend)}</span></div>`;
+  }
+  wrap.innerHTML = h || '<div class="sl-vuoto">Nessuna voce.<br>Digita un importo e premi Invio, oppure scegli direttamente il pagamento.</div>';
+  wrap.scrollTop = wrap.scrollHeight;
+
+  const disp = document.getElementById('sl-display');
+  disp.textContent = slInput === '' ? '0,00' : slInput;
+  disp.classList.toggle('vuoto', slInput === '');
+
+  const totale = totaleScontrinoLibero() + pend;
+  document.getElementById('sl-totale').textContent = slEuro(totale);
+  ['contanti', 'carta', 'bancomat'].forEach(k => { document.getElementById('sl-pay-' + k).disabled = totale <= 0; });
 }
 
-function apriFiscalizzaScontrinoLibero() {
-  const righe = scontrinoLibero.filter(r => r.label.trim() && Number(r.importo) > 0);
-  if (!righe.length) { showToast('Aggiungi almeno una voce con descrizione e importo'); return; }
-  const sel = document.querySelector('input[name="sl-pagamento"]:checked');
-  const metodoPagamento = sel ? sel.value : 'contanti';
-  const metodoLabel = { contanti: 'Contanti', carta_di_credito: 'Carta di credito', bancomat: 'Bancomat' }[metodoPagamento];
+function slTasto(k) {
+  if (k === 'C') { slInput = ''; const d = document.getElementById('sl-descr'); if (d) d.value = ''; }
+  else if (k === 'back') slInput = slInput.slice(0, -1);
+  else if (k === ',') { if (!slInput.includes(',')) slInput = (slInput || '0') + ','; }
+  else {
+    for (const c of k) {                       // '00' = due zeri
+      const dec = slInput.split(',')[1];
+      if (dec !== undefined && dec.length >= 2) break;
+      if (slInput.replace(',', '').length >= 8) break;
+      slInput = (slInput === '0') ? c : slInput + c;
+    }
+  }
+  renderScontrinoLibero();
+}
+function slAggiungi() {
+  const v = slValoreInput();
+  if (v <= 0) { showToast('Digita un importo'); return false; }
+  const d = document.getElementById('sl-descr');
+  scontrinoLibero.push({ label: (d.value.trim() || 'Vendita'), importo: Math.round(v * 100) / 100 });
+  slInput = ''; d.value = '';
+  renderScontrinoLibero();
+  return true;
+}
+function rimuoviVoceScontrinoLibero(i) { scontrinoLibero.splice(i, 1); renderScontrinoLibero(); }
+function slRimuoviUltima() { if (scontrinoLibero.length) rimuoviVoceScontrinoLibero(scontrinoLibero.length - 1); }
+function slAnnullaTutto() {
+  if (!scontrinoLibero.length && !slInput) return;
+  showModal('Svuotare la cassa?', 'Tutte le voci inserite verranno cancellate.', 'Svuota', 'var(--red)', () => {
+    scontrinoLibero = []; slInput = ''; document.getElementById('sl-descr').value = ''; renderScontrinoLibero();
+  });
+}
+function slPaga(metodo) {
+  if (slValoreInput() > 0 && !slAggiungi()) return;
+  apriFiscalizzaScontrinoLibero(metodo);
+}
+
+// Tastiera: attiva solo con la schermata cassa aperta, nessuna modale e nessun campo di testo a fuoco.
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('sec-scontrino-libero').classList.contains('active')) return;
+  if (!document.getElementById('modal-overlay').classList.contains('hidden')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) {
+    if (e.key === 'Escape') { t.blur(); e.preventDefault(); }
+    return;
+  }
+  const lampeggia = k => { const b = document.querySelector('.sl-key[data-k="' + k + '"]'); if (b) { b.classList.add('premuto'); setTimeout(() => b.classList.remove('premuto'), 100); } };
+  const k = e.key;
+  if (/^[0-9]$/.test(k)) { slTasto(k); lampeggia(k); }
+  else if (k === ',' || k === '.') { slTasto(','); lampeggia(','); }
+  else if (k === 'Backspace') { slTasto('back'); lampeggia('back'); }
+  else if (k === 'Enter' || k === '+') { slAggiungi(); }
+  else if (k === 'Escape') { slTasto('C'); lampeggia('C'); }
+  else if (k === 'Delete') { slRimuoviUltima(); }
+  else if (k === 'F1') slPaga('contanti');
+  else if (k === 'F2') slPaga('carta_di_credito');
+  else if (k === 'F3') slPaga('bancomat');
+  else return;
+  e.preventDefault();
+});
+
+function apriFiscalizzaScontrinoLibero(metodoPagamento) {
+  const righe = scontrinoLibero.filter(r => Number(r.importo) > 0);
+  if (!righe.length) { showToast('Aggiungi almeno una voce'); return; }
+  const metodoLabel = SL_METODI[metodoPagamento];
   const totale = righe.reduce((s, r) => s + Number(r.importo), 0);
   showModal(
     'Conferma emissione documento fiscale',
@@ -2520,6 +2622,7 @@ function apriFiscalizzaScontrinoLibero() {
     'var(--green-700)',
     () => eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento)
   );
+  setTimeout(() => { const b = document.getElementById('modal-confirm'); if (b) b.focus(); }, 30);
 }
 
 async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
@@ -2574,7 +2677,8 @@ async function eseguiFiscalizzaScontrinoLibero(righe, metodoPagamento) {
   } catch (e) { console.error('Errore scrittura registro scontrini:', e); }
 
   showToast('Documento fiscale emesso');
-  closeScontrinoLibero();
+  scontrinoLibero = []; slInput = ''; document.getElementById('sl-descr').value = '';
+  renderScontrinoLibero();
 }
 
 function escHtml(s) {
