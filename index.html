@@ -767,6 +767,9 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
       <div class="perm-module-title" style="margin-top:14px">Prenotazioni sala</div>
       <label class="perm-row"><input type="checkbox" id="sa-pren-on"> Stampa ogni nuova prenotazione appena entra (dall'Hub o dall'Area ospite)</label>
       <div class="sa-dest" id="sa-dest-prenotazioni"></div>
+      <div style="font-size:13px;margin:8px 0 2px">Dispositivo che stampa</div>
+      <select id="sa-pren-disp" class="new-op-ruolo" style="width:100%"><option value="">Il primo con Ristorazione aperta</option></select>
+      <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-top:4px">L'elenco si riempie con i dispositivi che hanno aperto Ristorazione di recente. Se scegli un dispositivo, stampa solo quello (e deve avere Ristorazione aperta).</div>
       <div class="perm-module-title" style="margin-top:14px">Ordini shop</div>
       <label class="perm-row"><input type="checkbox" id="sa-shop-on"> Stampa ogni ordine appena arriva (quando è confermato)</label>
       <div class="sa-dest" id="sa-dest-shop"></div>
@@ -3096,6 +3099,13 @@ function renderStampaAuto() {
   set('sa-pranzo-on', c.comande.pranzo.attivo); set('sa-pranzo-ora', c.comande.pranzo.ora.padStart(5, '0'));
   set('sa-cena-on', c.comande.cena.attivo);     set('sa-cena-ora', c.comande.cena.ora.padStart(5, '0'));
   set('sa-pren-on', c.prenotazioni.attiva);
+  GRStampanti.dispositivi().then(list => {
+    const sel = document.getElementById('sa-pren-disp'); if (!sel) return;
+    const cur = c.prenotazioni.dispositivo;
+    if (cur && !list.some(x => x.id === cur)) list.push({ id: cur, nome: 'Dispositivo scelto (non visto di recente)' });
+    sel.innerHTML = '<option value="">Il primo con Ristorazione aperta</option>' + list.map(x => `<option value="${esc(x.id)}">${esc(x.nome)}${x.id === GRStampanti.idDispositivo() ? ' (questo)' : ''}</option>`).join('');
+    sel.value = cur;
+  }).catch(e => console.error(e));
   set('sa-shop-on', c.shop.attiva);
   set('sa-logo', c.aspetto.logo);
   renderAutoDest();
@@ -3110,7 +3120,7 @@ async function salvaStampaAuto() {
     await waitForFirebase();
     await GRStampanti.salvaAuto({
       comande: { pranzo: { attivo: g('sa-pranzo-on').checked, ora: orap }, cena: { attivo: g('sa-cena-on').checked, ora: oraC } },
-      prenotazioni: { attiva: g('sa-pren-on').checked },
+      prenotazioni: { attiva: g('sa-pren-on').checked, dispositivo: g('sa-pren-disp').value },
       shop: { attiva: g('sa-shop-on').checked },
       aspetto: { logo: g('sa-logo').value },
     });

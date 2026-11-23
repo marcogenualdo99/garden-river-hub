@@ -367,13 +367,13 @@
   // Firestore impostazioni/stampa_automatica:
   //   comande: { pranzo: {attivo, ora:'11:30'}, cena: {attivo, ora:'18:00'} }
   //   shop:    { attiva, attivo_dal: ISO }   (stampa all'arrivo dell'ordine)
-  //   prenotazioni: { attiva, attivo_dal: ISO }   (stampa ogni nuova prenotazione sala)
+  //   prenotazioni: { attiva, attivo_dal: ISO, dispositivo }   (stampa ogni nuova prenotazione sala; dispositivo '' = il primo che la vede)
   // Le stampe partono dal primo dispositivo che ha aperta la pagina giusta
   // (Ristorazione o Shop); "rivendica" evita che due dispositivi stampino la stessa cosa.
   var AUTO_DEFAULT = {
     comande: { pranzo: { attivo: false, ora: '11:30' }, cena: { attivo: false, ora: '18:00' } },
     shop: { attiva: false, attivo_dal: '' },
-    prenotazioni: { attiva: false, attivo_dal: '' },
+    prenotazioni: { attiva: false, attivo_dal: '', dispositivo: '' },
     aspetto: { logo: 'conti' },   // logo sulle stampe: 'conti' (tutto tranne le comande) | 'tutte' | 'mai'
   };
   var autoCfg = JSON.parse(JSON.stringify(AUTO_DEFAULT));
@@ -392,7 +392,7 @@
     var lg = (c.aspetto || {}).logo;
     return { comande: { pranzo: fascia('pranzo'), cena: fascia('cena') },
              shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' },
-             prenotazioni: { attiva: pr.attiva === true, attivo_dal: pr.attivo_dal || '' },
+             prenotazioni: { attiva: pr.attiva === true, attivo_dal: pr.attivo_dal || '', dispositivo: String(pr.dispositivo || '') },
              aspetto: { logo: lg === 'tutte' || lg === 'mai' ? lg : 'conti' } };
   }
 
@@ -425,6 +425,37 @@
     var id = localStorage.getItem('gr_device_id');
     if (!id) { id = 'd_' + Math.random().toString(36).slice(2, 10); try { localStorage.setItem('gr_device_id', id); } catch (e) { /* ok */ } }
     return id;
+  }
+
+  // Elenco dei dispositivi che hanno aperto Ristorazione (Firestore impostazioni/stampa_dispositivi),
+  // per scegliere dalla Hub quale stampa in automatico.
+  function nomeDispositivo() {
+    var id = idDispositivo(), ua = navigator.userAgent || '', tipo;
+    if (window.GRNativo && window.GRNativo.idDispositivo && window.GRNativo.idDispositivo()) return 'Sunmi ' + window.GRNativo.idDispositivo();
+    if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) tipo = 'iPad';
+    else if (/iPhone/.test(ua)) tipo = 'iPhone';
+    else if (/Android/.test(ua)) tipo = 'Android';
+    else if (/Macintosh/.test(ua)) tipo = 'Mac';
+    else if (/Windows/.test(ua)) tipo = 'Windows';
+    else tipo = 'Dispositivo';
+    return tipo + ' · ' + id.slice(2, 6);
+  }
+  async function registraDispositivo() {
+    await attendiFirebase();
+    var fb = window._fb;
+    try {
+      var d = {}; d[idDispositivo()] = { nome: nomeDispositivo(), ts: new Date().toISOString() };
+      await fb.setDoc(fb.doc(fb.db, 'impostazioni', 'stampa_dispositivi'), { d: d }, { merge: true });
+    } catch (e) { console.error('Registrazione dispositivo:', e); }
+  }
+  async function dispositivi() {
+    await attendiFirebase();
+    var fb = window._fb;
+    var snap = await fb.getDoc(fb.doc(fb.db, 'impostazioni', 'stampa_dispositivi'));
+    var d = (snap.exists() && snap.data().d) || {}, limite = Date.now() - 30 * 86400000;
+    return Object.keys(d).map(function (k) { return { id: k, nome: d[k].nome || k, ts: d[k].ts || '' }; })
+      .filter(function (x) { return (Date.parse(x.ts) || 0) > limite; })
+      .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'it'); });
   }
 
   // Prenota una stampa (es. 'comande_2026-11-18_pranzo' o 'shop_<idOrdine>'). Vero se
@@ -528,6 +559,7 @@
     salva: salva, elimina: elimina,
     avviaAuto: avviaAuto, autoCfg: function () { return autoCfg; }, salvaAuto: salvaAuto,
     rivendica: rivendica, concludi: concludi, idDispositivo: idDispositivo,
+    registraDispositivo: registraDispositivo, dispositivi: dispositivi, nomeDispositivo: nomeDispositivo,
     logoPer: logoPer, logoXml: logoXml, logoPerStampa: logoPerStampa,
   };
 })();

@@ -2080,6 +2080,7 @@ function rivalutaStampaPren() {
   if (!famiglieDocs.length && !Object.keys(PREN_LIBERE || {}).length) return;   // dati non ancora arrivati
   const cfg = GRStampanti.autoCfg().prenotazioni;
   if (!cfg.attiva || !cfg.attivo_dal) return;
+  if (cfg.dispositivo && cfg.dispositivo !== GRStampanti.idDispositivo()) return;   // stampa solo il dispositivo scelto dalla Hub
   const da = Math.max(Date.parse(cfg.attivo_dal) || 0, Date.now() - 48 * 3600 * 1000);
   tuttePrenotazioni().forEach(p => {
     if (_prStampate.has('pren_' + p.id)) return;
@@ -5113,6 +5114,7 @@ async function controllaStampeProgrammate() {
 window.addEventListener('stampanti-aggiornate', aggiornaStatoStampante);
 GRStampanti.avvia();
 GRStampanti.avviaAuto();
+GRStampanti.registraDispositivo();
 window.addEventListener('stampa-auto-aggiornata', aggiornaOrariAuto);
 aggiornaOrariAuto();
 setInterval(controllaStampeProgrammate, 20000);
