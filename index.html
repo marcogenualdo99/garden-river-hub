@@ -72,7 +72,7 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
   #sec-scontrino-libero .back-header { margin-bottom: 6px; gap: 8px; }
   #sec-scontrino-libero .back-btn { width: 34px; height: 34px; }
   #sec-scontrino-libero .back-title { font-size: 16px; }
-  .sl-cassa { grid-template-columns: 1fr; grid-template-rows: minmax(100px, 1fr) auto; gap: 8px; height: calc(100vh - 126px); min-height: 0; }
+  .sl-cassa { grid-template-columns: 1fr; grid-template-rows: minmax(100px, 1fr) auto; gap: 8px; height: var(--sl-h, calc(100vh - 126px)); min-height: 0; }
   .sl-pane-head { padding: 7px 14px; }
   .sl-cassa.sl-espansa { grid-template-rows: 1fr; }
   .sl-cassa.sl-espansa .sl-keys-pane { display: none; }
@@ -88,7 +88,6 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
   .sl-descr { height: 32px; font-size: 12px; }
   .sl-pad { flex: none; grid-template-rows: repeat(5, 36px); gap: 6px; }
   .sl-key.sl-key-add { height: 42px; }
-  .sl-descr { display: none; }
   .sl-key { font-size: 20px; }
   .sl-key.sl-key-ctl { font-size: 15px; }
   .sl-key.sl-key-add { font-size: 15px; }
@@ -2640,8 +2639,23 @@ function slPaga(metodo) {
   const sec = document.getElementById('sec-scontrino-libero');
   if (!sec || !window.MutationObserver) return;
   const sync = () => document.documentElement.classList.toggle('sl-lock', sec.classList.contains('active'));
-  new MutationObserver(sync).observe(sec, { attributes: true, attributeFilter: ['class'] });
-  sync();
+  // Altezza della cassa = spazio reale sotto l'intestazione (iPhone: header piu' alto + safe area in basso)
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;padding-bottom:env(safe-area-inset-bottom)';
+  document.body.appendChild(probe);
+  const fit = () => {
+    const cassa = document.querySelector('.sl-cassa');
+    if (!cassa || !sec.classList.contains('active')) return;
+    if (window.innerWidth > 800) { cassa.style.removeProperty('--sl-h'); return; }
+    const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    const top = cassa.getBoundingClientRect().top + window.scrollY;
+    const safe = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+    cassa.style.setProperty('--sl-h', Math.max(380, Math.floor(vh - top - safe - 8)) + 'px');
+  };
+  new MutationObserver(() => { sync(); requestAnimationFrame(fit); setTimeout(fit, 150); }).observe(sec, { attributes: true, attributeFilter: ['class'] });
+  ['resize', 'orientationchange', 'pageshow'].forEach(ev => window.addEventListener(ev, () => setTimeout(fit, 50)));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+  sync(); fit();
 })();
 
 // Tastiera: attiva solo con la schermata cassa aperta, nessuna modale e nessun campo di testo a fuoco.
