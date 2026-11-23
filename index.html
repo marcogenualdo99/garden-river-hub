@@ -16,8 +16,8 @@
 <link rel="stylesheet" href="assets/home-colori.css?v=5">
 <style>
 /* ══ SCONTRINO LIBERO — schermata cassa: voci+totale a sinistra, tastierino+pagamenti a destra ══ */
-main:has(#sec-scontrino-libero.active) { max-width: 1100px; }
-.sl-cassa { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; height: calc(100vh - 150px); min-height: 520px; }
+main:has(#sec-scontrino-libero.active) { max-width: none; }
+.sl-cassa { display: grid; grid-template-columns: minmax(0, 1fr) clamp(400px, 34vw, 520px); gap: 16px; height: calc(100vh - 250px); min-height: 560px; }
 .sl-pane { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .sl-pane-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--gray-100); font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; }
 .sl-clear { background: none; border: none; font-family: var(--font); font-size: 12px; font-weight: 700; color: var(--gray-500); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); }
@@ -40,20 +40,27 @@ main:has(#sec-scontrino-libero.active) { max-width: 1100px; }
 .sl-display.vuoto { color: var(--gray-300, #c9c9c4); }
 .sl-descr { height: 40px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
 .sl-descr:focus { border-color: var(--green-400); }
-.sl-pad { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(5, 1fr); gap: 8px; }
+.sl-pad { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)) minmax(60px, .9fr); gap: 8px; }
 .sl-key { border: none; border-radius: var(--radius-md, 12px); background: var(--gray-100); color: var(--gray-900); font-size: 24px; font-weight: 700; font-family: var(--font); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .05s, background .1s; user-select: none; -webkit-user-select: none; }
 .sl-key:hover { background: var(--gray-200); }
 .sl-key:active, .sl-key.premuto { transform: scale(.96); background: var(--gray-200); }
-.sl-key.sl-key-add { grid-column: 1 / 4; background: var(--green-100, #e3f1e6); color: var(--green-700); font-size: 15px; }
-.sl-key.sl-key-add:hover { background: var(--green-200, #cfe6d4); }
+.sl-key.sl-key-add { grid-column: 1 / 4; background: var(--orange); color: #fff; font-size: 17px; font-weight: 800; gap: 10px; box-shadow: 0 4px 14px rgba(242,112,42,.35); }
+.sl-key.sl-key-add:hover { background: var(--orange-lt); }
+.sl-key.sl-key-add svg { width: 22px; height: 22px; }
+.sl-key.sl-key-add kbd { font-family: var(--font); font-size: 11px; font-weight: 700; background: rgba(255,255,255,.25); border-radius: 6px; padding: 2px 7px; }
 .sl-key.sl-key-ctl { color: var(--gray-600, #555); font-size: 18px; }
 .sl-key svg { width: 26px; height: 26px; }
 .sl-pay { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.sl-pay-btn { height: 78px; border: none; border-radius: var(--radius-md, 12px); background: var(--green-700); color: #fff; font-family: var(--font); font-size: 14px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: opacity .15s, transform .05s; }
-.sl-pay-btn small { font-size: 10px; font-weight: 600; opacity: .7; letter-spacing: .04em; }
+.sl-pay-btn { height: 92px; border: none; border-radius: var(--radius-md, 12px); color: #fff; font-family: var(--font); font-size: 15px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; transition: filter .15s, transform .05s; }
+.sl-pay-btn svg { width: 26px; height: 26px; }
+.sl-pay-btn kbd { font-family: var(--font); font-size: 10px; font-weight: 700; background: rgba(255,255,255,.22); border-radius: 5px; padding: 1px 6px; letter-spacing: .04em; }
+.sl-pay-btn:hover { filter: brightness(1.1); }
 .sl-pay-btn:active { transform: scale(.97); }
-.sl-pay-btn:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
-.sl-pay-btn.sl-pay-alt { background: var(--gray-900); }
+.sl-pay-contanti { background: var(--green-700); }
+.sl-pay-carta { background: #2456a6; }
+.sl-pay-bancomat { background: #475569; }
+.sl-pay-btn:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; filter: none; }
+.sl-pay-btn:disabled kbd { background: rgba(0,0,0,.06); }
 .sl-hint { font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5; }
 @media (max-width: 800px) {
   .sl-cassa { grid-template-columns: 1fr; height: auto; }
@@ -798,12 +805,12 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
           <button type="button" class="sl-key sl-key-ctl" data-k="C" onclick="slTasto('C')">C</button>
           <button type="button" class="sl-key sl-key-ctl" data-k="back" onclick="slTasto('back')" title="Cancella"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m17 9-4 6M13 9l4 6"/></svg></button>
           <button type="button" class="sl-key sl-key-ctl" data-k="del" onclick="slRimuoviUltima()" title="Rimuovi ultima voce">Ult.</button>
-          <button type="button" class="sl-key sl-key-add" onclick="slAggiungi()">Aggiungi voce (Invio)</button>
+          <button type="button" class="sl-key sl-key-add" onclick="slAggiungi()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Aggiungi voce <kbd>Invio</kbd></button>
         </div>
         <div class="sl-pay">
-          <button type="button" class="sl-pay-btn" id="sl-pay-contanti" onclick="slPaga('contanti')">Contanti<small>F1</small></button>
-          <button type="button" class="sl-pay-btn sl-pay-alt" id="sl-pay-carta" onclick="slPaga('carta_di_credito')">Carta<small>F2</small></button>
-          <button type="button" class="sl-pay-btn sl-pay-alt" id="sl-pay-bancomat" onclick="slPaga('bancomat')">Bancomat<small>F3</small></button>
+          <button type="button" class="sl-pay-btn sl-pay-contanti" id="sl-pay-contanti" onclick="slPaga('contanti')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>Contanti<kbd>F1</kbd></button>
+          <button type="button" class="sl-pay-btn sl-pay-carta" id="sl-pay-carta" onclick="slPaga('carta_di_credito')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>Carta<kbd>F2</kbd></button>
+          <button type="button" class="sl-pay-btn sl-pay-bancomat" id="sl-pay-bancomat" onclick="slPaga('bancomat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 6h4M12 18h.01"/></svg>Bancomat<kbd>F3</kbd></button>
         </div>
         <div class="sl-hint">Cifre e virgola dalla tastiera · Invio aggiunge · Canc rimuove l'ultima · Esc azzera · F1/F2/F3 pagano</div>
       </div>
