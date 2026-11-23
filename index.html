@@ -40,11 +40,11 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
 .sl-display.vuoto { color: var(--gray-300, #c9c9c4); }
 .sl-descr { height: 40px; padding: 0 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); color: var(--gray-900); outline: none; }
 .sl-descr:focus { border-color: var(--green-400); }
-.sl-pad { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)) minmax(60px, .9fr); gap: 8px; }
+.sl-pad { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .sl-key { border: none; border-radius: var(--radius-md, 12px); background: var(--gray-100); color: var(--gray-900); font-size: 24px; font-weight: 700; font-family: var(--font); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform .05s, background .1s; user-select: none; -webkit-user-select: none; }
 .sl-key:hover { background: var(--gray-200); }
 .sl-key:active, .sl-key.premuto { transform: scale(.96); background: var(--gray-200); }
-.sl-key.sl-key-add { grid-column: 1 / 4; background: var(--orange); color: #fff; font-size: 17px; font-weight: 800; gap: 10px; box-shadow: 0 4px 14px rgba(242,112,42,.35); }
+.sl-key.sl-key-add { flex: none; height: 68px; background: var(--orange); color: #fff; font-size: 17px; font-weight: 800; gap: 10px; box-shadow: 0 4px 14px rgba(242,112,42,.35); }
 .sl-key.sl-key-add:hover { background: var(--orange-lt); }
 .sl-key.sl-key-add svg { width: 22px; height: 22px; }
 .sl-key.sl-key-add kbd { font-family: var(--font); font-size: 11px; font-weight: 700; background: rgba(255,255,255,.25); border-radius: 6px; padding: 2px 7px; }
@@ -78,7 +78,8 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
   .sl-keys-pane { padding: 8px; gap: 6px; overflow: visible; }
   .sl-display { font-size: 26px; min-height: 0; padding: 2px 12px; line-height: 1.5; }
   .sl-descr { height: 32px; font-size: 12px; }
-  .sl-pad { flex: none; grid-template-rows: repeat(4, 40px) 44px; gap: 6px; }
+  .sl-pad { flex: none; grid-template-rows: repeat(4, 40px); gap: 6px; }
+  .sl-key.sl-key-add { height: 44px; }
   .sl-key { font-size: 20px; }
   .sl-key.sl-key-ctl { font-size: 15px; }
   .sl-key.sl-key-add { font-size: 15px; }
@@ -824,8 +825,8 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
           <button type="button" class="sl-key sl-key-ctl" data-k="C" onclick="slTasto('C')">C</button>
           <button type="button" class="sl-key sl-key-ctl" data-k="back" onclick="slTasto('back')" title="Cancella"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="m17 9-4 6M13 9l4 6"/></svg></button>
           <button type="button" class="sl-key sl-key-ctl" data-k="del" onclick="slRimuoviUltima()" title="Rimuovi ultima voce">Ult.</button>
-          <button type="button" class="sl-key sl-key-add" onclick="slAggiungi()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Aggiungi voce <kbd>Invio</kbd></button>
         </div>
+        <button type="button" class="sl-key sl-key-add" onclick="slAggiungi()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Aggiungi voce <kbd>Invio</kbd></button>
         <div class="sl-pay">
           <button type="button" class="sl-pay-btn sl-pay-contanti" id="sl-pay-contanti" onclick="slPaga('contanti')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>Contanti<kbd>F1</kbd></button>
           <button type="button" class="sl-pay-btn sl-pay-carta" id="sl-pay-carta" onclick="slPaga('carta_di_credito')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>Carta<kbd>F2</kbd></button>
