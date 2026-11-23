@@ -197,7 +197,7 @@
     try {
       var id = 'j_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       var ref = fb.doc(fb.db, 'coda_stampa', id);
-      await fb.setDoc(ref, { stato: 'in_coda', ip: p.ip, xml: xml, stampante: p.nome || p.ip, creato_ts: Date.now() / 1000 });
+      await fb.setDoc(ref, { stato: 'in_coda', ip: p.ip, dispositivo: p.dispositivo || '', xml: xml, stampante: p.nome || p.ip, creato_ts: Date.now() / 1000 });
       passo = 'attesa del V2';
       return await new Promise(function (resolve) {
         var unsub = null, fatto = false;
@@ -335,7 +335,8 @@
     var dati = {
       nome: String(p.nome || '').trim(),
       tipo: p.tipo === 'sunmi' || p.tipo === 'interna' ? p.tipo : 'epson',
-      ip: String(p.ip || '').trim(),
+      ip: p.tipo === 'interna' ? 'interna' : String(p.ip || '').trim(),
+      dispositivo: p.tipo === 'interna' ? String(p.dispositivo || '').trim() : '',
       servizi: (p.servizi || []).filter(function (s) { return SERVIZI.some(function (x) { return x.id === s; }); }),
       attiva: p.attiva !== false,
     };

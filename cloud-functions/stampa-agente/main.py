@@ -105,6 +105,7 @@ def stampa_agente(request):
 
     if azione == 'prendi':
         adesso = time.time()
+        dispositivo = str(body.get('dispositivo', '')).strip()
         lavori = []
         for snap in col.where('stato', '==', 'in_coda').limit(20).stream():
             if len(lavori) >= MAX_PER_GIRO:
@@ -115,6 +116,16 @@ def stampa_agente(request):
                 continue
             ip = str(d.get('ip', ''))
             if ip == 'interna':
+                # Stampante integrata di UN Sunmi preciso: il lavoro porta l'ID del
+                # dispositivo scelto in Hub > Impostazioni > Stampanti (non e' un IP di
+                # rete, e' un'etichetta scritta a mano nelle Impostazioni dell'app, es.
+                # il numero di serie: non cambia se il dispositivo cambia rete). Se il
+                # lavoro ne chiede uno specifico e chi sta chiamando e' un altro
+                # dispositivo, lo si lascia in coda per quello giusto (nessun ID = per
+                # compatibilita' lo prende il primo che passa).
+                target = str(d.get('dispositivo', '')).strip()
+                if target and target != dispositivo:
+                    continue
                 # Stampante integrata del V2: l'app converte l'XML per la carta da 58mm
                 # e stampa via Bluetooth, quindi qui si passa l'XML cosi' com'e'.
                 @firestore.transactional

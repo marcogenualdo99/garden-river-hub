@@ -11,7 +11,7 @@ import android.view.View;
 import android.widget.*;
 
 public class SettingsActivity extends Activity {
-    private EditText url, token;
+    private EditText url, token, dispositivo;
     private TextView stato;
     private final Handler h = new Handler();
     private final Runnable giro = new Runnable() {
@@ -43,6 +43,13 @@ public class SettingsActivity extends Activity {
             public void onTextChanged(CharSequence a, int b, int c, int d) { }
         });
         l.addView(hub);
+        TextView dispLbl = new TextView(this);
+        dispLbl.setText("ID di questo dispositivo (per la stampante \"integrata\" in Hub > Impostazioni > Stampanti: cosi' puoi avere piu' Sunmi senza che si rubino le stampe a vicenda)");
+        dispLbl.setPadding(0, 24, 0, 4); dispLbl.setTextSize(13);
+        l.addView(dispLbl);
+        dispositivo = new EditText(this); dispositivo.setHint("es. bar, reception, nuovo"); dispositivo.setSingleLine(true);
+        dispositivo.setText(sp.getString("device_id", Build.SERIAL != null ? Build.SERIAL : ""));
+        l.addView(dispositivo);
         token = new EditText(this); token.setHint("Token"); token.setSingleLine(true);
         token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         token.setText(sp.getString("token", ""));
@@ -50,7 +57,8 @@ public class SettingsActivity extends Activity {
         Button avvia = new Button(this); avvia.setText("Salva e avvia");
         avvia.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             sp.edit().putString("url", url.getText().toString().trim())
-              .putString("token", token.getText().toString().trim()).putBoolean("attivo", true).apply();
+              .putString("token", token.getText().toString().trim())
+              .putString("device_id", dispositivo.getText().toString().trim()).putBoolean("attivo", true).apply();
             Intent s = new Intent(SettingsActivity.this, PrintService.class);
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(s); else startService(s);
         }});
@@ -58,7 +66,8 @@ public class SettingsActivity extends Activity {
         Button apri = new Button(this); apri.setText("Torna alla Hub");
         apri.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
             sp.edit().putString("url", url.getText().toString().trim())
-              .putString("token", token.getText().toString().trim()).apply();
+              .putString("token", token.getText().toString().trim())
+              .putString("device_id", dispositivo.getText().toString().trim()).apply();
             finish();
         }});
         l.addView(apri);

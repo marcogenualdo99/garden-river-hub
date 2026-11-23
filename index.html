@@ -2956,7 +2956,7 @@ function renderStampanti() {
         <strong style="font-size:16px">${esc(p.nome || '(senza nome)')}</strong>
         <span style="font-size:12px;font-weight:700;color:${disattiva ? 'var(--red,#dc2626)' : 'var(--green-700,#15803d)'}">${disattiva ? 'Disattivata' : 'Attiva'}</span>
       </div>
-      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 10px">${esc(nomeTipo(p.tipo))}${p.tipo === 'interna' ? '' : ' · ' + esc(p.ip || 'IP mancante')}</div>
+      <div style="font-size:13px;color:var(--gray-600,#4b5563);margin:2px 0 10px">${esc(nomeTipo(p.tipo))} · ${p.tipo === 'interna' ? (p.dispositivo ? 'ID ' + esc(p.dispositivo) : 'qualsiasi Sunmi (nessun ID assegnato: da sistemare se ne hai più di uno)') : esc(p.ip || 'IP mancante')}</div>
       <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Stampa</div>
       <div>${srv.length ? srv.map(x => chip(brevi[x] || nomeServizio(x), false)).join('') : '<em style="font-size:13px">Niente: non è associata a nessun servizio</em>'}</div>
       ${srv.length ? `<div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">In automatico</div>
@@ -2982,10 +2982,12 @@ function apriFormStampante(id) {
     <div style="padding:12px 0;border-top:1px solid var(--gray-200,#e5e7eb);margin-top:8px">
       <h4 style="margin:0 0 8px">${p ? 'Modifica stampante' : 'Nuova stampante'}</h4>
       <input type="text" id="stp-nome" class="new-op-input" placeholder="Nome (es. Bar, Cucina, Reception)" value="${esc(cur.nome || '')}" style="width:100%;margin-bottom:8px">
-      <select id="stp-tipo" class="new-op-ruolo" style="width:100%;margin-bottom:8px" onchange="document.getElementById('stp-ip').style.display = this.value === 'interna' ? 'none' : ''">
+      <select id="stp-tipo" class="new-op-ruolo" style="width:100%;margin-bottom:8px" onchange="aggiornaCampoIpStampante()">
         ${GRStampanti.TIPI.map(t => `<option value="${t.id}" ${ (cur.tipo || 'epson') === t.id ? 'selected' : ''}>${esc(t.nome)}</option>`).join('')}
       </select>
       <input type="text" id="stp-ip" class="new-op-input" placeholder="Indirizzo IP (es. 192.168.1.50)" value="${esc(cur.tipo === 'interna' ? '' : (cur.ip || ''))}" style="width:100%;margin-bottom:8px;${cur.tipo === 'interna' ? 'display:none' : ''}">
+      <input type="text" id="stp-dispositivo" class="new-op-input" placeholder="ID dispositivo Sunmi (Impostazioni app sul V2)" value="${esc(cur.dispositivo || '')}" style="width:100%;margin-bottom:8px;${cur.tipo === 'interna' ? '' : 'display:none'}">
+      <div id="stp-ip-hint" style="font-size:12px;color:var(--gray-500,#6b7280);margin:-4px 0 8px">${cur.tipo === 'interna' ? 'Non è un indirizzo di rete: è l\'etichetta scelta nelle Impostazioni di quel Sunmi (tieni premuto Indietro nell\'app), non cambia se il dispositivo cambia rete. Se hai più Sunmi, uno diverso per ciascuno.' : ''}</div>
       <div class="perm-module-title">Cosa stampa questa stampante</div>
       <div style="font-size:12px;color:var(--gray-500,#6b7280);margin-bottom:4px">Nei pulsanti Stampa di ogni sezione comparirà solo se il servizio è spuntato.</div>
       ${GRStampanti.SERVIZI.map(sv => `
@@ -3025,6 +3027,13 @@ function aggiornaAutoForm() {
   });
 }
 
+function aggiornaCampoIpStampante() {
+  const interna = document.getElementById('stp-tipo').value === 'interna';
+  document.getElementById('stp-ip').style.display = interna ? 'none' : '';
+  document.getElementById('stp-dispositivo').style.display = interna ? '' : 'none';
+  document.getElementById('stp-ip-hint').textContent = interna ? 'Non è un indirizzo di rete: è l\'etichetta scelta nelle Impostazioni di quel Sunmi (tieni premuto Indietro nell\'app), non cambia se il dispositivo cambia rete. Se hai più Sunmi, uno diverso per ciascuno.' : '';
+}
+
 function chiudiFormStampante() {
   stampanteInModifica = null;
   document.getElementById('stampante-form').innerHTML = '';
@@ -3034,15 +3043,18 @@ function chiudiFormStampante() {
 async function salvaFormStampante() {
   const nome = document.getElementById('stp-nome').value.trim();
   const tipoSel = document.getElementById('stp-tipo').value;
-  const ip = tipoSel === 'interna' ? 'interna' : document.getElementById('stp-ip').value.trim();
+  const ip = document.getElementById('stp-ip').value.trim();
+  const dispositivo = document.getElementById('stp-dispositivo').value.trim();
   if (!nome) { showToast('Inserisci un nome'); return; }
-  if (tipoSel !== 'interna' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && !/^[a-z0-9.-]+$/i.test(ip)) { showToast('Inserisci un indirizzo IP valido'); return; }
+  if (tipoSel === 'interna') {
+    if (!dispositivo) { showToast('Inserisci l\'ID del dispositivo Sunmi (vedi Impostazioni app sul V2)'); return; }
+  } else if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && !/^[a-z0-9.-]+$/i.test(ip)) { showToast('Inserisci un indirizzo IP valido'); return; }
   const servizi = GRStampanti.SERVIZI.filter(sv => document.getElementById('stp-srv-' + sv.id).checked).map(sv => sv.id);
   try {
     await waitForFirebase();
     await GRStampanti.salva({
       id: stampanteInModifica && stampanteInModifica.id,
-      nome, ip, servizi,
+      nome, ip, dispositivo, servizi,
       auto: GRStampanti.AUTO.filter(a => document.getElementById('stp-auto-' + a.id).checked).map(a => a.id),
       tipo: document.getElementById('stp-tipo').value,
       attiva: document.getElementById('stp-attiva').checked,
