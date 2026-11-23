@@ -63,9 +63,28 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
 .sl-pay-btn:disabled kbd { background: rgba(0,0,0,.06); }
 .sl-hint { font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5; }
 @media (max-width: 800px) {
-  .sl-cassa { grid-template-columns: 1fr; height: auto; }
-  .sl-pane:first-child { min-height: 260px; max-height: 40vh; }
-  .sl-pad { grid-template-rows: repeat(5, 58px); }
+  /* telefono / Sunmi V2: tutto in una schermata, niente scorrimento pagina */
+  main:has(#sec-scontrino-libero.active) { padding: 6px 10px 8px; }
+  #sec-scontrino-libero .back-header { margin-bottom: 6px; gap: 8px; }
+  #sec-scontrino-libero .back-btn { width: 34px; height: 34px; }
+  #sec-scontrino-libero .back-title { font-size: 16px; }
+  .sl-cassa { grid-template-columns: 1fr; grid-template-rows: minmax(70px, 1fr) auto; gap: 8px; height: calc(100vh - 150px); min-height: 0; }
+  .sl-pane-head { padding: 7px 14px; }
+  .sl-voci { padding: 0 14px; }
+  .sl-voce { padding: 7px 0; font-size: 14px; }
+  .sl-vuoto { font-size: 12px; }
+  .sl-totale-box { padding: 6px 14px; }
+  .sl-totale-box span:last-child { font-size: 28px; }
+  .sl-keys-pane { padding: 8px; gap: 6px; overflow: visible; }
+  .sl-display { font-size: 26px; min-height: 0; padding: 2px 12px; line-height: 1.5; }
+  .sl-descr { height: 32px; font-size: 12px; }
+  .sl-pad { flex: none; grid-template-rows: repeat(4, 40px) 44px; gap: 6px; }
+  .sl-key { font-size: 20px; }
+  .sl-key.sl-key-ctl { font-size: 15px; }
+  .sl-key.sl-key-add { font-size: 15px; }
+  .sl-key.sl-key-add kbd, .sl-pay-btn kbd, .sl-hint { display: none; }
+  .sl-pay-btn { height: 50px; flex-direction: row; gap: 6px; font-size: 13px; }
+  .sl-pay-btn svg { width: 20px; height: 20px; }
 }
 
 /* ══ REPORT HOME: presenti+ricerca, oggi in struttura ═══════════════════════ */
