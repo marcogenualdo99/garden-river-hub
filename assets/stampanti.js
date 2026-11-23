@@ -367,13 +367,13 @@
   // Firestore impostazioni/stampa_automatica:
   //   comande: { pranzo: {attivo, ora:'11:30'}, cena: {attivo, ora:'18:00'} }
   //   shop:    { attiva, attivo_dal: ISO }   (stampa all'arrivo dell'ordine)
-  //   prenotazioni: { attiva, attivo_dal: ISO, dispositivo }   (stampa ogni nuova prenotazione sala; dispositivo '' = il primo che la vede)
+  //   prenotazioni: { attiva, attivo_dal: ISO }   (stampa ogni nuova prenotazione sala, anche via CF area-ospite)
   // Le stampe partono dal primo dispositivo che ha aperta la pagina giusta
   // (Ristorazione o Shop); "rivendica" evita che due dispositivi stampino la stessa cosa.
   var AUTO_DEFAULT = {
     comande: { pranzo: { attivo: false, ora: '11:30' }, cena: { attivo: false, ora: '18:00' } },
     shop: { attiva: false, attivo_dal: '' },
-    prenotazioni: { attiva: false, attivo_dal: '', dispositivo: '' },
+    prenotazioni: { attiva: false, attivo_dal: '' },
     aspetto: { logo: 'conti' },   // logo sulle stampe: 'conti' (tutto tranne le comande) | 'tutte' | 'mai'
   };
   var autoCfg = JSON.parse(JSON.stringify(AUTO_DEFAULT));
@@ -392,7 +392,7 @@
     var lg = (c.aspetto || {}).logo;
     return { comande: { pranzo: fascia('pranzo'), cena: fascia('cena') },
              shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' },
-             prenotazioni: { attiva: pr.attiva === true, attivo_dal: pr.attivo_dal || '', dispositivo: String(pr.dispositivo || '') },
+             prenotazioni: { attiva: pr.attiva === true, attivo_dal: pr.attivo_dal || '' },
              aspetto: { logo: lg === 'tutte' || lg === 'mai' ? lg : 'conti' } };
   }
 

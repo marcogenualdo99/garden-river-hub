@@ -1865,6 +1865,76 @@ def _azione_ristorazione_prenota_info(db, origin, data):
                           'ospiti': _pren_ospiti(p), 'prenotazioni': lista})
 
 
+# ── Stampa automatica delle prenotazioni sala fatte dall'ospite ────────────────
+# Se in Hub > Impostazioni > Stampanti > Stampe automatiche e' attiva "Prenotazioni sala",
+# la prenotazione dell'ospite viene messa in `coda_stampa` (la stampa l'app Agente Stampa
+# sul V2, via CF stampa-agente) senza bisogno che una pagina della Hub sia aperta.
+# Anti-doppione con le pagine: stampe_auto/pren_<id> viene creato qui come 'ok'.
+_MESI_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+_GIORNI_IT = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica']
+
+
+def _xml_esc(v):
+    return (str(v or '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            .replace('"', '&quot;').replace("'", '&apos;'))
+
+
+def _xml_prenotazione(p):
+    """Stesso biglietto di Ristorazione > Prenotazioni > Stampa (senza logo)."""
+    T = lambda t: '<text>%s&#10;</text>' % _xml_esc(t)
+    try:
+        d = datetime.strptime(p['data'], '%Y-%m-%d')
+        data_it = '%s %d %s' % (_GIORNI_IT[d.weekday()], d.day, _MESI_IT[d.month - 1])
+    except Exception:
+        data_it = p.get('data', '')
+    pasto = {'pranzo': 'Pranzo', 'cena': 'Cena'}.get(p.get('pasto'), str(p.get('pasto', '')))
+    r = ['<text font="font_a" align="center" em="true" height="2" width="2">PRENOTAZIONE&#10;</text>',
+         '<text font="font_a" align="center">%s&#10;</text>' % _xml_esc(data_it), '<text>&#10;</text>',
+         '<text font="font_a" align="center" em="true" height="2" width="2">%s%s&#10;</text>' % (
+             _xml_esc(pasto.upper()), (' ' + _xml_esc(p['turno'])) if p.get('turno') else ''), '<text>&#10;</text>',
+         '<text font="font_a" align="center" em="true" height="3" width="3">%s PERS.&#10;</text>' % p.get('persone'), '<text>&#10;</text>',
+         '<text font="font_a" em="true" height="2" width="1">%s&#10;</text>' % _xml_esc(p.get('nome'))]
+    if p.get('alloggio'):
+        r.append(T('Alloggio ' + p['alloggio']))
+    if p.get('tel'):
+        r.append(T('Tel. ' + p['tel']))
+    r.append(T('Cliente libero' if p.get('libera') else 'Ospite in pensione'))
+    if p.get('note'):
+        r += ['<text>&#10;</text>', T('Note: ' + p['note'])]
+    r += ['<text>&#10;</text>', '<cut type="feed"/>']
+    return ('<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>'
+            '<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">%s</epos-print></s:Body></s:Envelope>' % ''.join(r))
+
+
+def _stampa_prenotazione_auto(db, pid, p):
+    """Mette in coda la stampa della prenotazione. Mai bloccante."""
+    try:
+        snap = db.collection('impostazioni').document('stampa_automatica').get()
+        cfg = ((snap.to_dict() or {}).get('prenotazioni') or {}) if snap.exists else {}
+        if cfg.get('attiva') is not True:
+            return
+        stamp = [dict(d.to_dict() or {}, id=d.id) for d in db.collection('stampanti').stream()]
+        stamp = [x for x in stamp if x.get('attiva') is not False and 'comande' in (x.get('servizi') or [])]
+        stamp.sort(key=lambda x: str(x.get('nome', '')).lower())
+        dest = [x for x in stamp if 'prenotazioni' in (x.get('auto') or [])] or stamp[:1]
+        if not dest:
+            return
+        from google.api_core.exceptions import AlreadyExists
+        try:
+            db.collection('stampe_auto').document('pren_' + pid).create({
+                'stato': 'ok', 'da': 'server', 'scadenza': datetime.now(TZ_ROMA) + timedelta(minutes=5), 'ts': _now_iso(), 'err': ''})
+        except AlreadyExists:
+            return
+        xml = _xml_prenotazione(p)
+        for x in dest:
+            db.collection('coda_stampa').document().set({
+                'stato': 'in_coda', 'ip': x.get('ip', ''), 'dispositivo': x.get('dispositivo', '') or '', 'xml': xml,
+                'stampante': x.get('nome') or x.get('ip', ''), 'creato_ts': time.time()})
+    except Exception as e:  # la prenotazione e' gia' salvata: la stampa non deve far fallire la risposta
+        print('stampa prenotazione auto: %s' % e)
+
+
+
 def _azione_ristorazione_prenota(db, origin, data):
     pren_ref, p = _risolvi_token(db, data.get('token'))
     if not p:
@@ -1917,6 +1987,8 @@ def _azione_ristorazione_prenota(db, origin, data):
             'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'tavolo': '', 'note': note,
             'nome': nome, 'alloggio': alloggio, 'tel': _s(p.get('tel'), 30), 'calendario_id': pren_ref.id,
             'origine': 'ospite', 'aggiornata': adesso}}}, merge=True)
+    _stampa_prenotazione_auto(db, pid, {'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'note': note, 'nome': nome,
+                                        'alloggio': alloggio, 'tel': _s(p.get('tel'), 30), 'libera': not fam_id})
     _risto_notifica({'evento': 'prenotazione', 'azione': 'nuova', 'origine': 'ospite', 'nome': nome, 'alloggio': alloggio,
                      'data': giorno, 'pasto': pasto, 'turno': turno, 'persone': persone, 'note': note, 'libera': not fam_id,
                      'tel': _s(p.get('tel'), 30)})

@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css?v=1794330527">
 <script src="../assets/icons.js?v=1794700100"></script>
-<script src="../assets/stampanti.js?v=9"></script>
+<script src="../assets/stampanti.js?v=11"></script>
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -1999,6 +1999,8 @@ async function salvaPren() {
     }
     prEditTipoUltimo = v.tipo;
     notificaPren(prEdit ? 'modificata' : 'nuova', nuova);
+    // Nuova prenotazione dallo staff: stampa subito, da qualunque dispositivo, se la stampa automatica e' attiva
+    if (!prEdit && window.GRStampanti && GRStampanti.autoCfg().prenotazioni.attiva) _stampaPrenAuto({ ...nuova, id });
     showToast(prEdit ? 'Prenotazione aggiornata' : 'Prenotazione salvata');
     prData = v.data; prServ = v.pasto;
     chiudiPren();
@@ -2063,9 +2065,15 @@ async function stampaPrenSingola(id) {
 // stampa quelle arrivate dall'attivazione (max 48 ore) non ancora stampate. Le modifiche non ristampano.
 const _prStampate = new Set(), _prTent = {};
 let _prCoda = Promise.resolve();
+const _prInCorso = new Set();
+function chiavePren(p) { return 'pren_' + p.id; }
 async function _stampaPrenAuto(p) {
-  const chiave = 'pren_' + p.id;
-  if (_prStampate.has(chiave)) return;
+  const chiave = chiavePren(p);
+  if (_prStampate.has(chiave) || _prInCorso.has(chiave)) return;
+  _prInCorso.add(chiave);
+  try { await _stampaPrenAuto2(p, chiave); } finally { _prInCorso.delete(chiave); }
+}
+async function _stampaPrenAuto2(p, chiave) {
   if (!(await GRStampanti.rivendica(chiave))) { _prStampate.add(chiave); return; }   // gia' stampata (o in corso) altrove
   let e;
   try { e = await GRStampanti.invia('comande', await xmlPrenSingola(p), { auto: 'prenotazioni' }); } catch (x) { e = { ok: false, err: x.message }; }
@@ -2080,10 +2088,9 @@ function rivalutaStampaPren() {
   if (!famiglieDocs.length && !Object.keys(PREN_LIBERE || {}).length) return;   // dati non ancora arrivati
   const cfg = GRStampanti.autoCfg().prenotazioni;
   if (!cfg.attiva || !cfg.attivo_dal) return;
-  if (cfg.dispositivo && cfg.dispositivo !== GRStampanti.idDispositivo()) return;   // stampa solo il dispositivo scelto dalla Hub
   const da = Math.max(Date.parse(cfg.attivo_dal) || 0, Date.now() - 48 * 3600 * 1000);
   tuttePrenotazioni().forEach(p => {
-    if (_prStampate.has('pren_' + p.id)) return;
+    if (_prStampate.has(chiavePren(p))) return;
     if ((Date.parse(p.aggiornata) || 0) < da) return;
     _prCoda = _prCoda.then(() => _stampaPrenAuto(p)).catch(err => console.error('Stampa prenotazione:', err));
   });
@@ -5114,7 +5121,6 @@ async function controllaStampeProgrammate() {
 window.addEventListener('stampanti-aggiornate', aggiornaStatoStampante);
 GRStampanti.avvia();
 GRStampanti.avviaAuto();
-if (GRStampanti.registraDispositivo) GRStampanti.registraDispositivo();
 window.addEventListener('stampa-auto-aggiornata', aggiornaOrariAuto);
 aggiornaOrariAuto();
 setInterval(controllaStampeProgrammate, 20000);
