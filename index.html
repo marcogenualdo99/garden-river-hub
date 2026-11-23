@@ -752,7 +752,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 
     <div class="card" id="stampa-auto-card" data-tab="auto">
       <h3>Stampe automatiche</h3>
-      <p class="subtitle">Qui decidi <b>quando</b> stampare. <b>Su quale stampante</b> lo decidi nella scheda Stampanti. Partono da sole quando una pagina di Ristorazione o Shop è aperta su un dispositivo; i pulsanti Stampa a mano restano sempre disponibili.</p>
+      <p class="subtitle">Qui decidi <b>quando</b> stampare. <b>Su quale stampante</b> lo decidi nella scheda Stampanti. Partono da sole quando una pagina di Ristorazione (comande e prenotazioni sala) o Shop è aperta su un dispositivo; i pulsanti Stampa a mano restano sempre disponibili.</p>
       <div class="perm-module-title">Comande ristorazione (tutte le comande del giorno)</div>
       <div style="display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap">
         <label class="perm-row" style="margin:0"><input type="checkbox" id="sa-pranzo-on"> Pranzo alle</label>
@@ -764,6 +764,9 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
         <input type="time" id="sa-cena-ora" class="new-op-input" style="width:auto">
       </div>
       <div class="sa-dest" id="sa-dest-comande_cena"></div>
+      <div class="perm-module-title" style="margin-top:14px">Prenotazioni sala</div>
+      <label class="perm-row"><input type="checkbox" id="sa-pren-on"> Stampa ogni nuova prenotazione appena entra (dall'Hub o dall'Area ospite)</label>
+      <div class="sa-dest" id="sa-dest-prenotazioni"></div>
       <div class="perm-module-title" style="margin-top:14px">Ordini shop</div>
       <label class="perm-row"><input type="checkbox" id="sa-shop-on"> Stampa ogni ordine appena arriva (quando è confermato)</label>
       <div class="sa-dest" id="sa-dest-shop"></div>
@@ -3092,6 +3095,7 @@ function renderStampaAuto() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) { if (el.type === 'checkbox') el.checked = !!v; else el.value = v; } };
   set('sa-pranzo-on', c.comande.pranzo.attivo); set('sa-pranzo-ora', c.comande.pranzo.ora.padStart(5, '0'));
   set('sa-cena-on', c.comande.cena.attivo);     set('sa-cena-ora', c.comande.cena.ora.padStart(5, '0'));
+  set('sa-pren-on', c.prenotazioni.attiva);
   set('sa-shop-on', c.shop.attiva);
   set('sa-logo', c.aspetto.logo);
   renderAutoDest();
@@ -3106,6 +3110,7 @@ async function salvaStampaAuto() {
     await waitForFirebase();
     await GRStampanti.salvaAuto({
       comande: { pranzo: { attivo: g('sa-pranzo-on').checked, ora: orap }, cena: { attivo: g('sa-cena-on').checked, ora: oraC } },
+      prenotazioni: { attiva: g('sa-pren-on').checked },
       shop: { attiva: g('sa-shop-on').checked },
       aspetto: { logo: g('sa-logo').value },
     });

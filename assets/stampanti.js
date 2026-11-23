@@ -29,6 +29,7 @@
   var AUTO = [
     { id: 'comande_pranzo', servizio: 'comande', nome: 'Comande pranzo' },
     { id: 'comande_cena',   servizio: 'comande', nome: 'Comande cena' },
+    { id: 'prenotazioni',   servizio: 'comande', nome: 'Prenotazioni sala appena arrivano' },
     { id: 'shop',           servizio: 'shop',    nome: 'Ordini shop appena arrivano' },
   ];
   var TIPI = [
@@ -366,11 +367,13 @@
   // Firestore impostazioni/stampa_automatica:
   //   comande: { pranzo: {attivo, ora:'11:30'}, cena: {attivo, ora:'18:00'} }
   //   shop:    { attiva, attivo_dal: ISO }   (stampa all'arrivo dell'ordine)
+  //   prenotazioni: { attiva, attivo_dal: ISO }   (stampa ogni nuova prenotazione sala)
   // Le stampe partono dal primo dispositivo che ha aperta la pagina giusta
   // (Ristorazione o Shop); "rivendica" evita che due dispositivi stampino la stessa cosa.
   var AUTO_DEFAULT = {
     comande: { pranzo: { attivo: false, ora: '11:30' }, cena: { attivo: false, ora: '18:00' } },
     shop: { attiva: false, attivo_dal: '' },
+    prenotazioni: { attiva: false, attivo_dal: '' },
     aspetto: { logo: 'conti' },   // logo sulle stampe: 'conti' (tutto tranne le comande) | 'tutte' | 'mai'
   };
   var autoCfg = JSON.parse(JSON.stringify(AUTO_DEFAULT));
@@ -385,9 +388,11 @@
     var cm = c.comande || {}, d = AUTO_DEFAULT;
     function fascia(k) { var x = cm[k] || {}; return { attivo: x.attivo === true, ora: /^\d{1,2}:\d{2}$/.test(x.ora || '') ? x.ora : d.comande[k].ora }; }
     var sh = c.shop || {};
+    var pr = c.prenotazioni || {};
     var lg = (c.aspetto || {}).logo;
     return { comande: { pranzo: fascia('pranzo'), cena: fascia('cena') },
              shop: { attiva: sh.attiva === true, attivo_dal: sh.attivo_dal || '' },
+             prenotazioni: { attiva: pr.attiva === true, attivo_dal: pr.attivo_dal || '' },
              aspetto: { logo: lg === 'tutte' || lg === 'mai' ? lg : 'conti' } };
   }
 
@@ -410,6 +415,9 @@
     // "attivo_dal": da quando si stampano gli ordini shop (niente ordini vecchi)
     if (nuovo.shop.attiva && !autoCfg.shop.attiva) nuovo.shop.attivo_dal = new Date().toISOString();
     else if (nuovo.shop.attiva) nuovo.shop.attivo_dal = autoCfg.shop.attivo_dal || new Date().toISOString();
+    // idem per le prenotazioni sala (niente prenotazioni gia' presenti)
+    if (nuovo.prenotazioni.attiva && !autoCfg.prenotazioni.attiva) nuovo.prenotazioni.attivo_dal = new Date().toISOString();
+    else if (nuovo.prenotazioni.attiva) nuovo.prenotazioni.attivo_dal = autoCfg.prenotazioni.attivo_dal || new Date().toISOString();
     await fb.setDoc(fb.doc(fb.db, 'impostazioni', 'stampa_automatica'), nuovo);
   }
 

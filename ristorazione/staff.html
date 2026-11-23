@@ -1809,6 +1809,7 @@ function tuttePrenotazioni() {
 
 // Avviso in pagina quando arriva una prenotazione fatta dall'ospite (Area ospite)
 function prControllaNuove() {
+  rivalutaStampaPren();
   const tutte = tuttePrenotazioni();
   if (!_prVisteInit) { tutte.forEach(p => _prViste.add(p.id)); _prVisteInit = (famiglieDocs.length > 0 || Object.keys(PREN_LIBERE).length > 0); return; }
   tutte.forEach(p => {
@@ -2029,9 +2030,8 @@ const NOME_PASTO = { pranzo: 'Pranzo', cena: 'Cena' };
 const fmtDataIt = iso => new Date(iso + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 const dxRiga = (sx, dx, w) => { sx = String(sx); dx = String(dx); const sp = Math.max(1, w - sx.length - dx.length); return sx.slice(0, Math.max(0, w - dx.length - 1)) + ' '.repeat(sp) + dx; };
 
-async function stampaPrenSingola(id) {
-  const p = tuttePrenotazioni().find(x => x.id === id);
-  if (!p) return;
+// Biglietto termico di una singola prenotazione (a mano e stampa automatica)
+async function xmlPrenSingola(p) {
   const T = txt => `<text>${escXml(txt)}&#10;</text>`;
   const logo = await GRStampanti.logoPerStampa('report');
   const r = [];
@@ -2047,9 +2047,47 @@ async function stampaPrenSingola(id) {
   if (p.tavolo) r.push('<text>&#10;</text>', `<text font="font_a" em="true" height="2" width="2">TAVOLO ${escXml(p.tavolo)}&#10;</text>`);
   if (p.note) r.push('<text>&#10;</text>', T('Note: ' + p.note));
   r.push('<text>&#10;</text>', '<cut type="feed"/>');
-  const res = await inviaEpos(null, buildEposXml(r, 'local_printer'), { manuale: true });
+  return buildEposXml(r, 'local_printer');
+}
+
+async function stampaPrenSingola(id) {
+  const p = tuttePrenotazioni().find(x => x.id === id);
+  if (!p) return;
+  const res = await inviaEpos(null, await xmlPrenSingola(p), { manuale: true });
   if (!res.ok && !res.annullata) alert(`Errore stampa: ${res.err || 'stampante non raggiungibile'}`);
 }
+
+// Stampa automatica: ogni nuova prenotazione esce sulla stampante associata a "Prenotazioni sala
+// appena arrivano" (Hub > Impostazioni > Stampanti). Anti-doppione su Firestore (stampe_auto): se piu'
+// dispositivi hanno la pagina aperta stampa solo il primo. Se la pagina era chiusa, alla riapertura
+// stampa quelle arrivate dall'attivazione (max 48 ore) non ancora stampate. Le modifiche non ristampano.
+const _prStampate = new Set(), _prTent = {};
+let _prCoda = Promise.resolve();
+async function _stampaPrenAuto(p) {
+  const chiave = 'pren_' + p.id;
+  if (_prStampate.has(chiave)) return;
+  if (!(await GRStampanti.rivendica(chiave))) { _prStampate.add(chiave); return; }   // gia' stampata (o in corso) altrove
+  let e;
+  try { e = await GRStampanti.invia('comande', await xmlPrenSingola(p), { auto: 'prenotazioni' }); } catch (x) { e = { ok: false, err: x.message }; }
+  await GRStampanti.concludi(chiave, e.ok, e.err);
+  if (e.ok) { _prStampate.add(chiave); showToast(`Prenotazione di ${p.nome} stampata`); return; }
+  const n = (_prTent[chiave] = (_prTent[chiave] || 0) + 1);
+  if (n < 5) setTimeout(() => { _prCoda = _prCoda.then(() => _stampaPrenAuto(p)); }, 30000);
+  else showToast(`Prenotazione di ${p.nome} NON stampata: ${e.err || 'errore'}. Usa Stampa nella scheda.`);
+}
+function rivalutaStampaPren() {
+  if (!window.GRStampanti || !window._fbReady) return;
+  if (!famiglieDocs.length && !Object.keys(PREN_LIBERE || {}).length) return;   // dati non ancora arrivati
+  const cfg = GRStampanti.autoCfg().prenotazioni;
+  if (!cfg.attiva || !cfg.attivo_dal) return;
+  const da = Math.max(Date.parse(cfg.attivo_dal) || 0, Date.now() - 48 * 3600 * 1000);
+  tuttePrenotazioni().forEach(p => {
+    if (_prStampate.has('pren_' + p.id)) return;
+    if ((Date.parse(p.aggiornata) || 0) < da) return;
+    _prCoda = _prCoda.then(() => _stampaPrenAuto(p)).catch(err => console.error('Stampa prenotazione:', err));
+  });
+}
+window.addEventListener('stampa-auto-aggiornata', rivalutaStampaPren);
 
 // Dati del riepilogo: [{servizio, righe per turno, totali, pensioniSenza}]
 function prRiepilogo(data, servizi, conPensioni) {
