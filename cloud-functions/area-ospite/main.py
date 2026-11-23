@@ -2548,6 +2548,84 @@ def _azione_shop_ordini(db, origin, data):
     return _json(origin, {'ok': True, 'ordini': out[:30], 'ritiro_orari': cfg['ritiro_orari']})
 
 
+# ── Animazione: link temporaneo per un collaboratore esterno ───────────────
+# L'Hub (Area ospite > Animazione) crea `animazione_links/{token}` con
+# `scade_il` = adesso + 24 ore. Chi ha il link (https://gardenhub.it/animazione/
+# ?t=<token>) puo' SOLO leggere e aggiornare il programma animazione
+# (`impostazioni/area_ospite_animazione`); foto delle serate e pin della mappa
+# restano quelli salvati dall'Hub. Dopo la scadenza (o se l'Hub revoca il link,
+# cancellando il documento) il token non vale piu'.
+
+def _anim_link_valido(db, token):
+    if not _token_valido(token):
+        return False
+    snap = db.collection('animazione_links').document(token).get()
+    if not snap.exists:
+        return False
+    scade_il = (snap.to_dict() or {}).get('scade_il') or 0
+    return bool(scade_il) and scade_il > _now_ms()
+
+
+def _azione_anim_ext_carica(db, origin, data):
+    if not _anim_link_valido(db, data.get('token')):
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    snap = db.collection('impostazioni').document('area_ospite_animazione').get()
+    d = (snap.to_dict() or {}) if snap.exists else {}
+    sett = d.get('settimane') if isinstance(d.get('settimane'), dict) else {}
+    out = {'catalogo': [], 'settimane': {'1': sett.get('1') or {}, '2': sett.get('2') or {}},
+           'data_inizio': _s(d.get('data_inizio'), 10), 'luogo_serate': _s(d.get('luogo_serate'), 60)}
+    for r in (d.get('catalogo') or [])[:300]:
+        if isinstance(r, dict) and _s(r.get('id'), 40) and _s(r.get('nome'), 80):
+            out['catalogo'].append({'id': _s(r.get('id'), 40), 'nome': _s(r.get('nome'), 80),
+                                    'emoji': _s(r.get('emoji'), 8), 'fascia': _s(r.get('fascia'), 1),
+                                    'speciale': bool(r.get('speciale')), 'ha_grafica': bool(r.get('grafica'))})
+    return _json(origin, {'ok': True, **out})
+
+
+def _azione_anim_ext_salva(db, origin, data):
+    if not _anim_link_valido(db, data.get('token')):
+        return _json(origin, {'ok': False, 'errore': 'link_non_valido'}, 404)
+    ref = db.collection('impostazioni').document('area_ospite_animazione')
+    snap = ref.get()
+    vecchio = (snap.to_dict() or {}) if snap.exists else {}
+    grafiche = {_s(r.get('id'), 40): r.get('grafica') for r in (vecchio.get('catalogo') or [])
+                if isinstance(r, dict) and r.get('grafica')}
+    catalogo, ids = [], set()
+    for r in (data.get('catalogo') or [])[:300]:
+        if not isinstance(r, dict):
+            continue
+        aid, nome = _s(r.get('id'), 40), _s(r.get('nome'), 80)
+        if not aid or not nome or aid in ids:
+            continue
+        fascia = _s(r.get('fascia'), 1)
+        voce = {'id': aid, 'nome': nome, 'emoji': _s(r.get('emoji'), 8),
+                'fascia': fascia if fascia in ('d', 'm', 't', 's') else 'd', 'speciale': bool(r.get('speciale'))}
+        if aid in grafiche:
+            voce['grafica'] = grafiche[aid]      # la foto la gestisce solo l'Hub
+        ids.add(aid)
+        catalogo.append(voce)
+    sett_in = data.get('settimane') if isinstance(data.get('settimane'), dict) else {}
+    settimane = {}
+    for n in ('1', '2'):
+        prog = sett_in.get(n) if isinstance(sett_in.get(n), dict) else {}
+        settimane[n] = {}
+        for g in ('sab', 'dom', 'lun', 'mar', 'mer', 'gio', 'ven'):
+            giorno = prog.get(g) if isinstance(prog.get(g), dict) else {}
+            settimane[n][g] = {}
+            for f in ('d', 'm', 't', 's'):
+                settimane[n][g][f] = [{'a': _s(v.get('a'), 40), 'ora': _s(v.get('ora'), 20)}
+                                      for v in (giorno.get(f) or [])[:40]
+                                      if isinstance(v, dict) and _s(v.get('a'), 40) in ids]
+    di = _s(data.get('data_inizio'), 10)
+    if not (len(di) == 10 and di[4] == '-' and di[7] == '-'):
+        di = ''
+    ref.set({'catalogo': catalogo, 'settimane': settimane, 'data_inizio': di,
+             'luogo_serate': _s(data.get('luogo_serate'), 60), 'aggiornato_il': _now_iso(),
+             'aggiornato_da': 'collaboratore esterno'}, merge=True)
+    _CACHE.pop('contenuti', None)
+    return _json(origin, {'ok': True})
+
+
 AZIONI = {
     'carica':                  _azione_carica,
     'contenuti':               _azione_contenuti,
@@ -2574,6 +2652,8 @@ AZIONI = {
     'shop_paypal_crea':        _azione_shop_paypal_crea,
     'shop_paypal_cattura':     _azione_shop_paypal_cattura,
     'shop_annulla_attesa':     _azione_shop_annulla_attesa,
+    'anim_ext_carica':         _azione_anim_ext_carica,
+    'anim_ext_salva':          _azione_anim_ext_salva,
 }
 
 

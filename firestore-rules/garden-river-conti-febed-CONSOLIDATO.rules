@@ -166,6 +166,15 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // Animazione: link temporaneo (24 ore) per un collaboratore esterno
+    // (https://gardenhub.it/animazione/?t=<token>). L'Hub crea e revoca i link
+    // e li legge per mostrarne l'elenco; il token lo verifica SOLO la Cloud
+    // Function 'area-ospite' (Admin SDK). Nessun update dal client.
+    match /animazione_links/{token} {
+      allow read, create, delete: if staff();
+      allow update: if false;
+    }
+
     // ── Pulizie / alloggi ────────────────────────────────────────────────
     match /alloggi/{id} {
       allow read, write: if staff();
