@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme.css?v=1794330527">
 <script src="../assets/icons.js?v=1794700100"></script>
-<script src="../assets/stampanti.js?v=8"></script>
+<script src="../assets/stampanti.js?v=9"></script>
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -5114,7 +5114,7 @@ async function controllaStampeProgrammate() {
 window.addEventListener('stampanti-aggiornate', aggiornaStatoStampante);
 GRStampanti.avvia();
 GRStampanti.avviaAuto();
-GRStampanti.registraDispositivo();
+if (GRStampanti.registraDispositivo) GRStampanti.registraDispositivo();
 window.addEventListener('stampa-auto-aggiornata', aggiornaOrariAuto);
 aggiornaOrariAuto();
 setInterval(controllaStampeProgrammate, 20000);
