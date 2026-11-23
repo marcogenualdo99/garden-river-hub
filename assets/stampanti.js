@@ -160,7 +160,15 @@
 
   // Stampante integrata del V2: esiste solo dentro l'app Garden Hub installata sul V2.
   function inviaInterna(p, xml) {
-    if (window.GRNativo && window.GRNativo.stampa) return inviaNativo(p, xml);
+    if (window.GRNativo && window.GRNativo.stampa) {
+      // Se questa stampante "interna" ha un ID e NON e' il dispositivo su cui ci troviamo
+      // ora (es. sei sul Sunmi nuovo ma hai scelto la stampante del bar), non stampare qui:
+      // manda in coda cosi' la prende il Sunmi giusto.
+      if (p.dispositivo && window.GRNativo.idDispositivo && window.GRNativo.idDispositivo() !== p.dispositivo) {
+        return inviaCoda(p, xml);
+      }
+      return inviaNativo(p, xml);
+    }
     // Fuori dall'app (iPad, telefono, PC, anche da un'altra rete): passa dalla coda, la stampa il V2
     return inviaCoda(p, xml);
   }
@@ -481,6 +489,29 @@
 
   // Logo da mettere in testa al biglietto, oppure '' se per quel tipo e' disattivato.
   async function logoPerStampa(tipo) { return logoPer(tipo) ? await logoXml() : ''; }
+
+  // ── Pallino con l'ID del dispositivo ─────────────────────────────────────
+  // Solo dentro l'app Garden Hub di un Sunmi V2: un'etichetta fissa a schermo
+  // (pallino verde + ID impostato in Impostazioni) cosi' sul dispositivo fisico
+  // si vede sempre a colpo d'occhio quale Sunmi e' e dove va a finire una stampa.
+  function mostraBadgeDispositivo() {
+    try {
+      if (!document.documentElement.classList.contains('nativa')) return;
+      if (!window.GRNativo || !window.GRNativo.idDispositivo) return;
+      var id = window.GRNativo.idDispositivo();
+      if (!id || document.getElementById('gr-badge-dispositivo')) return;
+      var b = document.createElement('div');
+      b.id = 'gr-badge-dispositivo';
+      b.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9998;display:flex;align-items:center;gap:6px;' +
+        'background:rgba(5,51,40,.78);color:#fff;font-size:11px;font-weight:700;padding:5px 10px 5px 8px;' +
+        'border-radius:999px;pointer-events:none;font-family:inherit;box-shadow:0 2px 6px rgba(0,0,0,.25)';
+      b.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0"></span><span></span>';
+      b.lastChild.textContent = id;
+      document.body.appendChild(b);
+    } catch (e) { /* ok */ }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mostraBadgeDispositivo);
+  else mostraBadgeDispositivo();
 
   window.GRStampanti = {
     SERVIZI: SERVIZI, TIPI: TIPI, AUTO: AUTO, candidatePer: candidatePer, perAuto: perAuto,

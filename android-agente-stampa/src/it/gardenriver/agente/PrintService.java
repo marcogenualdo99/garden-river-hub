@@ -88,7 +88,7 @@ public class PrintService extends Service {
             long attesa = 5000;
             try {
                 if (url.length() == 0 || token.length() == 0) throw new Exception("URL o token mancanti");
-                String dispositivo = sp.getString("device_id", "");
+                String dispositivo = MainActivity.idDispositivo(PrintService.this);
                 JSONObject r = chiama(url, token, new JSONObject().put("azione", "prendi").put("dispositivo", dispositivo));
                 JSONArray lav = r.optJSONArray("lavori");
                 for (int i = 0; lav != null && i < lav.length(); i++) {

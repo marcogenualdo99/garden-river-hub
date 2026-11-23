@@ -260,6 +260,14 @@ public class MainActivity extends Activity {
     private static final String BT_INTERNA = "00:11:22:33:44:55";
 
     /** Invia ESC/POS alla stampante integrata del V2 (dispositivo Bluetooth virtuale gia' associato dal sistema). */
+    /** ID di questo dispositivo: quello scritto in Impostazioni, altrimenti il numero di serie (cosi' c'e' sempre un valore, anche se nessuno ha mai salvato le Impostazioni). */
+    static String idDispositivo(android.content.Context c) {
+        String v = c.getSharedPreferences("agente", 0).getString("device_id", "");
+        if (v != null && v.trim().length() > 0) return v.trim();
+        String s = Build.SERIAL;
+        return (s == null || s.equalsIgnoreCase("unknown")) ? "" : s;
+    }
+
     static void inviaInterna(byte[] dati) throws Exception {
         android.bluetooth.BluetoothAdapter ad = android.bluetooth.BluetoothAdapter.getDefaultAdapter();
         if (ad == null) throw new Exception("Bluetooth non disponibile");
@@ -298,6 +306,8 @@ public class MainActivity extends Activity {
             try { new org.json.JSONArray(json); getSharedPreferences("agente", 0).edit().putString("reparti", json).apply(); } catch (Exception e) { }
         }
         @JavascriptInterface public String versione() { return "1.2"; }
+        /** ID di questo dispositivo (impostato in Impostazioni app): la Hub lo confronta con quello scelto per capire se deve stampare qui o mandare in coda al Sunmi giusto. */
+        @JavascriptInterface public String idDispositivo() { return MainActivity.idDispositivo(MainActivity.this); }
         @JavascriptInterface public void impostazioni() {
             runOnUiThread(new Runnable() { public void run() { startActivity(new Intent(MainActivity.this, SettingsActivity.class)); } });
         }

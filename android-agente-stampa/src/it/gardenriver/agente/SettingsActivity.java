@@ -48,7 +48,7 @@ public class SettingsActivity extends Activity {
         dispLbl.setPadding(0, 24, 0, 4); dispLbl.setTextSize(13);
         l.addView(dispLbl);
         dispositivo = new EditText(this); dispositivo.setHint("es. bar, reception, nuovo"); dispositivo.setSingleLine(true);
-        dispositivo.setText(sp.getString("device_id", Build.SERIAL != null ? Build.SERIAL : ""));
+        dispositivo.setText(MainActivity.idDispositivo(this));
         l.addView(dispositivo);
         token = new EditText(this); token.setHint("Token"); token.setSingleLine(true);
         token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
