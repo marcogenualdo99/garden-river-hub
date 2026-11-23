@@ -64,6 +64,9 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
 .sl-pay-btn:disabled kbd { background: rgba(0,0,0,.06); }
 .sl-hint { font-size: 11px; color: var(--gray-400); text-align: center; line-height: 1.5; }
 @media (max-width: 800px) {
+  /* pagina bloccata mentre la cassa e' aperta: niente rimbalzo con il bianco sotto */
+  html.sl-lock, html.sl-lock body { overflow: hidden; height: 100%; overscroll-behavior: none; }
+  html.sl-lock main { padding-bottom: 0; }
   /* telefono / Sunmi V2: tutto in una schermata, niente scorrimento pagina */
   main:has(#sec-scontrino-libero.active) { padding: 6px 10px 8px; }
   #sec-scontrino-libero .back-header { margin-bottom: 6px; gap: 8px; }
@@ -2627,6 +2630,15 @@ function slPaga(metodo) {
   if (slValoreInput() > 0 && !slAggiungi()) return;
   apriFiscalizzaScontrinoLibero(metodo);
 }
+
+// Blocca lo scorrimento della pagina finche' la cassa e' visibile (qualunque sia il modo in cui si esce).
+(function () {
+  const sec = document.getElementById('sec-scontrino-libero');
+  if (!sec || !window.MutationObserver) return;
+  const sync = () => document.documentElement.classList.toggle('sl-lock', sec.classList.contains('active'));
+  new MutationObserver(sync).observe(sec, { attributes: true, attributeFilter: ['class'] });
+  sync();
+})();
 
 // Tastiera: attiva solo con la schermata cassa aperta, nessuna modale e nessun campo di testo a fuoco.
 document.addEventListener('keydown', (e) => {
