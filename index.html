@@ -21,6 +21,7 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
 .sl-pane { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .sl-pane-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--gray-100); font-size: 11px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: .03em; }
 .sl-clear { background: none; border: none; font-family: var(--font); font-size: 12px; font-weight: 700; color: var(--gray-500); cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm); }
+.sl-toggle { display: none; color: var(--green-700); }
 .sl-clear:hover { background: var(--red-bg); color: var(--red); }
 .sl-voci { flex: 1; overflow-y: auto; padding: 4px 18px; }
 .sl-voce { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--gray-100); font-size: 15px; color: var(--gray-900); }
@@ -70,6 +71,10 @@ main:has(#sec-scontrino-libero.active) { max-width: none; }
   #sec-scontrino-libero .back-title { font-size: 16px; }
   .sl-cassa { grid-template-columns: 1fr; grid-template-rows: minmax(100px, 1fr) auto; gap: 8px; height: calc(100vh - 112px); min-height: 0; }
   .sl-pane-head { padding: 7px 14px; }
+  .sl-cassa.sl-espansa { grid-template-rows: 1fr; }
+  .sl-cassa.sl-espansa .sl-keys-pane { display: none; }
+  .sl-cassa.sl-espansa .sl-voce { font-size: 16px; padding: 11px 0; }
+  .sl-cassa.sl-multi .sl-toggle { display: inline-block; }
   .sl-voci { padding: 0 14px; }
   .sl-voce { padding: 7px 0; font-size: 14px; }
   .sl-vuoto { font-size: 12px; }
@@ -802,7 +807,7 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
 
     <div class="sl-cassa">
       <div class="sl-pane">
-        <div class="sl-pane-head"><span>Voci</span><button type="button" class="sl-clear" onclick="slAnnullaTutto()">Svuota</button></div>
+        <div class="sl-pane-head"><span id="sl-head-voci">Voci</span><span><button type="button" class="sl-clear sl-toggle" id="sl-toggle" onclick="slEspandi()">Vedi tutte</button><button type="button" class="sl-clear" onclick="slAnnullaTutto()">Svuota</button></span></div>
         <div class="sl-voci" id="sl-voci"></div>
         <div class="sl-totale-box"><span>Totale</span><span id="sl-totale">€ 0,00</span></div>
       </div>
@@ -2567,6 +2572,12 @@ function renderScontrinoLibero() {
   }
   wrap.innerHTML = h || '<div class="sl-vuoto">Nessuna voce.<br>Digita un importo e premi Invio, oppure scegli direttamente il pagamento.</div>';
   wrap.scrollTop = wrap.scrollHeight;
+  const n = scontrinoLibero.length;
+  document.getElementById('sl-head-voci').textContent = n ? 'Voci (' + n + ')' : 'Voci';
+  const cassa = document.querySelector('.sl-cassa');
+  cassa.classList.toggle('sl-multi', n > 1);
+  if (n < 2) cassa.classList.remove('sl-espansa');
+  document.getElementById('sl-toggle').textContent = cassa.classList.contains('sl-espansa') ? 'Chiudi' : 'Vedi tutte';
 
   const disp = document.getElementById('sl-display');
   disp.textContent = slInput === '' ? '0,00' : slInput;
@@ -2589,6 +2600,10 @@ function slTasto(k) {
       slInput = (slInput === '0') ? c : slInput + c;
     }
   }
+  renderScontrinoLibero();
+}
+function slEspandi() {
+  document.querySelector('.sl-cassa').classList.toggle('sl-espansa');
   renderScontrinoLibero();
 }
 function slAggiungi() {
