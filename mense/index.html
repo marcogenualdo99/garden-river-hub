@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="../assets/theme.css?v=1794900001">
 <script src="../assets/safe-area.js?v=1"></script>
 <script src="../assets/icons.js?v=1794700100"></script>
+<script src="../assets/stampanti.js?v=7"></script>
+<script>GRStampanti.avvia();</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mense">
@@ -1593,6 +1595,10 @@ function renderReport(sedeFiltro) {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         Stampa
       </button>
+      <button class="rpt-btn ghost" onclick="stampaReportTermica()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+        Stampa su termica / Sunmi
+      </button>
     </div>
     <div id="excel-riepilogo" class="subtitle" style="margin-bottom:8px">${excelRiepilogoTesto()}</div>
     <details id="excel-dettagli" style="border-top:1px solid var(--gray-100);padding-top:10px">
@@ -1709,6 +1715,76 @@ function stampaReport() {
 <script>window.onload = () => setTimeout(() => window.print(), 400);<\/script>
 </body></html>`);
   w.document.close();
+}
+
+// ── STAMPA SU TERMICA / SUNMI ───────────────────────────────────────────────
+// Stesso report della vista a schermo, in formato scontrino (42 colonne). La
+// stampante la decide il modulo condiviso: Hub > Impostazioni > Stampanti,
+// servizio "Report mense scolastiche" (Epson, Sunmi di rete o V2 integrata).
+function xmlReportMense(sediInGioco, dal, al, sedeLabel) {
+  const W = 42, NL = '<text>&#10;</text>';
+  const xe = x => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+  const t = (txt, attr) => `<text ${attr || 'font="font_a" height="1" width="1"'}>${xe(txt)}</text>${NL}`;
+  const riga = (sx, dx, attr) => { sx = String(sx); dx = String(dx); if (sx.length + dx.length >= W) sx = sx.slice(0, W - dx.length - 1); return t(sx + ' '.repeat(Math.max(1, W - sx.length - dx.length)) + dx, attr); };
+  const dm = d => fmtDateIt(d, { day:'2-digit', month:'2-digit' });
+  const { pastiTot, importoTot, giorniServizioTot, mediaGiornaliera, missingBySede, ivaPct, iva } = calcolaKpiReport(sediInGioco, dal, al);
+  const r = [];
+  r.push(`<text font="font_a" align="center" height="2" width="2">REPORT MENSE</text>${NL}`);
+  r.push(t(sedeLabel, 'font="font_a" align="center" em="true"'));
+  r.push(t(periodoReportLabel(), 'font="font_a" align="center"'));
+  r.push(t('Stampato il ' + new Date().toLocaleString('it-IT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }), 'font="font_b" align="center"'));
+  r.push(NL);
+  sediInGioco.forEach(sede => {
+    const righeSede = reportRows.filter(x => x.sedeId === sede.id);
+    const ordini = ordiniAttiviSede(sede), cats = categorieAttiveSede(sede);
+    if (sediInGioco.length > 1) r.push(t(sede.nome, 'font="font_a" em="true" height="2" width="1"'));
+    ordini.forEach(o => {
+      r.push(t('='.repeat(W)));
+      r.push(t(o.nome.toUpperCase(), 'font="font_a" em="true"'));
+      r.push(t('-'.repeat(W)));
+      const totCat = cats.map(() => 0); let totGen = 0;
+      allDatesInRange(dal, al).forEach(d => {
+        if (!isServiceDay(sede, d)) return;
+        const doc = righeSede.find(x => x.data === d);
+        if (doc && doc.chiuso) { r.push(riga(dm(d), (doc.motivo || 'Nessun servizio').slice(0, 28))); return; }
+        if (!doc) { r.push(riga(dm(d), 'non inserito')); return; }
+        let tot = 0;
+        cats.forEach((c, i) => { const v = Number(doc.righe?.[o.id]?.[c.id]) || 0; totCat[i] += v; tot += v; });
+        totGen += tot;
+        r.push(riga(dm(d), tot));
+      });
+      r.push(t('-'.repeat(W)));
+      cats.forEach((c, i) => r.push(riga(c.nome, totCat[i])));
+      r.push(riga('TOTALE ' + o.nome, totGen, 'font="font_a" em="true" height="1" width="1"'));
+      r.push(NL);
+    });
+  });
+  r.push(t('='.repeat(W)));
+  r.push(t('RIEPILOGO', 'font="font_a" em="true"'));
+  r.push(riga('Pasti totali', pastiTot));
+  r.push(riga('Giorni di servizio', giorniServizioTot));
+  r.push(riga('Media giornaliera', mediaGiornaliera.toFixed(1)));
+  r.push(riga('Imponibile', fmtEUR(importoTot)));
+  r.push(riga('IVA ' + ivaPct + '%', fmtEUR(iva)));
+  r.push(riga('TOTALE', fmtEUR(importoTot + iva), 'font="font_a" em="true" height="1" width="1"'));
+  const manc = Object.entries(missingBySede);
+  if (manc.length) {
+    r.push(NL); r.push(t('Giorni senza presenze inserite:', 'font="font_a" em="true"'));
+    manc.forEach(([nome, dates]) => r.push(t(nome + ': ' + dates.slice(0, 10).map(dm).join(', ') + (dates.length > 10 ? ' (+' + (dates.length - 10) + ')' : ''))));
+  }
+  r.push('<text>&#10;&#10;</text>', '<cut type="feed"/>');
+  return `<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">${r.join('\n')}</epos-print></s:Body></s:Envelope>`;
+}
+async function stampaReportTermica() {
+  if (!window.GRStampanti) { showToast('Modulo stampanti non disponibile'); return; }
+  const sedeFiltro = document.getElementById('sel-sede-report').value || 'tutte';
+  const { dal, al } = datesOfPeriod();
+  const sediInGioco = sedeFiltro === 'tutte' ? sediList.filter(s => s.attiva !== false) : sediList.filter(s => s.id === sedeFiltro);
+  if (!sediInGioco.length) { showToast('Nessuna sede da stampare'); return; }
+  const sedeLabel = sedeFiltro === 'tutte' ? 'Tutte le sedi' : sediInGioco[0].nome;
+  const e = await GRStampanti.invia('mense', xmlReportMense(sediInGioco, dal, al, sedeLabel), { scegli: true });
+  if (e.annullata) return;
+  showToast(e.ok ? 'Report inviato alla stampante' : 'Errore stampa: ' + (e.err || 'stampante non raggiungibile'));
 }
 
 // ── EXPORT EXCEL (ExcelJS caricato da cdnjs al momento dell'export) ────────

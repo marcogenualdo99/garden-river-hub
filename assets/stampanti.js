@@ -23,6 +23,7 @@
     { id: 'conti',   nome: 'Conti pensioni (conto e riepilogo)', modulo: 'conti' },
     { id: 'comande', nome: 'Comande ristorazione',               modulo: 'ristorazione' },
     { id: 'shop',    nome: 'Ordini shop',                        modulo: 'shop' },
+    { id: 'mense',   nome: 'Report mense scolastiche',           modulo: 'mense' },
   ];
   // Stampe automatiche: ogni stampante sceglie quali fa (devono appartenere a un suo servizio).
   var AUTO = [
