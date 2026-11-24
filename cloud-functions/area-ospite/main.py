@@ -1659,6 +1659,12 @@ def _azione_ristorazione_ordina(db, origin, data):
     fam_id, fam = _risto_famiglia(db, pren_ref.id)
     if fam:
         fam = _risto_allinea(fam, p)
+    return _risto_ordina_core(db, origin, data, fam_id, fam)
+
+
+def _risto_ordina_core(db, origin, data, fam_id, fam):
+    """Controlli e scrittura dell'ordine, comuni all'accesso col link dell'Area ospite
+    (token) e a quello col codice famiglia della vecchia pagina ristorazione/?f=CODICE."""
     trattamento = _s((fam or {}).get('trattamento'))
     if not fam or trattamento not in ('PC', 'MP'):
         return _json(origin, {'ok': False, 'errore': 'nessun_pasto'}, 404)
@@ -1750,6 +1756,130 @@ def _azione_ristorazione_ordina(db, origin, data):
         _risto_notifica({'evento': 'ordine', 'doc_id': doc_id, 'famiglia_nome': _s(fam.get('nome'), 120),
                          'unita': fam.get('unita'), 'data': giorno, 'tipo': tipo, 'piatti': righe, 'note': note})
     return _json(origin, {'ok': True, 'ordini': _risto_ordini(db, fam_id, [giorno])})
+
+
+# ── Accesso col CODICE famiglia (vecchia pagina ristorazione/?f=CODICE) ──────
+# I link/QR gia' consegnati agli ospiti portano il codice della famiglia, non il token
+# dell'Area ospite. La pagina non parla piu' con Firestore (le collezioni
+# famiglie/ordini/menu_ristorazione sono ora solo per lo staff): passa da queste azioni,
+# che applicano gli stessi controlli di 'ristorazione_ordina'.
+#   risto_codice_carica   -> famiglia + menu + ordini dei due giorni
+#   risto_codice_stato    -> solo lo sblocco orario (una lettura, per il ricontrollo)
+#   risto_codice_ordina   -> stessa logica di 'ristorazione_ordina'
+#   risto_codice_annulla  -> toglie un ordine non ancora servito, entro l'orario limite
+
+_COD_RE = re.compile(r'[A-Z0-9]{4,12}')
+_COD_FALLITI = {}               # ip -> [timestamp tentativi falliti] (per istanza)
+COD_MAX_FALLITI = 30            # tentativi sbagliati per IP ...
+COD_FINESTRA_S = 600            # ... ogni 10 minuti
+COD_SCADENZA_GIORNI = 1         # il codice smette di funzionare il giorno dopo il check-out
+
+
+def _cod_bloccato(ip):
+    adesso = time.time()
+    lista = [t for t in _COD_FALLITI.get(ip, []) if adesso - t < COD_FINESTRA_S]
+    if lista:
+        _COD_FALLITI[ip] = lista
+    else:
+        _COD_FALLITI.pop(ip, None)
+    if len(_COD_FALLITI) > 5000:            # memoria limitata
+        _COD_FALLITI.clear()
+    return len(lista) >= COD_MAX_FALLITI
+
+
+def _cod_fallito(ip):
+    _COD_FALLITI.setdefault(ip, []).append(time.time())
+
+
+def _risto_da_codice(db, origin, data):
+    """(fam_id, fam, None) se il codice e' valido, altrimenti (None, None, risposta_errore)."""
+    ip = _s(data.get('_ip'), 60) or '?'
+    if _cod_bloccato(ip):
+        return None, None, _json(origin, {'ok': False, 'errore': 'troppi_tentativi'}, 429)
+    codice = _s(data.get('codice'), 20).upper()
+    if not _COD_RE.fullmatch(codice):
+        _cod_fallito(ip)
+        return None, None, _json(origin, {'ok': False, 'errore': 'codice_non_valido'}, 404)
+    docs = list(db.collection('famiglie_ristorazione').where('codice', '==', codice).limit(1).stream())
+    if not docs:
+        _cod_fallito(ip)
+        return None, None, _json(origin, {'ok': False, 'errore': 'codice_non_valido'}, 404)
+    fam_id, fam = docs[0].id, (docs[0].to_dict() or {})
+    # Come per il link dell'Area ospite, il Calendario e' la fonte di verita'
+    pid = _s(fam.get('calendario_prenotazione_id'), 80)
+    if pid and '/' not in pid:
+        snap = db.collection('prenotazioni').document(pid).get()
+        if snap.exists:
+            fam = _risto_allinea(fam, snap.to_dict() or {})
+    checkout = _s(fam.get('checkout'), 10)
+    if checkout:
+        limite = (datetime.now(TZ_ROMA) - timedelta(days=COD_SCADENZA_GIORNI)).strftime('%Y-%m-%d')
+        if checkout < limite:
+            return None, None, _json(origin, {'ok': False, 'errore': 'codice_scaduto'}, 410)
+    return fam_id, fam, None
+
+
+def _azione_risto_codice_carica(db, origin, data):
+    fam_id, fam, err = _risto_da_codice(db, origin, data)
+    if err:
+        return err
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    primo, secondo = _risto_giorni(fam, oggi)
+    giorni = [primo, secondo]
+    imp = _risto_impostazioni(db)
+    menu = {g: _risto_menu_giorno(db, imp['ciclo_start'], g) for g in giorni}
+    return _json(origin, {
+        'ok': True,
+        'oggi': oggi, 'ora': ora.strftime('%H:%M'),
+        'famiglia': {'id': fam_id, 'codice': _s(fam.get('codice'), 12), 'nome': _s(fam.get('nome'), 120),
+                     'unita': _s(fam.get('unita'), 40), 'trattamento': _s(fam.get('trattamento'), 2),
+                     'max_ospiti': max(1, int(fam.get('max_ospiti') or 1)),
+                     'checkin': _s(fam.get('checkin'), 10), 'checkout': _s(fam.get('checkout'), 10),
+                     'ora_arrivo': _s(fam.get('ora_arrivo'), 20), 'sblocco_orario': _s(fam.get('sblocco_orario'), 10)},
+        'giorni': giorni, 'menu': menu,
+        'categorie': imp['categorie'], 'menu_bambini': imp['menu_bambini'],
+        'ordini': _risto_ordini(db, fam_id, giorni),
+    })
+
+
+def _azione_risto_codice_stato(db, origin, data):
+    fam_id, fam, err = _risto_da_codice(db, origin, data)
+    if err:
+        return err
+    return _json(origin, {'ok': True, 'sblocco_orario': _s(fam.get('sblocco_orario'), 10),
+                          'oggi': datetime.now(TZ_ROMA).strftime('%Y-%m-%d')})
+
+
+def _azione_risto_codice_ordina(db, origin, data):
+    fam_id, fam, err = _risto_da_codice(db, origin, data)
+    if err:
+        return err
+    return _risto_ordina_core(db, origin, data, fam_id, fam)
+
+
+def _azione_risto_codice_annulla(db, origin, data):
+    fam_id, fam, err = _risto_da_codice(db, origin, data)
+    if err:
+        return err
+    tipo = _s(data.get('tipo'), 10)
+    if tipo not in ('pranzo', 'cena'):
+        return _json(origin, {'ok': False, 'errore': 'pasto_non_valido'}, 400)
+    ora = datetime.now(TZ_ROMA)
+    oggi = ora.strftime('%Y-%m-%d')
+    primo, secondo = _risto_giorni(fam, oggi)
+    giorno = _s(data.get('data'), 10)
+    if giorno not in (primo, secondo):
+        return _json(origin, {'ok': False, 'errore': 'giorno_non_valido'}, 400)
+    if _risto_ordini_chiusi(fam, giorno, oggi, ora):
+        return _json(origin, {'ok': False, 'errore': 'ordini_chiusi'}, 409)
+    ref = db.collection('ordini_ristorazione').document(f'{fam_id}_{giorno}_{tipo}')
+    snap = ref.get()
+    if snap.exists:
+        if (snap.to_dict() or {}).get('servito'):
+            return _json(origin, {'ok': False, 'errore': 'gia_servito'}, 409)
+        ref.delete()
+    return _json(origin, {'ok': True})
 
 
 # ── Prenotazione tavolo (l'ospite prenota da solo) ──────────────────────────
@@ -2716,6 +2846,10 @@ AZIONI = {
     'ristorazione_prenota_info':    _azione_ristorazione_prenota_info,
     'ristorazione_prenota':         _azione_ristorazione_prenota,
     'ristorazione_prenota_annulla': _azione_ristorazione_prenota_annulla,
+    'risto_codice_carica':     _azione_risto_codice_carica,
+    'risto_codice_stato':      _azione_risto_codice_stato,
+    'risto_codice_ordina':     _azione_risto_codice_ordina,
+    'risto_codice_annulla':    _azione_risto_codice_annulla,
     'shop_catalogo':           _azione_shop_catalogo,
     'shop_prodotto':           _azione_shop_prodotto,
     'shop_ordina':             _azione_shop_ordina,
@@ -2739,9 +2873,16 @@ def area_ospite(request):
         return _json(origin, {'ok': False, 'errore': 'metodo_non_permesso'}, 405)
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
     handler = AZIONI.get(data.get('azione'))
     if not handler:
         return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
+    # IP del chiamante, usato solo per limitare i tentativi sul codice famiglia: si prende
+    # l'ULTIMO elemento di X-Forwarded-For (aggiunto da Google; i precedenti li scrive il client).
+    # Sovrascrive sempre un eventuale '_ip' mandato dal client.
+    data['_ip'] = (request.headers.get('X-Forwarded-For', '').split(',')[-1].strip()
+                   or request.remote_addr or '')
 
     try:
         return handler(firestore.client(), origin, data)

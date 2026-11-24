@@ -14,37 +14,30 @@
 <meta name="apple-mobile-web-app-title" content="Ristorazione">
 <meta name="mobile-web-app-capable" content="yes">
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, query, where }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBAnVI0MTNKZ9rIHpATgKyCp88nq0u0vsY",
-    authDomain: "garden-river-conti-febed.firebaseapp.com",
-    projectId: "garden-river-conti-febed",
-    storageBucket: "garden-river-conti-febed.firebasestorage.app",
-    messagingSenderId: "113994721180",
-    appId: "1:113994721180:web:c41d309c9270134b640a59"
-  };
-
-  const fbApp = initializeApp(firebaseConfig, "ristorazione");
-  const db    = getFirestore(fbApp);
-  const auth  = getAuth(fbApp);
-
-  window._fbRisto = { db, collection, doc, setDoc, deleteDoc, getDocs, getDoc, onSnapshot, query, where };
-  window._fbRistoReady = false;
-
-  function segnalaPronto() {
-    if (window._fbRistoReady) return;
-    window._fbRistoReady = true;
-    window.dispatchEvent(new Event('firebase-risto-ready'));
+<script>
+  // Questa pagina NON parla piu' con Firestore: legge e scrive solo tramite la Cloud Function
+  // 'area-ospite' (azioni risto_codice_*), che verifica il codice famiglia e applica le regole
+  // (quote, mezza pensione, orario limite). Le collezioni ristorazione sono solo per lo staff.
+  const RISTO_URL = 'https://area-ospite-113994721180.europe-west1.run.app';
+  let CODICE = null;
+  async function chiamaRisto(azione, extra){
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const tm = ac ? setTimeout(() => ac.abort(), 20000) : null;
+    try{
+      const r = await fetch(RISTO_URL, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ azione, codice: CODICE }, extra || {})), signal: ac ? ac.signal : undefined });
+      const d = await r.json().catch(() => ({ ok:false, errore:'risposta_non_valida' }));
+      if(!d.ok){ const e = new Error(d.errore || 'errore'); e.codice = d.errore || 'errore'; throw e; }
+      return d;
+    } finally { if(tm) clearTimeout(tm); }
   }
-  onAuthStateChanged(auth, u => { if (u) segnalaPronto(); });
-  signInAnonymously(auth).catch(() => segnalaPronto());
-  setTimeout(segnalaPronto, 8000);
+  const MSG_ERRORE = {
+    ordini_chiusi:'Gli ordini per questo giorno sono chiusi', quota_superata:'Hai superato il numero di portate consentito',
+    gia_ordinato:'Hai già inviato questo ordine', mezza_pensione_un_pasto:'In mezza pensione puoi ordinare un solo pasto al giorno',
+    gia_servito:'Questo ordine è già stato servito', troppi_tentativi:'Troppi tentativi, riprova tra qualche minuto',
+    piatto_non_valido:'Un piatto non è più disponibile, aggiorna la pagina', giorno_non_valido:'Giorno non valido'
+  };
+  function msgErrore(e){ return (e && MSG_ERRORE[e.codice]) || 'Errore di rete — riprova'; }
 </script>
 
 <style>
@@ -300,16 +293,8 @@ let famiglia = null;
 let menuOggi = [], menuDomani = [];
 let ordiniEsistenti = {};
 let selezioni = {};
-let cicloStart = null;
 const mpChoice = {}; // { 'YYYY-MM-DD': 'pranzo'|'cena' } — scelta pasto per mezza pensione
 
-function getGiornoCiclo(iso) {
-  if (!cicloStart) return null;
-  const start  = new Date(cicloStart + 'T12:00:00');
-  const target = new Date(iso + 'T12:00:00');
-  const diff   = Math.round((target - start) / 86400000);
-  return ((diff % 14) + 14) % 14 + 1;
-}
 
 function jsEsc(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
@@ -389,7 +374,7 @@ function stepBambino(key,piatto,pid,delta){
 
 function isoDate(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().split('T')[0]; }
 function dopoOrarioLimite(){ const n=new Date(); return n.getHours()>8 || (n.getHours()===8 && n.getMinutes()>=30); }
-const OGGI=isoDate(0), DOMANI=isoDate(1);
+let OGGI=isoDate(0), DOMANI=isoDate(1);   // riallineate all'ora del server dopo il caricamento
 // PRIMO_GIORNO e SECONDO_GIORNO vengono calcolati dopo il caricamento famiglia
 let PRIMO_GIORNO=OGGI, SECONDO_GIORNO=DOMANI;
 
@@ -402,33 +387,35 @@ function labelData(iso){
   return `${prefix} — ${GG[d.getDay()]} ${g} ${MM[m-1]}`;
 }
 
-function waitForFirebase(){ return new Promise(r=>{ if(window._fbRistoReady)return r(); window.addEventListener('firebase-risto-ready',()=>r(),{once:true}); }); }
+let _ultimoStato=0;
+function ricontrollaSblocco(){
+  // Al posto dell'ascolto in tempo reale: quando l'ospite torna sulla pagina si rilegge
+  // (una sola lettura lato server) se lo staff ha sbloccato l'orario. Al massimo ogni 20 s.
+  if(!famiglia || Date.now()-_ultimoStato<20000) return;
+  _ultimoStato=Date.now();
+  chiamaRisto('risto_codice_stato').then(d=>{
+    if((d.sblocco_orario||'')!==(famiglia.sblocco_orario||'')){ famiglia.sblocco_orario=d.sblocco_orario||''; renderMenu(); }
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) ricontrollaSblocco(); });
+window.addEventListener('focus',ricontrollaSblocco);
 
 window.addEventListener('DOMContentLoaded', async()=>{
-  await waitForFirebase();
-  const codice=leggiCodice();
-  if(!codice){ mostraErrore(); return; }
+  CODICE=leggiCodice();
+  if(!CODICE){ mostraErrore(); return; }
   try{
-    const impP=caricaImpostazioni();
-    await caricaFamiglia(codice);
-    // Ascolta in real-time le modifiche alla famiglia (es. sblocco_orario da staff)
-    const {db,doc,onSnapshot}=window._fbRisto;
-    onSnapshot(doc(db,'famiglie_ristorazione',famiglia.id), snap=>{
-      if(!snap.exists()) return;
-      const aggiornato = snap.data();
-      const cambiatoSblocco = aggiornato.sblocco_orario !== famiglia.sblocco_orario;
-      Object.assign(famiglia, aggiornato);
-      if(cambiatoSblocco) renderMenu();
-    });
-    // Calcola primo giorno visibile: max(oggi, checkin)
-    if(famiglia.checkin && famiglia.checkin > OGGI){
-      PRIMO_GIORNO  = famiglia.checkin;
-      SECONDO_GIORNO = isoDate(0); // ricalcola come checkin+1
-      const d = new Date(famiglia.checkin + 'T12:00:00');
-      d.setDate(d.getDate()+1);
-      SECONDO_GIORNO = d.toISOString().split('T')[0];
-    }
-    await Promise.all([caricaMenu(impP), caricaOrdiniEsistenti()]);
+    const d=await chiamaRisto('risto_codice_carica');
+    famiglia=d.famiglia;
+    _ultimoStato=Date.now();
+    // Giorni calcolati dal server (ora italiana): oggi, o il check-in se l'ospite non e' ancora arrivato
+    OGGI=d.oggi;
+    { const x=new Date(d.oggi+'T12:00:00'); x.setDate(x.getDate()+1); DOMANI=x.toISOString().split('T')[0]; }
+    PRIMO_GIORNO=d.giorni[0]; SECONDO_GIORNO=d.giorni[1];
+    CAT_ORDER=(Array.isArray(d.categorie)&&d.categorie.length)?d.categorie:[...CAT_ORDER_DEFAULT];
+    MENU_BAMBINI=(Array.isArray(d.menu_bambini)&&d.menu_bambini.length)?d.menu_bambini:[...MENU_BAMBINI_DEFAULT];
+    menuOggi=d.menu[PRIMO_GIORNO]||[];
+    menuDomani=d.menu[SECONDO_GIORNO]||[];
+    ordiniEsistenti=d.ordini||{};
     buildMenuCatMap();
     inizializzaSelezioni();
     renderApp();
@@ -440,59 +427,6 @@ function leggiCodice(){
   const p=new URLSearchParams(window.location.search).get('f');
   if(p){ localStorage.setItem('gr_risto_codice',p.toUpperCase()); return p.toUpperCase(); }
   return localStorage.getItem('gr_risto_codice')||null;
-}
-
-async function caricaFamiglia(codice){
-  const {db,collection,query,where,getDocs}=window._fbRisto;
-  const snap=await getDocs(query(collection(db,'famiglie_ristorazione'),where('codice','==',codice)));
-  if(snap.empty) throw new Error('Famiglia non trovata');
-  famiglia={id:snap.docs[0].id,...snap.docs[0].data()};
-}
-
-// Impostazioni (inizio ciclo, categorie): non dipendono dalla famiglia, quindi
-// partono in parallelo alla sua ricerca invece di aspettarla.
-async function caricaImpostazioni(){
-  const {db,getDoc,doc}=window._fbRisto;
-  try {
-    const snap=await getDoc(doc(db,'impostazioni','ristorazione'));
-    if(snap.exists()){
-      const data=snap.data()||{};
-      cicloStart=data.ciclo_start||null;
-      CAT_ORDER=(Array.isArray(data.categorie)&&data.categorie.length)?data.categorie:[...CAT_ORDER_DEFAULT];
-      MENU_BAMBINI=(Array.isArray(data.menu_bambini)&&data.menu_bambini.length)?data.menu_bambini:[...MENU_BAMBINI_DEFAULT];
-    }
-  } catch(e) { console.error('cicloStart:', e); }
-}
-
-async function caricaMenu(impP){
-  const {db,collection,query,where,getDocs}=window._fbRisto;
-  await (impP||caricaImpostazioni());
-
-  if(!cicloStart){ menuOggi=[]; menuDomani=[]; return; }
-
-  const giornoPrimo  = getGiornoCiclo(PRIMO_GIORNO);
-  const giornoSecondo= getGiornoCiclo(SECONDO_GIORNO);
-
-  const queries=[getDocs(query(collection(db,'menu_ristorazione'),where('giorno','==',giornoPrimo)))];
-  if(giornoSecondo!==giornoPrimo)
-    queries.push(getDocs(query(collection(db,'menu_ristorazione'),where('giorno','==',giornoSecondo))));
-  else
-    queries.push(Promise.resolve({docs:[]}));
-
-  const [snapO,snapD]=await Promise.all(queries);
-  menuOggi  =snapO.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
-  menuDomani=snapD.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.tipo.localeCompare(b.tipo));
-}
-
-async function caricaOrdiniEsistenti(){
-  const {db,collection,query,where,getDocs}=window._fbRisto;
-  // Due query separate per evitare indice composito su famiglia_id + data
-  const [snapO,snapD]=await Promise.all([
-    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',PRIMO_GIORNO))),
-    getDocs(query(collection(db,'ordini_ristorazione'),where('famiglia_id','==',famiglia.id),where('data','==',SECONDO_GIORNO)))
-  ]);
-  ordiniEsistenti={};
-  [...snapO.docs,...snapD.docs].forEach(d=>{ const x=d.data(); ordiniEsistenti[`${x.data}_${x.tipo}`]=x; });
 }
 
 function inizializzaSelezioni(){
@@ -664,13 +598,12 @@ function scegliPasto(data,tipo){
     if(ordiniEsistenti[prevKey]){
       const backup=ordiniEsistenti[prevKey];
       delete ordiniEsistenti[prevKey];
-      const {db,doc,deleteDoc}=window._fbRisto;
-      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${prevKey}`)).catch(e=>{
+      chiamaRisto('risto_codice_annulla',{data,tipo:prev}).catch(e=>{
         console.error(e);
         ordiniEsistenti[prevKey]=backup;
         mpChoice[data]=prev;
         renderMenu();
-        showToast('Errore di rete — riprova');
+        showToast(msgErrore(e));
       });
     }
   }
@@ -685,12 +618,11 @@ function cambiaPasto(data){
     if(ordiniEsistenti[key]){
       backups[key]=ordiniEsistenti[key];
       delete ordiniEsistenti[key];
-      const {db,doc,deleteDoc}=window._fbRisto;
-      deleteDoc(doc(db,'ordini_ristorazione',`${famiglia.id}_${key}`)).catch(e=>{
+      chiamaRisto('risto_codice_annulla',{data,tipo}).catch(e=>{
         console.error(e);
         ordiniEsistenti[key]=backups[key];
         renderMenu();
-        showToast('Errore di rete — riprova');
+        showToast(msgErrore(e));
       });
     }
     selezioni[key]={piatti:{},bambini:{},note:''};
@@ -968,8 +900,7 @@ async function salvaOrdini(targetData){
   const btn=document.getElementById(`btn-confirm-${targetData}`);
   if(btn){ btn.disabled=true; btn.textContent='Salvataggio…'; }
   try{
-    const {db,collection,doc,setDoc}=window._fbRisto;
-    const promises=[];
+    const pasti=[];
     for(const [key,sel] of Object.entries(selezioni)){
       const idx = key.lastIndexOf('_');
       const data = key.slice(0, idx);
@@ -981,42 +912,23 @@ async function salvaOrdini(targetData){
         const oppKey=`${data}_${tipo==='pranzo'?'cena':'pranzo'}`;
         if(totaleKeyPiatti(oppKey)>0&&totaleKeyPiatti(key)===0) continue;
       }
-      const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>{
-        const m=menuCatMap[mid]||{};
-        return {menu_id:mid,piatto:m.piatto||'—',quantita:q,categoria:m.categoria||'Altro'};
-      });
-      Object.entries(sel.bambini||{}).filter(([,q])=>q>0).forEach(([piatto,q])=>{
-        piatti.push({menu_id:'bambino_'+piatto,piatto,quantita:q,categoria:MENU_BAMBINI_CAT});
-      });
-      if(!piatti.length) continue;
-      const docId=`${famiglia.id}_${data}_${tipo}`;
-      const note=sel.note||'';
-      promises.push(setDoc(doc(db,'ordini_ristorazione',docId),{famiglia_id:famiglia.id,famiglia_nome:famiglia.nome,unita:famiglia.unita,data,tipo,piatti,note,servito:false,notified:false,timestamp:new Date().toISOString()},{merge:true}));
+      // Al server si mandano solo id e quantità: nomi, categorie e quote li ricalcola lui dal menu.
+      const piatti=Object.entries(sel.piatti).filter(([,q])=>q>0).map(([mid,q])=>({menu_id:mid,quantita:q}));
+      const bambini={};
+      Object.entries(sel.bambini||{}).filter(([,q])=>q>0).forEach(([piatto,q])=>{ bambini[piatto]=q; });
+      if(!piatti.length && !Object.keys(bambini).length) continue;
+      pasti.push({tipo,piatti,bambini,note:sel.note||''});
     }
-    if(!promises.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
-    await Promise.all(promises);
-    // La notifica a Telegram parte dal controllo periodico degli ordini con notified=false (telegram-bot, evento ordini_pendenti).
+    if(!pasti.length){ showToast('Nessun piatto selezionato'); if(btn){btn.disabled=false;} return; }
+    await chiamaRisto('risto_codice_ordina',{data:targetData,pasti});
+    // La notifica a Telegram la manda la Cloud Function subito dopo aver salvato l'ordine.
     showToast('Ordine salvato');
     setTimeout(()=>location.reload(), 400);
-  }catch(e){ console.error(e); showToast('Errore di salvataggio — riprova'); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
+  }catch(e){ console.error(e); showToast(msgErrore(e)); if(btn){ btn.disabled=false; btn.textContent=btn.dataset.label||'Conferma ordine'; } }
 }
 
 function openSettings(){ document.getElementById('settings-overlay').classList.add('open'); document.getElementById('settings-panel').classList.add('open'); }
 function closeSettings(){ document.getElementById('settings-overlay').classList.remove('open'); document.getElementById('settings-panel').classList.remove('open'); }
-
-function changeGuests(delta){
-  const v=(famiglia.max_ospiti||1)+delta;
-  if(v<1)return;
-  famiglia.max_ospiti=v;
-  document.getElementById('gs-val').textContent=v;
-  document.getElementById('hdr-sub').textContent=`Unità ${famiglia.unita} · ${v} ospiti`;
-  salvaMaxOspiti(v);
-}
-
-async function salvaMaxOspiti(val){
-  try{ const {db,doc,setDoc}=window._fbRisto; await setDoc(doc(db,'famiglie_ristorazione',famiglia.id),{max_ospiti:val},{merge:true}); }
-  catch(e){ console.error(e); }
-}
 
 function resetAccesso(){ if(!confirm('Disconnettere questo dispositivo?'))return; localStorage.removeItem('gr_risto_codice'); location.reload(); }
 

@@ -1,4 +1,5 @@
 rules_version = '2';
+// Aggiornato 24/11/2026: ristorazione solo staff (pagina ospite via Cloud Function)
 // Aggiornato 21/11/2026: coda di stampa per il V2
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -140,11 +141,6 @@ service cloud.firestore {
     match /impostazioni/{id} {
       allow read, write: if staff();
     }
-    // Letto dalla pagina ospite ristorazione (accesso anonimo) — vedi sotto.
-    match /impostazioni/ristorazione {
-      allow read: if loggato();
-      allow write: if staff();
-    }
     // Check-in online: mappa token→prenotazione per il link pubblico
     // (https://gardenhub.it/checkin/?t=<token>). L'hub la CREA quando genera il
     // link; il collegamento token→prenotazione lo risolve SOLO la Cloud
@@ -199,19 +195,19 @@ service cloud.firestore {
     }
 
     // ── Ristorazione ─────────────────────────────────────────────────────
-    // ⚠️ ECCEZIONE: la pagina OSPITE ristorazione/index.html legge/scrive queste
-    // tre collezioni direttamente da browser con accesso anonimo (famiglia che
-    // entra col proprio codice). Finché non passa da una Cloud Function (come
-    // l'Area ospite) restano aperte agli anonimi: è l'esposizione residua più
-    // importante (nomi/ordini delle famiglie). Da migrare.
+    // Solo operatori. La pagina ospite (ristorazione/?f=CODICE) NON accede piu' a
+    // queste collezioni dal browser: passa dalla Cloud Function 'area-ospite'
+    // (azioni risto_codice_*, Admin SDK), che verifica il codice famiglia e applica
+    // quote, mezza pensione e orario limite. (Prima erano aperte a qualsiasi login
+    // anonimo: nomi/ordini delle famiglie leggibili e modificabili da chiunque.)
     match /famiglie_ristorazione/{id} {
-      allow read, write: if loggato();
+      allow read, write: if staff();
     }
     match /ordini_ristorazione/{id} {
-      allow read, write: if loggato();
+      allow read, write: if staff();
     }
     match /menu_ristorazione/{id} {
-      allow read, write: if loggato();
+      allow read, write: if staff();
     }
 
     // ── Manutenzione ─────────────────────────────────────────────────────

@@ -92,3 +92,30 @@ Senza le variabili resta attivo il fallback con link PayPal.Me (se compilato in 
 ## Meteo
 
 Azione `meteo`: la card meteo della home non chiama piu' servizi esterni dal browser. La funzione legge `meteo_cache/garden` (collezione negata ai client, scritta solo da qui) e la rinnova al massimo ogni 30 minuti: fonte principale MET Norway, riserva Open-Meteo, e se falliscono entrambe l'ultimo dato salvato (max 6 ore). Nessuna nuova regola Firestore e nessuna variabile d'ambiente. Se la funzione non risponde, la pagina ripiega su Open-Meteo diretto.
+
+## Accesso col codice famiglia (vecchia pagina `ristorazione/?f=CODICE`) — 24/11/2026
+
+I link/QR già consegnati agli ospiti portano il **codice famiglia**, non il token dell'Area ospite.
+La pagina `ristorazione/index.html` non parla più con Firestore: usa queste azioni (stessa funzione,
+nessun costo fisso in più), così le collezioni `famiglie_ristorazione`, `ordini_ristorazione` e
+`menu_ristorazione` sono chiuse agli anonimi (solo `staff()`).
+
+| Azione | Cosa fa |
+|---|---|
+| `risto_codice_carica` | famiglia + menu dei due giorni + ordini esistenti (solo i campi necessari) |
+| `risto_codice_stato` | solo lo sblocco orario (una lettura); la pagina lo chiama quando l'ospite torna sulla scheda |
+| `risto_codice_ordina` | stessa logica di `ristorazione_ordina` (quote, mezza pensione, orario limite, Telegram) |
+| `risto_codice_annulla` | toglie un ordine non ancora servito, solo entro l'orario limite |
+
+- Il codice scade il giorno dopo il check-out (`COD_SCADENZA_GIORNI`).
+- Tentativi sbagliati limitati per IP (`COD_MAX_FALLITI` ogni `COD_FINESTRA_S`), in memoria per istanza.
+  L'IP è l'ULTIMO elemento di `X-Forwarded-For`: dopo il deploy controlla nei log che sia davvero l'IP
+  del cliente e non quello del bilanciatore (altrimenti tutti condividerebbero lo stesso contatore).
+- Allineamento col Calendario come per il link: date, trattamento e n. ospiti vengono dalla prenotazione.
+
+### Ordine di pubblicazione (importante)
+1. **Rideploy** della funzione `area-ospite` (Console Google Cloud).
+2. **Push** di `ristorazione/index.html` (usa le nuove azioni).
+3. Provare un link vero (`ristorazione/?f=CODICE`): menu visibile, ordine, annullo.
+4. Solo ora **pubblicare le regole** (`firestore-rules/garden-river-conti-febed-CONSOLIDATO.rules`).
+   Dopo questo passo le vecchie pagine rimaste aperte nei browser non funzionano più.
