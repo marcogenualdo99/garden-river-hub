@@ -730,6 +730,9 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
         <button onclick="addOperatore()" class="new-op-btn">+ Aggiungi</button>
       </div>
       <div id="operatori-list" style="margin-top:6px"></div>
+      <div style="margin-top:14px;text-align:center">
+        <span style="font-size:12px;color:var(--gray-500);cursor:pointer;text-decoration:underline" onclick="pulisciOperatoriEliminati()">Pulisci i dati di operatori già eliminati</span>
+      </div>
     </div>
 
     <div class="card" id="permessi-card" data-tab="permessi">
@@ -1165,6 +1168,12 @@ async function startRealtimeSync() {
     onSnapshot(collection(db, 'operatori'), (snap) => {
       operatori = snap.docs.map(d => ({ nome: d.id, ruolo: 'operatore', haPin: false, ...d.data() }));
       _dataReady = true;
+      // Un admin ha rimosso questo operatore: la sessione "ricordata" su questo dispositivo non vale piu'.
+      // Solo con dati arrivati dal server (non dalla cache) e con un elenco non vuoto.
+      if (currentOperatore && !snap.metadata.fromCache && operatori.length && !operatori.some(o => o.nome === currentOperatore)) {
+        eseguiLogout();
+        showToast('Il tuo accesso è stato revocato');
+      }
       initLogin();
       if (document.getElementById('sec-settings').classList.contains('active')) {
         renderOperatoriList();
@@ -1713,27 +1722,30 @@ function loginSuccess(op, ruoloServer) {
   maybeOpenDeepLink();
 }
 
+// Esce dall'operatore corrente: chiude la sessione Firebase e dimentica la sessione "ricordata" su questo dispositivo.
+function eseguiLogout() {
+  currentOperatore = null; currentRuolo = null;
+  homeLayoutOrder = null; homeSizes = {};
+  try { localStorage.removeItem(HOME_CACHE_KEY); } catch(e) {}
+  if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
+  sessionStorage.removeItem('gr_session');
+  sessionStorage.removeItem('gr_permessi');
+  try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
+  if (window._scollegaDatiSuite) window._scollegaDatiSuite();
+  if (window._scollegaMagazzino) window._scollegaMagazzino();
+  if (window._chiudiSessioneOperatore) window._chiudiSessioneOperatore();
+  pinBuffer = ''; loginTargetOp = null; loginFase = 'pin'; loginCodice = ''; loginNuovoPin = '';
+  document.getElementById('login-step-pin').style.display = 'none';
+  document.getElementById('login-step-op').style.display  = 'block';
+  document.getElementById('login-sel').value = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  closeSettings();
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+
 function doLogout() {
-  showModal('Cambio operatore', 'Vuoi uscire da ' + (currentOperatore || '') + '?', 'Esci', 'var(--red)', () => {
-    currentOperatore = null; currentRuolo = null;
-    homeLayoutOrder = null; homeSizes = {};
-    try { localStorage.removeItem(HOME_CACHE_KEY); } catch(e) {}
-    if (_homeLayoutUnsub) { _homeLayoutUnsub(); _homeLayoutUnsub = null; }
-    sessionStorage.removeItem('gr_session');
-    sessionStorage.removeItem('gr_permessi');
-    try { localStorage.removeItem('gr_session_persist'); } catch(e) {}
-    if (window._scollegaDatiSuite) window._scollegaDatiSuite();
-    if (window._scollegaMagazzino) window._scollegaMagazzino();
-    if (window._chiudiSessioneOperatore) window._chiudiSessioneOperatore();
-    pinBuffer = ''; loginTargetOp = null;
-    document.getElementById('login-step-pin').style.display = 'none';
-    document.getElementById('login-step-op').style.display  = 'block';
-    document.getElementById('login-sel').value = '';
-    updatePinDots();
-    document.getElementById('pin-error').textContent = '';
-    closeSettings();
-    document.getElementById('login-screen').classList.remove('hidden');
-  });
+  showModal('Cambio operatore', 'Vuoi uscire da ' + (currentOperatore || '') + '?', 'Esci', 'var(--red)', eseguiLogout);
 }
 
 function saluto() {
@@ -2902,12 +2914,40 @@ function deleteOperatore(nome) {
   if (operatori.length <= 1) { showToast('Almeno un operatore richiesto'); return; }
   showModal('Rimuovi operatore', `Rimuovere ${nome}? Non potrà più accedere a nessuna app della suite.`, 'Rimuovi', 'var(--red)',
     async () => {
+      // La rimozione passa dal server: oltre al documento cancella PIN, codice di attivazione, permessi,
+      // layout della home e l'utente Firebase, cosi' nessun dato o sessione dell'operatore resta in giro.
       try {
-        await fsDeleteOperatore(nome);
-        await fsDeletePermessi(nome);
-        showToast(`${nome} rimosso`);
-      } catch(e) { showToast('Errore rimozione'); }
+        const id_token = await window._idTokenOperatore();
+        const r = await callAuth('rimuovi', { nome, id_token });
+        if (r.ok) { showToast(`${nome} rimosso`); return; }
+        if (r.errore === 'non_puoi_rimuovere_te_stesso') { showToast('Non puoi rimuovere te stesso'); return; }
+        if (r.errore === 'non_autorizzato') { showToast('Non risulti amministratore'); return; }
+        if (r.errore === 'sessione_non_valida') { showToast('Sessione scaduta — esci e rientra'); return; }
+        showToast('Errore rimozione');
+      } catch(e) { console.error(e); showToast('Errore rimozione'); }
     });
+}
+
+// Operatori cancellati in passato (prima della rimozione completa) hanno lasciato PIN, permessi, layout home e utenti Firebase:
+// prima si vede cosa verrebbe tolto (prova a vuoto), poi si conferma.
+async function pulisciOperatoriEliminati() {
+  if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può farlo'); return; }
+  try {
+    const id_token = await window._idTokenOperatore();
+    const r = await callAuth('pulisci_orfani', { id_token, dry_run: true });
+    if (!r.ok) { showToast(r.errore === 'sessione_non_valida' ? 'Sessione scaduta — esci e rientra' : 'Impossibile controllare'); return; }
+    if (!r.totale) { showToast('Nessun dato da pulire'); return; }
+    const nomi = [...new Set(Object.values(r.orfani).flat())].join(', ');
+    showModal('Pulisci i dati di operatori eliminati',
+      `Trovati dati di ${r.totale} voci riferite a operatori che non esistono più (${nomi}). Verranno cancellati definitivamente: PIN, codici, permessi, layout della home e utenti di accesso.`,
+      'Cancella', 'var(--red)', async () => {
+        try {
+          const t2 = await window._idTokenOperatore();
+          const r2 = await callAuth('pulisci_orfani', { id_token: t2, dry_run: false });
+          showToast(r2.ok ? `Puliti ${r2.totale} elementi` : 'Errore pulizia');
+        } catch(e) { console.error(e); showToast('Errore pulizia'); }
+      });
+  } catch(e) { console.error(e); showToast('Errore controllo'); }
 }
 
 // Mostra all'admin il codice di attivazione (una volta sola): il collega lo digita al primo accesso per scegliere il PIN.

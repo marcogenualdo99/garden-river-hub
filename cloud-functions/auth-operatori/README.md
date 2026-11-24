@@ -59,3 +59,21 @@ Prima `imposta` (primo PIN) non chiedeva nulla: chiunque conoscesse il nome di u
 - Operatori che oggi non hanno un PIN: al prossimo accesso servirà un codice generato da un admin.
 - Compatibilità: il vecchio client non manda il codice, quindi chi non ha PIN non riesce più a impostarlo finché
   non si pubblica il client nuovo. Ordine: rideploy della funzione, poi push di `index.html`.
+
+## Rimozione completa di un operatore (25/11/2026)
+
+Prima la Hub cancellava solo `operatori/{nome}` e `permessi/{nome}`. Restavano: l'hash del PIN
+(`operatori_pin`), il codice di attivazione, il layout della home, l'utente Firebase Auth `op:<nome>` (con il
+suo refresh token, che continuava a dare accesso ai dati: le regole guardano solo il claim) e la sessione
+"ricordata" 30 giorni sul dispositivo. Un operatore ricreato con lo stesso nome ereditava anche il PIN vecchio.
+
+- **`rimuovi`** (solo admin con sessione; non ci si rimuove da soli): cancella documento, PIN, codice,
+  permessi, layout home ed elimina l'utente Auth. Le sessioni già aperte smettono di funzionare entro circa
+  un'ora (scadenza dell'ID token, che non si può revocare prima), poi non si rinnovano più.
+- **`pulisci_orfani`** (solo admin): toglie i dati di operatori cancellati in passato. Con `dry_run` (default) elenca
+  soltanto; il pulsante "Pulisci i dati di operatori già eliminati" in Impostazioni → Operatori mostra l'elenco e
+  chiede conferma. Si rifiuta se l'elenco operatori è vuoto o senza admin.
+- **Client**: se l'operatore loggato non compare più nell'elenco arrivato dal server, il dispositivo esce da solo
+  ("Il tuo accesso è stato revocato") e dimentica la sessione ricordata.
+- Il servizio deve poter eliminare utenti Auth e listarli: di norma il service account della funzione ha già
+  "Firebase Authentication Admin"; se `pulisci_orfani` non elenca utenti, controlla questo ruolo.

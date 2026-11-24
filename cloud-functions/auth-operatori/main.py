@@ -416,6 +416,86 @@ def _azione_sblocca(db, origin, data):
     return _json(origin, {'ok': True})
 
 
+# Collezioni con un documento per operatore (id = nome): vanno tutte svuotate quando si rimuove qualcuno.
+COLLEZIONI_PER_OPERATORE = ('operatori', 'operatori_pin', 'operatori_attivazione', 'permessi', 'home_layout')
+
+
+def _elimina_dati_operatore(db, nome):
+    """Cancella tutto cio' che porta il nome dell'operatore e ne chiude le sessioni.
+    Ritorna l'elenco di cio' che c'era. L'utente Firebase Auth ('op:<nome>') si elimina: senza,
+    il suo refresh token continuerebbe a dare accesso ai dati (le regole guardano solo il claim)."""
+    fatti = []
+    for col in COLLEZIONI_PER_OPERATORE:           # 'operatori' per primo: 'rinnova' smette subito di funzionare
+        ref = db.collection(col).document(nome)
+        if ref.get().exists:
+            ref.delete()
+            fatti.append(col)
+    try:
+        fb_auth.delete_user('op:' + nome)
+        fatti.append('auth')
+    except Exception:                               # utente mai creato / gia' eliminato
+        pass
+    return fatti
+
+
+def _azione_rimuovi(db, origin, data):
+    """Un admin rimuove un operatore: documento, PIN, codice di attivazione, permessi, layout home e
+    utente Auth (con le sue sessioni). Non ci si rimuove da soli: chi chiama e' sempre un altro admin,
+    quindi almeno un admin resta."""
+    admin_nome, err = _admin_da_token(db, data)
+    if err:
+        return _json(origin, err[0], err[1])
+    nome = (data.get('nome') or '').strip()
+    if not _nome_valido(nome):
+        return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
+    if nome == admin_nome:
+        return _json(origin, {'ok': False, 'errore': 'non_puoi_rimuovere_te_stesso'}, 409)
+    fatti = _elimina_dati_operatore(db, nome)
+    print(f'rimuovi: {admin_nome} ha rimosso {nome} ({", ".join(fatti) or "niente"})')
+    return _json(origin, {'ok': True, 'eliminati': fatti})
+
+
+def _azione_pulisci_orfani(db, origin, data):
+    """Toglie i dati di operatori GIA' cancellati in passato (PIN, codici, permessi, layout home, utenti
+    Auth 'op:*'). Con dry_run (default) elenca soltanto. Si rifiuta se l'elenco operatori e' vuoto o
+    senza admin, per non cancellare tutto per errore."""
+    admin_nome, err = _admin_da_token(db, data)
+    if err:
+        return _json(origin, err[0], err[1])
+    dry = data.get('dry_run') is not False
+    attuali = {d.id: (d.to_dict() or {}) for d in db.collection('operatori').stream()}
+    if not attuali or not any((v.get('ruolo') == 'admin') for v in attuali.values()):
+        return _json(origin, {'ok': False, 'errore': 'elenco_operatori_non_affidabile'}, 409)
+    orfani = {}
+    for col in COLLEZIONI_PER_OPERATORE[1:]:
+        ids = [d.id for d in db.collection(col).stream() if d.id not in attuali]
+        if ids:
+            orfani[col] = ids
+    utenti = []
+    try:
+        for u in fb_auth.list_users().iterate_all():
+            if (u.uid or '').startswith('op:') and u.uid[3:] not in attuali:
+                utenti.append(u.uid[3:])
+    except Exception as e:
+        print(f'pulisci_orfani: elenco utenti Auth non disponibile: {e}')
+    if utenti:
+        orfani['auth'] = utenti
+    if not dry:
+        for col, ids in orfani.items():
+            if col == 'auth':
+                for nome in ids:
+                    try:
+                        fb_auth.delete_user('op:' + nome)
+                    except Exception as e:
+                        print(f'pulisci_orfani: utente {nome} non eliminato: {e}')
+            else:
+                for i in ids:
+                    db.collection(col).document(i).delete()
+        print(f'pulisci_orfani: {admin_nome} ha eliminato {sum(len(v) for v in orfani.values())} elementi')
+    return _json(origin, {'ok': True, 'dry_run': dry, 'orfani': orfani,
+                          'totale': sum(len(v) for v in orfani.values())})
+
+
 def _azione_migra(db, origin, data):
     atteso = os.environ.get('MIGRA_TOKEN', '')
     if not atteso or not hmac.compare_digest(data.get('token') or '', atteso):
@@ -445,6 +525,8 @@ AZIONI = {
     'reset':    _azione_reset,
     'rinnova':  _azione_rinnova,
     'sblocca':  _azione_sblocca,
+    'rimuovi':  _azione_rimuovi,
+    'pulisci_orfani': _azione_pulisci_orfani,
     'stato_attivazione':   _azione_stato_attivazione,
     'codice_attivazione':  _azione_codice_attivazione,
     'migra':    _azione_migra,
