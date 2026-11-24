@@ -1544,21 +1544,41 @@ setTimeout(async () => {
 }, 8000);
 setTimeout(hideLoadingScreen, 18000);
 
-function loginStepPin() {
-  const op = document.getElementById('login-sel').value;
-  if (!op) { showToast('Seleziona un operatore'); return; }
-  loginTargetOp = op; pinBuffer = '';
-  const opObj = operatori.find(o => o.nome === op);
-  const hasPIN = !!(opObj && opObj.haPin);
-  document.getElementById('pin-label').textContent = hasPIN ? `PIN di ${op}` : `Imposta PIN per ${op}`;
-  document.getElementById('login-step-op').style.display  = 'none';
-  document.getElementById('login-step-pin').style.display = 'block';
-  document.getElementById('pin-error').textContent = '';
+// Fasi della schermata PIN: 'pin' (operatore con PIN) oppure, per chi non ne ha uno,
+// 'codice' (codice di attivazione dato da un admin) -> 'nuovo' (sceglie il PIN) -> 'ripeti' (lo conferma).
+let loginFase = 'pin', loginCodice = '', loginNuovoPin = '';
+
+function impostaFase(fase) {
+  loginFase = fase; pinBuffer = '';
+  const op = loginTargetOp || '';
+  document.getElementById('pin-label').textContent =
+    fase === 'pin'    ? `PIN di ${op}` :
+    fase === 'codice' ? `Codice di attivazione di ${op} (te lo dà l'amministratore)` :
+    fase === 'nuovo'  ? `Scegli il tuo PIN di ${PIN_LENGTH} cifre` :
+                        'Ripeti il PIN';
   updatePinDots();
 }
 
+async function loginStepPin() {
+  const op = document.getElementById('login-sel').value;
+  if (!op) { showToast('Seleziona un operatore'); return; }
+  loginTargetOp = op; pinBuffer = ''; loginCodice = ''; loginNuovoPin = '';
+  const opObj = operatori.find(o => o.nome === op);
+  const hasPIN = !!(opObj && opObj.haPin);
+  document.getElementById('login-step-op').style.display  = 'none';
+  document.getElementById('login-step-pin').style.display = 'block';
+  document.getElementById('pin-error').textContent = '';
+  if (hasPIN) { impostaFase('pin'); return; }
+  // Primo accesso: serve il codice di attivazione (tranne alla prima installazione, quando nessun admin ha un PIN).
+  document.getElementById('pin-label').textContent = '…';
+  let richiesto = true;
+  try { const r = await callAuth('stato_attivazione', { nome: op }); if (r && r.ok) richiesto = r.richiesto !== false; } catch(e) {}
+  if (loginTargetOp !== op) return;       // nel frattempo ha cambiato operatore
+  impostaFase(richiesto ? 'codice' : 'nuovo');
+}
+
 function loginBack() {
-  pinBuffer = ''; loginTargetOp = null;
+  pinBuffer = ''; loginTargetOp = null; loginCodice = ''; loginNuovoPin = ''; loginFase = 'pin';
   document.getElementById('login-step-pin').style.display = 'none';
   document.getElementById('login-step-op').style.display  = 'block';
   document.getElementById('pin-error').textContent = '';
@@ -1618,15 +1638,22 @@ async function checkPin() {
   const nome = loginTargetOp;
   const pin  = pinBuffer;
 
+  // Passaggi locali del primo accesso: nessuna chiamata al server finche' non c'e' tutto.
+  if (loginFase === 'codice') { loginCodice = pin; impostaFase('nuovo'); return; }
+  if (loginFase === 'nuovo')  { loginNuovoPin = pin; impostaFase('ripeti'); return; }
+  if (loginFase === 'ripeti' && pin !== loginNuovoPin) {
+    loginNuovoPin = ''; impostaFase('nuovo'); pinErrore('I due PIN non coincidono — riprova'); return;
+  }
+
   _checkPinInFlight = true;
   document.getElementById('pin-error').textContent = 'Verifica…';
   try {
     let r;
-    if (!opObj.haPin) {
-      // primo PIN: lo impostiamo. Se il flag era disallineato e un PIN esiste
-      // già, la funzione risponde 'pin_gia_impostato' e ripieghiamo su verifica.
-      r = await callAuth('imposta', { nome, pin });
-      if (!r.ok && r.errore === 'pin_gia_impostato') r = await callAuth('verifica', { nome, pin });
+    if (loginFase === 'ripeti') {
+      // primo PIN: la funzione lo accetta solo col codice di attivazione. Se il flag era
+      // disallineato e un PIN esiste gia', risponde 'pin_gia_impostato' e si ripiega su verifica.
+      r = await callAuth('imposta', { nome, pin, codice: loginCodice });
+      if (!r.ok && r.errore === 'pin_gia_impostato') { opObj.haPin = true; loginFase = 'pin'; r = await callAuth('verifica', { nome, pin }); }
     } else {
       r = await callAuth('verifica', { nome, pin });
     }
@@ -1639,12 +1666,16 @@ async function checkPin() {
       catch (e) { console.error('Apertura sessione fallita:', e); pinErrore('Accesso non riuscito — riprova'); return; }
       if (window._collegaDatiSuite) window._collegaDatiSuite();
       if (window._collegaMagazzino) window._collegaMagazzino();
+      loginCodice = ''; loginNuovoPin = '';
       loginSuccess(nome, r.ruolo);
       return;
     }
     if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { pinErrore(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
-    if (r.errore === 'pin_non_valido') { pinErrore('PIN non valido'); return; }
-    if (r.errore === 'nessun_pin')     { opObj.haPin = false; pinErrore('Nessun PIN — reinseriscilo per impostarlo'); return; }
+    if (r.errore === 'pin_non_valido') { loginNuovoPin = ''; impostaFase('nuovo'); pinErrore('PIN non valido'); return; }
+    if (r.errore === 'codice_errato')  { loginCodice = ''; loginNuovoPin = ''; impostaFase('codice'); pinErrore('Codice non corretto'); return; }
+    if (r.errore === 'codice_scaduto') { loginCodice = ''; loginNuovoPin = ''; impostaFase('codice'); pinErrore('Codice scaduto — chiedine uno nuovo all\'amministratore'); return; }
+    if (r.errore === 'codice_richiesto') { loginCodice = ''; loginNuovoPin = ''; impostaFase('codice'); pinErrore('Serve il codice di attivazione: chiedilo all\'amministratore'); return; }
+    if (r.errore === 'nessun_pin')     { opObj.haPin = false; loginStepPin(); pinErrore('Nessun PIN: serve il codice di attivazione'); return; }
     pinErrore('PIN non corretto');
   } catch(e) {
     console.error('Verifica PIN fallita:', e);
@@ -2812,7 +2843,9 @@ function renderOperatoriList() {
           <option value="admin" ${admin?'selected':''}>Amministratore</option>
         </select>`}
         <span class="op-pill ${hasPIN ? 'ok' : 'no'}">${hasPIN ? 'PIN impostato' : 'Nessun PIN'}</span>
-        ${hasPIN ? `<button class="op-btn" onclick="sbloccaPin(${jsq(o.nome)})">Sblocca</button><button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>` : ''}
+        ${hasPIN
+          ? `<button class="op-btn" onclick="sbloccaPin(${jsq(o.nome)})">Sblocca</button><button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>`
+          : `<button class="op-btn" onclick="generaCodiceAttivazione(${jsq(o.nome)})">Genera codice</button>`}
         ${o.foto ? `<button class="op-btn" onclick="togliFotoOperatore(${jsq(o.nome)})">Rimuovi foto</button>` : ''}
       </div>
     </div>`;
@@ -2877,6 +2910,30 @@ function deleteOperatore(nome) {
     });
 }
 
+// Mostra all'admin il codice di attivazione (una volta sola): il collega lo digita al primo accesso per scegliere il PIN.
+function mostraCodiceAttivazione(nome, codice, scade) {
+  const quando = new Date(scade).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const diviso = String(codice).replace(/(\d{3})(\d{3})/, '$1 $2');
+  showModal(`Codice di attivazione per ${nome}`,
+    `Codice: ${diviso}.  Consegnalo a ${nome}: serve una volta sola, entro il ${quando}, per scegliere il suo PIN al primo accesso. ` +
+    `Chiusa questa finestra non potrai più rivederlo (ne potrai generare un altro).`,
+    'Ho annotato il codice', 'var(--green-700)', () => {});
+}
+
+// Per un operatore senza PIN (nuovo): l'admin genera il codice con cui potrà sceglierlo.
+async function generaCodiceAttivazione(nome) {
+  if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può generare i codici'); return; }
+  try {
+    const id_token = await window._idTokenOperatore();
+    const r = await callAuth('codice_attivazione', { nome, id_token });
+    if (r.ok) { mostraCodiceAttivazione(nome, r.codice, r.scade); return; }
+    if (r.errore === 'pin_gia_impostato') { showToast(nome + ' ha già un PIN: usa Reset PIN'); return; }
+    if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
+    if (r.errore === 'sessione_non_valida') { showToast('Sessione scaduta — esci e rientra'); return; }
+    showToast('Errore generazione codice');
+  } catch(e) { console.error(e); showToast('Errore generazione codice'); }
+}
+
 // Toglie il blocco (tentativi sbagliati) a un operatore senza cambiargli il PIN. Solo admin, con la sessione aperta.
 async function sbloccaPin(nome) {
   if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può sbloccare'); return; }
@@ -2899,13 +2956,17 @@ function resetPin(nome) {
   if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può resettare i PIN'); return; }
   showModal(
     `Reset PIN di ${nome}`,
-    `Il vecchio PIN di ${nome} verrà cancellato e al prossimo accesso ${nome} ne sceglierà uno nuovo. ` +
+    `Il vecchio PIN di ${nome} verrà cancellato. Dopo la conferma vedrai un codice di attivazione da consegnargli: con quello ${nome} sceglierà il PIN nuovo. ` +
     `Per confermare inserisci il TUO PIN da amministratore (${currentOperatore}), non quello di ${nome}.`,
     'Resetta PIN', 'var(--red)',
     async (adminPin) => {
       try {
         const r = await callAuth('reset', { nome, adminNome: currentOperatore, adminPin });
-        if (r.ok) { showToast('PIN di ' + nome + ' resettato'); return; }
+        if (r.ok) {
+          showToast('PIN di ' + nome + ' resettato');
+          if (r.codice) mostraCodiceAttivazione(nome, r.codice, r.scade);   // senza codice nessuno puo' scegliere il nuovo PIN
+          return;
+        }
         if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { showToast(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
         if (r.errore === 'pin_admin_errato')  { showToast('Il tuo PIN non è corretto'); return; }
         if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }

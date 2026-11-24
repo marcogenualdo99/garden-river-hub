@@ -49,6 +49,13 @@ DECADIMENTO_ORE = 24
 PIN_MIN_LEN   = 6                      # il client chiede gia' 6 cifre: ora lo impone anche il server
 PIN_MAX_LEN   = 12
 
+# CODICE DI ATTIVAZIONE: senza, chiunque conosca il nome potrebbe scegliere il primo PIN di un
+# operatore che non ne ha uno (nuovo operatore, o appena resettato). Lo genera un admin e lo
+# consegna al collega: 6 cifre, monouso, scade dopo ATTIVAZIONE_ORE, nel DB solo l'hash.
+ATTIVAZIONE_ORE = 24
+ATTIVAZIONE_MAX_TENTATIVI = 5          # errori sul codice: poi va rigenerato
+CODICE_LEN = 6
+
 # Limite per IP: dopo troppi PIN sbagliati dallo stesso indirizzo si risponde 429 SENZA toccare
 # i contatori degli operatori (altrimenti chiunque potrebbe bloccare un collega a distanza).
 IP_MAX_FALLITI = 15
@@ -90,6 +97,42 @@ def _nuovo_record(pin):
         'bloccato_fino': 0,
         'updated_at': _now_ms(),
     }
+
+
+def _nuovo_codice_attivazione(db, nome, creato_da):
+    """Crea (o sostituisce) il codice di attivazione di `nome`. Ritorna (codice_in_chiaro, scadenza_ms)."""
+    codice = '%0*d' % (CODICE_LEN, secrets.randbelow(10 ** CODICE_LEN))
+    salt_b64 = base64.b64encode(secrets.token_bytes(SALT_BYTES)).decode('ascii')
+    scade = _now_ms() + ATTIVAZIONE_ORE * 3600 * 1000
+    db.collection('operatori_attivazione').document(nome).set({
+        'hash': _hash_pin(codice, salt_b64), 'salt': salt_b64, 'iter': PBKDF2_ITER,
+        'scade': scade, 'tentativi': 0, 'creato_da': creato_da, 'creato_il': _now_ms(),
+    })
+    return codice, scade
+
+
+def _bootstrap_aperto(db, nome):
+    """True solo se `nome` e' un admin e NESSUN admin ha ancora un PIN (prima installazione, o
+    recupero se tutti i PIN admin sono stati azzerati): serve a non restare senza nessuno che possa
+    generare i codici. Con almeno un admin che ha un PIN non si apre mai."""
+    if _ruolo(db, nome) != 'admin':
+        return False
+    for doc in db.collection('operatori').where('ruolo', '==', 'admin').stream():
+        if db.collection('operatori_pin').document(doc.id).get().exists:
+            return False
+    return True
+
+
+def _admin_da_token(db, data):
+    """(nome_admin, None) se id_token e' di un admin in carica (ruolo riletto dal DB), altrimenti (None, errore)."""
+    try:
+        dec = fb_auth.verify_id_token(str(data.get('id_token') or '')[:4000])
+    except Exception:
+        return None, ({'ok': False, 'errore': 'sessione_non_valida'}, 401)
+    admin_nome = dec.get('nome')
+    if not dec.get('operatore') or not _nome_valido(admin_nome) or _ruolo(db, admin_nome) != 'admin':
+        return None, ({'ok': False, 'errore': 'non_autorizzato'}, 403)
+    return admin_nome, None
 
 
 def _pin_valido(pin):
@@ -217,21 +260,92 @@ def _azione_verifica(db, origin, data):
 
 
 def _azione_imposta(db, origin, data):
+    """Primo PIN di un operatore. Richiede il CODICE DI ATTIVAZIONE dato da un admin (salvo la
+    prima installazione, vedi _bootstrap_aperto). Codice e PIN si consumano/scrivono in transazione."""
     nome = (data.get('nome') or '').strip()
     pin  = data.get('pin') or ''
     if not nome or not _nome_valido(nome):
         return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
     if not _pin_valido(pin):
         return _json(origin, {'ok': False, 'errore': 'pin_non_valido'}, 400)
+    ip = data.get('_ip') or '?'
+    attesa = _ip_bloccato(ip)
+    if attesa:
+        return _json(origin, {'ok': False, 'errore': 'troppi_tentativi', 'minuti': attesa}, 429)
+    op_ref  = db.collection('operatori').document(nome)
+    pin_ref = db.collection('operatori_pin').document(nome)
+    att_ref = db.collection('operatori_attivazione').document(nome)
+    if not op_ref.get().exists:
+        return _json(origin, {'ok': False, 'errore': 'operatore_sconosciuto'}, 404)
+    codice = data.get('codice')
+    codice = codice.strip() if isinstance(codice, str) and len(codice) <= 32 else ''
+    bootstrap = (not att_ref.get().exists) and _bootstrap_aperto(db, nome)
+
+    @firestore.transactional
+    def _tx(tx):
+        if pin_ref.get(transaction=tx).exists:
+            return 'pin_gia_impostato'
+        a = att_ref.get(transaction=tx)
+        if bootstrap and not a.exists:
+            pass
+        else:
+            if not a.exists:
+                return 'codice_richiesto'
+            d = a.to_dict() or {}
+            if (d.get('scade') or 0) < _now_ms():
+                tx.delete(att_ref)
+                return 'codice_scaduto'
+            calcolato = _hash_pin(codice, d.get('salt') or '', d.get('iter') or PBKDF2_ITER)
+            if not (codice and hmac.compare_digest(d.get('hash') or '', calcolato)):
+                t = (d.get('tentativi') or 0) + 1
+                if t >= ATTIVAZIONE_MAX_TENTATIVI:
+                    tx.delete(att_ref)          # troppi errori: l'admin ne genera un altro
+                    return 'codice_scaduto'
+                tx.update(att_ref, {'tentativi': t})
+                return 'codice_errato'
+            tx.delete(att_ref)                  # monouso
+        tx.set(pin_ref, _nuovo_record(pin))
+        tx.update(op_ref, {'haPin': True})
+        return 'ok'
+
+    esito = _tx(db.transaction())
+    if esito == 'ok':
+        return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome), 'token': _token_sessione(db, nome)})
+    if esito == 'pin_gia_impostato':
+        return _json(origin, {'ok': False, 'errore': esito}, 409)
+    if esito in ('codice_errato', 'codice_scaduto'):
+        _ip_fallito(ip)
+    return _json(origin, {'ok': False, 'errore': esito}, 403)
+
+
+def _azione_stato_attivazione(db, origin, data):
+    """Il login chiede se per questo operatore serve il codice di attivazione (false solo nella
+    prima installazione, quando nessun admin ha ancora un PIN)."""
+    nome = (data.get('nome') or '').strip()
+    if not _nome_valido(nome):
+        return _json(origin, {'ok': True, 'richiesto': True})
+    richiesto = True
+    if db.collection('operatori').document(nome).get().exists \
+            and not db.collection('operatori_attivazione').document(nome).get().exists:
+        richiesto = not _bootstrap_aperto(db, nome)
+    return _json(origin, {'ok': True, 'richiesto': richiesto})
+
+
+def _azione_codice_attivazione(db, origin, data):
+    """Un admin genera il codice di attivazione per un operatore SENZA PIN (nuovo operatore)."""
+    admin_nome, err = _admin_da_token(db, data)
+    if err:
+        return _json(origin, err[0], err[1])
+    nome = (data.get('nome') or '').strip()
+    if not _nome_valido(nome):
+        return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
     if not db.collection('operatori').document(nome).get().exists:
         return _json(origin, {'ok': False, 'errore': 'operatore_sconosciuto'}, 404)
-    ref = db.collection('operatori_pin').document(nome)
-    if ref.get().exists:
-        return _json(origin, {'ok': False, 'errore': 'pin_gia_impostato'}, 409)
-    ref.set(_nuovo_record(pin))
-    db.collection('operatori').document(nome).update({'haPin': True})
-    return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome),
-                          'token': _token_sessione(db, nome)})
+    if db.collection('operatori_pin').document(nome).get().exists:
+        return _json(origin, {'ok': False, 'errore': 'pin_gia_impostato'}, 409)   # per chi ha un PIN: Reset PIN
+    codice, scade = _nuovo_codice_attivazione(db, nome, admin_nome)
+    print(f'attivazione: {admin_nome} ha creato un codice per {nome}')
+    return _json(origin, {'ok': True, 'codice': codice, 'scade': scade})
 
 
 def _azione_rinnova(db, origin, data):
@@ -279,20 +393,18 @@ def _azione_reset(db, origin, data):
         db.collection('operatori').document(nome).update({'haPin': False})
     except Exception as e:  # documento operatore inesistente: non è un problema
         print(f'reset: haPin non aggiornato per {nome}: {e}')
-    return _json(origin, {'ok': True})
+    # Il collega sceglierà il nuovo PIN solo con questo codice (altrimenti chiunque potrebbe farlo prima di lui)
+    codice, scade = _nuovo_codice_attivazione(db, nome, admin_nome)
+    return _json(origin, {'ok': True, 'codice': codice, 'scade': scade})
 
 
 def _azione_sblocca(db, origin, data):
     """Un amministratore con sessione valida toglie il blocco a un operatore SENZA cambiargli il PIN
     (azzera tentativi e blocchi progressivi). Vale anche per se stesso: se un attaccante lo ha
     bloccato, la sua sessione ancora aperta basta per rientrare. Ruolo riletto dal DB, non dal token."""
-    try:
-        dec = fb_auth.verify_id_token(str(data.get('id_token') or '')[:4000])
-    except Exception:
-        return _json(origin, {'ok': False, 'errore': 'sessione_non_valida'}, 401)
-    admin_nome = dec.get('nome')
-    if not dec.get('operatore') or not _nome_valido(admin_nome) or _ruolo(db, admin_nome) != 'admin':
-        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 403)
+    admin_nome, err = _admin_da_token(db, data)
+    if err:
+        return _json(origin, err[0], err[1])
     nome = (data.get('nome') or '').strip()
     if not _nome_valido(nome):
         return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
@@ -333,6 +445,8 @@ AZIONI = {
     'reset':    _azione_reset,
     'rinnova':  _azione_rinnova,
     'sblocca':  _azione_sblocca,
+    'stato_attivazione':   _azione_stato_attivazione,
+    'codice_attivazione':  _azione_codice_attivazione,
     'migra':    _azione_migra,
 }
 
