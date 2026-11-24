@@ -421,6 +421,8 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
     if (tok) headers['Authorization'] = 'Bearer ' + tok;
     return fetch(url, { ...opts, headers });
   };
+  // ID token dell'operatore loggato (per le azioni riservate agli admin di auth-operatori, es. 'sblocca').
+  window._idTokenOperatore = async () => { const u = auth.currentUser; return (u && !u.isAnonymous) ? u.getIdToken() : ''; };
   // Alias per il codice della home che usava le due connessioni separate.
   window._fbData = window._fb;
   window._fbMagazzino = window._fb;
@@ -1478,6 +1480,14 @@ async function callAuth(azione, dati) {
   return res.json().catch(() => ({ ok: false, errore: 'risposta_non_valida' }));
 }
 
+// Il blocco dopo troppi PIN sbagliati e' progressivo (15 min, 1 ora, 4 ore, 24 ore): a voce si dice "2 ore", non "120 min".
+function fmtAttesa(min) {
+  min = Math.max(1, Math.round(Number(min) || 1));
+  if (min < 60) return `${min} min`;
+  const h = Math.round(min / 60);
+  return `${h} ${h === 1 ? 'ora' : 'ore'}`;
+}
+
 function initLogin() {
   const sel = document.getElementById('login-sel');
   if (!sel) return;
@@ -1628,7 +1638,7 @@ async function checkPin() {
       loginSuccess(nome, r.ruolo);
       return;
     }
-    if (r.errore === 'bloccato')       { pinErrore(`Troppi tentativi — riprova tra ${r.minuti} min`); return; }
+    if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { pinErrore(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
     if (r.errore === 'pin_non_valido') { pinErrore('PIN non valido'); return; }
     if (r.errore === 'nessun_pin')     { opObj.haPin = false; pinErrore('Nessun PIN — reinseriscilo per impostarlo'); return; }
     pinErrore('PIN non corretto');
@@ -2798,7 +2808,7 @@ function renderOperatoriList() {
           <option value="admin" ${admin?'selected':''}>Amministratore</option>
         </select>`}
         <span class="op-pill ${hasPIN ? 'ok' : 'no'}">${hasPIN ? 'PIN impostato' : 'Nessun PIN'}</span>
-        ${hasPIN ? `<button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>` : ''}
+        ${hasPIN ? `<button class="op-btn" onclick="sbloccaPin(${jsq(o.nome)})">Sblocca</button><button class="op-btn reset" onclick="resetPin(${jsq(o.nome)})">Reset PIN</button>` : ''}
         ${o.foto ? `<button class="op-btn" onclick="togliFotoOperatore(${jsq(o.nome)})">Rimuovi foto</button>` : ''}
       </div>
     </div>`;
@@ -2863,6 +2873,20 @@ function deleteOperatore(nome) {
     });
 }
 
+// Toglie il blocco (tentativi sbagliati) a un operatore senza cambiargli il PIN. Solo admin, con la sessione aperta.
+async function sbloccaPin(nome) {
+  if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può sbloccare'); return; }
+  try {
+    const id_token = await window._idTokenOperatore();
+    const r = await callAuth('sblocca', { nome, id_token });
+    if (r.ok) { showToast(nome + ' sbloccato'); return; }
+    if (r.errore === 'nessun_pin')        { showToast(nome + ' non ha un PIN'); return; }
+    if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
+    if (r.errore === 'sessione_non_valida') { showToast('Sessione scaduta — esci e rientra'); return; }
+    showToast('Errore sblocco');
+  } catch(e) { console.error(e); showToast('Errore sblocco'); }
+}
+
 async function resetPin(nome) {
   // Il reset passa dalla Cloud Function e va autorizzato: l'admin conferma con
   // il PROPRIO PIN. Senza questo, chiunque abbia accesso alle Impostazioni
@@ -2874,7 +2898,7 @@ async function resetPin(nome) {
   try {
     const r = await callAuth('reset', { nome, adminNome: currentOperatore, adminPin });
     if (r.ok) { showToast('PIN di ' + nome + ' resettato'); return; }
-    if (r.errore === 'bloccato')          { showToast(`Troppi tentativi — riprova tra ${r.minuti} min`); return; }
+    if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { showToast(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
     if (r.errore === 'pin_admin_errato')  { showToast('Il tuo PIN non è corretto'); return; }
     if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
     showToast('Errore reset PIN');

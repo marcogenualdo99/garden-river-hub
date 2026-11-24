@@ -41,10 +41,19 @@ ALLOWED_ORIGINS = {'https://gardenhub.it', 'https://www.gardenhub.it'}
 
 PBKDF2_ITER   = 200_000
 SALT_BYTES    = 16
-MAX_TENTATIVI = 5
-BLOCCO_MINUTI = 15
-PIN_MIN_LEN   = 4
+MAX_TENTATIVI = 5                      # errori consecutivi prima di un blocco
+# Blocco PROGRESSIVO: ogni serie di errori allunga l'attesa (1°, 2°, 3°, 4° e successivi).
+# Si azzera con un accesso riuscito, o dopo DECADIMENTO_ORE senza errori.
+BLOCCHI_MINUTI = [15, 60, 240, 1440]
+DECADIMENTO_ORE = 24
+PIN_MIN_LEN   = 6                      # il client chiede gia' 6 cifre: ora lo impone anche il server
 PIN_MAX_LEN   = 12
+
+# Limite per IP: dopo troppi PIN sbagliati dallo stesso indirizzo si risponde 429 SENZA toccare
+# i contatori degli operatori (altrimenti chiunque potrebbe bloccare un collega a distanza).
+IP_MAX_FALLITI = 15
+IP_FINESTRA_S  = 600
+_IP_FALLITI = {}                       # ip -> [timestamp] (in memoria, per istanza)
 
 
 def _cors_headers(origin):
@@ -117,31 +126,66 @@ def _ruolo(db, nome):
     return (snap.to_dict() or {}).get('ruolo', 'operatore')
 
 
+def _ip_bloccato(ip):
+    """Minuti di attesa residui se l'IP ha troppi errori recenti, altrimenti 0."""
+    adesso = time.time()
+    lista = [t for t in _IP_FALLITI.get(ip, []) if adesso - t < IP_FINESTRA_S]
+    if lista:
+        _IP_FALLITI[ip] = lista
+    else:
+        _IP_FALLITI.pop(ip, None)
+    if len(_IP_FALLITI) > 5000:        # memoria limitata
+        _IP_FALLITI.clear()
+    if len(lista) >= IP_MAX_FALLITI:
+        return max(1, int((IP_FINESTRA_S - (adesso - lista[0])) // 60) + 1)
+    return 0
+
+
+def _ip_fallito(ip):
+    _IP_FALLITI.setdefault(ip, []).append(time.time())
+
+
 def _verifica_pin(db, nome, pin):
-    """Ritorna (esito, dettaglio) con esito in {'ok','errato','nessun_pin','bloccato'}."""
+    """Ritorna (esito, dettaglio) con esito in {'ok','errato','nessun_pin','bloccato'}.
+    Conteggio tentativi in TRANSAZIONE: richieste parallele non possono aggirare il limite."""
     ref = db.collection('operatori_pin').document(nome)
-    snap = ref.get()
-    if not snap.exists:
-        return 'nessun_pin', None
-    d = snap.to_dict() or {}
 
-    bloccato_fino = d.get('bloccato_fino') or 0
-    if bloccato_fino > _now_ms():
-        minuti = max(1, round((bloccato_fino - _now_ms()) / 60000))
-        return 'bloccato', minuti
+    @firestore.transactional
+    def _tx(tx):
+        snap = ref.get(transaction=tx)
+        if not snap.exists:
+            return 'nessun_pin', None
+        d = snap.to_dict() or {}
+        adesso = _now_ms()
 
-    atteso    = d.get('hash') or ''
-    calcolato = _hash_pin(pin, d.get('salt') or '', d.get('iter') or PBKDF2_ITER)
-    if atteso and hmac.compare_digest(atteso, calcolato):
-        ref.update({'tentativi': 0, 'bloccato_fino': 0})
-        return 'ok', None
+        bloccato_fino = d.get('bloccato_fino') or 0
+        if bloccato_fino > adesso:
+            return 'bloccato', max(1, round((bloccato_fino - adesso) / 60000))
 
-    tentativi = (d.get('tentativi') or 0) + 1
-    if tentativi >= MAX_TENTATIVI:
-        ref.update({'tentativi': 0, 'bloccato_fino': _now_ms() + BLOCCO_MINUTI * 60000})
-        return 'bloccato', BLOCCO_MINUTI
-    ref.update({'tentativi': tentativi})
-    return 'errato', None
+        atteso    = d.get('hash') or ''
+        calcolato = _hash_pin(pin, d.get('salt') or '', d.get('iter') or PBKDF2_ITER)
+        if atteso and hmac.compare_digest(atteso, calcolato):
+            if d.get('tentativi') or d.get('bloccato_fino') or d.get('blocchi'):
+                tx.update(ref, {'tentativi': 0, 'bloccato_fino': 0, 'blocchi': 0})
+            return 'ok', None
+
+        blocchi   = d.get('blocchi') or 0
+        tentativi = d.get('tentativi') or 0
+        # Il decadimento parte dalla FINE dell'ultimo blocco (non dall'ultimo errore): altrimenti
+        # un blocco da 24 ore scadrebbe "vecchio" e si ripartirebbe subito dal gradino da 15 minuti.
+        ultimo    = max(d.get('ultimo_errore') or 0, d.get('bloccato_fino') or 0)
+        if ultimo and adesso - ultimo > DECADIMENTO_ORE * 3600 * 1000:
+            blocchi, tentativi = 0, 0          # errori vecchi: si riparte da zero
+        tentativi += 1
+        if tentativi >= MAX_TENTATIVI:
+            minuti = BLOCCHI_MINUTI[min(blocchi, len(BLOCCHI_MINUTI) - 1)]
+            tx.update(ref, {'tentativi': 0, 'blocchi': blocchi + 1, 'ultimo_errore': adesso,
+                            'bloccato_fino': adesso + minuti * 60000})
+            return 'bloccato', minuti
+        tx.update(ref, {'tentativi': tentativi, 'blocchi': blocchi, 'ultimo_errore': adesso})
+        return 'errato', None
+
+    return _tx(db.transaction())
 
 
 # ── azioni ─────────────────────────────────────────────────────────────────
@@ -153,7 +197,15 @@ def _azione_verifica(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
     if not _nome_valido(nome):
         return _json(origin, {'ok': False, 'errore': 'nessun_pin'})
+    if not isinstance(pin, str) or len(pin) > 64:
+        return _json(origin, {'ok': False, 'errore': 'pin_errato'})
+    ip = data.get('_ip') or '?'
+    attesa = _ip_bloccato(ip)
+    if attesa:                                   # non conta contro l'operatore
+        return _json(origin, {'ok': False, 'errore': 'troppi_tentativi', 'minuti': attesa}, 429)
     esito, dettaglio = _verifica_pin(db, nome, pin)
+    if esito == 'errato':
+        _ip_fallito(ip)
     if esito == 'ok':
         return _json(origin, {'ok': True, 'ruolo': _ruolo(db, nome),
                               'token': _token_sessione(db, nome)})
@@ -209,7 +261,15 @@ def _azione_reset(db, origin, data):
         return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
     if _ruolo(db, admin_nome) != 'admin':
         return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 403)
+    if not isinstance(admin_pin, str) or len(admin_pin) > 64:
+        return _json(origin, {'ok': False, 'errore': 'pin_admin_errato'}, 403)
+    ip = data.get('_ip') or '?'
+    attesa = _ip_bloccato(ip)
+    if attesa:
+        return _json(origin, {'ok': False, 'errore': 'troppi_tentativi', 'minuti': attesa}, 429)
     esito, dettaglio = _verifica_pin(db, admin_nome, admin_pin)
+    if esito == 'errato':
+        _ip_fallito(ip)
     if esito != 'ok':
         if esito == 'bloccato':
             return _json(origin, {'ok': False, 'errore': 'bloccato', 'minuti': dettaglio})
@@ -219,6 +279,28 @@ def _azione_reset(db, origin, data):
         db.collection('operatori').document(nome).update({'haPin': False})
     except Exception as e:  # documento operatore inesistente: non è un problema
         print(f'reset: haPin non aggiornato per {nome}: {e}')
+    return _json(origin, {'ok': True})
+
+
+def _azione_sblocca(db, origin, data):
+    """Un amministratore con sessione valida toglie il blocco a un operatore SENZA cambiargli il PIN
+    (azzera tentativi e blocchi progressivi). Vale anche per se stesso: se un attaccante lo ha
+    bloccato, la sua sessione ancora aperta basta per rientrare. Ruolo riletto dal DB, non dal token."""
+    try:
+        dec = fb_auth.verify_id_token(str(data.get('id_token') or '')[:4000])
+    except Exception:
+        return _json(origin, {'ok': False, 'errore': 'sessione_non_valida'}, 401)
+    admin_nome = dec.get('nome')
+    if not dec.get('operatore') or not _nome_valido(admin_nome) or _ruolo(db, admin_nome) != 'admin':
+        return _json(origin, {'ok': False, 'errore': 'non_autorizzato'}, 403)
+    nome = (data.get('nome') or '').strip()
+    if not _nome_valido(nome):
+        return _json(origin, {'ok': False, 'errore': 'dati_mancanti'}, 400)
+    ref = db.collection('operatori_pin').document(nome)
+    if not ref.get().exists:
+        return _json(origin, {'ok': False, 'errore': 'nessun_pin'}, 404)
+    ref.update({'tentativi': 0, 'bloccato_fino': 0, 'blocchi': 0, 'ultimo_errore': 0})
+    print(f'sblocca: {admin_nome} ha sbloccato {nome}')
     return _json(origin, {'ok': True})
 
 
@@ -250,6 +332,7 @@ AZIONI = {
     'imposta':  _azione_imposta,
     'reset':    _azione_reset,
     'rinnova':  _azione_rinnova,
+    'sblocca':  _azione_sblocca,
     'migra':    _azione_migra,
 }
 
@@ -264,9 +347,15 @@ def auth_operatori(request):
         return _json(origin, {'ok': False, 'errore': 'metodo_non_permesso'}, 405)
 
     data    = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
     handler = AZIONI.get(data.get('azione'))
     if not handler:
         return _json(origin, {'ok': False, 'errore': 'azione_non_valida'}, 400)
+    # IP del chiamante (ULTIMO elemento di X-Forwarded-For, aggiunto da Google): serve solo al
+    # limite per IP. Sovrascrive sempre un eventuale '_ip' mandato dal client.
+    data['_ip'] = (request.headers.get('X-Forwarded-For', '').split(',')[-1].strip()
+                   or request.remote_addr or '')
 
     try:
         return handler(firestore.client(), origin, data)
