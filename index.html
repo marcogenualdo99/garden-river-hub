@@ -892,6 +892,10 @@ body:has(#sec-home.active) .top-bar .header-left > div:nth-child(2) { display: n
   <div class="modal-box">
     <div id="modal-title" class="modal-title"></div>
     <div id="modal-body"  class="modal-body"></div>
+    <!-- Campo PIN mascherato: compare solo quando showModal viene chiamata con { pin: true } (es. conferma del Reset PIN) -->
+    <input id="modal-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="new-password"
+           placeholder="••••••" aria-label="Il tuo PIN da amministratore"
+           style="display:none;width:100%;box-sizing:border-box;height:48px;margin:4px 0 14px;padding:0 14px;border:1.5px solid var(--gray-200,#e5e7eb);border-radius:12px;font-size:22px;letter-spacing:.35em;text-align:center;font-family:inherit">
     <div class="modal-actions">
       <button id="modal-cancel" class="modal-btn-cancel" onclick="closeModal()">Annulla</button>
       <button id="modal-confirm" class="modal-btn-confirm">Conferma</button>
@@ -2887,22 +2891,28 @@ async function sbloccaPin(nome) {
   } catch(e) { console.error(e); showToast('Errore sblocco'); }
 }
 
-async function resetPin(nome) {
+function resetPin(nome) {
   // Il reset passa dalla Cloud Function e va autorizzato: l'admin conferma con
   // il PROPRIO PIN. Senza questo, chiunque abbia accesso alle Impostazioni
   // (controllo solo lato client) potrebbe azzerare il PIN di un altro e
   // impostarne uno nuovo per entrare al suo posto.
   if (!isAdmin() || !currentOperatore) { showToast('Solo un amministratore può resettare i PIN'); return; }
-  const adminPin = prompt(`Per resettare il PIN di ${nome}, inserisci il tuo PIN (${currentOperatore}):`);
-  if (!adminPin) return;
-  try {
-    const r = await callAuth('reset', { nome, adminNome: currentOperatore, adminPin });
-    if (r.ok) { showToast('PIN di ' + nome + ' resettato'); return; }
-    if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { showToast(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
-    if (r.errore === 'pin_admin_errato')  { showToast('Il tuo PIN non è corretto'); return; }
-    if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
-    showToast('Errore reset PIN');
-  } catch(e) { console.error(e); showToast('Errore reset PIN'); }
+  showModal(
+    `Reset PIN di ${nome}`,
+    `Il vecchio PIN di ${nome} verrà cancellato e al prossimo accesso ${nome} ne sceglierà uno nuovo. ` +
+    `Per confermare inserisci il TUO PIN da amministratore (${currentOperatore}), non quello di ${nome}.`,
+    'Resetta PIN', 'var(--red)',
+    async (adminPin) => {
+      try {
+        const r = await callAuth('reset', { nome, adminNome: currentOperatore, adminPin });
+        if (r.ok) { showToast('PIN di ' + nome + ' resettato'); return; }
+        if (r.errore === 'bloccato' || r.errore === 'troppi_tentativi') { showToast(`Troppi tentativi — riprova tra ${fmtAttesa(r.minuti)}`); return; }
+        if (r.errore === 'pin_admin_errato')  { showToast('Il tuo PIN non è corretto'); return; }
+        if (r.errore === 'non_autorizzato')   { showToast('Non risulti amministratore'); return; }
+        showToast('Errore reset PIN');
+      } catch(e) { console.error(e); showToast('Errore reset PIN'); }
+    },
+    { pin: true });
 }
 
 async function changeRuolo(nome, ruolo) {
@@ -3159,18 +3169,41 @@ async function salvaStampaAuto() {
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
-function showModal(title, body, confirmLabel, confirmColor, onConfirm) {
+// opts.pin = true: sotto il testo compare un campo PIN mascherato e onConfirm riceve il PIN digitato
+// (il bottone resta spento finche' non ci sono almeno 6 cifre).
+function showModal(title, body, confirmLabel, confirmColor, onConfirm, opts) {
+  const conPin = !!(opts && opts.pin);
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').textContent  = body;
   const btn = document.getElementById('modal-confirm');
+  const campo = document.getElementById('modal-pin');
+  campo.value = '';
+  campo.style.display = conPin ? 'block' : 'none';
+  const aggiorna = () => { btn.disabled = conPin && campo.value.length < PIN_LENGTH; btn.style.opacity = btn.disabled ? '.5' : ''; };
+  const conferma = () => {
+    if (btn.disabled) return;
+    const pin = campo.value;
+    closeModal();
+    onConfirm(conPin ? pin : undefined);
+  };
   btn.textContent      = confirmLabel || 'Conferma';
   btn.style.background = confirmColor || 'var(--green-700)';
-  btn.onclick = () => { closeModal(); onConfirm(); };
+  btn.onclick = conferma;
+  campo.oninput = () => { campo.value = campo.value.replace(/\D/g, ''); aggiorna(); };
+  campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); conferma(); } };
+  aggiorna();
   const overlay = document.getElementById('modal-overlay');
   overlay.classList.remove('hidden');
   overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+  if (conPin) setTimeout(() => campo.focus(), 50);
 }
-function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+  const campo = document.getElementById('modal-pin');
+  if (campo) campo.value = '';          // il PIN non resta nel DOM
+  const btn = document.getElementById('modal-confirm');
+  if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+}
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
 function showToast(msg) {
