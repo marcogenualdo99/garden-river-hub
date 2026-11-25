@@ -2,3 +2,4 @@
 .claude/
 proxy_key.pem
 android-agente-stampa/build/
+installer-stampanti/acme-dns-cassa.json

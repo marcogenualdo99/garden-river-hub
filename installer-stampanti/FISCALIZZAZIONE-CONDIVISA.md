@@ -21,9 +21,11 @@ Su quella macchina lancia l'installer:
 - **macOS:** `Installa (macOS).command` → alla domanda sul proxy fiscale scegli
   **2) Condiviso**. L'installer genera un token (o inseriscine uno tuo) e ti
   mostra i valori da mettere in Firestore.
-- **Windows:** `Installa (Windows).bat` → segui le istruzioni per la modalità
-  condivisa (imposta le variabili `PROXY_HOST=0.0.0.0` e `ITALRETAIL_TOKEN`
-  nell'attività pianificata).
+- **Windows:** `Installa (Windows).bat`, poi (tasto destro → Esegui come
+  amministratore) `Imposta proxy condiviso (Windows).bat`: genera il token,
+  mette `host: 0.0.0.0`, apre la porta 8766 e riavvia il proxy. Per usare un
+  certificato vero: passa i due percorsi come argomenti (fullchain, privkey),
+  oppure imposta i campi `cert` / `key` in `italretail_config.json`.
 
 Apri sul firewall la **porta 8766** in entrata.
 
@@ -71,6 +73,44 @@ Registra un sottodominio (es. `cassa.gardenhub.it`) che punta all'IP locale
 del server e genera un certificato Let's Encrypt con challenge DNS. Il proxy
 va configurato per usarlo al posto di `proxy_cert.pem`/`proxy_key.pem`.
 È la soluzione più pulita ma richiede un po' di setup iniziale.
+
+## Certificato vero con win-acme + acme-dns
+
+Setup usato in produzione sul PC Windows dell'ufficio (certificato Let's Encrypt,
+rinnovo automatico, nessun avviso sui dispositivi).
+
+- **Dominio:** `cassa.gardenhub.it`. Su Aruba: record **A** → `192.168.5.124` e
+  **CNAME** `_acme-challenge.cassa` verso il subdomain acme-dns.
+- **Credenziali acme-dns:** in `acme-dns-cassa.json` accanto agli script
+  (`username`, `password`, `subdomain`). Il file è in `.gitignore`: **non committarlo**.
+- **CA:** win-acme 2.4.1 usa ZeroSSL come CA predefinita. Per Let's Encrypt serve
+  `--baseuri https://acme-v02.api.letsencrypt.org/` sia in emissione sia nel task
+  di rinnovo (da amministratore):
+
+  ```
+  wacs.exe --setuptaskscheduler --baseuri https://acme-v02.api.letsencrypt.org/
+  ```
+
+- **Emissione** (script `acme-dns-validate.ps1` per la validazione DNS-01,
+  `riavvia-proxy-fiscale.ps1` dopo ogni rinnovo):
+
+  ```
+  wacs.exe --accepttos --emailaddress <email> --target manual --host cassa.gardenhub.it
+    --validationmode dns-01 --validation script
+    --dnscreatescript acme-dns-validate.ps1 --dnscreatescriptarguments "create {Identifier} {RecordName} {Token}"
+    --dnsdeletescript acme-dns-validate.ps1 --dnsdeletescriptarguments "delete {Identifier} {RecordName} {Token}"
+    --store pemfiles --pemfilespath <cartella pem>
+    --installation script --script riavvia-proxy-fiscale.ps1
+  ```
+
+- **Proxy:** in `italretail_config.json` imposta
+  `"cert": "<cartella pem>\\cassa.gardenhub.it-chain.pem"` e
+  `"key": "<cartella pem>\\cassa.gardenhub.it-key.pem"`.
+- **DNS locale:** il router deve risolvere `cassa.gardenhub.it` (DNS locale o
+  eccezione al DNS rebinding). Poi in Firestore `config/fiscalizzazione`:
+  `proxy_url = https://cassa.gardenhub.it:8766`.
+- Il file di config va scritto **senza BOM** (lo fa già l'installer; il proxy
+  comunque lo legge con `utf-8-sig`).
 
 ## 5. Assegna i permessi
 

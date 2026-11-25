@@ -82,7 +82,8 @@ JOURNAL_PATH = os.path.join(BASE_DIR, "scontrini_emessi.jsonl")
 def carica_config() -> dict:
     if os.path.exists(CONFIG_PATH):
         try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            # utf-8-sig: l'installer Windows (PowerShell 5.1) scrive il JSON con BOM
+            with open(CONFIG_PATH, "r", encoding="utf-8-sig") as f:
                 dati = json.load(f)
             return {
                 "ip": dati.get("ip") or IP_DEFAULT,
@@ -90,10 +91,12 @@ def carica_config() -> dict:
                 "timeout": float(dati.get("timeout") or TIMEOUT_SOCKET),
                 "token": (dati.get("token") or "").strip(),
                 "host": (dati.get("host") or "").strip(),
+                "cert": (dati.get("cert") or "").strip(),
+                "key": (dati.get("key") or "").strip(),
             }
         except (OSError, ValueError, json.JSONDecodeError):
             pass
-    return {"ip": IP_DEFAULT, "porta": PORTA_DEFAULT, "timeout": TIMEOUT_SOCKET, "token": "", "host": ""}
+    return {"ip": IP_DEFAULT, "porta": PORTA_DEFAULT, "timeout": TIMEOUT_SOCKET, "token": "", "host": "", "cert": "", "key": ""}
 
 
 def salva_config(config: dict) -> None:
@@ -107,6 +110,11 @@ _config = carica_config()
 TOKEN = os.environ.get("ITALRETAIL_TOKEN", "").strip() or _config.get("token", "")
 # Interfaccia di ascolto: env PROXY_HOST → campo "host" nel config → loopback.
 HOST = os.environ.get("PROXY_HOST", "").strip() or _config.get("host", "").strip() or "127.0.0.1"
+# Certificato TLS: env PROXY_CERT/PROXY_KEY → campi "cert"/"key" del config →
+# proxy_cert.pem/proxy_key.pem accanto allo script. Serve per usare un
+# certificato vero (es. Let's Encrypt per cassa.gardenhub.it) rinnovato da fuori.
+CERT = os.environ.get("PROXY_CERT", "").strip() or _config.get("cert", "") or CERT
+KEY = os.environ.get("PROXY_KEY", "").strip() or _config.get("key", "") or KEY
 
 
 def _is_loopback(host: str) -> bool:
